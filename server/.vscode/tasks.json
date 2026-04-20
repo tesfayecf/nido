@@ -1,0 +1,46 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "server:build",
+            "command": "go",
+            "type": "shell",
+            "problemMatcher": "$go",
+            "args": [
+                "build",
+                "-o",
+                "${workspaceFolder}/.install/bin/server",
+                "${workspaceFolder}/app/main.go"
+            ],
+        },
+        {
+            "label": "garage:start",
+            "type": "shell",
+            "linux": {
+                "command": "${workspaceFolder}/third-party/garage/garage",
+                "args": [
+                    "-c",
+                    "${workspaceFolder}/config/garage.toml",
+                    "server"
+                ]
+            },
+            "isBackground": true,
+            "problemMatcher": {
+                "owner": "garage-logs",
+                "pattern": [
+                    {
+                        "regexp": ".",
+                        "file": 1,
+                        "location": 2,
+                        "message": 3
+                    }
+                ],
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": "garage_net::netapp: Listening on",
+                    "endsPattern": "garage_net::netapp: Listening on"
+                }
+            }
+        }
+    ]
+}

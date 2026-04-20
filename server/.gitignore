@@ -1,0 +1,7 @@
+.go
+.build
+
+go.work
+go.work.sum
+
+__debug_*

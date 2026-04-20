@@ -1,0 +1,20 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        // ----------------------------------------------------------------------
+        // App (NodeJS)
+        // ----------------------------------------------------------------------
+        {
+            "name": "app-debug",
+            "type": "node",
+            "request": "launch",
+            "runtimeExecutable": "pnpm",
+            "runtimeArgs": ["run", "vite:dev"],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "outFiles": ["${workspaceFolder}/.dist/**/*.js"],
+            "sourceMaps": true,
+            "resolveSourceMapLocations": ["${workspaceFolder}/src/**", "!**/node_modules/**"]
+        }
+    ]
+}
