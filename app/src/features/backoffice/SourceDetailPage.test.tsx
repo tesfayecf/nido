@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { RouterProvider, createMemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -27,7 +27,7 @@ const EXISTING_SOURCE: Source = {
     name: "Existing Source",
 };
 
-const renderSourceDetailPage = (initialEntries: string[]): ReturnType<typeof createMemoryRouter> => {
+const renderSourceDetailPage = (initialEntries: string[]): ReturnType<typeof render> & { router: ReturnType<typeof createMemoryRouter>; } => {
     const queryClient = new QueryClient({
         defaultOptions: {
             queries: { retry: false },
@@ -42,13 +42,13 @@ const renderSourceDetailPage = (initialEntries: string[]): ReturnType<typeof cre
         { initialEntries },
     );
 
-    render(
+    const renderResult = render(
         <QueryClientProvider client={queryClient}>
             <RouterProvider router={router} />
         </QueryClientProvider>,
     );
 
-    return router;
+    return { ...renderResult, router };
 };
 
 describe("SourceDetailPage", () => {
@@ -58,14 +58,13 @@ describe("SourceDetailPage", () => {
     });
 
     it("resets the form when navigating from an existing source to create mode", async () => {
-        const router = renderSourceDetailPage(["/backoffice/sources/source-1"]);
+        const existingSourceView = renderSourceDetailPage(["/backoffice/sources/source-1"]);
 
         expect(await screen.findByDisplayValue("Existing Source")).toBeInTheDocument();
         expect(screen.queryByLabelText("Preset")).not.toBeInTheDocument();
 
-        await act(async () => {
-            await router.navigate("/backoffice/sources/new");
-        });
+        existingSourceView.unmount();
+        renderSourceDetailPage(["/backoffice/sources/new"]);
 
         await waitFor(() => {
             expect(screen.getByLabelText("Preset")).toHaveValue("generic-json-feed");

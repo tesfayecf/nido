@@ -25,7 +25,7 @@ export const AppShell = (): JSX.Element => {
 
     return (
         <>
-            <a className={"skip-link"} href="#main-content">{"Skip to main content"}</a>
+            <a className={"skip-link"} href={"#main-content"}>{"Skip to main content"}</a>
             <div className={navOpen ? "app-shell app-shell--nav-open" : "app-shell"}>
                 <button
                     aria-hidden={!navOpen}

@@ -1,7 +1,7 @@
 import { useTheme } from "@/hooks/useTheme";
 import type { ThemePreference } from "@/hooks/useTheme";
 
-const options: ReadonlyArray<{ label: string; shortLabel: string; value: ThemePreference; }> = [
+const options: readonly { label: string; shortLabel: string; value: ThemePreference; }[] = [
     { label: "Light", shortLabel: "Light", value: "light" },
     { label: "Dark", shortLabel: "Dark", value: "dark" },
     { label: "System", shortLabel: "System", value: "system" },

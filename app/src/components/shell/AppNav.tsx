@@ -8,18 +8,18 @@ import { useSessionStore } from "@/stores/session.store";
 import { useShellStore } from "@/stores/shell.store";
 
 interface NavSection {
-    readonly items: ReadonlyArray<{ label: string; to: string; }>;
+    readonly items: readonly { label: string; to: string; }[];
     readonly title: string;
 }
 
-const publicSections: ReadonlyArray<NavSection> = [
+const publicSections: readonly NavSection[] = [
     {
         items: [{ label: "Listings", to: "/listings" }],
         title: "Explore",
     },
 ];
 
-const authenticatedSections: ReadonlyArray<NavSection> = [
+const authenticatedSections: readonly NavSection[] = [
     {
         items: [
             { label: "Bookmarks", to: "/bookmarks" },

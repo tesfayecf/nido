@@ -9,7 +9,7 @@ interface RouteMeta {
     readonly title: string;
 }
 
-const routeMeta: ReadonlyArray<[RegExp, RouteMeta]> = [
+const routeMeta: readonly [RegExp, RouteMeta][] = [
     [/^\/listings\/[^/]+$/, { description: "Inspect one listing without losing access to the market context.", section: "Explore", title: "Listing Detail" }],
     [/^\/listings$/, { description: "Search, compare, and monitor market activity with a focused analyst workflow.", section: "Explore", title: "Market Intelligence Explorer" }],
     [/^\/bookmarks$/, { description: "Review the listings you have explicitly saved for follow-up.", section: "Track", title: "Bookmarks" }],
