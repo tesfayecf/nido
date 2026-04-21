@@ -6,7 +6,7 @@ import { Link } from "react-router-dom";
 
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageCard } from "@/components/ui/PageCard";
-import { buildSparklinePoints, buildRegionBenchmarks, filterAndSortListings, getDaysOnMarket, isValueListing, priceDeltaRatio, summarizeListings } from "@/features/listings/listingInsights";
+import { buildSparklinePoints, buildRegionBenchmarks, filterAndSortListings, getBenchmarkKey, getDaysOnMarket, isValueListing, priceDeltaRatio, summarizeListings } from "@/features/listings/listingInsights";
 import { useMapBounds } from "@/features/listings/hooks/useMapBounds";
 import { usePropertyFilters } from "@/features/listings/hooks/usePropertyFilters";
 import { PriceHistoryModal } from "@/features/listings/components/PriceHistoryModal";
@@ -74,7 +74,7 @@ export const ListingsPage = (): JSX.Element => {
                             return;
                         }
 
-                        setUpdateToast(sourceId === "" ? "Fresh scraper results are available for the active market view." : `Fresh scraper results are available from ${sourceId}.`);
+                        setUpdateToast(buildUpdateToastMessage(sourceId));
                         void queryClient.invalidateQueries({ queryKey: listingKeys.list(requestFilters) });
                     },
                     signal: controller.signal,
@@ -290,6 +290,7 @@ export const ListingsPage = (): JSX.Element => {
                                             return null;
                                         }
 
+                                        const benchmarkKey = getBenchmarkKey(item.location);
                                         return (
                                             <div
                                                 className={"virtual-list__row"}
@@ -297,8 +298,8 @@ export const ListingsPage = (): JSX.Element => {
                                                 style={{ height: `${virtualItem.size}px`, transform: `translateY(${virtualItem.start}px)` }}
                                             >
                                                 <ListingRow
-                                                    benchmarkLabel={benchmarks.get(item.location.trim().toLowerCase() || "unknown")?.label ?? item.location}
-                                                    benchmarkSparkline={benchmarks.get(item.location.trim().toLowerCase() || "unknown")?.sparkline ?? [item.price_amount]}
+                                                    benchmarkLabel={benchmarks.get(benchmarkKey)?.label ?? item.location}
+                                                    benchmarkSparkline={benchmarks.get(benchmarkKey)?.sparkline ?? [item.price_amount]}
                                                     compareSelected={compareIds.includes(item.id)}
                                                     isValue={isValueListing(item, benchmarks)}
                                                     item={item}
@@ -505,4 +506,8 @@ const Metric = ({ label, value }: MetricProps): JSX.Element => {
             <strong className={"inline-metric__value"}>{value}</strong>
         </div>
     );
+};
+
+const buildUpdateToastMessage = (sourceId: string): string => {
+    return sourceId === "" ? "Fresh scraper results are available for the active market view." : `Fresh scraper results are available from ${sourceId}.`;
 };

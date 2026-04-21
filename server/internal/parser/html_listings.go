@@ -16,7 +16,7 @@ import (
 	"home-searcher/server/internal/platform/id"
 )
 
-var digitsPattern = regexp.MustCompile(`\d+`)
+var priceDigitsPattern = regexp.MustCompile(`\d+`)
 
 // HTMLListingsConfig describes how to extract listing cards from HTML pages.
 type HTMLListingsConfig struct {
@@ -182,12 +182,12 @@ func selectionText(selection *goquery.Selection) string {
 	return strings.Join(strings.Fields(selection.Text()), " ")
 }
 
-func selectionAttr(selection *goquery.Selection, attribute string) string {
+func selectionAttr(selection *goquery.Selection, attrName string) string {
 	if selection == nil || selection.Length() == 0 {
 		return ""
 	}
 
-	value, ok := selection.Attr(attribute)
+	value, ok := selection.Attr(attrName)
 	if !ok {
 		return ""
 	}
@@ -196,7 +196,7 @@ func selectionAttr(selection *goquery.Selection, attribute string) string {
 }
 
 func parsePriceAmount(value string) (int64, bool) {
-	matches := digitsPattern.FindAllString(value, -1)
+	matches := priceDigitsPattern.FindAllString(value, -1)
 	if len(matches) == 0 {
 		return 0, false
 	}

@@ -40,6 +40,7 @@ export interface RegionBenchmark {
 }
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
+const UNKNOWN_MARKET_LABEL = "Unknown market";
 
 /**
  * Calculates top-level pricing summary values.
@@ -155,7 +156,7 @@ export const buildRegionBenchmarks = (items: Listing[]): Map<string, RegionBench
                     averagePrice,
                     count: group.length,
                     key,
-                    label: group[0]?.location.trim() === "" ? "Unknown market" : group[0]?.location ?? "Unknown market",
+                    label: group[0]?.location.trim() === "" ? UNKNOWN_MARKET_LABEL : group[0]?.location ?? UNKNOWN_MARKET_LABEL,
                     sparkline,
                 },
             ];
@@ -253,4 +254,15 @@ export const buildPriceHistorySeries = (history: PriceEvent[], currentPrice: num
 const normalizeLocation = (location: string): string => {
     const trimmed = location.trim().toLowerCase();
     return trimmed === "" ? "unknown" : trimmed;
+};
+
+/**
+ * Normalizes a listing location to the benchmark key used by client-side
+ * market analytics.
+ *
+ * @param location The raw listing location string.
+ * @returns The normalized benchmark key.
+ */
+export const getBenchmarkKey = (location: string): string => {
+    return normalizeLocation(location);
 };
