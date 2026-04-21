@@ -48,13 +48,14 @@
     --space-3: 0.75rem;
     --space-4: 1rem;
     --space-5: 1.5rem;
+    --space-5-5: 1.75rem;
     --space-6: 2rem;
     --space-7: 3rem;
     --space-8: 4rem;
 
-    --radius-sm: 0.5rem;
-    --radius-md: 0.9rem;
-    --radius-lg: 1.4rem;
+    --radius-sm: 0.375rem;
+    --radius-md: 0.625rem;
+    --radius-lg: 1rem;
     --radius-pill: 999px;
 
     --container-md: 48rem;
