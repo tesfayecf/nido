@@ -29,7 +29,7 @@ import type { FieldSelector } from "@/services/properties/properties.types";
 
 const DEFAULT_FIELDS: FieldSelector[] = [
     { name: "price", required: true, selectors: [] },
-    { name: "title", required: true, selectors: [] },
+    { name: "title", required: false, selectors: [] },
     { name: "location", required: false, selectors: [] },
 ];
 

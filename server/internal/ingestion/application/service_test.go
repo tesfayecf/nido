@@ -47,7 +47,9 @@ func (s ingestionStoreStub) UpdateSourceRunState(context.Context, string, *time.
 	return nil
 }
 
-func (s ingestionStoreStub) CountRunsSince(context.Context, string, time.Time) (int, error) { return 0, nil }
+func (s ingestionStoreStub) CountRunsSince(context.Context, string, time.Time) (int, error) {
+	return 0, nil
+}
 
 func (s ingestionStoreStub) TryAcquireIngestionLock(context.Context, string, string, time.Time, time.Time) (bool, error) {
 	return false, nil
@@ -65,7 +67,9 @@ func (s ingestionStoreStub) FailRun(context.Context, string, time.Time, string, 
 	return nil
 }
 
-func (s ingestionStoreStub) ListRuns(context.Context, string, int) ([]domain.Run, error) { return nil, nil }
+func (s ingestionStoreStub) ListRuns(context.Context, string, int) ([]domain.Run, error) {
+	return nil, nil
+}
 
 func (s ingestionStoreStub) GetRun(ctx context.Context, runID string) (domain.Run, error) {
 	if s.getRunFn != nil {

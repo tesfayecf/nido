@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -1345,16 +1346,13 @@ func decodeSnapshotValues(raw string) map[string]string {
 }
 
 func parseSnapshotPrice(values map[string]string) int64 {
-	raw := strings.TrimSpace(values["price"])
+	raw := normalizeNumberString(values["price"])
 	if raw == "" {
 		return 0
 	}
-
-	var amount int64
-	for _, char := range raw {
-		if char >= '0' && char <= '9' {
-			amount = (amount * 10) + int64(char-'0')
-		}
+	amount, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil {
+		return 0
 	}
 	return amount
 }
@@ -1366,6 +1364,16 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+func normalizeNumberString(value string) string {
+	var digits strings.Builder
+	for _, char := range value {
+		if char >= '0' && char <= '9' {
+			digits.WriteRune(char)
+		}
+	}
+	return digits.String()
 }
 
 func normalizeJSONString(value string) string {

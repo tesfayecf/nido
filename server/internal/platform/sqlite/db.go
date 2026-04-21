@@ -47,52 +47,52 @@ func Migrate(ctx context.Context, db *sql.DB) error {
 		return fmt.Errorf("apply sqlite schema: %w", err)
 	}
 
-    for _, migration := range columnMigrations {
-        if err := ensureColumn(ctx, db, migration); err != nil {
-            return err
-        }
-    }
+	for _, migration := range columnMigrations {
+		if err := ensureColumn(ctx, db, migration); err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
 
 type columnMigration struct {
-    table      string
-    column     string
-    definition string
+	table      string
+	column     string
+	definition string
 }
 
 func ensureColumn(ctx context.Context, db *sql.DB, migration columnMigration) error {
-    rows, err := db.QueryContext(ctx, fmt.Sprintf("PRAGMA table_info(%s)", migration.table))
-    if err != nil {
-        return fmt.Errorf("inspect table %q: %w", migration.table, err)
-    }
-    defer rows.Close()
+	rows, err := db.QueryContext(ctx, fmt.Sprintf("PRAGMA table_info(%s)", migration.table))
+	if err != nil {
+		return fmt.Errorf("inspect table %q: %w", migration.table, err)
+	}
+	defer rows.Close()
 
-    for rows.Next() {
-        var (
-            cid       int
-            name      string
-            dataType  string
-            notNull   int
-            defaultV  sql.NullString
-            primaryKey int
-        )
+	for rows.Next() {
+		var (
+			cid        int
+			name       string
+			dataType   string
+			notNull    int
+			defaultV   sql.NullString
+			primaryKey int
+		)
 
-        if err := rows.Scan(&cid, &name, &dataType, &notNull, &defaultV, &primaryKey); err != nil {
-            return fmt.Errorf("scan table info for %q: %w", migration.table, err)
-        }
+		if err := rows.Scan(&cid, &name, &dataType, &notNull, &defaultV, &primaryKey); err != nil {
+			return fmt.Errorf("scan table info for %q: %w", migration.table, err)
+		}
 
-        if name == migration.column {
-            return nil
-        }
-    }
+		if name == migration.column {
+			return nil
+		}
+	}
 
-    if _, err := db.ExecContext(ctx, fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", migration.table, migration.column, migration.definition)); err != nil {
-        return fmt.Errorf("add column %q.%q: %w", migration.table, migration.column, err)
-    }
+	if _, err := db.ExecContext(ctx, fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", migration.table, migration.column, migration.definition)); err != nil {
+		return fmt.Errorf("add column %q.%q: %w", migration.table, migration.column, err)
+	}
 
-    return nil
+	return nil
 }
 
 const schema = `

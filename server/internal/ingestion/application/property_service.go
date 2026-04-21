@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -427,11 +428,22 @@ func validatePropertyURL(rawURL string) error {
 	if parsed.Host == "" {
 		return fmt.Errorf("property URL host is required")
 	}
+	if err := validateFetchHost(parsed.Hostname()); err != nil {
+		return err
+	}
 	return nil
 }
 
 func fetchHTML(ctx context.Context, targetURL string) ([]byte, error) {
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, targetURL, nil)
+	parsed, err := url.Parse(strings.TrimSpace(targetURL))
+	if err != nil {
+		return nil, err
+	}
+	if err := validateFetchHost(parsed.Hostname()); err != nil {
+		return nil, err
+	}
+
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, parsed.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -451,6 +463,22 @@ func fetchHTML(ctx context.Context, targetURL string) ([]byte, error) {
 		return nil, err
 	}
 	return body, nil
+}
+
+func validateFetchHost(host string) error {
+	host = strings.TrimSpace(strings.ToLower(host))
+	if host == "" {
+		return fmt.Errorf("property URL host is required")
+	}
+	if host == "localhost" {
+		return fmt.Errorf("localhost is not allowed")
+	}
+	if ip := net.ParseIP(host); ip != nil {
+		if ip.IsPrivate() || ip.IsLinkLocalMulticast() || ip.IsLinkLocalUnicast() || ip.IsMulticast() || ip.IsUnspecified() {
+			return fmt.Errorf("private network hosts are not allowed")
+		}
+	}
+	return nil
 }
 
 func applySelectors(body []byte, fields []ingestiondomain.FieldSelector) (map[string]string, []string) {

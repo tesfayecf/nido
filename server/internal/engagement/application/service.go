@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"strings"
 	"time"
 
@@ -272,19 +273,18 @@ func extractPriceAmount(values map[string]string) (int64, bool) {
 		return 0, false
 	}
 
-	var digits strings.Builder
+	var amountBuilder strings.Builder
 	for _, char := range raw {
 		if char >= '0' && char <= '9' {
-			digits.WriteRune(char)
+			amountBuilder.WriteRune(char)
 		}
 	}
-	if digits.Len() == 0 {
+	if amountBuilder.Len() == 0 {
 		return 0, false
 	}
-
-	var amount int64
-	for _, char := range digits.String() {
-		amount = (amount * 10) + int64(char-'0')
+	amount, err := strconv.ParseInt(amountBuilder.String(), 10, 64)
+	if err != nil {
+		return 0, false
 	}
 	return amount, true
 }
