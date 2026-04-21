@@ -1,15 +1,12 @@
-/**
- * Mirrors the backend source payload.
- */
 export interface Source {
-    readonly active: boolean;
-    readonly browser_enabled: boolean;
+    readonly active?: boolean;
+    readonly browser_enabled?: boolean;
     readonly config_json?: string;
     readonly created_at?: string;
-    readonly endpoint_url: string;
+    readonly endpoint_url?: string;
     readonly freshness_window_seconds?: number;
     readonly id: string;
-    readonly kind: string;
+    readonly kind?: string;
     readonly last_run_at?: string;
     readonly name: string;
     readonly next_run_at?: string;

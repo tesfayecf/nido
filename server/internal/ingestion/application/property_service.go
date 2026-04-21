@@ -33,7 +33,15 @@ type PropertyStore interface {
 	GetLatestPropertyConfig(ctx context.Context, propertyID string) (ingestiondomain.PropertyExtractionConfig, error)
 	CreatePropertySnapshot(ctx context.Context, snapshot ingestiondomain.PropertySnapshot) error
 	ListPropertySnapshots(ctx context.Context, propertyID string, limit int) ([]ingestiondomain.PropertySnapshot, error)
+	ListAllPropertySnapshots(ctx context.Context, propertyID string, limit int) ([]ingestiondomain.PropertySnapshot, error)
+	GetPropertySnapshot(ctx context.Context, snapshotID string) (ingestiondomain.PropertySnapshot, error)
 	GetLastValidPropertySnapshot(ctx context.Context, propertyID string) (ingestiondomain.PropertySnapshot, error)
+	GetSource(ctx context.Context, sourceID string) (ingestiondomain.Source, error)
+}
+
+// PropertyRunProcessor reacts to completed property runs.
+type PropertyRunProcessor interface {
+	ProcessPropertyRun(ctx context.Context, propertyID string, current, previous ingestiondomain.PropertySnapshot) (int, error)
 }
 
 // PropertyService orchestrates property registration, extraction configuration, and snapshot ingestion.
@@ -41,7 +49,7 @@ type PropertyService struct {
 	logger  *slog.Logger
 	store   PropertyStore
 	clock   Clock
-	changes ChangeProcessor
+	changes PropertyRunProcessor
 	events  Publisher
 }
 
@@ -50,7 +58,7 @@ func NewPropertyService(
 	logger *slog.Logger,
 	store PropertyStore,
 	clock Clock,
-	changes ChangeProcessor,
+	changes PropertyRunProcessor,
 	events Publisher,
 ) *PropertyService {
 	resolvedClock := clock
@@ -69,7 +77,7 @@ func NewPropertyService(
 
 // EnsureProperty validates and upserts a property definition.
 func (s *PropertyService) EnsureProperty(ctx context.Context, property ingestiondomain.Property) (ingestiondomain.Property, error) {
-	normalized, err := s.normalizeAndValidateProperty(property)
+	normalized, err := s.normalizeAndValidateProperty(ctx, property)
 	if err != nil {
 		return ingestiondomain.Property{}, err
 	}
@@ -121,14 +129,39 @@ func (s *PropertyService) UpsertPropertyConfig(ctx context.Context, propertyID s
 	return config, nil
 }
 
-// GetLatestPropertyConfig returns the most recent extraction config for a property.
+// GetLatestPropertyConfig returns the effective extraction config for a property.
 func (s *PropertyService) GetLatestPropertyConfig(ctx context.Context, propertyID string) (ingestiondomain.PropertyExtractionConfig, error) {
-	return s.store.GetLatestPropertyConfig(ctx, propertyID)
+	property, err := s.store.GetProperty(ctx, propertyID)
+	if err != nil {
+		return ingestiondomain.PropertyExtractionConfig{}, err
+	}
+
+	config, err := s.store.GetLatestPropertyConfig(ctx, propertyID)
+	if err != nil {
+		return ingestiondomain.PropertyExtractionConfig{}, err
+	}
+
+	config.PropertyID = propertyID
+	config.Fields, err = s.resolveFields(ctx, property.SourceID, config.Fields)
+	if err != nil {
+		return ingestiondomain.PropertyExtractionConfig{}, err
+	}
+	return config, nil
 }
 
-// ListPropertySnapshots returns recent snapshots for a property.
+// ListPropertySnapshots returns recent runs for a property.
 func (s *PropertyService) ListPropertySnapshots(ctx context.Context, propertyID string, limit int) ([]ingestiondomain.PropertySnapshot, error) {
 	return s.store.ListPropertySnapshots(ctx, propertyID, limit)
+}
+
+// ListRuns returns recent runs across all properties.
+func (s *PropertyService) ListRuns(ctx context.Context, propertyID string, limit int) ([]ingestiondomain.PropertySnapshot, error) {
+	return s.store.ListAllPropertySnapshots(ctx, propertyID, limit)
+}
+
+// GetRun returns a single run by identifier.
+func (s *PropertyService) GetRun(ctx context.Context, runID string) (ingestiondomain.PropertySnapshot, error) {
+	return s.store.GetPropertySnapshot(ctx, runID)
 }
 
 // PreviewExtraction fetches and applies selectors without persisting any state.
@@ -165,16 +198,21 @@ func (s *PropertyService) IngestProperty(ctx context.Context, propertyID string)
 	if err != nil {
 		return ingestiondomain.PropertySnapshot{}, err
 	}
+	config.Fields, err = s.resolveFields(ctx, property.SourceID, config.Fields)
+	if err != nil {
+		return ingestiondomain.PropertySnapshot{}, err
+	}
+	if len(config.Fields) == 0 {
+		return ingestiondomain.PropertySnapshot{}, fmt.Errorf("property extraction config is required")
+	}
 
 	now := s.clock.Now().UTC()
+	lastValid, _ := s.store.GetLastValidPropertySnapshot(ctx, propertyID)
 
-	// Fetch the property page.
 	body, fetchErr := fetchHTML(ctx, property.URL)
-
 	if fetchErr != nil {
-		// Record a failed snapshot preserving the last valid data.
 		snapshot := ingestiondomain.PropertySnapshot{
-			ID:            id.New("psnap"),
+			ID:            id.New("run"),
 			PropertyID:    propertyID,
 			ConfigVersion: config.Version,
 			ObservedAt:    now,
@@ -185,20 +223,17 @@ func (s *PropertyService) IngestProperty(ctx context.Context, propertyID string)
 		}
 		_ = s.store.CreatePropertySnapshot(ctx, snapshot)
 		_ = s.store.UpdatePropertyRunState(ctx, propertyID, ingestiondomain.PropertyStatusDegraded, &now, nextPropertyRunAt(now, property.ScheduleInterval()))
-		s.emit("property.ingest.failed", map[string]any{"property_id": propertyID, "error": fetchErr.Error()})
+		s.emit("property.run.failed", map[string]any{"property_id": propertyID, "error": fetchErr.Error()})
 
 		return snapshot, nil
 	}
 
 	values, failures := applySelectors(body, config.Fields)
-
-	// Determine validity: all required fields must be present.
 	isValid := true
 	for _, field := range config.Fields {
 		if field.Required {
 			if v, ok := values[field.Name]; !ok || strings.TrimSpace(v) == "" {
 				isValid = false
-
 				break
 			}
 		}
@@ -209,32 +244,27 @@ func (s *PropertyService) IngestProperty(ctx context.Context, propertyID string)
 		errorMessage = strings.Join(failures, "; ")
 	}
 
-	// Build change flags by comparing with the last valid snapshot.
 	changeFlags := map[string]bool{}
-	lastValid, _ := s.store.GetLastValidPropertySnapshot(ctx, propertyID)
 	if lastValid.ID != "" && lastValid.IsValid {
-		var previousValues map[string]string
-		if err := json.Unmarshal(lastValid.Values, &previousValues); err == nil {
-			for k, newVal := range values {
-				if oldVal, ok := previousValues[k]; ok && oldVal != newVal {
-					changeFlags[k] = true
-				}
+		previousValues := decodeSnapshotValues(lastValid.Values)
+		for key, newValue := range values {
+			if oldValue, ok := previousValues[key]; ok && oldValue != newValue {
+				changeFlags[key] = true
 			}
 		}
 	}
 
 	valuesJSON, _ := json.Marshal(values)
 	changeFlagsJSON, _ := json.Marshal(changeFlags)
-
 	status := ingestiondomain.PropertyStatusActive
 	if !isValid {
 		status = ingestiondomain.PropertyStatusDegraded
 	}
 
 	snapshot := ingestiondomain.PropertySnapshot{
-		ID:            id.New("psnap"),
+		ID:            id.New("run"),
 		PropertyID:    propertyID,
-		ConfigVersion: config.Version,
+		ConfigVersion: max(config.Version, 1),
 		ObservedAt:    now,
 		Values:        json.RawMessage(valuesJSON),
 		ChangeFlags:   json.RawMessage(changeFlagsJSON),
@@ -251,10 +281,16 @@ func (s *PropertyService) IngestProperty(ctx context.Context, propertyID string)
 		return ingestiondomain.PropertySnapshot{}, err
 	}
 
-	s.emit("property.ingest.completed", map[string]any{
-		"property_id":   propertyID,
-		"is_valid":      isValid,
-		"change_count":  len(changeFlags),
+	if s.changes != nil {
+		if _, err := s.changes.ProcessPropertyRun(ctx, propertyID, snapshot, lastValid); err != nil {
+			return ingestiondomain.PropertySnapshot{}, err
+		}
+	}
+
+	s.emit("property.run.completed", map[string]any{
+		"property_id":  propertyID,
+		"is_valid":     isValid,
+		"change_count": len(changeFlags),
 	})
 
 	if s.logger != nil {
@@ -269,35 +305,102 @@ func (s *PropertyService) IngestProperty(ctx context.Context, propertyID string)
 }
 
 // normalizeAndValidateProperty applies defaults and validates the property before save.
-func (s *PropertyService) normalizeAndValidateProperty(property ingestiondomain.Property) (ingestiondomain.Property, error) {
+func (s *PropertyService) normalizeAndValidateProperty(ctx context.Context, property ingestiondomain.Property) (ingestiondomain.Property, error) {
 	if err := validatePropertyURL(property.URL); err != nil {
 		return ingestiondomain.Property{}, err
 	}
+	property.SourceID = strings.TrimSpace(property.SourceID)
+	if property.SourceID != "" {
+		if _, err := s.store.GetSource(ctx, property.SourceID); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return ingestiondomain.Property{}, fmt.Errorf("source not found")
+			}
+			return ingestiondomain.Property{}, err
+		}
+	}
 
 	now := s.clock.Now().UTC()
-
 	if property.ID == "" {
 		property.ID = id.New("prop")
 	}
-
 	if property.Status == "" {
 		property.Status = ingestiondomain.PropertyStatusPending
 	}
-
 	if property.RetryMaxAttempts <= 0 {
 		property.RetryMaxAttempts = 1
 	}
-
 	if property.RetryBackoffMillis <= 0 {
 		property.RetryBackoffMillis = 500
 	}
-
 	property.UpdatedAt = now
 	if property.CreatedAt.IsZero() {
 		property.CreatedAt = now
 	}
 
 	return property, nil
+}
+
+func (s *PropertyService) resolveFields(ctx context.Context, sourceID string, customFields []ingestiondomain.FieldSelector) ([]ingestiondomain.FieldSelector, error) {
+	resolved := make([]ingestiondomain.FieldSelector, 0)
+	indexByName := make(map[string]int)
+
+	if strings.TrimSpace(sourceID) != "" {
+		source, err := s.store.GetSource(ctx, sourceID)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return nil, err
+		}
+		for _, field := range fieldsFromSource(source) {
+			field.Name = strings.TrimSpace(field.Name)
+			if field.Name == "" {
+				continue
+			}
+			indexByName[field.Name] = len(resolved)
+			resolved = append(resolved, field)
+		}
+	}
+
+	for _, field := range customFields {
+		field.Name = strings.TrimSpace(field.Name)
+		if field.Name == "" {
+			continue
+		}
+		if idx, ok := indexByName[field.Name]; ok {
+			resolved[idx] = field
+			continue
+		}
+		indexByName[field.Name] = len(resolved)
+		resolved = append(resolved, field)
+	}
+
+	return resolved, nil
+}
+
+func fieldsFromSource(source ingestiondomain.Source) []ingestiondomain.FieldSelector {
+	if strings.TrimSpace(source.ConfigJSON) == "" {
+		return nil
+	}
+	var fields []ingestiondomain.FieldSelector
+	if err := json.Unmarshal([]byte(source.ConfigJSON), &fields); err == nil {
+		return fields
+	}
+	var payload struct {
+		Fields []ingestiondomain.FieldSelector `json:"fields"`
+	}
+	if err := json.Unmarshal([]byte(source.ConfigJSON), &payload); err == nil {
+		return payload.Fields
+	}
+	return nil
+}
+
+func decodeSnapshotValues(values json.RawMessage) map[string]string {
+	if len(values) == 0 {
+		return map[string]string{}
+	}
+	decoded := make(map[string]string)
+	if err := json.Unmarshal(values, &decoded); err != nil {
+		return map[string]string{}
+	}
+	return decoded
 }
 
 // emit publishes a named event if a broker is wired.
@@ -318,138 +421,107 @@ func validatePropertyURL(rawURL string) error {
 	if err != nil {
 		return fmt.Errorf("invalid property URL: %w", err)
 	}
-
 	if parsed.Scheme != "http" && parsed.Scheme != "https" {
-		return fmt.Errorf("property URL must use http or https scheme")
+		return fmt.Errorf("property URL must use http or https")
 	}
-
 	if parsed.Host == "" {
-		return fmt.Errorf("property URL must include a host")
+		return fmt.Errorf("property URL host is required")
 	}
-
 	return nil
 }
 
-// fetchHTML fetches the HTML at the given URL using a plain HTTP client.
-func fetchHTML(ctx context.Context, rawURL string) ([]byte, error) {
-	parsed, err := url.Parse(rawURL)
+func fetchHTML(ctx context.Context, targetURL string) ([]byte, error) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, targetURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("parse url: %w", err)
+		return nil, err
 	}
 
-	// Rebuild from the parsed struct to prevent SSRF via raw input.
-	safeURL := parsed.String()
-
-	reqCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
-	defer cancel()
-
-	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, safeURL, nil)
+	response, err := http.DefaultClient.Do(request)
 	if err != nil {
-		return nil, fmt.Errorf("build request: %w", err)
+		return nil, err
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return nil, fmt.Errorf("unexpected status %d", response.StatusCode)
 	}
 
-	req.Header.Set("User-Agent", "home-searcher/1.0 (+https://github.com/tesfayecf/home-searcher)")
-
-	resp, err := http.DefaultClient.Do(req)
+	body, err := io.ReadAll(response.Body)
 	if err != nil {
-		return nil, fmt.Errorf("http get: %w", err)
+		return nil, err
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("http %d fetching page", resp.StatusCode)
-	}
-
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 5*1024*1024))
-	if err != nil {
-		return nil, fmt.Errorf("read body: %w", err)
-	}
-
 	return body, nil
 }
 
-// applySelectors applies the FieldSelector list to the HTML body using goquery.
 func applySelectors(body []byte, fields []ingestiondomain.FieldSelector) (map[string]string, []string) {
-	values := make(map[string]string)
-	failures := make([]string, 0)
-
-	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(body))
+	document, err := goquery.NewDocumentFromReader(bytes.NewReader(body))
 	if err != nil {
-		return values, []string{"failed to parse HTML: " + err.Error()}
+		return map[string]string{}, []string{fmt.Sprintf("parse html: %v", err)}
 	}
 
+	values := make(map[string]string, len(fields))
+	failures := make([]string, 0)
 	for _, field := range fields {
-		extracted := ""
-		matched := false
-
-		for _, sel := range field.Selectors {
-			selection := doc.Find(sel)
-			if selection.Length() == 0 {
-				continue
-			}
-
-			if field.Attribute != "" {
-				val, exists := selection.First().Attr(field.Attribute)
-				if exists {
-					extracted = strings.TrimSpace(val)
-					matched = true
-				}
-			} else {
-				extracted = strings.TrimSpace(selection.First().Text())
-				matched = true
-			}
-
-			if matched {
-				break
-			}
-		}
-
-		if !matched {
-			if field.Required {
-				failures = append(failures, fmt.Sprintf("%s: no matching element found", field.Name))
-			}
-
+		value, ok := selectFieldValue(document, field)
+		if !ok {
+			failures = append(failures, fmt.Sprintf("%s: no selector matched", field.Name))
 			continue
 		}
-
-		// Apply basic transforms.
-		switch strings.ToLower(field.Transform) {
-		case "number":
-			extracted = extractNumber(extracted)
-		case "trim":
-			extracted = strings.TrimSpace(extracted)
-		}
-
-		values[field.Name] = extracted
+		values[field.Name] = value
 	}
-
 	return values, failures
 }
 
-// extractNumber strips non-numeric characters, keeping only digits and one decimal point.
-func extractNumber(s string) string {
-	var out strings.Builder
-	hasDot := false
+func selectFieldValue(document *goquery.Document, field ingestiondomain.FieldSelector) (string, bool) {
+	for _, selector := range field.Selectors {
+		selection := document.Find(selector).First()
+		if selection.Length() == 0 {
+			continue
+		}
 
-	for _, ch := range s {
-		if ch >= '0' && ch <= '9' {
-			out.WriteRune(ch)
-		} else if (ch == '.' || ch == ',') && !hasDot {
-			out.WriteRune('.')
-			hasDot = true
+		value := strings.TrimSpace(selection.Text())
+		if strings.TrimSpace(field.Attribute) != "" {
+			attributeValue, ok := selection.Attr(field.Attribute)
+			if !ok {
+				continue
+			}
+			value = strings.TrimSpace(attributeValue)
+		}
+
+		switch strings.TrimSpace(strings.ToLower(field.Transform)) {
+		case "number":
+			value = normalizeNumberString(value)
+		case "trim", "":
+		}
+
+		if value != "" {
+			return value, true
 		}
 	}
-
-	return out.String()
+	return "", false
 }
 
-// nextPropertyRunAt computes the next scheduled run time for a property.
-func nextPropertyRunAt(from time.Time, interval time.Duration) *time.Time {
+func normalizeNumberString(value string) string {
+	var digits strings.Builder
+	for _, char := range value {
+		if char >= '0' && char <= '9' {
+			digits.WriteRune(char)
+		}
+	}
+	return digits.String()
+}
+
+func nextPropertyRunAt(now time.Time, interval time.Duration) *time.Time {
 	if interval <= 0 {
 		return nil
 	}
+	nextRun := now.Add(interval)
+	return &nextRun
+}
 
-	next := from.Add(interval)
-
-	return &next
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }

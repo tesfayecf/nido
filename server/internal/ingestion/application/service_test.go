@@ -41,6 +41,8 @@ func (s ingestionStoreStub) GetSource(ctx context.Context, sourceID string) (dom
 	return domain.Source{}, nil
 }
 
+func (s ingestionStoreStub) DeleteSource(context.Context, string) error { return nil }
+
 func (s ingestionStoreStub) UpdateSourceRunState(context.Context, string, *time.Time, *time.Time) error {
 	return nil
 }
@@ -104,7 +106,7 @@ func TestServiceEnsureSourceNormalizesAndReturnsStoredShape(t *testing.T) {
 		t.Fatalf("ensure source: %v", err)
 	}
 
-	if source.ConfigJSON != "{}" {
+	if source.ConfigJSON != "[]" {
 		t.Fatalf("expected default config json, got %q", source.ConfigJSON)
 	}
 	if !source.CreatedAt.Equal(now) || !source.UpdatedAt.Equal(now) {
@@ -115,24 +117,22 @@ func TestServiceEnsureSourceNormalizesAndReturnsStoredShape(t *testing.T) {
 	}
 }
 
-func TestServiceEnsureSourceValidatesHTMLListingsConfig(t *testing.T) {
+func TestServiceEnsureSourceRejectsInvalidJSONConfig(t *testing.T) {
 	t.Parallel()
 
 	now := time.Date(2026, time.April, 21, 12, 0, 0, 0, time.UTC)
-	service, err := NewService(nil, ingestionStoreStub{}, nil, []Connector{validatorConnector{kind: "html-listings"}}, fixedClock{now: now}, 0, nil, nil)
+	service, err := NewService(nil, ingestionStoreStub{}, nil, nil, fixedClock{now: now}, 0, nil, nil)
 	if err != nil {
 		t.Fatalf("new service: %v", err)
 	}
 
 	_, err = service.EnsureSource(context.Background(), domain.Source{
-		EndpointURL: "https://www.idealista.com/ca/venta-viviendas/girona/girones/",
-		ID:          "idealista-girones",
-		Kind:        "html-listings",
-		Name:        "Idealista Girones",
-		ConfigJSON:  `{"item_selector":"article.item","title_selector":"a.item-link"}`,
+		ID:         "template-1",
+		Name:       "Template One",
+		ConfigJSON: `{`,
 	})
-	if err == nil || !strings.Contains(err.Error(), "url_selector") {
-		t.Fatalf("expected url_selector validation error, got %v", err)
+	if err == nil || !strings.Contains(err.Error(), "valid json") {
+		t.Fatalf("expected json validation error, got %v", err)
 	}
 }
 
@@ -198,28 +198,4 @@ func (stubConnector) Fetch(context.Context, domain.Source) (FetchResult, error) 
 
 func (stubConnector) Parse(context.Context, domain.Source, []byte) ([]domain.CandidateListing, error) {
 	return nil, nil
-}
-
-type validatorConnector struct {
-	kind string
-}
-
-func (c validatorConnector) Kind() string {
-	return c.kind
-}
-
-func (validatorConnector) Fetch(context.Context, domain.Source) (FetchResult, error) {
-	return FetchResult{}, nil
-}
-
-func (validatorConnector) Parse(context.Context, domain.Source, []byte) ([]domain.CandidateListing, error) {
-	return nil, nil
-}
-
-func (validatorConnector) ValidateSource(source domain.Source) error {
-	if !strings.Contains(source.ConfigJSON, "url_selector") {
-		return errors.New("html listings url_selector is required")
-	}
-
-	return nil
 }

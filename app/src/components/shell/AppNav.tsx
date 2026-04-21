@@ -12,40 +12,23 @@ interface NavSection {
     readonly title: string;
 }
 
-const publicSections: readonly NavSection[] = [
-    {
-        items: [{ label: "Listings", to: "/listings" }],
-        title: "Explore",
-    },
-];
-
 const authenticatedSections: readonly NavSection[] = [
     {
-        items: [
-            { label: "Bookmarks", to: "/bookmarks" },
-            { label: "Watchlists", to: "/watchlists" },
-            { label: "Alerts", to: "/alerts" },
-            { label: "Notifications", to: "/notifications" },
-        ],
+        items: [{ label: "Properties", to: "/properties" }],
         title: "Track",
     },
     {
         items: [
-            { label: "Properties", to: "/properties" },
-            { label: "Sources", to: "/backoffice/sources" },
-            { label: "Runs", to: "/backoffice/runs" },
+            { label: "Sources", to: "/sources" },
+            { label: "Runs", to: "/runs" },
+            { label: "Bookmarks", to: "/bookmarks" },
+            { label: "Alerts", to: "/alerts" },
+            { label: "Notifications", to: "/notifications" },
         ],
-        title: "Operate",
+        title: "Manage",
     },
 ];
 
-/**
- * Renders the primary application navigation.
- *
- * Navigation is intentionally dense and sectioned so iteration 1 can expose the
- * explorer, personal tracking, and backoffice surfaces without excessive UI
- * scaffolding.
- */
 export const AppNav = (): JSX.Element => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
@@ -66,13 +49,12 @@ export const AppNav = (): JSX.Element => {
             void navigate("/login");
         },
     });
-    const sections = isAuthenticated ? [...publicSections, ...authenticatedSections] : publicSections;
 
     return (
         <aside className={"app-nav"}>
             <div className={"app-nav__brand"}>
                 <div>
-                    <span className={"app-nav__eyebrow"}>{"Market Workspace"}</span>
+                    <span className={"app-nav__eyebrow"}>{"Property Tracker"}</span>
                     <h2>{"Home Searcher"}</h2>
                 </div>
                 <button
@@ -88,7 +70,7 @@ export const AppNav = (): JSX.Element => {
             </div>
 
             <nav aria-label={"Primary"} className={"app-nav__sections"}>
-                {sections.map((section) => {
+                {authenticatedSections.map((section) => {
                     return (
                         <section className={"app-nav__section"} key={section.title}>
                             <p className={"app-nav__section-label"}>{section.title}</p>
@@ -127,7 +109,7 @@ export const AppNav = (): JSX.Element => {
                     </>
                 ) : (
                     <div className={"app-nav__identity"}>
-                        <span className={"muted-copy"}>{"Personal tracking and backoffice flows require a bearer session."}</span>
+                        <span className={"muted-copy"}>{"Sign in to manage tracked properties, runs, and notifications."}</span>
                         <NavLink className={"button"} to={"/login"}>{"Sign in"}</NavLink>
                     </div>
                 )}
@@ -141,12 +123,6 @@ interface NavItemProps {
     readonly to: string;
 }
 
-/**
- * Renders one navigation link with active-state styling.
- *
- * @param props The navigation item properties.
- * @returns One navigation link.
- */
 const NavItem = ({ children, to }: NavItemProps): JSX.Element => {
     return (
         <NavLink

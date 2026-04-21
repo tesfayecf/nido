@@ -9,46 +9,37 @@ import type { Source } from "@/services/backoffice-sources/sources.types";
 const getSourceMock = vi.fn<(sourceId: string) => Promise<Source>>();
 
 vi.mock("@/services/backoffice-sources/sources.service", () => ({
+    deleteSource: vi.fn(),
     getSource: (sourceId: string) => getSourceMock(sourceId),
     upsertSource: vi.fn(),
 }));
 
-vi.mock("@/services/backoffice-runs/runs.service", () => ({
-    ingestSource: vi.fn(),
-}));
-
 const EXISTING_SOURCE: Source = {
-    active: true,
-    browser_enabled: false,
-    config_json: '{"mode":"existing"}',
-    endpoint_url: "https://example.test/feed.json",
+    config_json: '[{"name":"price","selectors":[".price"],"required":true}]',
     id: "source-1",
-    kind: "http-json-feed",
     name: "Existing Source",
 };
 
-const renderSourceDetailPage = (initialEntries: string[]): ReturnType<typeof render> & { router: ReturnType<typeof createMemoryRouter>; } => {
+const renderSourceDetailPage = (initialEntries: string[]): ReturnType<typeof render> => {
     const queryClient = new QueryClient({
         defaultOptions: {
-            queries: { retry: false },
             mutations: { retry: false },
+            queries: { retry: false },
         },
     });
     const router = createMemoryRouter(
         [
-            { path: "/backoffice/sources/new", element: <SourceDetailPage /> },
-            { path: "/backoffice/sources/:sourceId", element: <SourceDetailPage /> },
+            { path: "/sources/new", element: <SourceDetailPage /> },
+            { path: "/sources/:sourceId", element: <SourceDetailPage /> },
         ],
         { initialEntries },
     );
 
-    const renderResult = render(
+    return render(
         <QueryClientProvider client={queryClient}>
             <RouterProvider router={router} />
         </QueryClientProvider>,
     );
-
-    return { ...renderResult, router };
 };
 
 describe("SourceDetailPage", () => {
@@ -58,46 +49,31 @@ describe("SourceDetailPage", () => {
     });
 
     it("resets the form when navigating from an existing source to create mode", async () => {
-        const existingSourceView = renderSourceDetailPage(["/backoffice/sources/source-1"]);
+        const existingSourceView = renderSourceDetailPage(["/sources/source-1"]);
 
         expect(await screen.findByDisplayValue("Existing Source")).toBeInTheDocument();
-        expect(screen.queryByLabelText("Preset")).not.toBeInTheDocument();
 
         existingSourceView.unmount();
-        renderSourceDetailPage(["/backoffice/sources/new"]);
-
-        expect(await screen.findByLabelText("Preset")).toHaveValue("generic-json-feed");
+        renderSourceDetailPage(["/sources/new"]);
 
         await waitFor(() => {
-            expect(screen.getByLabelText("Preset")).toHaveValue("generic-json-feed");
             expect(screen.getByLabelText("Id")).toHaveValue("");
             expect(screen.getByLabelText("Name")).toHaveValue("");
-            expect(screen.getByLabelText("Config JSON")).toHaveValue("{}");
+            expect(screen.getByLabelText("Selectors JSON")).toHaveValue("[]");
         });
     });
 
-    it("applies create presets without overwriting editable identity fields", async () => {
-        renderSourceDetailPage(["/backoffice/sources/new"]);
+    it("keeps manual source fields editable in create mode", async () => {
+        renderSourceDetailPage(["/sources/new"]);
 
-        fireEvent.change(screen.getByLabelText("Id"), { target: { value: "idealista-bilbao" } });
-        fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Idealista Bilbao" } });
-        fireEvent.change(screen.getByLabelText("Endpoint URL"), { target: { value: "https://www.idealista.com/venta-viviendas/bilbao-vizcaya/" } });
-        fireEvent.change(screen.getByLabelText("Preset"), { target: { value: "idealista-search" } });
+        fireEvent.change(screen.getByLabelText("Id"), { target: { value: "idealista-template" } });
+        fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Idealista Template" } });
+        fireEvent.change(screen.getByLabelText("Selectors JSON"), { target: { value: '[{"name":"price","selectors":[".price"],"required":true}]' } });
 
         await waitFor(() => {
-            expect(screen.getByLabelText("Kind")).toHaveValue("html-listings");
-            expect(screen.getByLabelText("Browser enabled")).toBeChecked();
-            expect(screen.getByLabelText("Id")).toHaveValue("idealista-bilbao");
-            expect(screen.getByLabelText("Name")).toHaveValue("Idealista Bilbao");
-            expect(screen.getByLabelText("Endpoint URL")).toHaveValue("https://www.idealista.com/venta-viviendas/bilbao-vizcaya/");
+            expect(screen.getByLabelText("Id")).toHaveValue("idealista-template");
+            expect(screen.getByLabelText("Name")).toHaveValue("Idealista Template");
+            expect(screen.getByLabelText("Selectors JSON")).toHaveValue('[{"name":"price","selectors":[".price"],"required":true}]');
         });
-
-        const configField = screen.getByLabelText("Config JSON") as HTMLTextAreaElement;
-        expect(configField.value).toContain('"item_selector": "article.item"');
-        expect(configField.value).toContain('"title_selector": "a.item-link"');
-        expect(configField.value).toContain('"external_id_attribute": "data-element-id"');
-        expect(configField.value).toContain('"base_url": "https://www.idealista.com"');
-        expect(configField.value).toContain('"currency": "EUR"');
-        expect(screen.getByText(/Starter selectors for Idealista search result pages\./)).toBeInTheDocument();
     });
 });

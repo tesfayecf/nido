@@ -6,16 +6,15 @@ import (
 )
 
 const (
-	// RuleTypeNewListing notifies when a new listing matches a watchlist.
+	// RuleTypeNewListing is retained only for compatibility with deprecated code paths.
 	RuleTypeNewListing = "new_listing"
-	// RuleTypePriceDrop notifies when a tracked listing drops in price.
+	// RuleTypePriceDrop notifies when a tracked property drops in price.
 	RuleTypePriceDrop = "price_drop"
-	// RuleTypePriceBelow notifies when a listing reaches a threshold.
+	// RuleTypePriceBelow notifies when a tracked property reaches a threshold.
 	RuleTypePriceBelow = "price_below"
 )
 
 var supportedRuleTypes = map[string]struct{}{
-	RuleTypeNewListing: {},
 	RuleTypePriceDrop:  {},
 	RuleTypePriceBelow: {},
 }
@@ -26,36 +25,35 @@ func IsSupportedRuleType(ruleType string) bool {
 	return ok
 }
 
-// BookmarkedListing is a saved listing joined with the current listing snapshot.
-type BookmarkedListing struct {
-	ListingID    string    `json:"listing_id"`
-	SourceID     string    `json:"source_id"`
-	Title        string    `json:"title"`
-	PriceAmount  int64     `json:"price_amount"`
+// BookmarkedProperty is a saved property joined with its latest extracted data.
+type BookmarkedProperty struct {
+	BookmarkedAt time.Time `json:"bookmarked_at"`
 	Currency     string    `json:"currency"`
 	Location     string    `json:"location"`
+	PriceAmount  int64     `json:"price_amount"`
+	PropertyID   string    `json:"property_id"`
+	SourceID     string    `json:"source_id,omitempty"`
+	Title        string    `json:"title"`
 	URL          string    `json:"url"`
-	BookmarkedAt time.Time `json:"bookmarked_at"`
 }
 
-// Watchlist stores user-defined listing filters.
+// Watchlist is retained only so deprecated persistence code can still compile.
 type Watchlist struct {
-	ID             string    `json:"id"`
-	UserID         string    `json:"user_id"`
-	Name           string    `json:"name"`
-	Query          string    `json:"query,omitempty"`
-	SourceID       string    `json:"source_id,omitempty"`
-	MaxPriceAmount *int64    `json:"max_price_amount,omitempty"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	ID             string
+	UserID         string
+	Name           string
+	Query          string
+	SourceID       string
+	MaxPriceAmount *int64
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }
 
-// AlertRule defines a notification policy for a listing or watchlist.
+// AlertRule defines a notification policy for one property.
 type AlertRule struct {
 	ID              string    `json:"id"`
 	UserID          string    `json:"user_id"`
-	WatchlistID     string    `json:"watchlist_id,omitempty"`
-	ListingID       string    `json:"listing_id,omitempty"`
+	PropertyID      string    `json:"property_id"`
 	RuleType        string    `json:"rule_type"`
 	ThresholdAmount *int64    `json:"threshold_amount,omitempty"`
 	Enabled         bool      `json:"enabled"`
@@ -67,8 +65,8 @@ type AlertRule struct {
 type Notification struct {
 	ID             string          `json:"id"`
 	UserID         string          `json:"user_id"`
-	RuleID         string          `json:"rule_id,omitempty"`
-	ListingID      string          `json:"listing_id,omitempty"`
+	AlertID        string          `json:"alert_id,omitempty"`
+	PropertyID     string          `json:"property_id,omitempty"`
 	Kind           string          `json:"kind"`
 	Title          string          `json:"title"`
 	Body           string          `json:"body"`
