@@ -66,6 +66,8 @@ describe("SourceDetailPage", () => {
         existingSourceView.unmount();
         renderSourceDetailPage(["/backoffice/sources/new"]);
 
+        expect(await screen.findByLabelText("Preset")).toHaveValue("generic-json-feed");
+
         await waitFor(() => {
             expect(screen.getByLabelText("Preset")).toHaveValue("generic-json-feed");
             expect(screen.getByLabelText("Id")).toHaveValue("");

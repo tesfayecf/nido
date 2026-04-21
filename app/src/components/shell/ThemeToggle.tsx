@@ -1,10 +1,10 @@
 import { useTheme } from "@/hooks/useTheme";
 import type { ThemePreference } from "@/hooks/useTheme";
 
-const options: readonly { label: string; shortLabel: string; value: ThemePreference; }[] = [
-    { label: "Light", shortLabel: "Light", value: "light" },
-    { label: "Dark", shortLabel: "Dark", value: "dark" },
-    { label: "System", shortLabel: "System", value: "system" },
+const options: readonly { label: string; value: ThemePreference; }[] = [
+    { label: "Light", value: "light" },
+    { label: "Dark", value: "dark" },
+    { label: "System", value: "system" },
 ];
 
 /**
@@ -35,7 +35,6 @@ export const ThemeToggle = (): JSX.Element => {
                         type={"button"}
                     >
                         <span className={"theme-toggle__label"}>{option.label}</span>
-                        <span className={"theme-toggle__label theme-toggle__label--short"}>{option.shortLabel}</span>
                     </button>
                 );
             })}

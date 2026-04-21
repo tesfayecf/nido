@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 
 import { AppProviders } from "@/app/AppProviders";
+import { applyThemePreference, getStoredThemePreference } from "@/hooks/useTheme";
 import "@/styles/tokens.css";
 import "@/styles/globals.css";
 
@@ -10,6 +11,8 @@ const container = document.getElementById("root");
 if (container === null) {
     throw new Error("Root container was not found.");
 }
+
+applyThemePreference(getStoredThemePreference());
 
 ReactDOM.createRoot(container).render(
     <React.StrictMode>

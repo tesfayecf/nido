@@ -3,7 +3,6 @@ import { useEffect, useId, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { AsyncContent } from "@/components/ui/AsyncContent";
-import { EmptyState } from "@/components/ui/EmptyState";
 import { PageCard } from "@/components/ui/PageCard";
 import { buildPriceHistorySeries, buildSparklinePoints } from "@/features/listings/listingInsights";
 import { formatCurrency } from "@/lib/format/currency";
@@ -34,6 +33,8 @@ export const PriceHistoryModal = ({ listingId, onClose }: PriceHistoryModalProps
         queryKey: listingKeys.detail(listingId),
     });
 
+    const detail = detailQuery.data;
+
     useEffect(() => {
         const previousOverflow = document.body.style.overflow;
         const previousActiveElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -60,7 +61,7 @@ export const PriceHistoryModal = ({ listingId, onClose }: PriceHistoryModalProps
             <PageCard
                 action={<button className={"button button--secondary"} onClick={onClose} ref={closeButtonRef} type={"button"}>{"Close"}</button>}
                 description={"Price history stays in-context so analysts can keep their list and compare state intact."}
-                title={detailQuery.data?.item.title ?? "Price History"}
+                title={detail?.item.title ?? "Price History"}
                 titleId={titleId}
             >
                 <p className={"sr-only"} id={descriptionId}>{"Review the selected listing price history. Press escape to close this dialog."}</p>
@@ -72,33 +73,33 @@ export const PriceHistoryModal = ({ listingId, onClose }: PriceHistoryModalProps
                     isLoading={detailQuery.isLoading}
                     loadingMessage={"Loading price history..."}
                 >
-                    {detailQuery.data !== undefined ? (
+                    {detail === undefined ? null : (
                         <div className={"modal-stack"}>
                             <div className={"price-history-hero"}>
                                 <div>
                                     <span className={"stat-card__label"}>{"Current price"}</span>
-                                    <strong className={"price-history-hero__value"}>{formatCurrency(detailQuery.data.item.price_amount, detailQuery.data.item.currency)}</strong>
+                                    <strong className={"price-history-hero__value"}>{formatCurrency(detail.item.price_amount, detail.item.currency)}</strong>
                                 </div>
                                 <svg aria-hidden className={"sparkline sparkline--hero"} viewBox={"0 0 100 32"}>
                                     <polyline
                                         className={"sparkline__line"}
                                         fill={"none"}
-                                        points={buildSparklinePoints(buildPriceHistorySeries(detailQuery.data.price_history, detailQuery.data.item.price_amount))}
+                                        points={buildSparklinePoints(buildPriceHistorySeries(detail.price_history, detail.item.price_amount))}
                                         strokeWidth={"2"}
                                     />
                                 </svg>
                             </div>
                             <div className={"item-list"}>
-                                {detailQuery.data.price_history.map((event) => {
+                                {detail.price_history.map((event) => {
                                     return (
                                         <article className={"list-row"} key={event.id}>
                                             <div className={"list-row__main"}>
                                                 <div>
-                                                    <h3 className={"list-row__title"}>{formatCurrency(event.new_amount, detailQuery.data.item.currency)}</h3>
+                                                    <h3 className={"list-row__title"}>{formatCurrency(event.new_amount, detail.item.currency)}</h3>
                                                     <p className={"list-row__meta"}>{"Changed "}{formatDateTime(event.changed_at)}</p>
                                                 </div>
                                                 <strong className={"list-row__price"}>
-                                                    {event.previous_amount === undefined ? "Initial capture" : `from ${formatCurrency(event.previous_amount, detailQuery.data.item.currency)}`}
+                                                    {event.previous_amount === undefined ? "Initial capture" : `from ${formatCurrency(event.previous_amount, detail.item.currency)}`}
                                                 </strong>
                                             </div>
                                         </article>
@@ -106,7 +107,7 @@ export const PriceHistoryModal = ({ listingId, onClose }: PriceHistoryModalProps
                                 })}
                             </div>
                         </div>
-                    ) : <EmptyState message={"Price history is unavailable for this listing."} />}
+                    )}
                 </AsyncContent>
             </PageCard>
         </div>

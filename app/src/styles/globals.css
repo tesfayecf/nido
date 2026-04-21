@@ -106,6 +106,7 @@ textarea {
 
 .app-shell__header {
     backdrop-filter: blur(18px);
+    background: var(--color-background);
     background: color-mix(in srgb, var(--color-background) 82%, transparent);
     border-bottom: 1px solid var(--color-border);
     position: sticky;
@@ -313,6 +314,7 @@ textarea {
 }
 
 .button--secondary:hover:not(:disabled) {
+    background: var(--color-surface);
     background: color-mix(in srgb, var(--color-surface-muted) 78%, var(--color-accent-soft));
 }
 
@@ -341,9 +343,6 @@ textarea {
     color: var(--color-surface-strong);
 }
 
-.theme-toggle__label--short {
-    display: none;
-}
 
 .action-group {
     display: flex;
@@ -526,7 +525,6 @@ textarea {
     display: block;
     font-size: var(--text-xs);
     margin-bottom: var(--space-2);
-    text-transform: uppercase;
 }
 
 .key-value-grid__value {
@@ -1000,11 +998,4 @@ textarea {
         font-size: var(--text-3xl);
     }
 
-    .theme-toggle__label {
-        display: none;
-    }
-
-    .theme-toggle__label--short {
-        display: inline;
-    }
 }

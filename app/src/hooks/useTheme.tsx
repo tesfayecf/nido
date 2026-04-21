@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { PropsWithChildren } from "react";
 
-const STORAGE_KEY = "home-searcher-theme";
+export const THEME_STORAGE_KEY = "home-searcher-theme";
 
 type ResolvedTheme = "dark" | "light";
 export type ThemePreference = ResolvedTheme | "system";
@@ -22,21 +22,20 @@ const getSystemTheme = (): ResolvedTheme => {
     return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 };
 
-const getStoredPreference = (): ThemePreference => {
-    const storedValue = window.localStorage.getItem(STORAGE_KEY);
+const resolveTheme = (preference: ThemePreference): ResolvedTheme => {
+    return preference === "system" ? getSystemTheme() : preference;
+};
+
+export const getStoredThemePreference = (): ThemePreference => {
+    const storedValue = window.localStorage.getItem(THEME_STORAGE_KEY);
     return isThemePreference(storedValue) ? storedValue : "system";
 };
 
-const applyThemePreference = (preference: ThemePreference): void => {
-    const root = document.documentElement;
-    if (preference === "system") {
-        root.removeAttribute("data-theme");
-        window.localStorage.setItem(STORAGE_KEY, preference);
-        return;
-    }
-
-    root.dataset.theme = preference;
-    window.localStorage.setItem(STORAGE_KEY, preference);
+export const applyThemePreference = (preference: ThemePreference): ResolvedTheme => {
+    const resolvedTheme = resolveTheme(preference);
+    document.documentElement.dataset.theme = resolvedTheme;
+    window.localStorage.setItem(THEME_STORAGE_KEY, preference);
+    return resolvedTheme;
 };
 
 /**
@@ -47,23 +46,22 @@ const applyThemePreference = (preference: ThemePreference): void => {
  */
 export const ThemeProvider = ({ children }: PropsWithChildren): JSX.Element => {
     const [preference, setPreference] = useState<ThemePreference>(() => {
-        return getStoredPreference();
+        return getStoredThemePreference();
     });
     const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(() => {
-        return preference === "system" ? getSystemTheme() : preference;
+        return resolveTheme(preference);
     });
 
     useEffect(() => {
-        applyThemePreference(preference);
-        setResolvedTheme(preference === "system" ? getSystemTheme() : preference);
+        setResolvedTheme(applyThemePreference(preference));
 
         if (preference !== "system") {
             return undefined;
         }
 
         const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-        const handleChange = (event: MediaQueryListEvent): void => {
-            setResolvedTheme(event.matches ? "dark" : "light");
+        const handleChange = (): void => {
+            setResolvedTheme(applyThemePreference("system"));
         };
 
         mediaQuery.addEventListener("change", handleChange);
