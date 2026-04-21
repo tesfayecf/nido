@@ -18,6 +18,7 @@ type Config struct {
 	BootstrapSource BootstrapSourceConfig
 	Scheduler       SchedulerConfig
 	Browser         BrowserConfig
+	Fetcher         FetcherConfig
 	Auth            AuthConfig
 	Notifications   NotificationsConfig
 }
@@ -45,10 +46,11 @@ type ObjectStoreConfig struct {
 
 // SchedulerConfig controls periodic ingestion execution.
 type SchedulerConfig struct {
-	Enabled      bool
-	TickInterval time.Duration
-	LockTTL      time.Duration
-	BatchSize    int
+	Enabled         bool
+	TickInterval    time.Duration
+	LockTTL         time.Duration
+	BatchSize       int
+	ShutdownTimeout time.Duration
 }
 
 // BrowserConfig controls the optional server-side browser renderer.
@@ -56,6 +58,15 @@ type BrowserConfig struct {
 	Command string
 	Args    []string
 	Timeout time.Duration
+}
+
+// FetcherConfig controls shared scraping HTTP behavior.
+type FetcherConfig struct {
+	Timeout         time.Duration
+	ProxyProvider   string
+	TLSProfile      string
+	BreakerInterval time.Duration
+	BreakerTimeout  time.Duration
 }
 
 // AuthConfig controls bootstrap admin identity and session lifetime.
@@ -121,15 +132,23 @@ func Load() (Config, error) {
 			FreshnessWindowSeconds:  durationSeconds(durationEnvOrDefault("HS_BOOTSTRAP_SOURCE_FRESHNESS_WINDOW", 0)),
 		},
 		Scheduler: SchedulerConfig{
-			Enabled:      boolEnvOrDefault("HS_SCHEDULER_ENABLED", true),
-			TickInterval: durationEnvOrDefault("HS_SCHEDULER_TICK_INTERVAL", 15*time.Second),
-			LockTTL:      durationEnvOrDefault("HS_SCHEDULER_LOCK_TTL", 2*time.Minute),
-			BatchSize:    intEnvOrDefault("HS_SCHEDULER_BATCH_SIZE", 10),
+			Enabled:         boolEnvOrDefault("HS_SCHEDULER_ENABLED", true),
+			TickInterval:    durationEnvOrDefault("HS_SCHEDULER_TICK_INTERVAL", 15*time.Second),
+			LockTTL:         durationEnvOrDefault("HS_SCHEDULER_LOCK_TTL", 2*time.Minute),
+			BatchSize:       intEnvOrDefault("HS_SCHEDULER_BATCH_SIZE", 10),
+			ShutdownTimeout: durationEnvOrDefault("HS_SCHEDULER_SHUTDOWN_TIMEOUT", 30*time.Second),
 		},
 		Browser: BrowserConfig{
 			Command: strings.TrimSpace(os.Getenv("HS_BROWSER_COMMAND")),
 			Args:    splitArgList(os.Getenv("HS_BROWSER_ARGS")),
 			Timeout: durationEnvOrDefault("HS_BROWSER_TIMEOUT", 30*time.Second),
+		},
+		Fetcher: FetcherConfig{
+			Timeout:         durationEnvOrDefault("HS_FETCHER_TIMEOUT", 20*time.Second),
+			ProxyProvider:   strings.TrimSpace(os.Getenv("HS_FETCHER_PROXY_PROVIDER")),
+			TLSProfile:      envOrDefault("HS_FETCHER_TLS_PROFILE", "chrome-2026"),
+			BreakerInterval: durationEnvOrDefault("HS_FETCHER_BREAKER_INTERVAL", 30*time.Second),
+			BreakerTimeout:  durationEnvOrDefault("HS_FETCHER_BREAKER_TIMEOUT", 15*time.Second),
 		},
 		Auth: AuthConfig{
 			BootstrapAdminEmail:    envOrDefault("HS_BOOTSTRAP_ADMIN_EMAIL", "admin@local"),
@@ -165,8 +184,14 @@ func Load() (Config, error) {
 	if cfg.Scheduler.BatchSize <= 0 {
 		cfg.Scheduler.BatchSize = 10
 	}
+	if cfg.Scheduler.ShutdownTimeout <= 0 {
+		cfg.Scheduler.ShutdownTimeout = 30 * time.Second
+	}
 	if cfg.Browser.Timeout <= 0 {
 		cfg.Browser.Timeout = 30 * time.Second
+	}
+	if cfg.Fetcher.Timeout <= 0 {
+		cfg.Fetcher.Timeout = 20 * time.Second
 	}
 	if cfg.Auth.SessionTTL <= 0 {
 		cfg.Auth.SessionTTL = 24 * time.Hour

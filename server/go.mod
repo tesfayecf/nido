@@ -9,6 +9,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.32.16
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.15
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.99.1
+	github.com/sony/gobreaker v1.0.0
 	golang.org/x/crypto v0.40.0
 	modernc.org/sqlite v1.46.1
 )

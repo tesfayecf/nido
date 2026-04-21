@@ -14,6 +14,7 @@ import (
 	cataloghttp "home-searcher/server/internal/catalog/transport/httpapi"
 	engagementapp "home-searcher/server/internal/engagement/application"
 	engagementhttp "home-searcher/server/internal/engagement/transport/httpapi"
+	"home-searcher/server/internal/fetcher"
 	ingestionapp "home-searcher/server/internal/ingestion/application"
 	"home-searcher/server/internal/ingestion/browser"
 	"home-searcher/server/internal/ingestion/connectors/htmljsonld"
@@ -30,9 +31,11 @@ import (
 
 // Runtime owns the backend process dependencies and HTTP handler.
 type Runtime struct {
-	Handler http.Handler
-	db      *sql.DB
-	cancel  context.CancelFunc
+	Handler         http.Handler
+	db              *sql.DB
+	cancel          context.CancelFunc
+	scheduler       *ingestionapp.Scheduler
+	shutdownTimeout time.Duration
 }
 
 // New builds the operational backend runtime.
@@ -69,10 +72,18 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Runtime,
 	}
 	engagementService := engagementapp.NewService(logger, store, engagementapp.NewNotifier(logger, cfg.Notifications), eventBroker)
 	browserRenderer := browser.NewRenderer(cfg.Browser)
+	sharedFetcher := fetcher.New(fetcher.Config{
+		Logger:          logger,
+		Timeout:         cfg.Fetcher.Timeout,
+		ProxyProvider:   cfg.Fetcher.ProxyProvider,
+		TLSProfile:      cfg.Fetcher.TLSProfile,
+		BreakerInterval: cfg.Fetcher.BreakerInterval,
+		BreakerTimeout:  cfg.Fetcher.BreakerTimeout,
+	}, browserRenderer)
 	ingestionService, err := ingestionapp.NewService(logger, store, artifactStore, []ingestionapp.Connector{
-		httpjson.NewConnector(nil),
-		htmllistings.NewConnector(nil, browserRenderer),
-		htmljsonld.NewConnector(nil, browserRenderer),
+		httpjson.NewConnector(sharedFetcher),
+		htmllistings.NewConnector(sharedFetcher, browserRenderer),
+		htmljsonld.NewConnector(sharedFetcher, browserRenderer),
 	}, nil, cfg.Scheduler.LockTTL, engagementService, eventBroker)
 	if err != nil {
 		cancel()
@@ -102,8 +113,9 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Runtime,
 		}
 	}
 
+	var scheduler *ingestionapp.Scheduler
 	if cfg.Scheduler.Enabled {
-		scheduler := ingestionapp.NewScheduler(logger, ingestionService, cfg.Scheduler.TickInterval, cfg.Scheduler.BatchSize)
+		scheduler = ingestionapp.NewScheduler(logger, ingestionService, cfg.Scheduler.TickInterval, cfg.Scheduler.BatchSize, cfg.Scheduler.ShutdownTimeout)
 		go scheduler.Start(runtimeCtx)
 	}
 
@@ -116,9 +128,11 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Runtime,
 	ingestionhttp.Register(mux, authMiddleware, ingestionService, eventBroker)
 
 	return &Runtime{
-		Handler: platformhttp.LoggingMiddleware(logger, mux),
-		db:      db,
-		cancel:  cancel,
+		Handler:         platformhttp.LoggingMiddleware(logger, mux),
+		db:              db,
+		cancel:          cancel,
+		scheduler:       scheduler,
+		shutdownTimeout: cfg.Scheduler.ShutdownTimeout,
 	}, nil
 }
 
@@ -126,6 +140,13 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Runtime,
 func (r *Runtime) Close() error {
 	if r.cancel != nil {
 		r.cancel()
+	}
+	if r.scheduler != nil {
+		waitCtx, cancel := context.WithTimeout(context.Background(), r.shutdownTimeout)
+		defer cancel()
+		if err := r.scheduler.Wait(waitCtx); err != nil {
+			return err
+		}
 	}
 	return r.db.Close()
 }
