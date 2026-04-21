@@ -22,13 +22,15 @@ Status: implemented and under hardening
 
 This is the first fully operable frontend slice and should work against the backend exactly as it exists today.
 
-## Iteration 2: Map Foundation
+## Iteration 2: Market Intelligence Main View
 
-Planned later
+Status: implemented for dense list, session viewport, compare, and price-history workflows
 
-- Add a MapLibre adapter module
-- Prepare viewport and selection state
-- Keep the map feature gated until backend geospatial data exists
+- Virtualized main result list for high-density browsing
+- URL-backed filters for query, source, price range, and best-value mode
+- Zustand-backed viewport/search-session state and side-by-side compare
+- Modal price-history workflow without leaving the explorer
+- Keep literal marker rendering gated until backend geospatial data exists
 
 ## Iteration 3: Market Intelligence Views
 

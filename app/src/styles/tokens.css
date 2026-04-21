@@ -1,15 +1,16 @@
 :root {
-    --color-bg: #f4f1ea;
-    --color-surface: rgba(255, 255, 255, 0.9);
-    --color-surface-strong: #ffffff;
-    --color-border: rgba(36, 39, 32, 0.12);
-    --color-text: #182014;
-    --color-text-muted: #5a6557;
-    --color-accent: #196b4d;
-    --color-accent-soft: rgba(25, 107, 77, 0.12);
-    --color-danger: #9f3131;
-    --color-warning: #956400;
-    --color-shadow: rgba(36, 39, 32, 0.08);
+    --color-bg: #0f1724;
+    --color-surface: rgba(15, 23, 36, 0.9);
+    --color-surface-strong: #172233;
+    --color-border: rgba(148, 163, 184, 0.2);
+    --color-text: #e2e8f0;
+    --color-text-muted: #94a3b8;
+    --color-accent: #38bdf8;
+    --color-accent-soft: rgba(56, 189, 248, 0.12);
+    --color-danger: #f87171;
+    --color-warning: #fbbf24;
+    --color-success: #34d399;
+    --color-shadow: rgba(2, 6, 23, 0.42);
 
     --font-sans: "IBM Plex Sans", "Inter", "Segoe UI", sans-serif;
     --font-display: "Fraunces", "Iowan Old Style", serif;

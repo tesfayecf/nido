@@ -7,8 +7,8 @@ body {
     margin: 0;
     min-height: 100vh;
     background:
-        radial-gradient(circle at top left, rgba(25, 107, 77, 0.12), transparent 28%),
-        linear-gradient(180deg, #f8f6f0 0%, var(--color-bg) 58%, #ebe6db 100%);
+        radial-gradient(circle at top left, rgba(56, 189, 248, 0.14), transparent 22%),
+        linear-gradient(180deg, #08111d 0%, var(--color-bg) 48%, #0b1420 100%);
     color: var(--color-text);
 }
 
@@ -50,7 +50,7 @@ textarea {
     flex-direction: column;
     gap: var(--space-6);
     border-right: 1px solid var(--color-border);
-    background: rgba(248, 246, 240, 0.82);
+    background: rgba(8, 17, 29, 0.86);
     padding: var(--space-6);
     backdrop-filter: blur(18px);
 }
@@ -146,14 +146,14 @@ textarea {
     border: 0;
     border-radius: 999px;
     background: var(--color-accent);
-    color: #ffffff;
+    color: #06111b;
     cursor: pointer;
     gap: var(--space-2);
     padding: 0.8rem 1.1rem;
 }
 
 .button--secondary {
-    background: rgba(24, 32, 20, 0.08);
+    background: rgba(148, 163, 184, 0.12);
     color: var(--color-text);
 }
 
@@ -215,7 +215,8 @@ textarea {
     width: 100%;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
-    background: rgba(255, 255, 255, 0.88);
+    color: var(--color-text);
+    background: rgba(15, 23, 36, 0.88);
     min-height: 2.9rem;
     padding: 0.78rem 0.9rem;
 }
@@ -234,7 +235,7 @@ textarea {
 .stat-card {
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
-    background: rgba(255, 255, 255, 0.86);
+    background: rgba(15, 23, 36, 0.82);
     box-shadow: var(--shadow-soft);
     padding: var(--space-4);
 }
@@ -260,7 +261,7 @@ textarea {
 .list-row {
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
-    background: rgba(255, 255, 255, 0.82);
+    background: rgba(15, 23, 36, 0.82);
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
@@ -343,7 +344,7 @@ textarea {
 }
 
 .status-badge--neutral {
-    background: rgba(24, 32, 20, 0.08);
+    background: rgba(148, 163, 184, 0.12);
     color: var(--color-text);
 }
 
@@ -358,7 +359,7 @@ textarea {
 }
 
 .preformatted {
-    background: rgba(24, 32, 20, 0.06);
+    background: rgba(15, 23, 36, 0.6);
     border-radius: var(--radius-md);
     overflow: auto;
     padding: var(--space-4);
@@ -395,7 +396,7 @@ textarea {
     max-width: 34rem;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
-    background: rgba(255, 255, 255, 0.88);
+    background: rgba(15, 23, 36, 0.88);
     box-shadow: var(--shadow-soft);
     padding: var(--space-7);
 }
@@ -440,5 +441,273 @@ textarea {
         position: static;
         border-right: 0;
         border-bottom: 1px solid var(--color-border);
+    }
+}
+
+.market-filter-grid {
+    display: grid;
+    gap: var(--space-3);
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+}
+
+.field--dense {
+    gap: var(--space-1);
+}
+
+.field--checkbox-compact {
+    padding-top: 0;
+}
+
+.field--actions-inline {
+    align-items: end;
+    flex-direction: row;
+    gap: var(--space-2);
+}
+
+.market-layout {
+    display: grid;
+    gap: var(--space-5);
+    grid-template-columns: minmax(0, 1.9fr) minmax(20rem, 0.95fr);
+}
+
+.market-layout__sidebar,
+.modal-stack,
+.viewport-panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.stat-grid--compact {
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+}
+
+.stat-card__value--small {
+    font-size: 1rem;
+    text-transform: capitalize;
+}
+
+.update-toast {
+    align-items: center;
+    background: rgba(52, 211, 153, 0.15);
+    border: 1px solid rgba(52, 211, 153, 0.35);
+    border-radius: var(--radius-md);
+    color: var(--color-text);
+    display: flex;
+    gap: var(--space-3);
+    justify-content: space-between;
+    padding: var(--space-3) var(--space-4);
+}
+
+.virtual-list-shell {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.results-toolbar {
+    align-items: center;
+    display: flex;
+    gap: var(--space-3);
+    justify-content: space-between;
+}
+
+.results-toolbar__meta {
+    color: var(--color-text-muted);
+    font-size: 0.84rem;
+}
+
+.virtual-list {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    max-height: 54rem;
+    overflow: auto;
+    padding: var(--space-2);
+}
+
+.virtual-list__inner {
+    position: relative;
+    width: 100%;
+}
+
+.virtual-list__row {
+    left: 0;
+    position: absolute;
+    top: 0;
+    width: 100%;
+    will-change: transform;
+}
+
+.listing-dense-row {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: rgba(15, 23, 36, 0.92);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    min-height: 10rem;
+    padding: var(--space-4);
+}
+
+.listing-dense-row__primary,
+.listing-dense-row__footer,
+.listing-dense-row__headline,
+.viewport-panel__metrics,
+.viewport-panel__controls {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    justify-content: space-between;
+}
+
+.listing-dense-row__metrics,
+.compare-card__metrics {
+    display: grid;
+    gap: var(--space-2);
+    grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+}
+
+.listing-dense-row__price,
+.price-history-hero__value {
+    font-size: 1.2rem;
+}
+
+.listing-dense-row__trend {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    min-width: 10rem;
+}
+
+.inline-metric {
+    border-left: 1px solid var(--color-border);
+    padding-left: var(--space-3);
+}
+
+.inline-metric__label,
+.cluster-card__label {
+    color: var(--color-text-muted);
+    display: block;
+    font-size: 0.76rem;
+    margin-bottom: var(--space-1);
+    text-transform: uppercase;
+}
+
+.inline-metric__value,
+.cluster-card__value {
+    font-size: 0.95rem;
+}
+
+.value-badge {
+    background: rgba(52, 211, 153, 0.12);
+    border: 1px solid rgba(52, 211, 153, 0.3);
+    border-radius: 999px;
+    color: var(--color-success);
+    font-size: 0.76rem;
+    font-weight: 700;
+    padding: 0.3rem 0.6rem;
+    text-transform: uppercase;
+}
+
+.cluster-grid,
+.compare-grid {
+    display: grid;
+    gap: var(--space-3);
+}
+
+.cluster-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.cluster-card,
+.compare-card {
+    background: rgba(15, 23, 36, 0.92);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    color: var(--color-text);
+    padding: var(--space-3);
+    text-align: left;
+}
+
+.cluster-card {
+    cursor: pointer;
+    will-change: transform;
+}
+
+.cluster-card__meta {
+    color: var(--color-text-muted);
+    display: block;
+    font-size: 0.8rem;
+    margin-top: var(--space-1);
+}
+
+.sparkline {
+    height: 2rem;
+    width: 100%;
+}
+
+.sparkline--hero {
+    height: 4rem;
+}
+
+.sparkline__line {
+    stroke: var(--color-accent);
+}
+
+.modal-overlay {
+    align-items: center;
+    background: rgba(2, 6, 23, 0.72);
+    display: flex;
+    inset: 0;
+    justify-content: center;
+    padding: var(--space-6);
+    position: fixed;
+    z-index: 20;
+}
+
+.modal-overlay .page-card {
+    max-height: calc(100vh - 4rem);
+    max-width: 54rem;
+    overflow: auto;
+    width: min(100%, 54rem);
+}
+
+.price-history-hero {
+    align-items: center;
+    background: rgba(56, 189, 248, 0.08);
+    border: 1px solid rgba(56, 189, 248, 0.2);
+    border-radius: var(--radius-md);
+    display: grid;
+    gap: var(--space-4);
+    grid-template-columns: minmax(0, 1fr) minmax(12rem, 1fr);
+    padding: var(--space-4);
+}
+
+.compare-card__metrics {
+    margin: var(--space-3) 0 0;
+}
+
+.compare-card__metrics dt {
+    color: var(--color-text-muted);
+    font-size: 0.76rem;
+    margin-bottom: var(--space-1);
+    text-transform: uppercase;
+}
+
+.compare-card__metrics dd {
+    margin: 0;
+}
+
+@media (max-width: 1200px) {
+    .market-layout,
+    .price-history-hero {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 960px) {
+    .cluster-grid {
+        grid-template-columns: 1fr;
     }
 }
