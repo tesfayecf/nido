@@ -1,0 +1,29 @@
+I am considering buying a house in the next years and I want to start to search for oportuinites and track the market. 
+I want to create a custom app to aggregate house publications accross all house selling portals in my area. 
+I assume most of them do not offer API services so scrapping wil be needed.
+The goal of the app is: 
+        - Track and visualize the prices.
+        - Compare prices across regions and categories.
+        - Bookmark properties and recieve alerts on prices changes and updates.
+        - View properties in a map and select areas.
+        - Identify trends and anomalies.
+
+I am a software engineer and i have experience building complex systems with multiple services. 
+I have a clear idea of the structure i want the product ot have. 
+This is a clear description of the stack to use.
+
+BACKEND (/server)
+
+The backend must be written in GO with a highly efficient and robust runtime. It must have a clear architecture with independent services (API, backoffice, authentication, data storage, scrapping, notifications...). It should not have a microservices structure but the components of the monolithic backend must be decouplable and follow a Domain Drive Design with clear separation of concerns and encapsulation. This app will have to do a lot of scrapping and for this is good to cache the retrieved information so i it does not hit rate limits. This is means a databse and no-SWL storage will be needed. Use the Garage S3 server and a SQLite. This is the best option for fast prototyping and single user scale. The backend must have an extensive suite of tests (unit, integration...) to validate the code works before pushing code to production. Use the go standard library for testing. Tests must bue self-contained and agnostic of the external services used in the codebase. Unit test must be able to run in any machine and integration test must have all the resources/mocks available. 
+
+FRONTEND (/app)
+
+The workpspace is already initialized with a structure, config and docs files. 
+I like things to be self contained so i have already placed the go and garage executables in the third-party folder of this project. Use them.
+Your task now is to define the backend architecture. 
+You have to identify the clear services that the app needs and design a clear system.
+I want an iterative implementation. Not all services have to be implemented in the first iteration but
+the app should always be opertive and working. Use the docs folder in the /server folder to define a architecture.
+The code must have extensive documentation and make use of jsdocs for readability and comprehension.
+Search online for documentation and already solved problems you encounter. Try not to put all the functionalites in the firts iteration of the design. 
+The improvement must be iterative and steady but with calm.

@@ -1,0 +1,30 @@
+I am considering buying a house in the next years and I want to start to search for oportuinites and track the market. 
+I want to create a custom app to aggregate house publications accross all house selling portals in my area. 
+I assume most of them do not offer API services so scrapping wil be needed.
+The goal of the app is: 
+        - Track and visualize the prices.
+        - Compare prices across regions and categories.
+        - Bookmark properties and recieve alerts on prices changes and updates.
+        - View properties in a map and select areas.
+        - Identify trends and anomalies.
+
+I am a software engineer and i have experience building complex systems with multiple services. 
+I have a clear idea of the structure i want the product ot have. 
+This is a clear description of the stack to use.
+
+FRONTEND (/app)
+
+The frontend has to be a minimal layer on top of the backend with intelligent caching and efficency. Use a React.js + Vite as the bundler. Do not use and framework on top of React.js. Use Zustand for client state and TanStack Query for server state. Make use of reusable components and intelligent styling to improve the development speed and efficiency. For now UI is not the main concern. Keep it simple and functional. Use pnpm for node js library managment. Is already installed in the global dependencies. Consider the possiblity of websocket connection if the implementation requires for UI/UX reasons. Build moder app with good UI/UX. The app should not look like its made by an AI. It has to look profesional and minimalist but feature rich and good information density.
+
+The workpspace is already initialized with a structure, config and docs files. 
+I like things to be self contained and organized.
+Implement based on backend endpoints provided.
+Your task now is to define and implement the fronend architecture. 
+You have to identify the clear services that the app needs and design a clear system.
+I want an iterative implementation. Not all services have to be implemented in the first iteration but
+the app should always be opertive and working. Use the docs folder in the /app folder to define a architecture.
+The code must have extensive documentation and make use of jsdocs for readability and comprehension.
+Search online for documentation and already solved problems you encounter.
+Do not put all the functionalites in the firts iteration of the design.
+Use subagent orchestration for faster implementation.  
+The improvement must be iterative and steady but with calm.

@@ -10,7 +10,20 @@ const reactPlugin = require("eslint-plugin-react");
 
 module.exports = defineConfig([
     {
-        ignores: ["node_modules/**"],
+        ignores: [
+            "node_modules/**",
+            ".cache/**",
+            ".dist/**",
+            "dist/**",
+            ".tmp/**",
+            "coverage/**",
+            "public/**",
+            "eslint.config.js",
+            "vite.config.ts",
+            "vitest.config.ts",
+        ],
+    },
+    {
         files: ["**/*.js", "**/*.ts", "**/*.tsx"],
         languageOptions: {
             parser: tsParser,

@@ -1,15 +1,22 @@
 {
+    "version": "0.2.0",
     "configurations": [
         {
-            "name": "server-debug",
+            "name": "server:debug",
             "type": "go",
             "request": "launch",
             "mode": "debug",
-            "program": "${workspaceFolder}/app/main.go",
-            "args": [],
-            "cwd": "${workspaceRoot}",
+            "program": "${workspaceFolder}/cmd/server",
+            "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",
-            "preLaunchTask": "garage:start"
+            "env": {
+                "GOTOOLCHAIN": "local",
+                "HS_HTTP_ADDR": ":8080",
+                "HS_OBJECT_STORE_DRIVER": "memory",
+                "HS_BOOTSTRAP_ADMIN_EMAIL": "admin@local",
+                "HS_BOOTSTRAP_ADMIN_PASSWORD": "dev-password"
+            },
+            "preLaunchTask": "sqlite:migrate"
         }
     ]
 }

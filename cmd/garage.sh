@@ -1,8 +1,100 @@
-# TODO: Define the commands to start the garage server, create buckets, keys, etc.
+#!/usr/bin/env bash
 
-# ./../third-party/garage/garage -c ./config/garage.toml status
-# ./../third-party/garage/garage -c ./config/garage.toml layout assign -z dc1 -c 1G <NODE_ID>
-# ./../third-party/garage/garage -c ./config/garage.toml layout apply --version 1
-# ./../third-party/garage/garage -c ./config/garage.toml key create hs-dev
-# ./../third-party/garage/garage -c ./config/garage.toml bucket create hs-dev
-# ./../third-party/garage/garage -c ./config/garage.toml bucket allow --read --write --owner hs-dev --key hs-dev
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+GARAGE_BIN="${ROOT_DIR}/third-party/garage/garage"
+GARAGE_CONFIG="${ROOT_DIR}/config/garage.toml"
+GARAGE_ZONE="${GARAGE_ZONE:-dc1}"
+GARAGE_CAPACITY="${GARAGE_CAPACITY:-1G}"
+GARAGE_LAYOUT_VERSION="${GARAGE_LAYOUT_VERSION:-1}"
+GARAGE_KEY_NAME="${GARAGE_KEY_NAME:-hs-dev}"
+GARAGE_BUCKET_NAME="${HS_S3_BUCKET:-hs-dev}"
+
+usage() {
+	cat <<'EOF'
+Usage: cmd/garage.sh <command> [args]
+
+Commands:
+	start                          Start the Garage server with the local config.
+	status                         Show Garage status.
+	layout-assign <node-id>        Assign the local layout for one node.
+	layout-apply                   Apply the current layout version.
+	key-create [key-name]          Create one S3 access key.
+	bucket-create [bucket-name]    Create one S3 bucket.
+	bucket-allow [key] [bucket]    Grant owner/read/write access.
+	dev-setup <node-id> [key] [bucket]
+																 Assign layout, apply it, create the key, create the bucket,
+																 and grant access in one pass.
+EOF
+}
+
+ensure_garage() {
+	if [[ ! -x "${GARAGE_BIN}" ]]; then
+		echo "Garage binary not found at ${GARAGE_BIN}" >&2
+		exit 1
+	fi
+}
+
+run_garage() {
+	ensure_garage
+	(
+		cd "${ROOT_DIR}"
+		mkdir -p .garage/meta .garage/data
+		"${GARAGE_BIN}" -c "${GARAGE_CONFIG}" "$@"
+	)
+}
+
+command_name="${1:-}"
+case "${command_name}" in
+	start)
+		run_garage server
+		;;
+	status)
+		run_garage status
+		;;
+	layout-assign)
+		node_id="${2:-${GARAGE_NODE_ID:-}}"
+		if [[ -z "${node_id}" ]]; then
+			echo "node id is required for layout-assign" >&2
+			exit 1
+		fi
+		run_garage layout assign -z "${GARAGE_ZONE}" -c "${GARAGE_CAPACITY}" "${node_id}"
+		;;
+	layout-apply)
+		run_garage layout apply --version "${GARAGE_LAYOUT_VERSION}"
+		;;
+	key-create)
+		run_garage key create "${2:-${GARAGE_KEY_NAME}}"
+		;;
+	bucket-create)
+		run_garage bucket create "${2:-${GARAGE_BUCKET_NAME}}"
+		;;
+	bucket-allow)
+		key_name="${2:-${GARAGE_KEY_NAME}}"
+		bucket_name="${3:-${GARAGE_BUCKET_NAME}}"
+		run_garage bucket allow --read --write --owner "${bucket_name}" --key "${key_name}"
+		;;
+	dev-setup)
+		node_id="${2:-${GARAGE_NODE_ID:-}}"
+		key_name="${3:-${GARAGE_KEY_NAME}}"
+		bucket_name="${4:-${GARAGE_BUCKET_NAME}}"
+		if [[ -z "${node_id}" ]]; then
+			echo "node id is required for dev-setup" >&2
+			exit 1
+		fi
+		run_garage layout assign -z "${GARAGE_ZONE}" -c "${GARAGE_CAPACITY}" "${node_id}"
+		run_garage layout apply --version "${GARAGE_LAYOUT_VERSION}"
+		run_garage key create "${key_name}"
+		run_garage bucket create "${bucket_name}"
+		run_garage bucket allow --read --write --owner "${bucket_name}" --key "${key_name}"
+		;;
+	""|-h|--help|help)
+		usage
+		;;
+	*)
+		echo "unknown command: ${command_name}" >&2
+		usage >&2
+		exit 1
+		;;
+esac

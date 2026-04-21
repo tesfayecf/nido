@@ -1,0 +1,71 @@
+package httpapi
+
+import (
+	"errors"
+	"net/http"
+	"strconv"
+	"strings"
+
+	app "home-searcher/server/internal/catalog/application"
+	"home-searcher/server/internal/catalog/domain"
+	platformhttp "home-searcher/server/internal/platform/httpapi"
+)
+
+// Register binds catalog HTTP routes to the supplied mux.
+func Register(mux *http.ServeMux, service *app.Service) {
+	mux.HandleFunc("GET /api/v1/listings", func(w http.ResponseWriter, r *http.Request) {
+		query := domain.ListQuery{
+			Query:    strings.TrimSpace(r.URL.Query().Get("q")),
+			SourceID: strings.TrimSpace(r.URL.Query().Get("source_id")),
+			Limit:    parseLimit(r.URL.Query().Get("limit")),
+		}
+
+		items, err := service.List(r.Context(), query)
+		if err != nil {
+			platformhttp.WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{
+			"items": items,
+			"count": len(items),
+		})
+	})
+
+	mux.HandleFunc("GET /api/v1/listings/{listingID}", func(w http.ResponseWriter, r *http.Request) {
+		listingID := strings.TrimSpace(r.PathValue("listingID"))
+		if listingID == "" {
+			platformhttp.WriteError(w, http.StatusBadRequest, "listing id is required")
+			return
+		}
+
+		detail, err := service.Get(r.Context(), listingID)
+		if err != nil {
+			if errors.Is(err, app.ErrNotFound) {
+				platformhttp.WriteError(w, http.StatusNotFound, err.Error())
+				return
+			}
+
+			platformhttp.WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{
+			"item":          detail.Listing,
+			"price_history": detail.PriceHistory,
+		})
+	})
+}
+
+func parseLimit(raw string) int {
+	if strings.TrimSpace(raw) == "" {
+		return 0
+	}
+
+	limit, err := strconv.Atoi(raw)
+	if err != nil {
+		return 0
+	}
+
+	return limit
+}

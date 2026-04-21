@@ -30,6 +30,10 @@
     "allowSyntheticDefaultImports": true,
     // Allow importing JSON files
     "resolveJsonModule": true,
+    // Keep feature imports readable and stable as the app grows
+    "paths": {
+      "@/*": ["./src/*"]
+    },
     // Disable JS emit (handled by bundler)
     "noEmit": true,
   },
