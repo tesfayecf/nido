@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { EmptyState } from "@/components/ui/EmptyState";
+import { AsyncContent } from "@/components/ui/AsyncContent";
 import { PageCard } from "@/components/ui/PageCard";
 import { parseOptionalNonNegativeInteger } from "@/lib/forms/number";
 import { alertRuleKeys } from "@/services/alert-rules/alert-rules.keys";
@@ -43,6 +43,7 @@ export const AlertsPage = (): JSX.Element => {
             void queryClient.invalidateQueries({ queryKey: alertRuleKeys.all() });
         },
     });
+    const alertRules = alertRulesQuery.data ?? [];
 
     return (
         <div className={"page-stack"}>
@@ -97,12 +98,16 @@ export const AlertsPage = (): JSX.Element => {
             </PageCard>
 
             <PageCard description={"Rules currently return ids only, so this page keeps the target presentation intentionally literal."} title={"Current Alert Rules"}>
-                {alertRulesQuery.isLoading ? <p className={"muted-copy"}>{"Loading alert rules..."}</p> : null}
-                {alertRulesQuery.isError ? <p className={"error-banner"}>{"Could not load alert rules."}</p> : null}
-                {alertRulesQuery.isSuccess && alertRulesQuery.data.length === 0 ? <EmptyState message={"No alert rules have been created yet."} /> : null}
-                {alertRulesQuery.data !== undefined && alertRulesQuery.data.length > 0 ? (
+                <AsyncContent
+                    emptyMessage={"No alert rules have been created yet."}
+                    errorMessage={"Could not load alert rules."}
+                    isEmpty={alertRulesQuery.isSuccess && alertRules.length === 0}
+                    isError={alertRulesQuery.isError}
+                    isLoading={alertRulesQuery.isLoading}
+                    loadingMessage={"Loading alert rules..."}
+                >
                     <div className={"item-list"}>
-                        {alertRulesQuery.data.map((item) => {
+                        {alertRules.map((item) => {
                             return (
                                 <article className={"list-row"} key={item.id}>
                                     <div className={"list-row__main"}>
@@ -129,7 +134,7 @@ export const AlertsPage = (): JSX.Element => {
                             );
                         })}
                     </div>
-                ) : null}
+                </AsyncContent>
             </PageCard>
         </div>
     );

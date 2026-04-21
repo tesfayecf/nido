@@ -1,10 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 
-import { EmptyState } from "@/components/ui/EmptyState";
+import { LiveEventsPanel } from "@/features/backoffice/LiveEventsPanel";
+import { AsyncContent } from "@/components/ui/AsyncContent";
 import { PageCard } from "@/components/ui/PageCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { LiveEventsPanel } from "@/features/backoffice/LiveEventsPanel";
 import { formatDateTime } from "@/lib/format/date";
 import { propertyKeys } from "@/services/properties/properties.keys";
 import { ingestProperty, listProperties } from "@/services/properties/properties.service";
@@ -47,6 +47,7 @@ export const PropertiesPage = (): JSX.Element => {
             void queryClient.invalidateQueries({ queryKey: propertyKeys.list() });
         },
     });
+    const properties = propertiesQuery.data ?? [];
 
     return (
         <div className={"split-layout"}>
@@ -56,14 +57,16 @@ export const PropertiesPage = (): JSX.Element => {
                     description={"Track individual listing pages by URL. Configure CSS-selector rules to extract price, title, and other fields on each scheduled run."}
                     title={"Tracked Properties"}
                 >
-                    {propertiesQuery.isLoading ? <p className={"muted-copy"}>{"Loading properties..."}</p> : null}
-                    {propertiesQuery.isError ? <p className={"error-banner"}>{"Could not load properties."}</p> : null}
-                    {propertiesQuery.isSuccess && propertiesQuery.data.length === 0 ? 
-                        <EmptyState message={"No properties are being tracked yet."} />
-                        : null}
-                    {propertiesQuery.data !== undefined && propertiesQuery.data.length > 0 ? (
+                    <AsyncContent
+                        emptyMessage={"No properties are being tracked yet."}
+                        errorMessage={"Could not load properties."}
+                        isEmpty={propertiesQuery.isSuccess && properties.length === 0}
+                        isError={propertiesQuery.isError}
+                        isLoading={propertiesQuery.isLoading}
+                        loadingMessage={"Loading properties..."}
+                    >
                         <div className={"item-list"}>
-                            {propertiesQuery.data.map((item) => {
+                            {properties.map((item) => {
                                 const displayTitle = item.label !== "" ? item.label : item.url;
                                 return (
                                     <article className={"list-row"} key={item.id}>
@@ -89,10 +92,7 @@ export const PropertiesPage = (): JSX.Element => {
                                                 {item.last_run_at === undefined ? "—" : formatDateTime(item.last_run_at)}
                                             </span>
                                             <div className={"action-group"}>
-                                                <Link
-                                                    className={"button button--secondary"}
-                                                    to={`/properties/${item.id}`}
-                                                >
+                                                <Link className={"button button--secondary"} to={`/properties/${item.id}`}>
                                                     {"Configure"}
                                                 </Link>
                                                 <button
@@ -111,7 +111,7 @@ export const PropertiesPage = (): JSX.Element => {
                                 );
                             })}
                         </div>
-                    ) : null}
+                    </AsyncContent>
                 </PageCard>
             </div>
 

@@ -2,8 +2,8 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 
 import { AppProviders } from "@/app/AppProviders";
-import "@/styles/globals.css";
 import "@/styles/tokens.css";
+import "@/styles/globals.css";
 
 const container = document.getElementById("root");
 

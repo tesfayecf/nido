@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 
+import { ThemeToggle } from "@/components/shell/ThemeToggle";
 import { isApiError } from "@/lib/api/errors";
 import { authKeys } from "@/services/auth/auth.keys";
 import { login } from "@/services/auth/auth.service";
@@ -42,10 +43,15 @@ export const LoginPage = (): JSX.Element => {
     return (
         <main className={"login-layout"}>
             <section className={"login-panel"}>
-                <p className={"login-panel__eyebrow"}>{"Balanced Iteration"}</p>
-                <h1 className={"login-panel__title"}>{"Home Searcher"}</h1>
+                <div className={"toolbar"}>
+                    <div>
+                        <p className={"login-panel__eyebrow"}>{"Access"}</p>
+                        <h1 className={"login-panel__title"}>{"Home Searcher"}</h1>
+                    </div>
+                    <ThemeToggle />
+                </div>
                 <p className={"login-panel__description"}>
-                    {"Sign in with the backend bootstrap-admin account to unlock bookmarks, watchlists, notifications, and the backoffice ingestion console."}
+                    {"Sign in with your local admin account to manage saved searches, notifications, tracked properties, and ingestion workflows from one workspace."}
                 </p>
 
                 <form
@@ -84,7 +90,7 @@ export const LoginPage = (): JSX.Element => {
                     </label>
 
                     {loginMutation.isError ? (
-                        <p className={"error-banner"}>
+                        <p className={"error-banner"} role={"alert"}>
                             {isApiError(loginMutation.error) ? loginMutation.error.message : "Login failed."}
                         </p>
                     ) : null}

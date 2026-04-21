@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 
-import { EmptyState } from "@/components/ui/EmptyState";
+import { AsyncContent } from "@/components/ui/AsyncContent";
 import { PageCard } from "@/components/ui/PageCard";
 import { formatCurrency } from "@/lib/format/currency";
 import { formatDateTime } from "@/lib/format/date";
@@ -25,16 +25,21 @@ export const BookmarksPage = (): JSX.Element => {
             void queryClient.invalidateQueries({ queryKey: bookmarkKeys.all() });
         },
     });
+    const bookmarks = bookmarksQuery.data ?? [];
 
     return (
         <div className={"page-stack"}>
             <PageCard description={"Bookmarks join the saved listing id with its latest canonical listing snapshot."} title={"Bookmarks"}>
-                {bookmarksQuery.isLoading ? <p className={"muted-copy"}>{"Loading bookmarks..."}</p> : null}
-                {bookmarksQuery.isError ? <p className={"error-banner"}>{"Could not load bookmarks."}</p> : null}
-                {bookmarksQuery.isSuccess && bookmarksQuery.data.length === 0 ? <EmptyState message={"No properties have been bookmarked yet."} /> : null}
-                {bookmarksQuery.data !== undefined && bookmarksQuery.data.length > 0 ? (
+                <AsyncContent
+                    emptyMessage={"No properties have been bookmarked yet."}
+                    errorMessage={"Could not load bookmarks."}
+                    isEmpty={bookmarksQuery.isSuccess && bookmarks.length === 0}
+                    isError={bookmarksQuery.isError}
+                    isLoading={bookmarksQuery.isLoading}
+                    loadingMessage={"Loading bookmarks..."}
+                >
                     <div className={"item-list"}>
-                        {bookmarksQuery.data.map((item) => {
+                        {bookmarks.map((item) => {
                             return (
                                 <article className={"list-row"} key={item.listing_id}>
                                     <div className={"list-row__main"}>
@@ -63,7 +68,7 @@ export const BookmarksPage = (): JSX.Element => {
                             );
                         })}
                     </div>
-                ) : null}
+                </AsyncContent>
             </PageCard>
         </div>
     );

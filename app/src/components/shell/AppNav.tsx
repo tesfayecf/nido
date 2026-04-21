@@ -5,6 +5,39 @@ import { clearAuthenticatedState, hasActiveSession } from "@/lib/auth/session";
 import { authKeys } from "@/services/auth/auth.keys";
 import { getCurrentUser, logout } from "@/services/auth/auth.service";
 import { useSessionStore } from "@/stores/session.store";
+import { useShellStore } from "@/stores/shell.store";
+
+interface NavSection {
+    readonly items: ReadonlyArray<{ label: string; to: string; }>;
+    readonly title: string;
+}
+
+const publicSections: ReadonlyArray<NavSection> = [
+    {
+        items: [{ label: "Listings", to: "/listings" }],
+        title: "Explore",
+    },
+];
+
+const authenticatedSections: ReadonlyArray<NavSection> = [
+    {
+        items: [
+            { label: "Bookmarks", to: "/bookmarks" },
+            { label: "Watchlists", to: "/watchlists" },
+            { label: "Alerts", to: "/alerts" },
+            { label: "Notifications", to: "/notifications" },
+        ],
+        title: "Track",
+    },
+    {
+        items: [
+            { label: "Properties", to: "/properties" },
+            { label: "Sources", to: "/backoffice/sources" },
+            { label: "Runs", to: "/backoffice/runs" },
+        ],
+        title: "Operate",
+    },
+];
 
 /**
  * Renders the primary application navigation.
@@ -16,6 +49,7 @@ import { useSessionStore } from "@/stores/session.store";
 export const AppNav = (): JSX.Element => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
+    const setNavOpen = useShellStore((state) => state.setNavOpen);
     const expiresAt = useSessionStore((state) => state.expiresAt);
     const token = useSessionStore((state) => state.token);
     const isAuthenticated = hasActiveSession({ expiresAt, token });
@@ -32,38 +66,44 @@ export const AppNav = (): JSX.Element => {
             void navigate("/login");
         },
     });
+    const sections = isAuthenticated ? [...publicSections, ...authenticatedSections] : publicSections;
 
     return (
         <aside className={"app-nav"}>
             <div className={"app-nav__brand"}>
-                <span className={"app-nav__eyebrow"}>{"Market Workspace"}</span>
-                <h1>{"Home Searcher"}</h1>
+                <div>
+                    <span className={"app-nav__eyebrow"}>{"Market Workspace"}</span>
+                    <h2>{"Home Searcher"}</h2>
+                </div>
+                <button
+                    aria-label={"Close navigation"}
+                    className={"button button--secondary app-nav__close"}
+                    onClick={() => {
+                        setNavOpen(false);
+                    }}
+                    type={"button"}
+                >
+                    {"Close"}
+                </button>
             </div>
 
-            <nav className={"app-nav__sections"}>
-                <div>
-                    <p className={"app-nav__section-label"}>{"Explore"}</p>
-                    <NavItem to={"/listings"}>{"Listings"}</NavItem>
-                </div>
-
-                {isAuthenticated ? (
-                    <>
-                        <div>
-                            <p className={"app-nav__section-label"}>{"Track"}</p>
-                            <NavItem to={"/bookmarks"}>{"Bookmarks"}</NavItem>
-                            <NavItem to={"/watchlists"}>{"Watchlists"}</NavItem>
-                            <NavItem to={"/alerts"}>{"Alerts"}</NavItem>
-                            <NavItem to={"/notifications"}>{"Notifications"}</NavItem>
-                        </div>
-
-                        <div>
-                            <p className={"app-nav__section-label"}>{"Operate"}</p>
-                            <NavItem to={"/properties"}>{"Properties"}</NavItem>
-                            <NavItem to={"/backoffice/sources"}>{"Sources"}</NavItem>
-                            <NavItem to={"/backoffice/runs"}>{"Runs"}</NavItem>
-                        </div>
-                    </>
-                ) : null}
+            <nav aria-label={"Primary"} className={"app-nav__sections"}>
+                {sections.map((section) => {
+                    return (
+                        <section className={"app-nav__section"} key={section.title}>
+                            <p className={"app-nav__section-label"}>{section.title}</p>
+                            <ul className={"app-nav__list"}>
+                                {section.items.map((item) => {
+                                    return (
+                                        <li key={item.to}>
+                                            <NavItem to={item.to}>{item.label}</NavItem>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        </section>
+                    );
+                })}
             </nav>
 
             <div className={"app-nav__footer"}>

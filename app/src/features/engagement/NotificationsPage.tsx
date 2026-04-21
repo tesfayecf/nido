@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 
-import { EmptyState } from "@/components/ui/EmptyState";
+import { AsyncContent } from "@/components/ui/AsyncContent";
 import { PageCard } from "@/components/ui/PageCard";
 import { formatDateTime } from "@/lib/format/date";
 import { readBooleanParam, readNumberParam, writeParam } from "@/lib/routing/searchParams";
@@ -73,12 +73,16 @@ export const NotificationsPage = (): JSX.Element => {
             </PageCard>
 
             <PageCard description={"Notification payloads are rendered as title and body first, with raw metadata available when present."} title={"Inbox"}>
-                {notificationsQuery.isLoading ? <p className={"muted-copy"}>{"Loading notifications..."}</p> : null}
-                {notificationsQuery.isError ? <p className={"error-banner"}>{"Could not load notifications."}</p> : null}
-                {notificationsQuery.isSuccess && notificationsQuery.data.items.length === 0 ? <EmptyState message={"No notifications matched the current filters."} /> : null}
-                {notificationsQuery.data !== undefined && notificationsQuery.data.items.length > 0 ? (
+                <AsyncContent
+                    emptyMessage={"No notifications matched the current filters."}
+                    errorMessage={"Could not load notifications."}
+                    isEmpty={notificationsQuery.isSuccess && notificationsQuery.data.items.length === 0}
+                    isError={notificationsQuery.isError}
+                    isLoading={notificationsQuery.isLoading}
+                    loadingMessage={"Loading notifications..."}
+                >
                     <div className={"item-list"}>
-                        {notificationsQuery.data.items.map((item) => {
+                        {(notificationsQuery.data?.items ?? []).map((item) => {
                             return (
                                 <article className={"list-row"} key={item.id}>
                                     <div className={"list-row__main"}>
@@ -108,7 +112,7 @@ export const NotificationsPage = (): JSX.Element => {
                             );
                         })}
                     </div>
-                ) : null}
+                </AsyncContent>
             </PageCard>
         </div>
     );

@@ -3,12 +3,12 @@ import { useEffect, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
 
-import { EmptyState } from "@/components/ui/EmptyState";
+import { LiveEventsPanel } from "@/features/backoffice/LiveEventsPanel";
+import { AsyncContent } from "@/components/ui/AsyncContent";
 import { PageCard } from "@/components/ui/PageCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { formatDateTime } from "@/lib/format/date";
 import { readNumberParam, readStringParam, writeParam } from "@/lib/routing/searchParams";
-import { LiveEventsPanel } from "@/features/backoffice/LiveEventsPanel";
 import { runKeys } from "@/services/backoffice-runs/runs.keys";
 import { listRuns } from "@/services/backoffice-runs/runs.service";
 import type { Run, RunFilters } from "@/services/backoffice-runs/runs.types";
@@ -70,12 +70,16 @@ export const RunsPage = (): JSX.Element => {
                 </PageCard>
 
                 <PageCard description={"Manual ingests complete synchronously, so the resulting run record is immediately available here."} title={"Recent Runs"}>
-                    {runsQuery.isLoading ? <p className={"muted-copy"}>{"Loading runs..."}</p> : null}
-                    {runsQuery.isError ? <p className={"error-banner"}>{"Could not load runs."}</p> : null}
-                    {runsQuery.isSuccess && runsQuery.data.items.length === 0 ? <EmptyState message={"No runs matched the current filters."} /> : null}
-                    {runsQuery.data !== undefined && runsQuery.data.items.length > 0 ? (
+                    <AsyncContent
+                        emptyMessage={"No runs matched the current filters."}
+                        errorMessage={"Could not load runs."}
+                        isEmpty={runsQuery.isSuccess && runsQuery.data.items.length === 0}
+                        isError={runsQuery.isError}
+                        isLoading={runsQuery.isLoading}
+                        loadingMessage={"Loading runs..."}
+                    >
                         <div className={"item-list"}>
-                            {runsQuery.data.items.map((item) => {
+                            {(runsQuery.data?.items ?? []).map((item) => {
                                 return (
                                     <article className={"list-row"} key={item.id}>
                                         <div className={"list-row__main"}>
@@ -96,7 +100,7 @@ export const RunsPage = (): JSX.Element => {
                                 );
                             })}
                         </div>
-                    ) : null}
+                    </AsyncContent>
                 </PageCard>
             </div>
 

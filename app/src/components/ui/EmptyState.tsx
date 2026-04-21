@@ -9,5 +9,5 @@ interface EmptyStateProps {
  * @returns A compact empty-state container.
  */
 export const EmptyState = ({ message }: EmptyStateProps): JSX.Element => {
-    return <div className={"empty-state"}>{message}</div>;
+    return <div className={"empty-state"} role={"status"}>{message}</div>;
 };

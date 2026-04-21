@@ -8,6 +8,7 @@ interface ShellState {
     readonly navOpen: boolean;
     setLiveRailOpen: (next: boolean) => void;
     setNavOpen: (next: boolean) => void;
+    toggleNavOpen: () => void;
 }
 
 /**
@@ -21,5 +22,8 @@ export const useShellStore = create<ShellState>((set) => ({
     },
     setNavOpen: (next: boolean) => {
         set({ navOpen: next });
+    },
+    toggleNavOpen: () => {
+        set((state) => ({ navOpen: !state.navOpen }));
     },
 }));
