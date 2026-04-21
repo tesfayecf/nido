@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"home-searcher/server/internal/engine"
 	"home-searcher/server/internal/ingestion/domain"
 	"home-searcher/server/internal/platform/id"
 	"home-searcher/server/internal/platform/objectstore"
@@ -67,6 +68,10 @@ type FetchResult struct {
 	Payload     []byte
 	ContentType string
 	FetchedAt   time.Time
+	Domain      string
+	Proxy       string
+	Latency     time.Duration
+	ByteCount   int
 }
 
 // Clock abstracts time access for ingestion flows.
@@ -98,6 +103,7 @@ type Service struct {
 	connectors map[string]Connector
 	clock      Clock
 	lockTTL    time.Duration
+	retryer    *engine.Retryer
 	changes    ChangeProcessor
 	events     Publisher
 }
@@ -132,6 +138,7 @@ func NewService(logger *slog.Logger, store Store, artifacts objectstore.Store, c
 		connectors: connectorRegistry,
 		clock:      resolvedClock,
 		lockTTL:    lockTTL,
+		retryer:    engine.NewRetryer(0),
 		changes:    changes,
 		events:     events,
 	}, nil
@@ -332,11 +339,15 @@ func (s *Service) IngestSource(ctx context.Context, sourceID string, options Ing
 
 		diagnostics["last_fetch_error"] = lastErr.Error()
 		diagnostics["attempt_count"] = attempt
-		if attempt < source.RetryAttempts() {
-			if err := sleepContext(ctx, source.RetryBackoff()*time.Duration(attempt)); err != nil {
+		diagnostics["failure_class"] = failureClass(lastErr)
+		if attempt < source.RetryAttempts() && engine.IsRetryable(lastErr) {
+			if err := s.retryer.Sleep(ctx, source.RetryBackoff(), attempt); err != nil {
 				return s.failRun(ctx, source, run, "fetch", err, diagnostics)
 			}
+			continue
 		}
+
+		break
 	}
 	if lastErr != nil {
 		return s.failRun(ctx, source, run, "fetch", lastErr, diagnostics)
@@ -345,6 +356,10 @@ func (s *Service) IngestSource(ctx context.Context, sourceID string, options Ing
 	diagnostics["fetched_at"] = fetchResult.FetchedAt.UTC().Format(time.RFC3339Nano)
 	diagnostics["content_type"] = fetchResult.ContentType
 	diagnostics["payload_bytes"] = len(fetchResult.Payload)
+	diagnostics["domain"] = fetchResult.Domain
+	diagnostics["proxy_provider"] = fetchResult.Proxy
+	diagnostics["bytes_processed"] = fetchResult.ByteCount
+	diagnostics["latency_ms"] = fetchResult.Latency.Milliseconds()
 	s.emit("ingestion.fetch.completed", map[string]any{"run_id": run.ID, "source_id": source.ID, "attempt": run.AttemptCount, "payload_bytes": len(fetchResult.Payload)})
 
 	candidates, err := connector.Parse(ctx, source, fetchResult.Payload)
@@ -431,6 +446,21 @@ func (s *Service) IngestSource(ctx context.Context, sourceID string, options Ing
 
 // RunDueSources executes all due scheduled sources up to the supplied limit.
 func (s *Service) RunDueSources(ctx context.Context, limit int) error {
+	sources, now, err := s.dueSources(ctx, limit)
+	if err != nil {
+		return err
+	}
+
+	for _, source := range sources {
+		if err := s.runDueSource(ctx, source, now); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (s *Service) dueSources(ctx context.Context, limit int) ([]domain.Source, time.Time, error) {
 	if limit <= 0 {
 		limit = 10
 	}
@@ -438,33 +468,30 @@ func (s *Service) RunDueSources(ctx context.Context, limit int) error {
 	now := s.clock.Now().UTC()
 	sources, err := s.store.ListDueSources(ctx, now, limit)
 	if err != nil {
-		return err
+		return nil, time.Time{}, err
 	}
 
-	for _, source := range sources {
-		if source.FreshnessWindow() > 0 && source.LastRunAt != nil && now.Sub(*source.LastRunAt) < source.FreshnessWindow() {
-			next := nextRunAt(now, source.ScheduleInterval())
-			if err := s.store.UpdateSourceRunState(ctx, source.ID, source.LastRunAt, next); err != nil {
-				return err
-			}
-			continue
-		}
+	return sources, now, nil
+}
 
-		if _, err := s.IngestSource(ctx, source.ID, IngestOptions{TriggerKind: domain.TriggerKindScheduled}); err != nil {
-			switch {
-			case errors.Is(err, ErrSourceLocked):
-				continue
-			case errors.Is(err, ErrSourceRateLimited):
-				next := nextRunAt(now.Add(source.RateLimitWindow()), source.ScheduleInterval())
-				if next == nil {
-					next = nextRunAt(now, source.ScheduleInterval())
-				}
-				if updateErr := s.store.UpdateSourceRunState(ctx, source.ID, source.LastRunAt, next); updateErr != nil {
-					return updateErr
-				}
-			default:
-				s.logger.Error("scheduled ingest failed", "source_id", source.ID, "error", err.Error())
+func (s *Service) runDueSource(ctx context.Context, source domain.Source, now time.Time) error {
+	if source.FreshnessWindow() > 0 && source.LastRunAt != nil && now.Sub(*source.LastRunAt) < source.FreshnessWindow() {
+		next := nextRunAt(now, source.ScheduleInterval())
+		return s.store.UpdateSourceRunState(ctx, source.ID, source.LastRunAt, next)
+	}
+
+	if _, err := s.IngestSource(ctx, source.ID, IngestOptions{TriggerKind: domain.TriggerKindScheduled}); err != nil {
+		switch {
+		case errors.Is(err, ErrSourceLocked):
+			return nil
+		case errors.Is(err, ErrSourceRateLimited):
+			next := nextRunAt(now.Add(source.RateLimitWindow()), source.ScheduleInterval())
+			if next == nil {
+				next = nextRunAt(now, source.ScheduleInterval())
 			}
+			return s.store.UpdateSourceRunState(ctx, source.ID, source.LastRunAt, next)
+		default:
+			s.logger.Error("scheduled ingest failed", "source_id", source.ID, "error", err.Error())
 		}
 	}
 
@@ -549,6 +576,15 @@ func sleepContext(ctx context.Context, duration time.Duration) error {
 	case <-timer.C:
 		return nil
 	}
+}
+
+func failureClass(err error) string {
+	var classified interface{ FailureClass() engine.FailureClass }
+	if errors.As(err, &classified) {
+		return string(classified.FailureClass())
+	}
+
+	return string(engine.FailureFatal)
 }
 
 func excerpt(payload []byte, limit int) string {
