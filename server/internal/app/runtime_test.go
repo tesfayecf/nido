@@ -1,7 +1,6 @@
 package app
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -10,644 +9,248 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
 	"home-searcher/server/internal/platform/config"
 )
 
-func TestRuntimeIngestAndCatalogFlow(t *testing.T) {
+func TestRuntimePropertyTrackingFlow(t *testing.T) {
 	t.Parallel()
 
-	feedPayload := `{"items":[{"external_id":"flat-001","title":"Sunny flat","price_amount":250000,"currency":"EUR","location":"Bilbao","url":"https://example.test/listings/flat-001"},{"external_id":"house-002","title":"Town house","price_amount":390000,"currency":"EUR","location":"Getxo","url":"https://example.test/listings/house-002"}]}`
-	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = io.WriteString(w, feedPayload)
+	propertyPage := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.WriteString(w, `<html><body>
+			<h1 data-field="title">Sunny flat</h1>
+			<span data-field="price">250000</span>
+			<span data-field="location">Bilbao</span>
+		</body></html>`)
 	}))
-	defer upstream.Close()
+	defer propertyPage.Close()
 
-	cfg := newTestConfig(t, upstream.URL)
-	runtime := newTestRuntime(t, cfg)
-	defer runtime.Close()
-
-	server := httptest.NewServer(runtime.Handler)
+	server, token := newRuntimeServer(t)
 	defer server.Close()
-	token := loginTestUser(t, server.URL, cfg.Auth.BootstrapAdminEmail, cfg.Auth.BootstrapAdminPassword)
 
-	response := mustJSONRequest(t, http.MethodGet, server.URL+"/api/v1/health/ready", "", nil)
-	assertStatus(t, response, http.StatusOK)
+	createSource(t, server.URL, token, map[string]any{
+		"id":          "idealista-template",
+		"name":        "Idealista template",
+		"config_json": `[{"name":"price","selectors":["[data-field='price']"],"required":true},{"name":"title","selectors":["[data-field='title']"],"required":true},{"name":"location","selectors":["[data-field='location']"],"required":false}]`,
+	})
 
-	response = mustJSONRequest(t, http.MethodGet, server.URL+"/api/v1/backoffice/sources", token, nil)
-	assertStatus(t, response, http.StatusOK)
+	property := createProperty(t, server.URL, token, map[string]any{
+		"source_id": "idealista-template",
+		"url":       propertyPage.URL,
+	})
 
-	var sourcePayload struct {
-		Items []struct {
-			ID string `json:"id"`
-		} `json:"items"`
-	}
-	decodeJSON(t, response.Body, &sourcePayload)
-	if len(sourcePayload.Items) != 1 || sourcePayload.Items[0].ID != "bootstrap-feed" {
-		t.Fatalf("unexpected sources payload: %+v", sourcePayload.Items)
-	}
+	mustJSONRequest(t, http.MethodPost, server.URL+"/api/v1/backoffice/properties/"+property.ID+"/ingest", token, nil, http.StatusOK, nil)
 
-	response = mustJSONRequest(t, http.MethodPost, server.URL+"/api/v1/backoffice/sources/bootstrap-feed/ingest", token, nil)
-	assertStatus(t, response, http.StatusOK)
-
-	var ingestPayload struct {
-		Item struct {
-			Status      string `json:"status"`
-			ItemCount   int    `json:"item_count"`
-			ArtifactKey string `json:"artifact_key"`
-		} `json:"item"`
-	}
-	decodeJSON(t, response.Body, &ingestPayload)
-	if ingestPayload.Item.Status != "completed" {
-		t.Fatalf("unexpected run status %q", ingestPayload.Item.Status)
-	}
-	if ingestPayload.Item.ItemCount != 2 {
-		t.Fatalf("unexpected item count %d", ingestPayload.Item.ItemCount)
-	}
-	if ingestPayload.Item.ArtifactKey == "" {
-		t.Fatal("expected artifact key to be set")
-	}
-
-	response = mustJSONRequest(t, http.MethodGet, server.URL+"/api/v1/backoffice/runs?source_id=bootstrap-feed", token, nil)
-	assertStatus(t, response, http.StatusOK)
-
-	var runsPayload struct {
+	var runs struct {
 		Count int `json:"count"`
-	}
-	decodeJSON(t, response.Body, &runsPayload)
-	if runsPayload.Count != 1 {
-		t.Fatalf("unexpected run count %d", runsPayload.Count)
-	}
-
-	response = mustJSONRequest(t, http.MethodGet, server.URL+"/api/v1/listings", "", nil)
-	assertStatus(t, response, http.StatusOK)
-
-	var listingsPayload struct {
 		Items []struct {
-			ID          string `json:"id"`
-			PriceAmount int64  `json:"price_amount"`
+			ID         string `json:"id"`
+			PropertyID string `json:"property_id"`
+			IsValid    bool   `json:"is_valid"`
 		} `json:"items"`
+	}
+	mustJSONRequest(t, http.MethodGet, server.URL+"/api/v1/backoffice/runs?property_id="+property.ID, token, nil, http.StatusOK, &runs)
+	if runs.Count != 1 || len(runs.Items) != 1 {
+		t.Fatalf("unexpected runs payload: %+v", runs)
+	}
+	if runs.Items[0].PropertyID != property.ID || !runs.Items[0].IsValid {
+		t.Fatalf("unexpected run item: %+v", runs.Items[0])
+	}
+
+	var snapshots struct {
 		Count int `json:"count"`
+		Items []struct {
+			Values map[string]string `json:"values"`
+		} `json:"items"`
 	}
-	decodeJSON(t, response.Body, &listingsPayload)
-	if listingsPayload.Count != 2 {
-		t.Fatalf("unexpected listing count %d", listingsPayload.Count)
-	}
-	if listingsPayload.Items[0].ID == "" {
-		t.Fatal("expected listing id to be populated")
-	}
-
-	response = mustJSONRequest(t, http.MethodGet, server.URL+"/api/v1/listings/"+listingsPayload.Items[0].ID, "", nil)
-	assertStatus(t, response, http.StatusOK)
-
-	var detailPayload struct {
-		Item struct {
-			ID string `json:"id"`
-		} `json:"item"`
-		PriceHistory []any `json:"price_history"`
-	}
-	decodeJSON(t, response.Body, &detailPayload)
-	if detailPayload.Item.ID == "" {
-		t.Fatal("expected listing detail id to be populated")
-	}
-	if len(detailPayload.PriceHistory) != 0 {
-		t.Fatalf("expected empty price history, got %d entries", len(detailPayload.PriceHistory))
+	mustJSONRequest(t, http.MethodGet, server.URL+"/api/v1/backoffice/properties/"+property.ID+"/snapshots", token, nil, http.StatusOK, &snapshots)
+	if snapshots.Count != 1 || snapshots.Items[0].Values["title"] != "Sunny flat" {
+		t.Fatalf("unexpected snapshots payload: %+v", snapshots)
 	}
 }
 
-func TestRuntimeRecordsPriceChangeAcrossRepeatedIngests(t *testing.T) {
+func TestRuntimeBookmarksAlertsAndNotificationsFlow(t *testing.T) {
 	t.Parallel()
 
-	feedPayload := `{"items":[{"external_id":"flat-001","title":"Sunny flat","price_amount":250000,"currency":"EUR","location":"Bilbao","url":"https://example.test/listings/flat-001"}]}`
-	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = io.WriteString(w, feedPayload)
+	currentPrice := "250000"
+	propertyPage := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.WriteString(w, `<html><body>
+			<h1 data-field="title">Beach house</h1>
+			<span data-field="price">`+currentPrice+`</span>
+			<span data-field="location">Getxo</span>
+		</body></html>`)
 	}))
-	defer upstream.Close()
+	defer propertyPage.Close()
 
-	cfg := newTestConfig(t, upstream.URL)
-	runtime := newTestRuntime(t, cfg)
-	defer runtime.Close()
-
-	server := httptest.NewServer(runtime.Handler)
+	server, token := newRuntimeServer(t)
 	defer server.Close()
-	token := loginTestUser(t, server.URL, cfg.Auth.BootstrapAdminEmail, cfg.Auth.BootstrapAdminPassword)
 
-	response := mustJSONRequest(t, http.MethodPost, server.URL+"/api/v1/backoffice/sources/bootstrap-feed/ingest", token, nil)
-	assertStatus(t, response, http.StatusOK)
-
-	feedPayload = `{"items":[{"external_id":"flat-001","title":"Sunny flat","price_amount":265000,"currency":"EUR","location":"Bilbao","url":"https://example.test/listings/flat-001"}]}`
-	response = mustJSONRequest(t, http.MethodPost, server.URL+"/api/v1/backoffice/sources/bootstrap-feed/ingest", token, nil)
-	assertStatus(t, response, http.StatusOK)
-
-	response = mustJSONRequest(t, http.MethodGet, server.URL+"/api/v1/listings", "", nil)
-	assertStatus(t, response, http.StatusOK)
-
-	var listingsPayload struct {
-		Items []struct {
-			ID string `json:"id"`
-		} `json:"items"`
-	}
-	decodeJSON(t, response.Body, &listingsPayload)
-
-	response = mustJSONRequest(t, http.MethodGet, server.URL+"/api/v1/listings/"+listingsPayload.Items[0].ID, "", nil)
-	assertStatus(t, response, http.StatusOK)
-
-	var detailPayload struct {
-		PriceHistory []struct {
-			PreviousAmount *int64 `json:"previous_amount"`
-			NewAmount      int64  `json:"new_amount"`
-		} `json:"price_history"`
-	}
-	decodeJSON(t, response.Body, &detailPayload)
-	if len(detailPayload.PriceHistory) != 1 {
-		t.Fatalf("expected one price history item, got %d", len(detailPayload.PriceHistory))
-	}
-	if detailPayload.PriceHistory[0].PreviousAmount == nil || *detailPayload.PriceHistory[0].PreviousAmount != 250000 {
-		t.Fatalf("unexpected previous amount: %+v", detailPayload.PriceHistory[0].PreviousAmount)
-	}
-	if detailPayload.PriceHistory[0].NewAmount != 265000 {
-		t.Fatalf("unexpected new amount %d", detailPayload.PriceHistory[0].NewAmount)
-	}
-}
-
-func TestRuntimeUserFeaturesAndNotifications(t *testing.T) {
-	t.Parallel()
-
-	feedPayload := `{"items":[{"external_id":"flat-001","title":"Sunny flat","price_amount":250000,"currency":"EUR","location":"Bilbao","url":"https://example.test/listings/flat-001"}]}`
-	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = io.WriteString(w, feedPayload)
-	}))
-	defer upstream.Close()
-
-	cfg := newTestConfig(t, upstream.URL)
-	runtime := newTestRuntime(t, cfg)
-	defer runtime.Close()
-
-	server := httptest.NewServer(runtime.Handler)
-	defer server.Close()
-	token := loginTestUser(t, server.URL, cfg.Auth.BootstrapAdminEmail, cfg.Auth.BootstrapAdminPassword)
-
-	response := mustJSONRequest(t, http.MethodPost, server.URL+"/api/v1/me/watchlists", token, map[string]any{
-		"name":  "Bilbao picks",
-		"query": "sunny",
+	createSource(t, server.URL, token, map[string]any{
+		"id":          "template-1",
+		"name":        "Template One",
+		"config_json": `[{"name":"price","selectors":["[data-field='price']"],"required":true},{"name":"title","selectors":["[data-field='title']"],"required":true},{"name":"location","selectors":["[data-field='location']"],"required":false}]`,
 	})
-	assertStatus(t, response, http.StatusCreated)
-
-	var watchlistPayload struct {
-		Item struct {
-			ID string `json:"id"`
-		} `json:"item"`
-	}
-	decodeJSON(t, response.Body, &watchlistPayload)
-
-	response = mustJSONRequest(t, http.MethodPost, server.URL+"/api/v1/me/alert-rules", token, map[string]any{
-		"watchlist_id": watchlistPayload.Item.ID,
-		"rule_type":    "new_listing",
+	property := createProperty(t, server.URL, token, map[string]any{
+		"source_id": "template-1",
+		"url":       propertyPage.URL,
 	})
-	assertStatus(t, response, http.StatusCreated)
 
-	response = mustJSONRequest(t, http.MethodPost, server.URL+"/api/v1/backoffice/sources/bootstrap-feed/ingest", token, nil)
-	assertStatus(t, response, http.StatusOK)
+	mustJSONRequest(t, http.MethodPost, server.URL+"/api/v1/me/bookmarks", token, map[string]any{"property_id": property.ID}, http.StatusCreated, nil)
+	mustJSONRequest(t, http.MethodPost, server.URL+"/api/v1/me/alert-rules", token, map[string]any{
+		"property_id":      property.ID,
+		"rule_type":        "price_below",
+		"threshold_amount": 260000,
+	}, http.StatusCreated, nil)
 
-	response = mustJSONRequest(t, http.MethodGet, server.URL+"/api/v1/me/notifications", token, nil)
-	assertStatus(t, response, http.StatusOK)
+	mustJSONRequest(t, http.MethodPost, server.URL+"/api/v1/backoffice/properties/"+property.ID+"/ingest", token, nil, http.StatusOK, nil)
 
-	var notificationsPayload struct {
-		Items []struct {
-			ID   string `json:"id"`
-			Kind string `json:"kind"`
-		} `json:"items"`
+	var bookmarks struct {
 		Count int `json:"count"`
-	}
-	decodeJSON(t, response.Body, &notificationsPayload)
-	if notificationsPayload.Count != 1 || notificationsPayload.Items[0].Kind != "new_listing" {
-		t.Fatalf("unexpected notifications after first ingest: %+v", notificationsPayload.Items)
-	}
-
-	response = mustJSONRequest(t, http.MethodGet, server.URL+"/api/v1/listings", "", nil)
-	assertStatus(t, response, http.StatusOK)
-
-	var listingsPayload struct {
 		Items []struct {
-			ID string `json:"id"`
+			PropertyID string `json:"property_id"`
 		} `json:"items"`
 	}
-	decodeJSON(t, response.Body, &listingsPayload)
-	listingID := listingsPayload.Items[0].ID
+	mustJSONRequest(t, http.MethodGet, server.URL+"/api/v1/me/bookmarks", token, nil, http.StatusOK, &bookmarks)
+	if bookmarks.Count != 1 || bookmarks.Items[0].PropertyID != property.ID {
+		t.Fatalf("unexpected bookmarks payload: %+v", bookmarks)
+	}
 
-	response = mustJSONRequest(t, http.MethodPost, server.URL+"/api/v1/me/bookmarks", token, map[string]any{"listing_id": listingID})
-	assertStatus(t, response, http.StatusCreated)
-
-	response = mustJSONRequest(t, http.MethodGet, server.URL+"/api/v1/me/bookmarks", token, nil)
-	assertStatus(t, response, http.StatusOK)
-
-	var bookmarksPayload struct {
+	var notifications struct {
 		Count int `json:"count"`
-	}
-	decodeJSON(t, response.Body, &bookmarksPayload)
-	if bookmarksPayload.Count != 1 {
-		t.Fatalf("unexpected bookmark count %d", bookmarksPayload.Count)
-	}
-
-	response = mustJSONRequest(t, http.MethodPost, server.URL+"/api/v1/me/alert-rules", token, map[string]any{
-		"listing_id": listingID,
-		"rule_type":  "price_drop",
-	})
-	assertStatus(t, response, http.StatusCreated)
-
-	feedPayload = `{"items":[{"external_id":"flat-001","title":"Sunny flat","price_amount":225000,"currency":"EUR","location":"Bilbao","url":"https://example.test/listings/flat-001"}]}`
-	response = mustJSONRequest(t, http.MethodPost, server.URL+"/api/v1/backoffice/sources/bootstrap-feed/ingest", token, nil)
-	assertStatus(t, response, http.StatusOK)
-
-	response = mustJSONRequest(t, http.MethodGet, server.URL+"/api/v1/me/notifications", token, nil)
-	assertStatus(t, response, http.StatusOK)
-	decodeJSON(t, response.Body, &notificationsPayload)
-	if notificationsPayload.Count < 2 {
-		t.Fatalf("expected at least two notifications, got %d", notificationsPayload.Count)
-	}
-
-	hasPriceDrop := false
-	for _, item := range notificationsPayload.Items {
-		if item.Kind == "price_drop" {
-			hasPriceDrop = true
-		}
-	}
-	if !hasPriceDrop {
-		t.Fatal("expected a price_drop notification")
-	}
-
-	response = mustJSONRequest(t, http.MethodPost, server.URL+"/api/v1/me/notifications/"+notificationsPayload.Items[0].ID+"/read", token, nil)
-	assertStatus(t, response, http.StatusOK)
-}
-
-func TestRuntimeCreateSourceReturnsNormalizedPayload(t *testing.T) {
-	t.Parallel()
-
-	cfg := newTestConfig(t, "")
-	runtime := newTestRuntime(t, cfg)
-	defer runtime.Close()
-
-	server := httptest.NewServer(runtime.Handler)
-	defer server.Close()
-	token := loginTestUser(t, server.URL, cfg.Auth.BootstrapAdminEmail, cfg.Auth.BootstrapAdminPassword)
-
-	response := mustJSONRequest(t, http.MethodPost, server.URL+"/api/v1/backoffice/sources", token, map[string]any{
-		"active":       true,
-		"endpoint_url": "https://example.test/manual-feed.json",
-		"id":           "manual-feed",
-		"kind":         "http-json-feed",
-		"name":         "Manual Feed",
-	})
-	assertStatus(t, response, http.StatusCreated)
-
-	var payload struct {
-		Item struct {
-			ConfigJSON string `json:"config_json"`
-			CreatedAt  string `json:"created_at"`
-			UpdatedAt  string `json:"updated_at"`
-		} `json:"item"`
-	}
-	decodeJSON(t, response.Body, &payload)
-
-	if payload.Item.ConfigJSON != "{}" {
-		t.Fatalf("expected normalized config json, got %q", payload.Item.ConfigJSON)
-	}
-	if payload.Item.CreatedAt == "" || payload.Item.UpdatedAt == "" {
-		t.Fatalf("expected normalized timestamps, got created=%q updated=%q", payload.Item.CreatedAt, payload.Item.UpdatedAt)
-	}
-}
-
-func TestRuntimeHTMLJSONLDSourceFlow(t *testing.T) {
-	t.Parallel()
-
-	htmlPayload := `<html><head><script type="application/ld+json">{"@context":"https://schema.org","@type":"ItemList","itemListElement":[{"@type":"ListItem","item":{"@type":"Product","name":"Harbor Loft","url":"https://portal.test/listings/loft-01","identifier":"loft-01","offers":{"price":"310000","priceCurrency":"EUR"},"address":{"addressLocality":"Bilbao"}}}]}</script></head><body></body></html>`
-	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = io.WriteString(w, htmlPayload)
-	}))
-	defer upstream.Close()
-
-	cfg := newTestConfig(t, "")
-	runtime := newTestRuntime(t, cfg)
-	defer runtime.Close()
-
-	server := httptest.NewServer(runtime.Handler)
-	defer server.Close()
-	token := loginTestUser(t, server.URL, cfg.Auth.BootstrapAdminEmail, cfg.Auth.BootstrapAdminPassword)
-
-	response := mustJSONRequest(t, http.MethodPost, server.URL+"/api/v1/backoffice/sources", token, map[string]any{
-		"id":           "portal-html",
-		"name":         "Portal HTML",
-		"kind":         "html-jsonld",
-		"endpoint_url": upstream.URL,
-		"active":       true,
-	})
-	assertStatus(t, response, http.StatusCreated)
-
-	response = mustJSONRequest(t, http.MethodPost, server.URL+"/api/v1/backoffice/sources/portal-html/ingest", token, nil)
-	assertStatus(t, response, http.StatusOK)
-
-	response = mustJSONRequest(t, http.MethodGet, server.URL+"/api/v1/listings?source_id=portal-html", "", nil)
-	assertStatus(t, response, http.StatusOK)
-
-	var listingsPayload struct {
 		Items []struct {
-			Title       string `json:"title"`
-			Location    string `json:"location"`
-			PriceAmount int64  `json:"price_amount"`
+			ID     string  `json:"id"`
+			Kind   string  `json:"kind"`
+			ReadAt *string `json:"read_at"`
 		} `json:"items"`
-		Count int `json:"count"`
 	}
-	decodeJSON(t, response.Body, &listingsPayload)
-	if listingsPayload.Count != 1 {
-		t.Fatalf("unexpected listing count %d", listingsPayload.Count)
+	mustJSONRequest(t, http.MethodGet, server.URL+"/api/v1/me/notifications", token, nil, http.StatusOK, &notifications)
+	if notifications.Count != 1 || notifications.Items[0].Kind != "price_below" {
+		t.Fatalf("unexpected notifications payload: %+v", notifications)
 	}
-	if listingsPayload.Items[0].Title != "Harbor Loft" || listingsPayload.Items[0].Location != "Bilbao" || listingsPayload.Items[0].PriceAmount != 310000 {
-		t.Fatalf("unexpected html connector listing payload: %+v", listingsPayload.Items[0])
-	}
-}
 
-func TestRuntimeHTMLListingsSourceFlow(t *testing.T) {
-	t.Parallel()
+	notificationID := notifications.Items[0].ID
+	mustJSONRequest(t, http.MethodPost, server.URL+"/api/v1/me/notifications/"+notificationID+"/read", token, nil, http.StatusOK, nil)
+	mustJSONRequest(t, http.MethodPost, server.URL+"/api/v1/me/notifications/"+notificationID+"/unread", token, nil, http.StatusOK, nil)
 
-	htmlPayload := `<html><body><article class="item" data-element-id="110924150"><a class="item-link" href="/ca/inmueble/110924150/">Pis a Palau, Girona</a><span class="item-price h2-simulated">180.000<span class="txt-big">€</span></span></article></body></html>`
-	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = io.WriteString(w, htmlPayload)
-	}))
-	defer upstream.Close()
-
-	cfg := newTestConfig(t, "")
-	runtime := newTestRuntime(t, cfg)
-	defer runtime.Close()
-
-	server := httptest.NewServer(runtime.Handler)
-	defer server.Close()
-	token := loginTestUser(t, server.URL, cfg.Auth.BootstrapAdminEmail, cfg.Auth.BootstrapAdminPassword)
-
-	response := mustJSONRequest(t, http.MethodPost, server.URL+"/api/v1/backoffice/sources", token, map[string]any{
-		"id":              "idealista-html",
-		"name":            "Idealista HTML",
-		"kind":            "html-listings",
-		"endpoint_url":    upstream.URL,
-		"browser_enabled": false,
-		"active":          true,
-		"config_json":     `{"item_selector":"article.item","title_selector":"a.item-link","url_selector":"a.item-link","price_selector":".item-price","external_id_attribute":"data-element-id","base_url":"https://www.idealista.com","currency":"EUR"}`,
-	})
-	assertStatus(t, response, http.StatusCreated)
-
-	response = mustJSONRequest(t, http.MethodPost, server.URL+"/api/v1/backoffice/sources/idealista-html/ingest", token, nil)
-	assertStatus(t, response, http.StatusOK)
-
-	response = mustJSONRequest(t, http.MethodGet, server.URL+"/api/v1/listings?source_id=idealista-html", "", nil)
-	assertStatus(t, response, http.StatusOK)
-
-	var listingsPayload struct {
+	var refreshed struct {
 		Items []struct {
-			Title       string `json:"title"`
-			Location    string `json:"location"`
-			PriceAmount int64  `json:"price_amount"`
-			URL         string `json:"url"`
+			ReadAt *string `json:"read_at"`
 		} `json:"items"`
-		Count int `json:"count"`
 	}
-	decodeJSON(t, response.Body, &listingsPayload)
-	if listingsPayload.Count != 1 {
-		t.Fatalf("unexpected listing count %d", listingsPayload.Count)
-	}
-	if listingsPayload.Items[0].Title != "Pis a Palau, Girona" || listingsPayload.Items[0].PriceAmount != 180000 || listingsPayload.Items[0].URL != "https://www.idealista.com/ca/inmueble/110924150/" {
-		t.Fatalf("unexpected html listings payload: %+v", listingsPayload.Items[0])
+	mustJSONRequest(t, http.MethodGet, server.URL+"/api/v1/me/notifications", token, nil, http.StatusOK, &refreshed)
+	if len(refreshed.Items) != 1 || refreshed.Items[0].ReadAt != nil {
+		t.Fatalf("expected notification to be unread after reset, got %+v", refreshed.Items)
 	}
 }
 
-func TestRuntimeSchedulerIngestsDueSource(t *testing.T) {
-	t.Parallel()
-
-	feedPayload := `{"items":[{"external_id":"flat-001","title":"Sunny flat","price_amount":250000,"currency":"EUR","location":"Bilbao","url":"https://example.test/listings/flat-001"}]}`
-	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = io.WriteString(w, feedPayload)
-	}))
-	defer upstream.Close()
-
-	cfg := newTestConfig(t, upstream.URL)
-	cfg.Scheduler.Enabled = true
-	cfg.Scheduler.TickInterval = 20 * time.Millisecond
-	cfg.Scheduler.BatchSize = 1
-	cfg.BootstrapSource.ScheduleIntervalSeconds = 1
-	runtime := newTestRuntime(t, cfg)
-	defer runtime.Close()
-
-	server := httptest.NewServer(runtime.Handler)
-	defer server.Close()
-	token := loginTestUser(t, server.URL, cfg.Auth.BootstrapAdminEmail, cfg.Auth.BootstrapAdminPassword)
-
-	pollUntil(t, 2*time.Second, func() (bool, error) {
-		response := mustJSONRequest(t, http.MethodGet, server.URL+"/api/v1/backoffice/runs?source_id=bootstrap-feed", token, nil)
-		assertStatus(t, response, http.StatusOK)
-
-		var runsPayload struct {
-			Count int `json:"count"`
-		}
-		decodeJSON(t, response.Body, &runsPayload)
-		return runsPayload.Count >= 1, nil
-	})
+type createdProperty struct {
+	ID string `json:"id"`
 }
 
-func TestRuntimeBackofficeEventsStream(t *testing.T) {
-	t.Parallel()
-
-	feedPayload := `{"items":[{"external_id":"flat-001","title":"Sunny flat","price_amount":250000,"currency":"EUR","location":"Bilbao","url":"https://example.test/listings/flat-001"}]}`
-	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = io.WriteString(w, feedPayload)
-	}))
-	defer upstream.Close()
-
-	cfg := newTestConfig(t, upstream.URL)
-	runtime := newTestRuntime(t, cfg)
-	defer runtime.Close()
-
-	server := httptest.NewServer(runtime.Handler)
-	defer server.Close()
-	token := loginTestUser(t, server.URL, cfg.Auth.BootstrapAdminEmail, cfg.Auth.BootstrapAdminPassword)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, server.URL+"/api/v1/backoffice/events", nil)
-	if err != nil {
-		t.Fatalf("build stream request: %v", err)
-	}
-	request.Header.Set("Authorization", "Bearer "+token)
-
-	response, err := http.DefaultClient.Do(request)
-	if err != nil {
-		t.Fatalf("open event stream: %v", err)
-	}
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(response.Body)
-		t.Fatalf("unexpected event stream status %d: %s", response.StatusCode, string(body))
-	}
-
-	eventsSeen := make(chan string, 1)
-	go func() {
-		scanner := bufio.NewScanner(response.Body)
-		for scanner.Scan() {
-			line := scanner.Text()
-			if strings.HasPrefix(line, "event: ") {
-				eventType := strings.TrimSpace(strings.TrimPrefix(line, "event: "))
-				if eventType == "ingestion.run.completed" {
-					eventsSeen <- eventType
-					return
-				}
-			}
-		}
-		eventsSeen <- ""
-	}()
-
-	response = mustJSONRequest(t, http.MethodPost, server.URL+"/api/v1/backoffice/sources/bootstrap-feed/ingest", token, nil)
-	assertStatus(t, response, http.StatusOK)
-
-	select {
-	case eventType := <-eventsSeen:
-		if eventType != "ingestion.run.completed" {
-			t.Fatalf("unexpected stream event %q", eventType)
-		}
-	case <-ctx.Done():
-		t.Fatal("timed out waiting for stream event")
-	}
+func createSource(t *testing.T, baseURL, token string, payload map[string]any) {
+	t.Helper()
+	mustJSONRequest(t, http.MethodPost, baseURL+"/api/v1/backoffice/sources", token, payload, http.StatusCreated, nil)
 }
 
-func newTestConfig(t *testing.T, sourceURL string) config.Config {
+func createProperty(t *testing.T, baseURL, token string, payload map[string]any) createdProperty {
+	t.Helper()
+	var response struct {
+		Item createdProperty `json:"item"`
+	}
+	mustJSONRequest(t, http.MethodPost, baseURL+"/api/v1/backoffice/properties", token, payload, http.StatusCreated, &response)
+	return response.Item
+}
+
+func newRuntimeServer(t *testing.T) (*httptest.Server, string) {
 	t.Helper()
 
-	return config.Config{
-		HTTP: config.HTTPConfig{Address: ":0"},
+	cfg := config.Config{
 		Database: config.DatabaseConfig{
 			Path: filepath.Join(t.TempDir(), "home-searcher.db"),
 		},
-		ObjectStore: config.ObjectStoreConfig{Driver: "memory"},
-		Scheduler:   config.SchedulerConfig{Enabled: false, TickInterval: 50 * time.Millisecond, LockTTL: time.Second, BatchSize: 1},
 		Auth: config.AuthConfig{
-			BootstrapAdminEmail:    "admin@example.test",
-			BootstrapAdminName:     "Test Admin",
-			BootstrapAdminPassword: "test-password",
-			SessionTTL:             time.Hour,
+			BootstrapAdminEmail:    "admin@local",
+			BootstrapAdminName:     "Local Admin",
+			BootstrapAdminPassword: "dev-password",
+			SessionTTL:             24 * time.Hour,
 		},
-		BootstrapSource: config.BootstrapSourceConfig{
-			ID:               "bootstrap-feed",
-			Name:             "Bootstrap Feed",
-			Kind:             "http-json-feed",
-			EndpointURL:      sourceURL,
-			ConfigJSON:       "{}",
-			RetryMaxAttempts: 1,
+		Scheduler: config.SchedulerConfig{
+			Enabled:         false,
+			LockTTL:         2 * time.Minute,
+			ShutdownTimeout: 5 * time.Second,
 		},
 	}
-}
-
-func newTestRuntime(t *testing.T, cfg config.Config) *Runtime {
-	t.Helper()
 
 	runtime, err := New(context.Background(), cfg, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	if err != nil {
-		t.Fatalf("build runtime: %v", err)
+		t.Fatalf("new runtime: %v", err)
 	}
 
-	return runtime
+	server := httptest.NewServer(runtime.Handler)
+	token := loginTestUser(t, server.URL)
+	t.Cleanup(func() {
+		_ = runtime.Close()
+	})
+	return server, token
 }
 
-func loginTestUser(t *testing.T, baseURL, email, password string) string {
+func loginTestUser(t *testing.T, baseURL string) string {
 	t.Helper()
 
-	response := mustJSONRequest(t, http.MethodPost, baseURL+"/api/v1/auth/login", "", map[string]string{
-		"email":    email,
-		"password": password,
-	})
-	assertStatus(t, response, http.StatusOK)
-
-	var payload struct {
+	var response struct {
 		Token string `json:"token"`
 	}
-	decodeJSON(t, response.Body, &payload)
-	if payload.Token == "" {
-		t.Fatal("expected auth token to be returned")
+	mustJSONRequest(t, http.MethodPost, baseURL+"/api/v1/auth/login", "", map[string]string{
+		"email":    "admin@local",
+		"password": "dev-password",
+	}, http.StatusOK, &response)
+	if response.Token == "" {
+		t.Fatal("expected token to be returned")
 	}
-
-	return payload.Token
+	return response.Token
 }
 
-func mustJSONRequest(t *testing.T, method, url, token string, body any) *http.Response {
+func mustJSONRequest(t *testing.T, method, targetURL, token string, payload any, wantStatus int, out any) {
 	t.Helper()
 
-	var reader io.Reader
-	if body != nil {
-		payload, err := json.Marshal(body)
+	var body io.Reader
+	if payload != nil {
+		encoded, err := json.Marshal(payload)
 		if err != nil {
-			t.Fatalf("marshal request body: %v", err)
+			t.Fatalf("marshal payload: %v", err)
 		}
-		reader = bytes.NewReader(payload)
+		body = bytes.NewReader(encoded)
 	}
 
-	request, err := http.NewRequestWithContext(context.Background(), method, url, reader)
+	request, err := http.NewRequest(method, targetURL, body)
 	if err != nil {
-		t.Fatalf("build request: %v", err)
+		t.Fatalf("new request: %v", err)
 	}
-	if body != nil {
+	if payload != nil {
 		request.Header.Set("Content-Type", "application/json")
 	}
-	if strings.TrimSpace(token) != "" {
+	if token != "" {
 		request.Header.Set("Authorization", "Bearer "+token)
 	}
 
 	response, err := http.DefaultClient.Do(request)
 	if err != nil {
-		t.Fatalf("send request: %v", err)
+		t.Fatalf("do request: %v", err)
 	}
+	defer response.Body.Close()
 
-	return response
-}
-
-func assertStatus(t *testing.T, response *http.Response, expected int) {
-	t.Helper()
-
-	if response.StatusCode != expected {
-		body, _ := io.ReadAll(response.Body)
-		_ = response.Body.Close()
-		t.Fatalf("unexpected status %d, expected %d, body=%s", response.StatusCode, expected, string(body))
+	responseBody, err := io.ReadAll(response.Body)
+	if err != nil {
+		t.Fatalf("read response body: %v", err)
 	}
-}
-
-func decodeJSON(t *testing.T, body io.ReadCloser, target any) {
-	t.Helper()
-	defer body.Close()
-
-	if err := json.NewDecoder(body).Decode(target); err != nil {
-		t.Fatalf("decode json: %v", err)
+	if response.StatusCode != wantStatus {
+		t.Fatalf("unexpected status %d, expected %d, body=%s", response.StatusCode, wantStatus, string(responseBody))
 	}
-}
-
-func pollUntil(t *testing.T, timeout time.Duration, fn func() (bool, error)) {
-	t.Helper()
-
-	deadline := time.Now().Add(timeout)
-	for time.Now().Before(deadline) {
-		done, err := fn()
-		if err != nil {
-			t.Fatalf("poll failed: %v", err)
+	if out != nil {
+		if err := json.Unmarshal(responseBody, out); err != nil {
+			t.Fatalf("decode response: %v", err)
 		}
-		if done {
-			return
-		}
-		time.Sleep(25 * time.Millisecond)
 	}
-
-	t.Fatalf("condition not met within %s", timeout)
 }

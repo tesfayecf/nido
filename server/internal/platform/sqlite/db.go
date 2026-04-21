@@ -47,52 +47,52 @@ func Migrate(ctx context.Context, db *sql.DB) error {
 		return fmt.Errorf("apply sqlite schema: %w", err)
 	}
 
-    for _, migration := range columnMigrations {
-        if err := ensureColumn(ctx, db, migration); err != nil {
-            return err
-        }
-    }
+	for _, migration := range columnMigrations {
+		if err := ensureColumn(ctx, db, migration); err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
 
 type columnMigration struct {
-    table      string
-    column     string
-    definition string
+	table      string
+	column     string
+	definition string
 }
 
 func ensureColumn(ctx context.Context, db *sql.DB, migration columnMigration) error {
-    rows, err := db.QueryContext(ctx, fmt.Sprintf("PRAGMA table_info(%s)", migration.table))
-    if err != nil {
-        return fmt.Errorf("inspect table %q: %w", migration.table, err)
-    }
-    defer rows.Close()
+	rows, err := db.QueryContext(ctx, fmt.Sprintf("PRAGMA table_info(%s)", migration.table))
+	if err != nil {
+		return fmt.Errorf("inspect table %q: %w", migration.table, err)
+	}
+	defer rows.Close()
 
-    for rows.Next() {
-        var (
-            cid       int
-            name      string
-            dataType  string
-            notNull   int
-            defaultV  sql.NullString
-            primaryKey int
-        )
+	for rows.Next() {
+		var (
+			cid        int
+			name       string
+			dataType   string
+			notNull    int
+			defaultV   sql.NullString
+			primaryKey int
+		)
 
-        if err := rows.Scan(&cid, &name, &dataType, &notNull, &defaultV, &primaryKey); err != nil {
-            return fmt.Errorf("scan table info for %q: %w", migration.table, err)
-        }
+		if err := rows.Scan(&cid, &name, &dataType, &notNull, &defaultV, &primaryKey); err != nil {
+			return fmt.Errorf("scan table info for %q: %w", migration.table, err)
+		}
 
-        if name == migration.column {
-            return nil
-        }
-    }
+		if name == migration.column {
+			return nil
+		}
+	}
 
-    if _, err := db.ExecContext(ctx, fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", migration.table, migration.column, migration.definition)); err != nil {
-        return fmt.Errorf("add column %q.%q: %w", migration.table, migration.column, err)
-    }
+	if _, err := db.ExecContext(ctx, fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", migration.table, migration.column, migration.definition)); err != nil {
+		return fmt.Errorf("add column %q.%q: %w", migration.table, migration.column, err)
+	}
 
-    return nil
+	return nil
 }
 
 const schema = `
@@ -154,47 +154,6 @@ CREATE TABLE IF NOT EXISTS artifacts (
 
 CREATE INDEX IF NOT EXISTS idx_artifacts_source_created_at ON artifacts(source_id, created_at DESC);
 
-CREATE TABLE IF NOT EXISTS listings (
-    id TEXT PRIMARY KEY,
-    source_id TEXT NOT NULL REFERENCES sources(id),
-    external_id TEXT NOT NULL,
-    title TEXT NOT NULL,
-    price_amount INTEGER NOT NULL,
-    currency TEXT NOT NULL,
-    location TEXT NOT NULL,
-    url TEXT NOT NULL,
-    first_seen_at TEXT NOT NULL,
-    last_seen_at TEXT NOT NULL,
-    latest_snapshot_at TEXT NOT NULL,
-    UNIQUE(source_id, external_id)
-);
-
-CREATE INDEX IF NOT EXISTS idx_listings_source_last_seen ON listings(source_id, last_seen_at DESC);
-CREATE INDEX IF NOT EXISTS idx_listings_title ON listings(title);
-
-CREATE TABLE IF NOT EXISTS listing_snapshots (
-    id TEXT PRIMARY KEY,
-    listing_id TEXT NOT NULL REFERENCES listings(id),
-    observed_at TEXT NOT NULL,
-    title TEXT NOT NULL,
-    price_amount INTEGER NOT NULL,
-    currency TEXT NOT NULL,
-    location TEXT NOT NULL,
-    url TEXT NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_snapshots_listing_observed_at ON listing_snapshots(listing_id, observed_at DESC);
-
-CREATE TABLE IF NOT EXISTS price_events (
-    id TEXT PRIMARY KEY,
-    listing_id TEXT NOT NULL REFERENCES listings(id),
-    previous_amount INTEGER,
-    new_amount INTEGER NOT NULL,
-    changed_at TEXT NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_price_events_listing_changed_at ON price_events(listing_id, changed_at DESC);
-
 CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     email TEXT NOT NULL UNIQUE,
@@ -215,33 +174,27 @@ CREATE TABLE IF NOT EXISTS auth_sessions (
 
 CREATE INDEX IF NOT EXISTS idx_auth_sessions_user_id ON auth_sessions(user_id);
 
+DROP TABLE IF EXISTS watchlists;
+DROP TABLE IF EXISTS notifications;
+DROP TABLE IF EXISTS alert_rules;
+DROP TABLE IF EXISTS bookmarks;
+DROP TABLE IF EXISTS price_events;
+DROP TABLE IF EXISTS listing_snapshots;
+DROP TABLE IF EXISTS listings;
+
 CREATE TABLE IF NOT EXISTS bookmarks (
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    listing_id TEXT NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
+    property_id TEXT NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
     created_at TEXT NOT NULL,
-    PRIMARY KEY(user_id, listing_id)
+    PRIMARY KEY(user_id, property_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_bookmarks_user_created_at ON bookmarks(user_id, created_at DESC);
 
-CREATE TABLE IF NOT EXISTS watchlists (
-    id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    name TEXT NOT NULL,
-    query TEXT NOT NULL DEFAULT '',
-    source_id TEXT,
-    max_price_amount INTEGER,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_watchlists_user_id ON watchlists(user_id, created_at DESC);
-
 CREATE TABLE IF NOT EXISTS alert_rules (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    watchlist_id TEXT REFERENCES watchlists(id) ON DELETE CASCADE,
-    listing_id TEXT REFERENCES listings(id) ON DELETE CASCADE,
+    property_id TEXT NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
     rule_type TEXT NOT NULL,
     threshold_amount INTEGER,
     enabled INTEGER NOT NULL DEFAULT 1,
@@ -255,8 +208,8 @@ CREATE INDEX IF NOT EXISTS idx_alert_rules_enabled ON alert_rules(enabled, rule_
 CREATE TABLE IF NOT EXISTS notifications (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    rule_id TEXT REFERENCES alert_rules(id) ON DELETE SET NULL,
-    listing_id TEXT REFERENCES listings(id) ON DELETE SET NULL,
+    alert_id TEXT REFERENCES alert_rules(id) ON DELETE SET NULL,
+    property_id TEXT REFERENCES properties(id) ON DELETE SET NULL,
     kind TEXT NOT NULL,
     title TEXT NOT NULL,
     body TEXT NOT NULL,
@@ -272,6 +225,7 @@ CREATE TABLE IF NOT EXISTS properties (
     id TEXT PRIMARY KEY,
     url TEXT NOT NULL,
     label TEXT NOT NULL DEFAULT '',
+    source_id TEXT REFERENCES sources(id) ON DELETE SET NULL,
     status TEXT NOT NULL DEFAULT 'pending',
     schedule_interval_seconds INTEGER NOT NULL DEFAULT 0,
     retry_max_attempts INTEGER NOT NULL DEFAULT 1,
@@ -284,6 +238,7 @@ CREATE TABLE IF NOT EXISTS properties (
 
 CREATE INDEX IF NOT EXISTS idx_properties_status ON properties(status);
 CREATE INDEX IF NOT EXISTS idx_properties_next_run_at ON properties(next_run_at);
+CREATE INDEX IF NOT EXISTS idx_properties_source_id ON properties(source_id);
 
 CREATE TABLE IF NOT EXISTS property_extraction_configs (
     id TEXT PRIMARY KEY,
@@ -325,6 +280,7 @@ var columnMigrations = []columnMigration{
 	{table: "ingestion_runs", column: "attempt_count", definition: "INTEGER NOT NULL DEFAULT 1"},
 	{table: "ingestion_runs", column: "failure_artifact_key", definition: "TEXT"},
 	{table: "ingestion_runs", column: "diagnostics_json", definition: "TEXT NOT NULL DEFAULT '{}'"},
+	{table: "properties", column: "source_id", definition: "TEXT"},
 	{table: "properties", column: "schedule_interval_seconds", definition: "INTEGER NOT NULL DEFAULT 0"},
 	{table: "properties", column: "retry_max_attempts", definition: "INTEGER NOT NULL DEFAULT 1"},
 	{table: "properties", column: "retry_backoff_millis", definition: "INTEGER NOT NULL DEFAULT 500"},

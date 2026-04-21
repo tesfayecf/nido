@@ -5,30 +5,19 @@ import { LiveEventsPanel } from "@/features/backoffice/LiveEventsPanel";
 import { AsyncContent } from "@/components/ui/AsyncContent";
 import { PageCard } from "@/components/ui/PageCard";
 import { formatDateTime } from "@/lib/format/date";
-import { ingestSource } from "@/services/backoffice-runs/runs.service";
 import { sourceKeys } from "@/services/backoffice-sources/sources.keys";
-import { listSources } from "@/services/backoffice-sources/sources.service";
+import { deleteSource, listSources } from "@/services/backoffice-sources/sources.service";
 
-/**
- * Hosts the backoffice sources route.
- *
- * @returns The placeholder source management screen.
- */
 export const SourcesPage = (): JSX.Element => {
     const queryClient = useQueryClient();
     const sourcesQuery = useQuery({
         queryFn: listSources,
         queryKey: sourceKeys.list(),
     });
-    const ingestMutation = useMutation({
-        mutationFn: ({ force, sourceId }: { force: boolean; sourceId: string; }) => {
-            return ingestSource(sourceId, force);
-        },
+    const deleteMutation = useMutation({
+        mutationFn: deleteSource,
         onSuccess() {
             void queryClient.invalidateQueries({ queryKey: sourceKeys.list() });
-            void queryClient.invalidateQueries({ queryKey: ["backoffice", "runs"] });
-            void queryClient.invalidateQueries({ queryKey: ["listings"] });
-            void queryClient.invalidateQueries({ queryKey: ["me", "notifications"] });
         },
     });
     const sources = sourcesQuery.data ?? [];
@@ -37,8 +26,8 @@ export const SourcesPage = (): JSX.Element => {
         <div className={"split-layout"}>
             <div className={"page-stack"}>
                 <PageCard
-                    action={<Link className={"button"} to={"/backoffice/sources/new"}>{"Register source"}</Link>}
-                    description={"Source registration is intentionally literal in iteration 1: raw ids, raw config JSON, and explicit policy fields."}
+                    action={<Link className={"button"} to={"/sources/new"}>{"Create source"}</Link>}
+                    description={"Sources are reusable extraction templates. Properties can inherit these selectors and override them when needed."}
                     title={"Sources"}
                 >
                     <AsyncContent
@@ -55,39 +44,16 @@ export const SourcesPage = (): JSX.Element => {
                                     <article className={"list-row"} key={item.id}>
                                         <div className={"list-row__main"}>
                                             <div>
-                                                <h3 className={"list-row__title"}>
-                                                    <Link to={`/backoffice/sources/${item.id}`}>{item.name}</Link>
-                                                </h3>
-                                                <p className={"list-row__meta"}>
-                                                    {item.kind}{" · "}{item.endpoint_url}{" · "}{item.active ? "active" : "inactive"}
-                                                </p>
+                                                <h3 className={"list-row__title"}><Link to={`/sources/${item.id}`}>{item.name}</Link></h3>
+                                                <p className={"list-row__meta"}>{item.id}</p>
                                             </div>
-                                            <strong className={"list-row__price"}>{item.next_run_at === undefined ? "Manual or ad hoc" : `Next ${formatDateTime(item.next_run_at)}`}</strong>
+                                            <strong className={"list-row__price"}>{item.updated_at === undefined ? "New" : `Updated ${formatDateTime(item.updated_at)}`}</strong>
                                         </div>
                                         <div className={"list-row__footer"}>
-                                            <span>{"Last run "}{item.last_run_at === undefined ? "—" : formatDateTime(item.last_run_at)}</span>
+                                            <span>{item.created_at === undefined ? "Created recently" : `Created ${formatDateTime(item.created_at)}`}</span>
                                             <div className={"action-group"}>
-                                                <Link className={"button button--secondary"} to={`/backoffice/runs?source_id=${encodeURIComponent(item.id)}`}>{"Runs"}</Link>
-                                                <button
-                                                    className={"button button--secondary"}
-                                                    disabled={ingestMutation.isPending}
-                                                    onClick={() => {
-                                                        ingestMutation.mutate({ force: false, sourceId: item.id });
-                                                    }}
-                                                    type={"button"}
-                                                >
-                                                    {"Ingest"}
-                                                </button>
-                                                <button
-                                                    className={"button button--secondary"}
-                                                    disabled={ingestMutation.isPending}
-                                                    onClick={() => {
-                                                        ingestMutation.mutate({ force: true, sourceId: item.id });
-                                                    }}
-                                                    type={"button"}
-                                                >
-                                                    {"Force ingest"}
-                                                </button>
+                                                <Link className={"button button--secondary"} to={`/sources/${item.id}`}>{"Edit"}</Link>
+                                                <button className={"button button--secondary"} disabled={deleteMutation.isPending} onClick={() => { deleteMutation.mutate(item.id); }} type={"button"}>{"Delete"}</button>
                                             </div>
                                         </div>
                                     </article>

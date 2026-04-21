@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net/url"
 	"path"
 	"strings"
 	"time"
@@ -50,6 +49,7 @@ type Store interface {
 	ListSources(ctx context.Context) ([]domain.Source, error)
 	ListDueSources(ctx context.Context, before time.Time, limit int) ([]domain.Source, error)
 	GetSource(ctx context.Context, sourceID string) (domain.Source, error)
+	DeleteSource(ctx context.Context, sourceID string) error
 	UpdateSourceRunState(ctx context.Context, sourceID string, lastRunAt, nextRunAt *time.Time) error
 	CountRunsSince(ctx context.Context, sourceID string, since time.Time) (int, error)
 	TryAcquireIngestionLock(ctx context.Context, sourceID, holderID string, acquiredAt, expiresAt time.Time) (bool, error)
@@ -195,15 +195,24 @@ func (s *Service) GetSource(ctx context.Context, sourceID string) (domain.Source
 	return source, nil
 }
 
+// DeleteSource removes one configured source.
+func (s *Service) DeleteSource(ctx context.Context, sourceID string) error {
+	return s.store.DeleteSource(ctx, sourceID)
+}
+
 func normalizeSourceForUpsert(source domain.Source, now time.Time) domain.Source {
 	source.ID = strings.TrimSpace(source.ID)
 	source.Name = strings.TrimSpace(source.Name)
 	source.Kind = strings.TrimSpace(source.Kind)
 	source.EndpointURL = strings.TrimSpace(source.EndpointURL)
+	if source.Kind == "" {
+		source.Kind = "property-template"
+	}
 	source.ConfigJSON = strings.TrimSpace(source.ConfigJSON)
 	if strings.TrimSpace(source.ConfigJSON) == "" {
-		source.ConfigJSON = "{}"
+		source.ConfigJSON = "[]"
 	}
+	source.Active = true
 	if source.CreatedAt.IsZero() {
 		source.CreatedAt = now
 	}
@@ -222,24 +231,8 @@ func (s *Service) normalizeAndValidateSource(source domain.Source) (domain.Sourc
 	if normalized.Name == "" {
 		return domain.Source{}, fmt.Errorf("source name is required")
 	}
-	if normalized.Kind == "" {
-		return domain.Source{}, fmt.Errorf("source kind is required")
-	}
-	if normalized.EndpointURL == "" {
-		return domain.Source{}, fmt.Errorf("source endpoint url is required")
-	}
-	if _, err := url.ParseRequestURI(normalized.EndpointURL); err != nil {
-		return domain.Source{}, fmt.Errorf("invalid source endpoint url: %w", err)
-	}
-
-	connector, ok := s.connectors[normalized.Kind]
-	if !ok {
-		return domain.Source{}, fmt.Errorf("no connector registered for source kind %q", normalized.Kind)
-	}
-	if validator, ok := connector.(SourceValidator); ok {
-		if err := validator.ValidateSource(normalized); err != nil {
-			return domain.Source{}, err
-		}
+	if !json.Valid([]byte(normalized.ConfigJSON)) {
+		return domain.Source{}, fmt.Errorf("source config must be valid json")
 	}
 
 	return normalized, nil

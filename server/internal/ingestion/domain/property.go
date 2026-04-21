@@ -42,6 +42,7 @@ type Property struct {
 	ID                      string         `json:"id"`
 	URL                     string         `json:"url"`
 	Label                   string         `json:"label"`
+	SourceID                string         `json:"source_id,omitempty"`
 	Status                  PropertyStatus `json:"status"`
 	ScheduleIntervalSeconds int            `json:"schedule_interval_seconds,omitempty"`
 	RetryMaxAttempts        int            `json:"retry_max_attempts,omitempty"`

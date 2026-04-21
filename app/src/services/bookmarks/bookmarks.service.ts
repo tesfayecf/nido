@@ -1,14 +1,9 @@
 import { apiRequest, type ListEnvelope, type StatusEnvelope } from "@/lib/api/client";
 
-import type { BookmarkedListing } from "@/services/bookmarks/bookmarks.types";
+import type { BookmarkedProperty } from "@/services/bookmarks/bookmarks.types";
 
-/**
- * Loads the current bookmark list.
- *
- * @returns The current bookmark payloads.
- */
-export const listBookmarks = async (): Promise<BookmarkedListing[]> => {
-    const response = await apiRequest<ListEnvelope<BookmarkedListing>>({
+export const listBookmarks = async (): Promise<BookmarkedProperty[]> => {
+    const response = await apiRequest<ListEnvelope<BookmarkedProperty>>({
         auth: true,
         path: "/api/v1/me/bookmarks",
     });
@@ -16,29 +11,19 @@ export const listBookmarks = async (): Promise<BookmarkedListing[]> => {
     return response.items;
 };
 
-/**
- * Creates one bookmark for the supplied listing.
- *
- * @param listingId The listing identifier to save.
- */
-export const createBookmark = async (listingId: string): Promise<void> => {
-    await apiRequest<StatusEnvelope, { listing_id: string; }>({
+export const createBookmark = async (propertyId: string): Promise<void> => {
+    await apiRequest<StatusEnvelope, { property_id: string; }>({
         auth: true,
-        body: { listing_id: listingId },
+        body: { property_id: propertyId },
         method: "POST",
         path: "/api/v1/me/bookmarks",
     });
 };
 
-/**
- * Deletes one bookmark.
- *
- * @param listingId The listing identifier to remove.
- */
-export const deleteBookmark = async (listingId: string): Promise<void> => {
+export const deleteBookmark = async (propertyId: string): Promise<void> => {
     await apiRequest<StatusEnvelope>({
         auth: true,
         method: "DELETE",
-        path: `/api/v1/me/bookmarks/${listingId}`,
+        path: `/api/v1/me/bookmarks/${propertyId}`,
     });
 };

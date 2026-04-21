@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -125,6 +126,15 @@ func (s *Store) ListDueSources(ctx context.Context, before time.Time, limit int)
 // GetSource returns one source definition.
 func (s *Store) GetSource(ctx context.Context, sourceID string) (ingestiondomain.Source, error) {
 	return scanSource(s.db.QueryRowContext(ctx, sourceSelect+` WHERE id = ?`, sourceID))
+}
+
+// DeleteSource removes one source definition.
+func (s *Store) DeleteSource(ctx context.Context, sourceID string) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM sources WHERE id = ?`, sourceID)
+	if err != nil {
+		return fmt.Errorf("delete source: %w", err)
+	}
+	return nil
 }
 
 // UpdateSourceRunState records the latest and next scheduler timestamps.
@@ -605,9 +615,9 @@ func (s *Store) RevokeSession(ctx context.Context, sessionID string, revokedAt t
 	return nil
 }
 
-// AddBookmark saves one listing bookmark for the user.
-func (s *Store) AddBookmark(ctx context.Context, userID, listingID string, createdAt time.Time) error {
-	_, err := s.db.ExecContext(ctx, `INSERT INTO bookmarks (user_id, listing_id, created_at) VALUES (?, ?, ?) ON CONFLICT(user_id, listing_id) DO NOTHING`, userID, listingID, formatTime(createdAt))
+// AddBookmark saves one property bookmark for the user.
+func (s *Store) AddBookmark(ctx context.Context, userID, propertyID string, createdAt time.Time) error {
+	_, err := s.db.ExecContext(ctx, `INSERT INTO bookmarks (user_id, property_id, created_at) VALUES (?, ?, ?) ON CONFLICT(user_id, property_id) DO NOTHING`, userID, propertyID, formatTime(createdAt))
 	if err != nil {
 		return fmt.Errorf("add bookmark: %w", err)
 	}
@@ -615,13 +625,20 @@ func (s *Store) AddBookmark(ctx context.Context, userID, listingID string, creat
 	return nil
 }
 
-// ListBookmarks returns the user's saved listings.
-func (s *Store) ListBookmarks(ctx context.Context, userID string) ([]engagementdomain.BookmarkedListing, error) {
+// ListBookmarks returns the user's saved properties.
+func (s *Store) ListBookmarks(ctx context.Context, userID string) ([]engagementdomain.BookmarkedProperty, error) {
 	rows, err := s.db.QueryContext(
 		ctx,
-		`SELECT b.listing_id, l.source_id, l.title, l.price_amount, l.currency, l.location, l.url, b.created_at
+		`SELECT b.property_id, p.source_id, p.label, p.url, b.created_at,
+		        COALESCE((
+		            SELECT values_json
+		            FROM property_snapshots
+		            WHERE property_id = p.id
+		            ORDER BY observed_at DESC
+		            LIMIT 1
+		        ), '{}')
 		 FROM bookmarks b
-		 JOIN listings l ON l.id = b.listing_id
+		 JOIN properties p ON p.id = b.property_id
 		 WHERE b.user_id = ?
 		 ORDER BY b.created_at DESC`,
 		userID,
@@ -631,13 +648,22 @@ func (s *Store) ListBookmarks(ctx context.Context, userID string) ([]engagementd
 	}
 	defer rows.Close()
 
-	items := make([]engagementdomain.BookmarkedListing, 0)
+	items := make([]engagementdomain.BookmarkedProperty, 0)
 	for rows.Next() {
-		var item engagementdomain.BookmarkedListing
-		var createdAt string
-		if err := rows.Scan(&item.ListingID, &item.SourceID, &item.Title, &item.PriceAmount, &item.Currency, &item.Location, &item.URL, &createdAt); err != nil {
+		var (
+			item       engagementdomain.BookmarkedProperty
+			label      string
+			valuesJSON string
+			createdAt  string
+		)
+		if err := rows.Scan(&item.PropertyID, &item.SourceID, &label, &item.URL, &createdAt, &valuesJSON); err != nil {
 			return nil, fmt.Errorf("scan bookmark: %w", err)
 		}
+		values := decodeSnapshotValues(valuesJSON)
+		item.Title = firstNonEmpty(values["title"], label, item.URL)
+		item.Location = values["location"]
+		item.Currency = values["currency"]
+		item.PriceAmount = parseSnapshotPrice(values)
 		item.BookmarkedAt, err = parseTime(createdAt)
 		if err != nil {
 			return nil, err
@@ -649,8 +675,8 @@ func (s *Store) ListBookmarks(ctx context.Context, userID string) ([]engagementd
 }
 
 // RemoveBookmark deletes one bookmark.
-func (s *Store) RemoveBookmark(ctx context.Context, userID, listingID string) error {
-	_, err := s.db.ExecContext(ctx, `DELETE FROM bookmarks WHERE user_id = ? AND listing_id = ?`, userID, listingID)
+func (s *Store) RemoveBookmark(ctx context.Context, userID, propertyID string) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM bookmarks WHERE user_id = ? AND property_id = ?`, userID, propertyID)
 	if err != nil {
 		return fmt.Errorf("remove bookmark: %w", err)
 	}
@@ -734,12 +760,11 @@ func (s *Store) DeleteWatchlist(ctx context.Context, userID, watchlistID string)
 func (s *Store) CreateAlertRule(ctx context.Context, rule engagementdomain.AlertRule) error {
 	_, err := s.db.ExecContext(
 		ctx,
-		`INSERT INTO alert_rules (id, user_id, watchlist_id, listing_id, rule_type, threshold_amount, enabled, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO alert_rules (id, user_id, property_id, rule_type, threshold_amount, enabled, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		rule.ID,
 		rule.UserID,
-		nullableString(rule.WatchlistID),
-		nullableString(rule.ListingID),
+		rule.PropertyID,
 		rule.RuleType,
 		nullableInt64(rule.ThresholdAmount),
 		boolToInt(rule.Enabled),
@@ -755,7 +780,7 @@ func (s *Store) CreateAlertRule(ctx context.Context, rule engagementdomain.Alert
 
 // ListAlertRules returns rules for one user.
 func (s *Store) ListAlertRules(ctx context.Context, userID string) ([]engagementdomain.AlertRule, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, user_id, watchlist_id, listing_id, rule_type, threshold_amount, enabled, created_at, updated_at FROM alert_rules WHERE user_id = ? ORDER BY created_at DESC`, userID)
+	rows, err := s.db.QueryContext(ctx, `SELECT id, user_id, property_id, rule_type, threshold_amount, enabled, created_at, updated_at FROM alert_rules WHERE user_id = ? ORDER BY created_at DESC`, userID)
 	if err != nil {
 		return nil, fmt.Errorf("list alert rules: %w", err)
 	}
@@ -775,7 +800,7 @@ func (s *Store) ListAlertRules(ctx context.Context, userID string) ([]engagement
 
 // ListAlertRulesForEvaluation returns all enabled alert rules.
 func (s *Store) ListAlertRulesForEvaluation(ctx context.Context) ([]engagementdomain.AlertRule, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, user_id, watchlist_id, listing_id, rule_type, threshold_amount, enabled, created_at, updated_at FROM alert_rules WHERE enabled = 1 ORDER BY created_at DESC`)
+	rows, err := s.db.QueryContext(ctx, `SELECT id, user_id, property_id, rule_type, threshold_amount, enabled, created_at, updated_at FROM alert_rules WHERE enabled = 1 ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, fmt.Errorf("list alert rules for evaluation: %w", err)
 	}
@@ -807,12 +832,12 @@ func (s *Store) DeleteAlertRule(ctx context.Context, userID, ruleID string) erro
 func (s *Store) CreateNotification(ctx context.Context, notification engagementdomain.Notification) error {
 	_, err := s.db.ExecContext(
 		ctx,
-		`INSERT INTO notifications (id, user_id, rule_id, listing_id, kind, title, body, data_json, delivery_status, created_at, read_at)
+		`INSERT INTO notifications (id, user_id, alert_id, property_id, kind, title, body, data_json, delivery_status, created_at, read_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		notification.ID,
 		notification.UserID,
-		nullableString(notification.RuleID),
-		nullableString(notification.ListingID),
+		nullableString(notification.AlertID),
+		nullableString(notification.PropertyID),
 		notification.Kind,
 		notification.Title,
 		notification.Body,
@@ -840,7 +865,7 @@ func (s *Store) UpdateNotificationDeliveryStatus(ctx context.Context, notificati
 
 // ListNotifications returns notifications for one user.
 func (s *Store) ListNotifications(ctx context.Context, userID string, unreadOnly bool, limit int) ([]engagementdomain.Notification, error) {
-	query := `SELECT id, user_id, rule_id, listing_id, kind, title, body, data_json, delivery_status, created_at, read_at FROM notifications WHERE user_id = ?`
+	query := `SELECT id, user_id, alert_id, property_id, kind, title, body, data_json, delivery_status, created_at, read_at FROM notifications WHERE user_id = ?`
 	args := []any{userID}
 	if unreadOnly {
 		query += ` AND read_at IS NULL`
@@ -866,11 +891,11 @@ func (s *Store) ListNotifications(ctx context.Context, userID string, unreadOnly
 	return items, rows.Err()
 }
 
-// MarkNotificationRead records the first read timestamp for a notification.
-func (s *Store) MarkNotificationRead(ctx context.Context, userID, notificationID string, readAt time.Time) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE notifications SET read_at = COALESCE(read_at, ?) WHERE id = ? AND user_id = ?`, formatTime(readAt), notificationID, userID)
+// SetNotificationReadState updates the read timestamp for a notification.
+func (s *Store) SetNotificationReadState(ctx context.Context, userID, notificationID string, readAt *time.Time) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE notifications SET read_at = ? WHERE id = ? AND user_id = ?`, nullableTimeString(readAt), notificationID, userID)
 	if err != nil {
-		return fmt.Errorf("mark notification read: %w", err)
+		return fmt.Errorf("set notification read state: %w", err)
 	}
 
 	return nil
@@ -1151,22 +1176,14 @@ func scanWatchlist(scanner scanner) (engagementdomain.Watchlist, error) {
 func scanAlertRule(scanner scanner) (engagementdomain.AlertRule, error) {
 	var (
 		rule                 engagementdomain.AlertRule
-		watchlistID          sql.NullString
-		listingID            sql.NullString
 		thresholdAmount      sql.NullInt64
 		enabled              int
 		createdAt, updatedAt string
 	)
 
-	err := scanner.Scan(&rule.ID, &rule.UserID, &watchlistID, &listingID, &rule.RuleType, &thresholdAmount, &enabled, &createdAt, &updatedAt)
+	err := scanner.Scan(&rule.ID, &rule.UserID, &rule.PropertyID, &rule.RuleType, &thresholdAmount, &enabled, &createdAt, &updatedAt)
 	if err != nil {
 		return engagementdomain.AlertRule{}, err
-	}
-	if watchlistID.Valid {
-		rule.WatchlistID = watchlistID.String
-	}
-	if listingID.Valid {
-		rule.ListingID = listingID.String
 	}
 	if thresholdAmount.Valid {
 		value := thresholdAmount.Int64
@@ -1188,8 +1205,8 @@ func scanAlertRule(scanner scanner) (engagementdomain.AlertRule, error) {
 func scanNotification(scanner scanner) (engagementdomain.Notification, error) {
 	var (
 		notification engagementdomain.Notification
-		ruleID       sql.NullString
-		listingID    sql.NullString
+		alertID      sql.NullString
+		propertyID   sql.NullString
 		dataJSON     string
 		createdAt    string
 		readAt       sql.NullString
@@ -1198,8 +1215,8 @@ func scanNotification(scanner scanner) (engagementdomain.Notification, error) {
 	err := scanner.Scan(
 		&notification.ID,
 		&notification.UserID,
-		&ruleID,
-		&listingID,
+		&alertID,
+		&propertyID,
 		&notification.Kind,
 		&notification.Title,
 		&notification.Body,
@@ -1211,11 +1228,11 @@ func scanNotification(scanner scanner) (engagementdomain.Notification, error) {
 	if err != nil {
 		return engagementdomain.Notification{}, err
 	}
-	if ruleID.Valid {
-		notification.RuleID = ruleID.String
+	if alertID.Valid {
+		notification.AlertID = alertID.String
 	}
-	if listingID.Valid {
-		notification.ListingID = listingID.String
+	if propertyID.Valid {
+		notification.PropertyID = propertyID.String
 	}
 	notification.Data = json.RawMessage(normalizeJSONString(dataJSON))
 	notification.CreatedAt, err = parseTime(createdAt)
@@ -1317,6 +1334,48 @@ func normalizeJSON(value json.RawMessage) string {
 	return normalizeJSONString(string(value))
 }
 
+func decodeSnapshotValues(raw string) map[string]string {
+	values := make(map[string]string)
+	if strings.TrimSpace(raw) == "" {
+		return values
+	}
+	if err := json.Unmarshal([]byte(raw), &values); err != nil {
+		return map[string]string{}
+	}
+	return values
+}
+
+func parseSnapshotPrice(values map[string]string) int64 {
+	raw := normalizeNumberString(values["price"])
+	if raw == "" {
+		return 0
+	}
+	amount, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil {
+		return 0
+	}
+	return amount
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+func normalizeNumberString(value string) string {
+	var digits strings.Builder
+	for _, char := range value {
+		if char >= '0' && char <= '9' {
+			digits.WriteRune(char)
+		}
+	}
+	return digits.String()
+}
+
 func normalizeJSONString(value string) string {
 	trimmed := strings.TrimSpace(value)
 	if trimmed == "" {
@@ -1340,17 +1399,18 @@ func boolToInt(value bool) int {
 
 // ── Property persistence ──────────────────────────────────────────────────────
 
-var propertySelect = `SELECT id, url, label, status, schedule_interval_seconds, retry_max_attempts, retry_backoff_millis, last_run_at, next_run_at, created_at, updated_at FROM properties`
+var propertySelect = `SELECT id, url, label, source_id, status, schedule_interval_seconds, retry_max_attempts, retry_backoff_millis, last_run_at, next_run_at, created_at, updated_at FROM properties`
 
 // UpsertProperty creates or updates a property record.
 func (s *Store) UpsertProperty(ctx context.Context, property ingestiondomain.Property) error {
 	_, err := s.db.ExecContext(
 		ctx,
-		`INSERT INTO properties (id, url, label, status, schedule_interval_seconds, retry_max_attempts, retry_backoff_millis, last_run_at, next_run_at, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`INSERT INTO properties (id, url, label, source_id, status, schedule_interval_seconds, retry_max_attempts, retry_backoff_millis, last_run_at, next_run_at, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		 ON CONFLICT(id) DO UPDATE SET
 		 	url = excluded.url,
 		 	label = excluded.label,
+		 	source_id = excluded.source_id,
 		 	status = excluded.status,
 		 	schedule_interval_seconds = excluded.schedule_interval_seconds,
 		 	retry_max_attempts = excluded.retry_max_attempts,
@@ -1361,6 +1421,7 @@ func (s *Store) UpsertProperty(ctx context.Context, property ingestiondomain.Pro
 		property.ID,
 		property.URL,
 		property.Label,
+		nullableString(property.SourceID),
 		string(property.Status),
 		property.ScheduleIntervalSeconds,
 		property.RetryMaxAttempts,
@@ -1574,6 +1635,48 @@ func (s *Store) ListPropertySnapshots(ctx context.Context, propertyID string, li
 	return items, rows.Err()
 }
 
+// ListAllPropertySnapshots returns recent snapshots across all properties.
+func (s *Store) ListAllPropertySnapshots(ctx context.Context, propertyID string, limit int) ([]ingestiondomain.PropertySnapshot, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+
+	query := `SELECT id, property_id, config_version, observed_at, values_json, change_flags_json, is_valid, error_message FROM property_snapshots`
+	args := []any{}
+	if strings.TrimSpace(propertyID) != "" {
+		query += ` WHERE property_id = ?`
+		args = append(args, propertyID)
+	}
+	query += ` ORDER BY observed_at DESC LIMIT ?`
+	args = append(args, limit)
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list all property snapshots: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]ingestiondomain.PropertySnapshot, 0)
+	for rows.Next() {
+		snapshot, err := scanPropertySnapshot(rows)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, snapshot)
+	}
+
+	return items, rows.Err()
+}
+
+// GetPropertySnapshot returns one snapshot by identifier.
+func (s *Store) GetPropertySnapshot(ctx context.Context, snapshotID string) (ingestiondomain.PropertySnapshot, error) {
+	return scanPropertySnapshot(s.db.QueryRowContext(
+		ctx,
+		`SELECT id, property_id, config_version, observed_at, values_json, change_flags_json, is_valid, error_message FROM property_snapshots WHERE id = ?`,
+		snapshotID,
+	))
+}
+
 // GetLastValidPropertySnapshot returns the most recent valid snapshot for a property.
 func (s *Store) GetLastValidPropertySnapshot(ctx context.Context, propertyID string) (ingestiondomain.PropertySnapshot, error) {
 	snapshot, err := scanPropertySnapshot(s.db.QueryRowContext(
@@ -1591,6 +1694,7 @@ func (s *Store) GetLastValidPropertySnapshot(ctx context.Context, propertyID str
 func scanProperty(s scanner) (ingestiondomain.Property, error) {
 	var (
 		property             ingestiondomain.Property
+		sourceID             sql.NullString
 		status               string
 		lastRunAt, nextRunAt sql.NullString
 		createdAt, updatedAt string
@@ -1600,6 +1704,7 @@ func scanProperty(s scanner) (ingestiondomain.Property, error) {
 		&property.ID,
 		&property.URL,
 		&property.Label,
+		&sourceID,
 		&status,
 		&property.ScheduleIntervalSeconds,
 		&property.RetryMaxAttempts,
@@ -1611,6 +1716,9 @@ func scanProperty(s scanner) (ingestiondomain.Property, error) {
 	)
 	if err != nil {
 		return ingestiondomain.Property{}, err
+	}
+	if sourceID.Valid {
+		property.SourceID = sourceID.String
 	}
 
 	property.Status = ingestiondomain.PropertyStatus(status)

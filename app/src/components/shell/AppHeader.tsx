@@ -10,20 +10,18 @@ interface RouteMeta {
 }
 
 const routeMeta: readonly [RegExp, RouteMeta][] = [
-    [/^\/listings\/[^/]+$/, { description: "Inspect one listing without losing access to the market context.", section: "Explore", title: "Listing Detail" }],
-    [/^\/listings$/, { description: "Search, compare, and monitor market activity with a focused analyst workflow.", section: "Explore", title: "Market Intelligence Explorer" }],
-    [/^\/bookmarks$/, { description: "Review the listings you have explicitly saved for follow-up.", section: "Track", title: "Bookmarks" }],
-    [/^\/watchlists$/, { description: "Maintain reusable saved searches that drive alerts and notifications.", section: "Track", title: "Watchlists" }],
-    [/^\/alerts$/, { description: "Configure the backend rules that turn watchlist changes into actionable signals.", section: "Track", title: "Alert Rules" }],
-    [/^\/notifications$/, { description: "Work through the latest ingestion-driven notifications with clear filters.", section: "Track", title: "Notifications" }],
-    [/^\/properties(?:\/.*)?$/, { description: "Manage tracked property pages, selectors, and ingest schedules.", section: "Operate", title: "Tracked Properties" }],
-    [/^\/backoffice\/sources(?:\/.*)?$/, { description: "Configure ingestion sources and monitor their operational state.", section: "Operate", title: "Sources" }],
-    [/^\/backoffice\/runs(?:\/.*)?$/, { description: "Inspect ingestion runs and verify the health of recent backoffice activity.", section: "Operate", title: "Runs" }],
-    [/^\/login$/, { description: "Authenticate to unlock personal tracking and backoffice workflows.", section: "Access", title: "Sign In" }],
+    [/^\/properties\/[^/]+$/, { description: "Review the latest extracted data, source template, alerts, and run history for one property.", section: "Properties", title: "Property Detail" }],
+    [/^\/properties(?:\/new)?$/, { description: "Add direct property URLs, assign source templates, bookmark what matters, and monitor the latest extraction state.", section: "Properties", title: "Tracked Properties" }],
+    [/^\/sources(?:\/.*)?$/, { description: "Manage reusable extraction templates that properties can inherit or override.", section: "Sources", title: "Source Templates" }],
+    [/^\/runs(?:\/.*)?$/, { description: "Inspect property extraction runs and their captured snapshot data.", section: "Runs", title: "Property Runs" }],
+    [/^\/bookmarks$/, { description: "Review the properties you have explicitly bookmarked for follow-up.", section: "Bookmarks", title: "Bookmarks" }],
+    [/^\/alerts$/, { description: "Configure property-level alert rules that react to new runs.", section: "Alerts", title: "Alerts" }],
+    [/^\/notifications$/, { description: "Work through triggered property alerts and manage read state.", section: "Notifications", title: "Notifications" }],
+    [/^\/login$/, { description: "Authenticate to unlock property tracking workflows.", section: "Access", title: "Sign In" }],
 ];
 
 const defaultMeta: RouteMeta = {
-    description: "Use the workspace to inspect listings, saved searches, and ingestion activity.",
+    description: "Track specific properties, reusable source templates, runs, and property-level alerts.",
     section: "Workspace",
     title: "Home Searcher",
 };
@@ -38,11 +36,6 @@ const getRouteMeta = (pathname: string): RouteMeta => {
     return defaultMeta;
 };
 
-/**
- * Renders the responsive application header.
- *
- * @returns The shell header content.
- */
 export const AppHeader = (): JSX.Element => {
     const { pathname } = useLocation();
     const toggleNavOpen = useShellStore((state) => state.toggleNavOpen);

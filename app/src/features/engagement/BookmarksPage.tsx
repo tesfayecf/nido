@@ -8,11 +8,6 @@ import { formatDateTime } from "@/lib/format/date";
 import { bookmarkKeys } from "@/services/bookmarks/bookmarks.keys";
 import { deleteBookmark, listBookmarks } from "@/services/bookmarks/bookmarks.service";
 
-/**
- * Hosts the bookmarks route.
- *
- * @returns The placeholder bookmarks screen.
- */
 export const BookmarksPage = (): JSX.Element => {
     const queryClient = useQueryClient();
     const bookmarksQuery = useQuery({
@@ -29,7 +24,7 @@ export const BookmarksPage = (): JSX.Element => {
 
     return (
         <div className={"page-stack"}>
-            <PageCard description={"Bookmarks join the saved listing id with its latest canonical listing snapshot."} title={"Bookmarks"}>
+            <PageCard description={"Bookmarks save properties directly, without any watchlist or listing intermediary."} title={"Bookmarks"}>
                 <AsyncContent
                     emptyMessage={"No properties have been bookmarked yet."}
                     errorMessage={"Could not load bookmarks."}
@@ -41,28 +36,17 @@ export const BookmarksPage = (): JSX.Element => {
                     <div className={"item-list"}>
                         {bookmarks.map((item) => {
                             return (
-                                <article className={"list-row"} key={item.listing_id}>
+                                <article className={"list-row"} key={item.property_id}>
                                     <div className={"list-row__main"}>
                                         <div>
-                                            <h3 className={"list-row__title"}>
-                                                <Link to={`/listings/${item.listing_id}`}>{item.title}</Link>
-                                            </h3>
+                                            <h3 className={"list-row__title"}><Link to={`/properties/${item.property_id}`}>{item.title}</Link></h3>
                                             <p className={"list-row__meta"}>{item.location}{" · saved "}{formatDateTime(item.bookmarked_at)}</p>
                                         </div>
-                                        <strong className={"list-row__price"}>{formatCurrency(item.price_amount, item.currency)}</strong>
+                                        <strong className={"list-row__price"}>{item.currency === "" ? `${item.price_amount}` : formatCurrency(item.price_amount, item.currency)}</strong>
                                     </div>
                                     <div className={"list-row__footer"}>
                                         <a className={"text-link"} href={item.url} rel={"noreferrer"} target={"_blank"}>{"Open original"}</a>
-                                        <button
-                                            className={"button button--secondary"}
-                                            disabled={deleteMutation.isPending}
-                                            onClick={() => {
-                                                deleteMutation.mutate(item.listing_id);
-                                            }}
-                                            type={"button"}
-                                        >
-                                            {"Remove"}
-                                        </button>
+                                        <button className={"button button--secondary"} disabled={deleteMutation.isPending} onClick={() => { deleteMutation.mutate(item.property_id); }} type={"button"}>{"Remove"}</button>
                                     </div>
                                 </article>
                             );
