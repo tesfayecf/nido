@@ -2,10 +2,10 @@ import { useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { EmptyState } from "@/components/ui/EmptyState";
+import { AsyncContent } from "@/components/ui/AsyncContent";
 import { PageCard } from "@/components/ui/PageCard";
-import { parseOptionalNonNegativeInteger } from "@/lib/forms/number";
 import { formatDateTime } from "@/lib/format/date";
+import { parseOptionalNonNegativeInteger } from "@/lib/forms/number";
 import { watchlistKeys } from "@/services/watchlists/watchlists.keys";
 import { createWatchlist, deleteWatchlist, listWatchlists } from "@/services/watchlists/watchlists.service";
 
@@ -40,6 +40,7 @@ export const WatchlistsPage = (): JSX.Element => {
             void queryClient.invalidateQueries({ queryKey: watchlistKeys.all() });
         },
     });
+    const watchlists = watchlistsQuery.data ?? [];
 
     return (
         <div className={"page-stack"}>
@@ -85,12 +86,16 @@ export const WatchlistsPage = (): JSX.Element => {
             </PageCard>
 
             <PageCard description={"The current backend supports list, create, and delete operations for watchlists."} title={"Current Watchlists"}>
-                {watchlistsQuery.isLoading ? <p className={"muted-copy"}>{"Loading watchlists..."}</p> : null}
-                {watchlistsQuery.isError ? <p className={"error-banner"}>{"Could not load watchlists."}</p> : null}
-                {watchlistsQuery.isSuccess && watchlistsQuery.data.length === 0 ? <EmptyState message={"No watchlists have been created yet."} /> : null}
-                {watchlistsQuery.data !== undefined && watchlistsQuery.data.length > 0 ? (
+                <AsyncContent
+                    emptyMessage={"No watchlists have been created yet."}
+                    errorMessage={"Could not load watchlists."}
+                    isEmpty={watchlistsQuery.isSuccess && watchlists.length === 0}
+                    isError={watchlistsQuery.isError}
+                    isLoading={watchlistsQuery.isLoading}
+                    loadingMessage={"Loading watchlists..."}
+                >
                     <div className={"item-list"}>
-                        {watchlistsQuery.data.map((item) => {
+                        {watchlists.map((item) => {
                             return (
                                 <article className={"list-row"} key={item.id}>
                                     <div className={"list-row__main"}>
@@ -119,7 +124,7 @@ export const WatchlistsPage = (): JSX.Element => {
                             );
                         })}
                     </div>
-                ) : null}
+                </AsyncContent>
             </PageCard>
         </div>
     );

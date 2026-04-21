@@ -4,6 +4,7 @@ import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-quer
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Link } from "react-router-dom";
 
+import { AsyncContent } from "@/components/ui/AsyncContent";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageCard } from "@/components/ui/PageCard";
 import { buildSparklinePoints, buildRegionBenchmarks, filterAndSortListings, getBenchmarkKey, getDaysOnMarket, isValueListing, priceDeltaRatio, summarizeListings } from "@/features/listings/listingInsights";
@@ -270,10 +271,14 @@ export const ListingsPage = (): JSX.Element => {
                     description={"Listings stay virtualized to keep the sidebar responsive as the working set grows."}
                     title={listingsQuery.isFetching ? "Refreshing market slice..." : `Results · ${visibleItems.length}`}
                 >
-                    {listingsQuery.isLoading ? <p className={"muted-copy"}>{"Loading listings..."}</p> : null}
-                    {listingsQuery.isError ? <p className={"error-banner"}>{"Could not load listings."}</p> : null}
-                    {listingsQuery.isSuccess && visibleItems.length === 0 ? <EmptyState message={"No listings matched the active market view."} /> : null}
-                    {visibleItems.length > 0 ? (
+                    <AsyncContent
+                        emptyMessage={"No listings matched the active market view."}
+                        errorMessage={"Could not load listings."}
+                        isEmpty={listingsQuery.isSuccess && visibleItems.length === 0}
+                        isError={listingsQuery.isError}
+                        isLoading={listingsQuery.isLoading}
+                        loadingMessage={"Loading listings..."}
+                    >
                         <div className={"virtual-list-shell"}>
                             <div className={"results-toolbar"}>
                                 <span className={"muted-copy"}>{"Compact mode: price, market delta, days on market, and regional sparkline are all visible inline."}</span>
@@ -313,7 +318,7 @@ export const ListingsPage = (): JSX.Element => {
                                 </div>
                             </div>
                         </div>
-                    ) : null}
+                    </AsyncContent>
                 </PageCard>
 
                 <div className={"market-layout__sidebar"}>

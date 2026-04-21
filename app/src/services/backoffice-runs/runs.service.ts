@@ -1,4 +1,4 @@
-import { apiRequest, type ItemEnvelope, type ListEnvelope, type StatusEnvelope } from "@/lib/api/client";
+import { apiRequest, type ItemEnvelope, type ListEnvelope } from "@/lib/api/client";
 
 import type { Run, RunFilters } from "@/services/backoffice-runs/runs.types";
 

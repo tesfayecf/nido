@@ -3,6 +3,7 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { RouterProvider } from "react-router-dom";
 
 import { router } from "@/app/router";
+import { ThemeProvider } from "@/hooks/useTheme";
 
 /**
  * Owns the top-level provider composition for the frontend runtime.
@@ -32,8 +33,10 @@ const queryClient = new QueryClient({
 export const AppProviders = (): JSX.Element => {
     return (
         <QueryClientProvider client={queryClient}>
-            <RouterProvider router={router} />
-            <ReactQueryDevtools initialIsOpen={false} />
+            <ThemeProvider>
+                <RouterProvider router={router} />
+                <ReactQueryDevtools initialIsOpen={false} />
+            </ThemeProvider>
         </QueryClientProvider>
     );
 };

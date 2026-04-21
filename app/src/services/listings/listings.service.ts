@@ -1,4 +1,4 @@
-import { apiRequest, type ItemEnvelope, type ListEnvelope } from "@/lib/api/client";
+import { apiRequest, type ListEnvelope } from "@/lib/api/client";
 
 import type { Listing, ListingDetailResponse, ListingListFilters } from "@/services/listings/listings.types";
 

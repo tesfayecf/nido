@@ -1,12 +1,12 @@
 import { useEffect } from "react";
 
+import { EmptyState } from "@/components/ui/EmptyState";
+import { PageCard } from "@/components/ui/PageCard";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import { formatDateTime } from "@/lib/format/date";
 import { connectBackofficeEvents } from "@/services/backoffice-events/events.service";
 import { useLiveEventsStore } from "@/stores/live-events.store";
 import { useSessionStore } from "@/stores/session.store";
-import { PageCard } from "@/components/ui/PageCard";
-import { EmptyState } from "@/components/ui/EmptyState";
-import { StatusBadge } from "@/components/ui/StatusBadge";
-import { formatDateTime } from "@/lib/format/date";
 
 /**
  * Renders the authenticated backoffice SSE stream.
@@ -27,18 +27,26 @@ export const LiveEventsPanel = (): JSX.Element => {
     useEffect(() => {
         if (token === null) {
             setConnectionState("closed");
-            return;
+            return undefined;
         }
 
         const controller = new AbortController();
-        void connectBackofficeEvents({
-            onConnectionStateChange: setConnectionState,
-            onEvent: addEvent,
-            signal: controller.signal,
-        }).catch(() => {
-            setConnectionState("error");
-        });
 
+        const connect = async (): Promise<void> => {
+            try {
+                await connectBackofficeEvents({
+                    onConnectionStateChange: setConnectionState,
+                    onEvent: addEvent,
+                    signal: controller.signal,
+                });
+            } catch {
+                if (!controller.signal.aborted) {
+                    setConnectionState("error");
+                }
+            }
+        };
+
+        void connect();
         return () => {
             controller.abort();
             setConnectionState("closed");

@@ -1,14 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 
-import { EmptyState } from "@/components/ui/EmptyState";
+import { LiveEventsPanel } from "@/features/backoffice/LiveEventsPanel";
+import { AsyncContent } from "@/components/ui/AsyncContent";
 import { PageCard } from "@/components/ui/PageCard";
 import { formatDateTime } from "@/lib/format/date";
-import { runKeys } from "@/services/backoffice-runs/runs.keys";
 import { ingestSource } from "@/services/backoffice-runs/runs.service";
 import { sourceKeys } from "@/services/backoffice-sources/sources.keys";
 import { listSources } from "@/services/backoffice-sources/sources.service";
-import { LiveEventsPanel } from "@/features/backoffice/LiveEventsPanel";
 
 /**
  * Hosts the backoffice sources route.
@@ -32,6 +31,7 @@ export const SourcesPage = (): JSX.Element => {
             void queryClient.invalidateQueries({ queryKey: ["me", "notifications"] });
         },
     });
+    const sources = sourcesQuery.data ?? [];
 
     return (
         <div className={"split-layout"}>
@@ -41,12 +41,16 @@ export const SourcesPage = (): JSX.Element => {
                     description={"Source registration is intentionally literal in iteration 1: raw ids, raw config JSON, and explicit policy fields."}
                     title={"Sources"}
                 >
-                    {sourcesQuery.isLoading ? <p className={"muted-copy"}>{"Loading sources..."}</p> : null}
-                    {sourcesQuery.isError ? <p className={"error-banner"}>{"Could not load sources."}</p> : null}
-                    {sourcesQuery.isSuccess && sourcesQuery.data.length === 0 ? <EmptyState message={"No sources are configured yet."} /> : null}
-                    {sourcesQuery.data !== undefined && sourcesQuery.data.length > 0 ? (
+                    <AsyncContent
+                        emptyMessage={"No sources are configured yet."}
+                        errorMessage={"Could not load sources."}
+                        isEmpty={sourcesQuery.isSuccess && sources.length === 0}
+                        isError={sourcesQuery.isError}
+                        isLoading={sourcesQuery.isLoading}
+                        loadingMessage={"Loading sources..."}
+                    >
                         <div className={"item-list"}>
-                            {sourcesQuery.data.map((item) => {
+                            {sources.map((item) => {
                                 return (
                                     <article className={"list-row"} key={item.id}>
                                         <div className={"list-row__main"}>
@@ -90,7 +94,7 @@ export const SourcesPage = (): JSX.Element => {
                                 );
                             })}
                         </div>
-                    ) : null}
+                    </AsyncContent>
                 </PageCard>
             </div>
 

@@ -1,12 +1,14 @@
+import { useEffect, useId, useRef } from "react";
+
 import { useQuery } from "@tanstack/react-query";
 
-import { EmptyState } from "@/components/ui/EmptyState";
+import { AsyncContent } from "@/components/ui/AsyncContent";
 import { PageCard } from "@/components/ui/PageCard";
+import { buildPriceHistorySeries, buildSparklinePoints } from "@/features/listings/listingInsights";
 import { formatCurrency } from "@/lib/format/currency";
 import { formatDateTime } from "@/lib/format/date";
-import { getListingDetail } from "@/services/listings/listings.service";
 import { listingKeys } from "@/services/listings/listings.keys";
-import { buildPriceHistorySeries, buildSparklinePoints } from "@/features/listings/listingInsights";
+import { getListingDetail } from "@/services/listings/listings.service";
 
 interface PriceHistoryModalProps {
     readonly listingId: string;
@@ -20,6 +22,9 @@ interface PriceHistoryModalProps {
  * @returns A modal-style price history panel.
  */
 export const PriceHistoryModal = ({ listingId, onClose }: PriceHistoryModalProps): JSX.Element => {
+    const titleId = useId();
+    const descriptionId = useId();
+    const closeButtonRef = useRef<HTMLButtonElement | null>(null);
     const detailQuery = useQuery({
         enabled: listingId !== "",
         queryFn: () => {
@@ -28,53 +33,82 @@ export const PriceHistoryModal = ({ listingId, onClose }: PriceHistoryModalProps
         queryKey: listingKeys.detail(listingId),
     });
 
+    const detail = detailQuery.data;
+
+    useEffect(() => {
+        const previousOverflow = document.body.style.overflow;
+        const previousActiveElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        document.body.style.overflow = "hidden";
+        closeButtonRef.current?.focus();
+
+        const handleKeyDown = (event: KeyboardEvent): void => {
+            if (event.key === "Escape") {
+                event.preventDefault();
+                onClose();
+            }
+        };
+
+        window.addEventListener("keydown", handleKeyDown);
+        return () => {
+            document.body.style.overflow = previousOverflow;
+            window.removeEventListener("keydown", handleKeyDown);
+            previousActiveElement?.focus();
+        };
+    }, [onClose]);
+
     return (
-        <div aria-modal className={"modal-overlay"} role={"dialog"}>
+        <div aria-describedby={descriptionId} aria-labelledby={titleId} aria-modal className={"modal-overlay"} role={"dialog"}>
             <PageCard
-                action={<button className={"button button--secondary"} onClick={onClose} type={"button"}>{"Close"}</button>}
+                action={<button className={"button button--secondary"} onClick={onClose} ref={closeButtonRef} type={"button"}>{"Close"}</button>}
                 description={"Price history stays in-context so analysts can keep their list and compare state intact."}
-                title={detailQuery.data?.item.title ?? "Price History"}
+                title={detail?.item.title ?? "Price History"}
+                titleId={titleId}
             >
-                {detailQuery.isLoading ? <p className={"muted-copy"}>{"Loading price history..."}</p> : null}
-                {detailQuery.isError ? <p className={"error-banner"}>{"Could not load price history."}</p> : null}
-                {detailQuery.data !== undefined ? (
-                    <div className={"modal-stack"}>
-                        <div className={"price-history-hero"}>
-                            <div>
-                                <span className={"stat-card__label"}>{"Current price"}</span>
-                                <strong className={"price-history-hero__value"}>{formatCurrency(detailQuery.data.item.price_amount, detailQuery.data.item.currency)}</strong>
+                <p className={"sr-only"} id={descriptionId}>{"Review the selected listing price history. Press escape to close this dialog."}</p>
+                <AsyncContent
+                    emptyMessage={"This listing does not have recorded price changes yet."}
+                    errorMessage={"Could not load price history."}
+                    isEmpty={detailQuery.isSuccess && detailQuery.data.price_history.length === 0}
+                    isError={detailQuery.isError}
+                    isLoading={detailQuery.isLoading}
+                    loadingMessage={"Loading price history..."}
+                >
+                    {detail === undefined ? null : (
+                        <div className={"modal-stack"}>
+                            <div className={"price-history-hero"}>
+                                <div>
+                                    <span className={"stat-card__label"}>{"Current price"}</span>
+                                    <strong className={"price-history-hero__value"}>{formatCurrency(detail.item.price_amount, detail.item.currency)}</strong>
+                                </div>
+                                <svg aria-hidden className={"sparkline sparkline--hero"} viewBox={"0 0 100 32"}>
+                                    <polyline
+                                        className={"sparkline__line"}
+                                        fill={"none"}
+                                        points={buildSparklinePoints(buildPriceHistorySeries(detail.price_history, detail.item.price_amount))}
+                                        strokeWidth={"2"}
+                                    />
+                                </svg>
                             </div>
-                            <svg aria-hidden className={"sparkline sparkline--hero"} viewBox={"0 0 100 32"}>
-                                <polyline
-                                    className={"sparkline__line"}
-                                    fill={"none"}
-                                    points={buildSparklinePoints(buildPriceHistorySeries(detailQuery.data.price_history, detailQuery.data.item.price_amount))}
-                                    strokeWidth={"2"}
-                                />
-                            </svg>
-                        </div>
-                        {detailQuery.data.price_history.length === 0 ? <EmptyState message={"This listing does not have recorded price changes yet."} /> : null}
-                        {detailQuery.data.price_history.length > 0 ? (
                             <div className={"item-list"}>
-                                {detailQuery.data.price_history.map((event) => {
+                                {detail.price_history.map((event) => {
                                     return (
                                         <article className={"list-row"} key={event.id}>
                                             <div className={"list-row__main"}>
                                                 <div>
-                                                    <h3 className={"list-row__title"}>{formatCurrency(event.new_amount, detailQuery.data.item.currency)}</h3>
+                                                    <h3 className={"list-row__title"}>{formatCurrency(event.new_amount, detail.item.currency)}</h3>
                                                     <p className={"list-row__meta"}>{"Changed "}{formatDateTime(event.changed_at)}</p>
                                                 </div>
                                                 <strong className={"list-row__price"}>
-                                                    {event.previous_amount === undefined ? "Initial capture" : `from ${formatCurrency(event.previous_amount, detailQuery.data.item.currency)}`}
+                                                    {event.previous_amount === undefined ? "Initial capture" : `from ${formatCurrency(event.previous_amount, detail.item.currency)}`}
                                                 </strong>
                                             </div>
                                         </article>
                                     );
                                 })}
                             </div>
-                        ) : null}
-                    </div>
-                ) : null}
+                        </div>
+                    )}
+                </AsyncContent>
             </PageCard>
         </div>
     );
