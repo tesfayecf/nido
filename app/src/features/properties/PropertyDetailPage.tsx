@@ -159,7 +159,12 @@ export const PropertyDetailPage = (): JSX.Element => {
         },
     });
     const saveConfigMutation = useMutation({
-        mutationFn: () => upsertPropertyConfig(resolvedId, fieldRows.map(fieldRowToSelector).filter((field) => field.name !== "")),
+        mutationFn: () => upsertPropertyConfig(
+            resolvedId,
+            fieldRows
+                .filter((row) => row.name.trim() !== "")
+                .map(fieldRowToSelector),
+        ),
         onSuccess() {
             void queryClient.invalidateQueries({ queryKey: propertyKeys.config(resolvedId) });
         },
