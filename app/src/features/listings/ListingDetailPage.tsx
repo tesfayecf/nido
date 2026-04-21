@@ -42,7 +42,35 @@ export const ListingDetailPage = (): JSX.Element => {
 
             await createBookmark(listingId);
         },
-        onSuccess() {
+        onMutate: async () => {
+            await queryClient.cancelQueries({ queryKey: bookmarkKeys.all() });
+            const previousBookmarks = queryClient.getQueryData(bookmarkKeys.all()) as typeof bookmarksQuery.data;
+            const isCurrentlyBookmarked = previousBookmarks?.some((item) => item.listing_id === listingId) ?? false;
+
+            queryClient.setQueryData(bookmarkKeys.all(), () => {
+                if (isCurrentlyBookmarked) {
+                    return previousBookmarks?.filter((item) => item.listing_id !== listingId) ?? [];
+                }
+
+                return [
+                    ...previousBookmarks ?? [],
+                    {
+                        bookmarked_at: new Date().toISOString(),
+                        currency: detailQuery.data?.item.currency ?? "EUR",
+                        listing_id: listingId,
+                        location: detailQuery.data?.item.location ?? "",
+                        price_amount: detailQuery.data?.item.price_amount ?? 0,
+                        title: detailQuery.data?.item.title ?? "Pending bookmark",
+                    },
+                ];
+            });
+
+            return { previousBookmarks };
+        },
+        onError(_error, _variables, context) {
+            queryClient.setQueryData(bookmarkKeys.all(), context?.previousBookmarks ?? []);
+        },
+        onSettled() {
             void queryClient.invalidateQueries({ queryKey: bookmarkKeys.all() });
         },
     });

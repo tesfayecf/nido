@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 	"time"
 
+	"home-searcher/server/internal/fetcher"
 	app "home-searcher/server/internal/ingestion/application"
 	"home-searcher/server/internal/ingestion/domain"
 )
@@ -18,7 +18,7 @@ const Kind = "http-json-feed"
 
 // Connector fetches and parses the bootstrap JSON feed contract.
 type Connector struct {
-	client *http.Client
+	fetcher *fetcher.HTTPFetcher
 }
 
 // NewConnector builds a bootstrap HTTP JSON feed connector.
@@ -28,7 +28,7 @@ func NewConnector(client *http.Client) *Connector {
 		resolvedClient = &http.Client{Timeout: 15 * time.Second}
 	}
 
-	return &Connector{client: resolvedClient}
+	return &Connector{fetcher: fetcher.NewHTTPFetcher(resolvedClient, nil, "application/json")}
 }
 
 // Kind returns the source kind supported by the connector.
@@ -38,35 +38,15 @@ func (c *Connector) Kind() string {
 
 // Fetch retrieves the source payload over HTTP.
 func (c *Connector) Fetch(ctx context.Context, source domain.Source) (app.FetchResult, error) {
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, source.EndpointURL, nil)
+	result, err := c.fetcher.Fetch(ctx, source.EndpointURL, nil)
 	if err != nil {
-		return app.FetchResult{}, fmt.Errorf("build request: %w", err)
-	}
-
-	response, err := c.client.Do(request)
-	if err != nil {
-		return app.FetchResult{}, fmt.Errorf("fetch source payload: %w", err)
-	}
-	defer response.Body.Close()
-
-	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
-		return app.FetchResult{}, fmt.Errorf("unexpected source status: %s", response.Status)
-	}
-
-	body, err := io.ReadAll(response.Body)
-	if err != nil {
-		return app.FetchResult{}, fmt.Errorf("read source payload: %w", err)
-	}
-
-	contentType := response.Header.Get("Content-Type")
-	if strings.TrimSpace(contentType) == "" {
-		contentType = "application/json"
+		return app.FetchResult{}, err
 	}
 
 	return app.FetchResult{
-		Payload:     body,
-		ContentType: contentType,
-		FetchedAt:   time.Now().UTC(),
+		ContentType: result.ContentType,
+		FetchedAt:   result.FetchedAt,
+		Payload:     result.Payload,
 	}, nil
 }
 
@@ -102,11 +82,11 @@ func (c *Connector) Parse(_ context.Context, _ domain.Source, payload []byte) ([
 		}
 
 		items = append(items, domain.CandidateListing{
-			ExternalID:  externalID,
-			Title:       title,
-			PriceAmount: item.PriceAmount,
 			Currency:    currency,
+			ExternalID:  externalID,
 			Location:    location,
+			PriceAmount: item.PriceAmount,
+			Title:       title,
 			URL:         listingURL,
 		})
 	}
@@ -119,10 +99,10 @@ type feedPayload struct {
 }
 
 type feedItem struct {
-	ExternalID  string `json:"external_id"`
-	Title       string `json:"title"`
-	PriceAmount int64  `json:"price_amount"`
 	Currency    string `json:"currency"`
+	ExternalID  string `json:"external_id"`
 	Location    string `json:"location"`
+	PriceAmount int64  `json:"price_amount"`
+	Title       string `json:"title"`
 	URL         string `json:"url"`
 }

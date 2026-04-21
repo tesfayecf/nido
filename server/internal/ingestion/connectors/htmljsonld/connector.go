@@ -5,13 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"html"
-	"io"
 	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
+	"home-searcher/server/internal/fetcher"
 	app "home-searcher/server/internal/ingestion/application"
 	"home-searcher/server/internal/ingestion/browser"
 	"home-searcher/server/internal/ingestion/domain"
@@ -26,7 +26,7 @@ var jsonLDScriptPattern = regexp.MustCompile(`(?is)<script[^>]*type\s*=\s*["']ap
 
 // Connector fetches HTML pages and extracts listing data from JSON-LD blocks.
 type Connector struct {
-	client   *http.Client
+	fetcher  *fetcher.HTTPFetcher
 	renderer browser.Renderer
 }
 
@@ -41,7 +41,7 @@ func NewConnector(client *http.Client, renderer browser.Renderer) *Connector {
 		renderer = browser.NewRenderer(platformconfig.BrowserConfig{})
 	}
 
-	return &Connector{client: resolvedClient, renderer: renderer}
+	return &Connector{fetcher: fetcher.NewHTTPFetcher(resolvedClient, nil, "text/html; charset=utf-8"), renderer: renderer}
 }
 
 // Kind returns the connector kind supported by this parser.
@@ -64,35 +64,15 @@ func (c *Connector) Fetch(ctx context.Context, source domain.Source) (app.FetchR
 		}, nil
 	}
 
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, source.EndpointURL, nil)
+	result, err := c.fetcher.Fetch(ctx, source.EndpointURL, nil)
 	if err != nil {
-		return app.FetchResult{}, fmt.Errorf("build request: %w", err)
-	}
-
-	response, err := c.client.Do(request)
-	if err != nil {
-		return app.FetchResult{}, fmt.Errorf("fetch source payload: %w", err)
-	}
-	defer response.Body.Close()
-
-	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
-		return app.FetchResult{}, fmt.Errorf("unexpected source status: %s", response.Status)
-	}
-
-	body, err := io.ReadAll(response.Body)
-	if err != nil {
-		return app.FetchResult{}, fmt.Errorf("read source payload: %w", err)
-	}
-
-	contentType := response.Header.Get("Content-Type")
-	if strings.TrimSpace(contentType) == "" {
-		contentType = "text/html; charset=utf-8"
+		return app.FetchResult{}, err
 	}
 
 	return app.FetchResult{
-		Payload:     body,
-		ContentType: contentType,
-		FetchedAt:   time.Now().UTC(),
+		ContentType: result.ContentType,
+		FetchedAt:   result.FetchedAt,
+		Payload:     result.Payload,
 	}, nil
 }
 
