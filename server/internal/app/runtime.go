@@ -127,6 +127,9 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Runtime,
 	engagementhttp.Register(mux, authMiddleware, engagementService)
 	ingestionhttp.Register(mux, authMiddleware, ingestionService, eventBroker)
 
+	propertyService := ingestionapp.NewPropertyService(logger, store, nil, engagementService, eventBroker)
+	ingestionhttp.RegisterProperties(mux, authMiddleware, propertyService)
+
 	return &Runtime{
 		Handler:         platformhttp.LoggingMiddleware(logger, mux),
 		db:              db,

@@ -14,6 +14,8 @@ import { RunsPage } from "@/features/backoffice/RunsPage";
 import { LoginPage } from "@/features/auth/LoginPage";
 import { ListingDetailPage } from "@/features/listings/ListingDetailPage";
 import { ListingsPage } from "@/features/listings/ListingsPage";
+import { PropertiesPage } from "@/features/properties/PropertiesPage";
+import { PropertyDetailPage } from "@/features/properties/PropertyDetailPage";
 
 /**
  * Defines the top-level route tree for the application.
@@ -62,6 +64,18 @@ export const router = createBrowserRouter([
                     {
                         path: "notifications",
                         element: <NotificationsPage />,
+                    },
+                    {
+                        path: "properties",
+                        element: <PropertiesPage />,
+                    },
+                    {
+                        path: "properties/new",
+                        element: <PropertyDetailPage />,
+                    },
+                    {
+                        path: "properties/:propertyId",
+                        element: <PropertyDetailPage />,
                     },
                     {
                         path: "backoffice/sources",

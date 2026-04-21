@@ -1337,3 +1337,337 @@ func boolToInt(value bool) int {
 
 	return 0
 }
+
+// ── Property persistence ──────────────────────────────────────────────────────
+
+var propertySelect = `SELECT id, url, label, status, schedule_interval_seconds, retry_max_attempts, retry_backoff_millis, last_run_at, next_run_at, created_at, updated_at FROM properties`
+
+// UpsertProperty creates or updates a property record.
+func (s *Store) UpsertProperty(ctx context.Context, property ingestiondomain.Property) error {
+	_, err := s.db.ExecContext(
+		ctx,
+		`INSERT INTO properties (id, url, label, status, schedule_interval_seconds, retry_max_attempts, retry_backoff_millis, last_run_at, next_run_at, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		 ON CONFLICT(id) DO UPDATE SET
+		 	url = excluded.url,
+		 	label = excluded.label,
+		 	status = excluded.status,
+		 	schedule_interval_seconds = excluded.schedule_interval_seconds,
+		 	retry_max_attempts = excluded.retry_max_attempts,
+		 	retry_backoff_millis = excluded.retry_backoff_millis,
+		 	last_run_at = excluded.last_run_at,
+		 	next_run_at = excluded.next_run_at,
+		 	updated_at = excluded.updated_at`,
+		property.ID,
+		property.URL,
+		property.Label,
+		string(property.Status),
+		property.ScheduleIntervalSeconds,
+		property.RetryMaxAttempts,
+		property.RetryBackoffMillis,
+		nullableTimeString(property.LastRunAt),
+		nullableTimeString(property.NextRunAt),
+		formatTime(property.CreatedAt),
+		formatTime(property.UpdatedAt),
+	)
+	if err != nil {
+		return fmt.Errorf("upsert property: %w", err)
+	}
+
+	return nil
+}
+
+// ListProperties returns all known properties ordered by creation time.
+func (s *Store) ListProperties(ctx context.Context) ([]ingestiondomain.Property, error) {
+	rows, err := s.db.QueryContext(ctx, propertySelect+` ORDER BY created_at DESC`)
+	if err != nil {
+		return nil, fmt.Errorf("list properties: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]ingestiondomain.Property, 0)
+	for rows.Next() {
+		property, err := scanProperty(rows)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, property)
+	}
+
+	return items, rows.Err()
+}
+
+// ListDueProperties returns properties whose schedules are ready to run.
+func (s *Store) ListDueProperties(ctx context.Context, before time.Time, limit int) ([]ingestiondomain.Property, error) {
+	rows, err := s.db.QueryContext(
+		ctx,
+		propertySelect+` WHERE status != 'inactive' AND schedule_interval_seconds > 0 AND (next_run_at IS NULL OR next_run_at <= ?) ORDER BY COALESCE(next_run_at, created_at) ASC LIMIT ?`,
+		formatTime(before),
+		limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list due properties: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]ingestiondomain.Property, 0)
+	for rows.Next() {
+		property, err := scanProperty(rows)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, property)
+	}
+
+	return items, rows.Err()
+}
+
+// GetProperty returns one property by identifier.
+func (s *Store) GetProperty(ctx context.Context, propertyID string) (ingestiondomain.Property, error) {
+	return scanProperty(s.db.QueryRowContext(ctx, propertySelect+` WHERE id = ?`, propertyID))
+}
+
+// UpdatePropertyRunState records the latest ingest timestamps and health status.
+func (s *Store) UpdatePropertyRunState(ctx context.Context, propertyID string, status ingestiondomain.PropertyStatus, lastRunAt, nextRunAt *time.Time) error {
+	_, err := s.db.ExecContext(
+		ctx,
+		`UPDATE properties SET status = ?, last_run_at = ?, next_run_at = ?, updated_at = ? WHERE id = ?`,
+		string(status),
+		nullableTimeString(lastRunAt),
+		nullableTimeString(nextRunAt),
+		formatTime(time.Now().UTC()),
+		propertyID,
+	)
+	if err != nil {
+		return fmt.Errorf("update property run state: %w", err)
+	}
+
+	return nil
+}
+
+// UpsertPropertyConfig saves a new extraction config version for a property.
+func (s *Store) UpsertPropertyConfig(ctx context.Context, config ingestiondomain.PropertyExtractionConfig) error {
+	fieldsJSON, err := json.Marshal(config.Fields)
+	if err != nil {
+		return fmt.Errorf("marshal property fields: %w", err)
+	}
+
+	_, err = s.db.ExecContext(
+		ctx,
+		`INSERT INTO property_extraction_configs (id, property_id, fields_json, version, created_at)
+		 VALUES (?, ?, ?, ?, ?)
+		 ON CONFLICT(id) DO UPDATE SET fields_json = excluded.fields_json, version = excluded.version`,
+		config.ID,
+		config.PropertyID,
+		string(fieldsJSON),
+		config.Version,
+		formatTime(config.CreatedAt),
+	)
+	if err != nil {
+		return fmt.Errorf("upsert property config: %w", err)
+	}
+
+	return nil
+}
+
+// GetLatestPropertyConfig returns the most recent config for a property.
+// Returns an empty config (not an error) when no config exists yet.
+func (s *Store) GetLatestPropertyConfig(ctx context.Context, propertyID string) (ingestiondomain.PropertyExtractionConfig, error) {
+	var (
+		config    ingestiondomain.PropertyExtractionConfig
+		fieldsJSON string
+		createdAt  string
+	)
+
+	err := s.db.QueryRowContext(
+		ctx,
+		`SELECT id, property_id, fields_json, version, created_at FROM property_extraction_configs WHERE property_id = ? ORDER BY version DESC LIMIT 1`,
+		propertyID,
+	).Scan(&config.ID, &config.PropertyID, &fieldsJSON, &config.Version, &createdAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ingestiondomain.PropertyExtractionConfig{PropertyID: propertyID}, nil
+	}
+	if err != nil {
+		return ingestiondomain.PropertyExtractionConfig{}, fmt.Errorf("get latest property config: %w", err)
+	}
+
+	if err := json.Unmarshal([]byte(fieldsJSON), &config.Fields); err != nil {
+		return ingestiondomain.PropertyExtractionConfig{}, fmt.Errorf("unmarshal property fields: %w", err)
+	}
+
+	config.CreatedAt, err = parseTime(createdAt)
+	if err != nil {
+		return ingestiondomain.PropertyExtractionConfig{}, err
+	}
+
+	return config, nil
+}
+
+// CreatePropertySnapshot records one extraction snapshot for a property.
+func (s *Store) CreatePropertySnapshot(ctx context.Context, snapshot ingestiondomain.PropertySnapshot) error {
+	valuesJSON := string(snapshot.Values)
+	if valuesJSON == "" {
+		valuesJSON = "{}"
+	}
+	changeFlagsJSON := string(snapshot.ChangeFlags)
+	if changeFlagsJSON == "" {
+		changeFlagsJSON = "{}"
+	}
+
+	var errorMessage any
+	if snapshot.ErrorMessage != "" {
+		errorMessage = snapshot.ErrorMessage
+	}
+
+	_, err := s.db.ExecContext(
+		ctx,
+		`INSERT INTO property_snapshots (id, property_id, config_version, observed_at, values_json, change_flags_json, is_valid, error_message)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		snapshot.ID,
+		snapshot.PropertyID,
+		snapshot.ConfigVersion,
+		formatTime(snapshot.ObservedAt),
+		valuesJSON,
+		changeFlagsJSON,
+		boolToInt(snapshot.IsValid),
+		errorMessage,
+	)
+	if err != nil {
+		return fmt.Errorf("create property snapshot: %w", err)
+	}
+
+	return nil
+}
+
+// ListPropertySnapshots returns the most recent snapshots for a property.
+func (s *Store) ListPropertySnapshots(ctx context.Context, propertyID string, limit int) ([]ingestiondomain.PropertySnapshot, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+
+	rows, err := s.db.QueryContext(
+		ctx,
+		`SELECT id, property_id, config_version, observed_at, values_json, change_flags_json, is_valid, error_message FROM property_snapshots WHERE property_id = ? ORDER BY observed_at DESC LIMIT ?`,
+		propertyID,
+		limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list property snapshots: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]ingestiondomain.PropertySnapshot, 0)
+	for rows.Next() {
+		snapshot, err := scanPropertySnapshot(rows)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, snapshot)
+	}
+
+	return items, rows.Err()
+}
+
+// GetLastValidPropertySnapshot returns the most recent valid snapshot for a property.
+func (s *Store) GetLastValidPropertySnapshot(ctx context.Context, propertyID string) (ingestiondomain.PropertySnapshot, error) {
+	snapshot, err := scanPropertySnapshot(s.db.QueryRowContext(
+		ctx,
+		`SELECT id, property_id, config_version, observed_at, values_json, change_flags_json, is_valid, error_message FROM property_snapshots WHERE property_id = ? AND is_valid = 1 ORDER BY observed_at DESC LIMIT 1`,
+		propertyID,
+	))
+	if errors.Is(err, sql.ErrNoRows) {
+		return ingestiondomain.PropertySnapshot{PropertyID: propertyID}, nil
+	}
+
+	return snapshot, err
+}
+
+func scanProperty(s scanner) (ingestiondomain.Property, error) {
+	var (
+		property             ingestiondomain.Property
+		status               string
+		lastRunAt, nextRunAt sql.NullString
+		createdAt, updatedAt string
+	)
+
+	err := s.Scan(
+		&property.ID,
+		&property.URL,
+		&property.Label,
+		&status,
+		&property.ScheduleIntervalSeconds,
+		&property.RetryMaxAttempts,
+		&property.RetryBackoffMillis,
+		&lastRunAt,
+		&nextRunAt,
+		&createdAt,
+		&updatedAt,
+	)
+	if err != nil {
+		return ingestiondomain.Property{}, err
+	}
+
+	property.Status = ingestiondomain.PropertyStatus(status)
+	property.CreatedAt, err = parseTime(createdAt)
+	if err != nil {
+		return ingestiondomain.Property{}, err
+	}
+	property.UpdatedAt, err = parseTime(updatedAt)
+	if err != nil {
+		return ingestiondomain.Property{}, err
+	}
+	if lastRunAt.Valid {
+		parsedLastRunAt, err := parseTime(lastRunAt.String)
+		if err != nil {
+			return ingestiondomain.Property{}, err
+		}
+		property.LastRunAt = &parsedLastRunAt
+	}
+	if nextRunAt.Valid {
+		parsedNextRunAt, err := parseTime(nextRunAt.String)
+		if err != nil {
+			return ingestiondomain.Property{}, err
+		}
+		property.NextRunAt = &parsedNextRunAt
+	}
+
+	return property, nil
+}
+
+func scanPropertySnapshot(s scanner) (ingestiondomain.PropertySnapshot, error) {
+	var (
+		snapshot                     ingestiondomain.PropertySnapshot
+		observedAt                   string
+		valuesJSON, changeFlagsJSON  string
+		isValid                      int
+		errorMessage                 sql.NullString
+	)
+
+	err := s.Scan(
+		&snapshot.ID,
+		&snapshot.PropertyID,
+		&snapshot.ConfigVersion,
+		&observedAt,
+		&valuesJSON,
+		&changeFlagsJSON,
+		&isValid,
+		&errorMessage,
+	)
+	if err != nil {
+		return ingestiondomain.PropertySnapshot{}, err
+	}
+
+	snapshot.IsValid = isValid == 1
+	snapshot.Values = json.RawMessage(normalizeJSONString(valuesJSON))
+	snapshot.ChangeFlags = json.RawMessage(normalizeJSONString(changeFlagsJSON))
+	if errorMessage.Valid {
+		snapshot.ErrorMessage = errorMessage.String
+	}
+	snapshot.ObservedAt, err = parseTime(observedAt)
+	if err != nil {
+		return ingestiondomain.PropertySnapshot{}, err
+	}
+
+	return snapshot, nil
+}
+

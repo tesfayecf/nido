@@ -58,6 +58,7 @@ export const AppNav = (): JSX.Element => {
 
                         <div>
                             <p className={"app-nav__section-label"}>{"Operate"}</p>
+                            <NavItem to={"/properties"}>{"Properties"}</NavItem>
                             <NavItem to={"/backoffice/sources"}>{"Sources"}</NavItem>
                             <NavItem to={"/backoffice/runs"}>{"Runs"}</NavItem>
                         </div>
