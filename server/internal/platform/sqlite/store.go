@@ -544,8 +544,8 @@ func (s *Store) GetSessionByTokenHash(ctx context.Context, tokenHash string) (au
 	)
 
 	var (
-		session authdomain.Session
-		user    authdomain.User
+		session              authdomain.Session
+		user                 authdomain.User
 		createdAt, expiresAt string
 		revokedAt            sql.NullString
 		userCreatedAt        string
@@ -975,11 +975,11 @@ FROM ingestion_runs`
 
 func scanSource(scanner scanner) (ingestiondomain.Source, error) {
 	var (
-		source                                ingestiondomain.Source
-		browserEnabled                        int
-		active                                int
-		nextRunAt, lastRunAt                  sql.NullString
-		createdAt, updatedAt                  string
+		source               ingestiondomain.Source
+		browserEnabled       int
+		active               int
+		nextRunAt, lastRunAt sql.NullString
+		createdAt, updatedAt string
 	)
 
 	err := scanner.Scan(
@@ -1035,14 +1035,14 @@ func scanSource(scanner scanner) (ingestiondomain.Source, error) {
 
 func scanRun(scanner scanner) (ingestiondomain.Run, error) {
 	var (
-		run                           ingestiondomain.Run
-		status                        string
-		startedAt                     string
-		finishedAt                    sql.NullString
-		artifactKey                   sql.NullString
-		failureArtifactKey            sql.NullString
-		diagnosticsJSON               string
-		errorMessage                  sql.NullString
+		run                ingestiondomain.Run
+		status             string
+		startedAt          string
+		finishedAt         sql.NullString
+		artifactKey        sql.NullString
+		failureArtifactKey sql.NullString
+		diagnosticsJSON    string
+		errorMessage       sql.NullString
 	)
 
 	err := scanner.Scan(
@@ -1092,9 +1092,9 @@ func scanRun(scanner scanner) (ingestiondomain.Run, error) {
 
 func scanUser(scanner scanner, passwordHash *string) (authdomain.User, error) {
 	var (
-		user                   authdomain.User
-		storedPasswordHash     sql.NullString
-		createdAt, updatedAt   string
+		user                 authdomain.User
+		storedPasswordHash   sql.NullString
+		createdAt, updatedAt string
 	)
 
 	err := scanner.Scan(&user.ID, &user.Email, &user.DisplayName, &storedPasswordHash, &createdAt, &updatedAt)
@@ -1119,10 +1119,10 @@ func scanUser(scanner scanner, passwordHash *string) (authdomain.User, error) {
 
 func scanWatchlist(scanner scanner) (engagementdomain.Watchlist, error) {
 	var (
-		watchlist                  engagementdomain.Watchlist
-		sourceID                   sql.NullString
-		maxPriceAmount             sql.NullInt64
-		createdAt, updatedAt       string
+		watchlist            engagementdomain.Watchlist
+		sourceID             sql.NullString
+		maxPriceAmount       sql.NullInt64
+		createdAt, updatedAt string
 	)
 
 	err := scanner.Scan(&watchlist.ID, &watchlist.UserID, &watchlist.Name, &watchlist.Query, &sourceID, &maxPriceAmount, &createdAt, &updatedAt)
@@ -1150,12 +1150,12 @@ func scanWatchlist(scanner scanner) (engagementdomain.Watchlist, error) {
 
 func scanAlertRule(scanner scanner) (engagementdomain.AlertRule, error) {
 	var (
-		rule                         engagementdomain.AlertRule
-		watchlistID                  sql.NullString
-		listingID                    sql.NullString
-		thresholdAmount              sql.NullInt64
-		enabled                      int
-		createdAt, updatedAt         string
+		rule                 engagementdomain.AlertRule
+		watchlistID          sql.NullString
+		listingID            sql.NullString
+		thresholdAmount      sql.NullInt64
+		enabled              int
+		createdAt, updatedAt string
 	)
 
 	err := scanner.Scan(&rule.ID, &rule.UserID, &watchlistID, &listingID, &rule.RuleType, &thresholdAmount, &enabled, &createdAt, &updatedAt)
@@ -1187,12 +1187,12 @@ func scanAlertRule(scanner scanner) (engagementdomain.AlertRule, error) {
 
 func scanNotification(scanner scanner) (engagementdomain.Notification, error) {
 	var (
-		notification                 engagementdomain.Notification
-		ruleID                       sql.NullString
-		listingID                    sql.NullString
-		dataJSON                     string
-		createdAt                    string
-		readAt                       sql.NullString
+		notification engagementdomain.Notification
+		ruleID       sql.NullString
+		listingID    sql.NullString
+		dataJSON     string
+		createdAt    string
+		readAt       sql.NullString
 	)
 
 	err := scanner.Scan(
@@ -1474,7 +1474,7 @@ func (s *Store) UpsertPropertyConfig(ctx context.Context, config ingestiondomain
 // Returns an empty config (not an error) when no config exists yet.
 func (s *Store) GetLatestPropertyConfig(ctx context.Context, propertyID string) (ingestiondomain.PropertyExtractionConfig, error) {
 	var (
-		config    ingestiondomain.PropertyExtractionConfig
+		config     ingestiondomain.PropertyExtractionConfig
 		fieldsJSON string
 		createdAt  string
 	)
@@ -1485,7 +1485,10 @@ func (s *Store) GetLatestPropertyConfig(ctx context.Context, propertyID string) 
 		propertyID,
 	).Scan(&config.ID, &config.PropertyID, &fieldsJSON, &config.Version, &createdAt)
 	if errors.Is(err, sql.ErrNoRows) {
-		return ingestiondomain.PropertyExtractionConfig{PropertyID: propertyID}, nil
+		return ingestiondomain.PropertyExtractionConfig{
+			PropertyID: propertyID,
+			Fields:     []ingestiondomain.FieldSelector{},
+		}, nil
 	}
 	if err != nil {
 		return ingestiondomain.PropertyExtractionConfig{}, fmt.Errorf("get latest property config: %w", err)
@@ -1493,6 +1496,9 @@ func (s *Store) GetLatestPropertyConfig(ctx context.Context, propertyID string) 
 
 	if err := json.Unmarshal([]byte(fieldsJSON), &config.Fields); err != nil {
 		return ingestiondomain.PropertyExtractionConfig{}, fmt.Errorf("unmarshal property fields: %w", err)
+	}
+	if config.Fields == nil {
+		config.Fields = []ingestiondomain.FieldSelector{}
 	}
 
 	config.CreatedAt, err = parseTime(createdAt)
@@ -1636,11 +1642,11 @@ func scanProperty(s scanner) (ingestiondomain.Property, error) {
 
 func scanPropertySnapshot(s scanner) (ingestiondomain.PropertySnapshot, error) {
 	var (
-		snapshot                     ingestiondomain.PropertySnapshot
-		observedAt                   string
-		valuesJSON, changeFlagsJSON  string
-		isValid                      int
-		errorMessage                 sql.NullString
+		snapshot                    ingestiondomain.PropertySnapshot
+		observedAt                  string
+		valuesJSON, changeFlagsJSON string
+		isValid                     int
+		errorMessage                sql.NullString
 	)
 
 	err := s.Scan(
@@ -1670,4 +1676,3 @@ func scanPropertySnapshot(s scanner) (ingestiondomain.PropertySnapshot, error) {
 
 	return snapshot, nil
 }
-

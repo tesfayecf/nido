@@ -104,7 +104,10 @@ export const getPropertyConfig = async (propertyId: string): Promise<PropertyExt
         path: `/api/v1/backoffice/properties/${propertyId}/config`,
     });
 
-    return response.item;
+    return {
+        ...response.item,
+        fields: response.item.fields ?? [],
+    };
 };
 
 /**
