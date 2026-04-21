@@ -267,6 +267,46 @@ CREATE TABLE IF NOT EXISTS notifications (
 );
 
 CREATE INDEX IF NOT EXISTS idx_notifications_user_created_at ON notifications(user_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS properties (
+    id TEXT PRIMARY KEY,
+    url TEXT NOT NULL,
+    label TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'pending',
+    schedule_interval_seconds INTEGER NOT NULL DEFAULT 0,
+    retry_max_attempts INTEGER NOT NULL DEFAULT 1,
+    retry_backoff_millis INTEGER NOT NULL DEFAULT 500,
+    last_run_at TEXT,
+    next_run_at TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_properties_status ON properties(status);
+CREATE INDEX IF NOT EXISTS idx_properties_next_run_at ON properties(next_run_at);
+
+CREATE TABLE IF NOT EXISTS property_extraction_configs (
+    id TEXT PRIMARY KEY,
+    property_id TEXT NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+    fields_json TEXT NOT NULL DEFAULT '[]',
+    version INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_property_configs_property_version ON property_extraction_configs(property_id, version DESC);
+
+CREATE TABLE IF NOT EXISTS property_snapshots (
+    id TEXT PRIMARY KEY,
+    property_id TEXT NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+    config_version INTEGER NOT NULL DEFAULT 1,
+    observed_at TEXT NOT NULL,
+    values_json TEXT NOT NULL DEFAULT '{}',
+    change_flags_json TEXT NOT NULL DEFAULT '{}',
+    is_valid INTEGER NOT NULL DEFAULT 1,
+    error_message TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_property_snapshots_property_observed ON property_snapshots(property_id, observed_at DESC);
 `
 
 var columnMigrations = []columnMigration{
@@ -285,4 +325,9 @@ var columnMigrations = []columnMigration{
 	{table: "ingestion_runs", column: "attempt_count", definition: "INTEGER NOT NULL DEFAULT 1"},
 	{table: "ingestion_runs", column: "failure_artifact_key", definition: "TEXT"},
 	{table: "ingestion_runs", column: "diagnostics_json", definition: "TEXT NOT NULL DEFAULT '{}'"},
+	{table: "properties", column: "schedule_interval_seconds", definition: "INTEGER NOT NULL DEFAULT 0"},
+	{table: "properties", column: "retry_max_attempts", definition: "INTEGER NOT NULL DEFAULT 1"},
+	{table: "properties", column: "retry_backoff_millis", definition: "INTEGER NOT NULL DEFAULT 500"},
+	{table: "properties", column: "last_run_at", definition: "TEXT"},
+	{table: "properties", column: "next_run_at", definition: "TEXT"},
 }

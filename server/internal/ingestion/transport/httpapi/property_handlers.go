@@ -1,0 +1,212 @@
+package httpapi
+
+import (
+	"encoding/json"
+	"errors"
+	"net/http"
+	"strings"
+
+	app "home-searcher/server/internal/ingestion/application"
+	ingestiondomain "home-searcher/server/internal/ingestion/domain"
+	platformhttp "home-searcher/server/internal/platform/httpapi"
+)
+
+// RegisterProperties binds property tracking HTTP routes to the supplied mux.
+func RegisterProperties(mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, service *app.PropertyService) {
+	mux.Handle("GET /api/v1/backoffice/properties", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		properties, err := service.ListProperties(r.Context())
+		if err != nil {
+			platformhttp.WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{
+			"items": properties,
+			"count": len(properties),
+		})
+	})))
+
+	mux.Handle("POST /api/v1/backoffice/properties", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var request ingestiondomain.Property
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			platformhttp.WriteError(w, http.StatusBadRequest, "invalid request body")
+			return
+		}
+
+		property, err := service.EnsureProperty(r.Context(), request)
+		if err != nil {
+			platformhttp.WriteError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		platformhttp.WriteJSON(w, http.StatusCreated, map[string]any{"item": property})
+	})))
+
+	// Stateless preview — no property ID required.  Must be registered BEFORE
+	// the /{propertyID}/preview pattern so that the static segment wins.
+	mux.Handle("POST /api/v1/backoffice/properties/preview", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var request ingestiondomain.PropertyPreviewRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			platformhttp.WriteError(w, http.StatusBadRequest, "invalid request body")
+			return
+		}
+
+		result, err := service.PreviewExtraction(r.Context(), request)
+		if err != nil {
+			platformhttp.WriteError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{"item": result})
+	})))
+
+	mux.Handle("GET /api/v1/backoffice/properties/{propertyID}", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		propertyID := strings.TrimSpace(r.PathValue("propertyID"))
+		if propertyID == "" {
+			platformhttp.WriteError(w, http.StatusBadRequest, "property id is required")
+			return
+		}
+
+		property, err := service.GetProperty(r.Context(), propertyID)
+		if err != nil {
+			if errors.Is(err, app.ErrPropertyNotFound) {
+				platformhttp.WriteError(w, http.StatusNotFound, err.Error())
+				return
+			}
+
+			platformhttp.WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{"item": property})
+	})))
+
+	mux.Handle("PUT /api/v1/backoffice/properties/{propertyID}", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		propertyID := strings.TrimSpace(r.PathValue("propertyID"))
+		if propertyID == "" {
+			platformhttp.WriteError(w, http.StatusBadRequest, "property id is required")
+			return
+		}
+
+		var request ingestiondomain.Property
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			platformhttp.WriteError(w, http.StatusBadRequest, "invalid request body")
+			return
+		}
+
+		request.ID = propertyID
+		property, err := service.EnsureProperty(r.Context(), request)
+		if err != nil {
+			platformhttp.WriteError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{"item": property})
+	})))
+
+	mux.Handle("POST /api/v1/backoffice/properties/{propertyID}/config", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		propertyID := strings.TrimSpace(r.PathValue("propertyID"))
+		if propertyID == "" {
+			platformhttp.WriteError(w, http.StatusBadRequest, "property id is required")
+			return
+		}
+
+		var body struct {
+			Fields []ingestiondomain.FieldSelector `json:"fields"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			platformhttp.WriteError(w, http.StatusBadRequest, "invalid request body")
+			return
+		}
+
+		config, err := service.UpsertPropertyConfig(r.Context(), propertyID, body.Fields)
+		if err != nil {
+			platformhttp.WriteError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		platformhttp.WriteJSON(w, http.StatusCreated, map[string]any{"item": config})
+	})))
+
+	mux.Handle("GET /api/v1/backoffice/properties/{propertyID}/config", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		propertyID := strings.TrimSpace(r.PathValue("propertyID"))
+		if propertyID == "" {
+			platformhttp.WriteError(w, http.StatusBadRequest, "property id is required")
+			return
+		}
+
+		config, err := service.GetLatestPropertyConfig(r.Context(), propertyID)
+		if err != nil {
+			platformhttp.WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{"item": config})
+	})))
+
+	mux.Handle("POST /api/v1/backoffice/properties/{propertyID}/preview", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		propertyID := strings.TrimSpace(r.PathValue("propertyID"))
+		if propertyID == "" {
+			platformhttp.WriteError(w, http.StatusBadRequest, "property id is required")
+			return
+		}
+
+		var request ingestiondomain.PropertyPreviewRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			platformhttp.WriteError(w, http.StatusBadRequest, "invalid request body")
+			return
+		}
+
+		result, err := service.PreviewExtraction(r.Context(), request)
+		if err != nil {
+			platformhttp.WriteError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{"item": result})
+	})))
+
+	mux.Handle("POST /api/v1/backoffice/properties/{propertyID}/ingest", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		propertyID := strings.TrimSpace(r.PathValue("propertyID"))
+		if propertyID == "" {
+			platformhttp.WriteError(w, http.StatusBadRequest, "property id is required")
+			return
+		}
+
+		snapshot, err := service.IngestProperty(r.Context(), propertyID)
+		if err != nil {
+			if errors.Is(err, app.ErrPropertyNotFound) {
+				platformhttp.WriteError(w, http.StatusNotFound, err.Error())
+				return
+			}
+
+			platformhttp.WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{"item": snapshot})
+	})))
+
+	mux.Handle("GET /api/v1/backoffice/properties/{propertyID}/snapshots", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		propertyID := strings.TrimSpace(r.PathValue("propertyID"))
+		if propertyID == "" {
+			platformhttp.WriteError(w, http.StatusBadRequest, "property id is required")
+			return
+		}
+
+		snapshots, err := service.ListPropertySnapshots(
+			r.Context(),
+			propertyID,
+			parseLimit(r.URL.Query().Get("limit")),
+		)
+		if err != nil {
+			platformhttp.WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{
+			"items": snapshots,
+			"count": len(snapshots),
+		})
+	})))
+}
