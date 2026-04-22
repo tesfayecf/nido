@@ -6,7 +6,7 @@ const runsRoot = ["backoffice", "runs"] as const;
  * Defines stable query keys for ingestion runs.
  */
 export const runKeys = {
-    all: () => runsRoot,
+    all: (): typeof runsRoot => runsRoot,
     detail: (runId: string) => [...runsRoot, "detail", runId] as const,
     list: (filters: RunFilters) => [...runsRoot, "list", filters] as const,
 };
