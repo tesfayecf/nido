@@ -1,4 +1,4 @@
-import { apiRequest, type ItemEnvelope, type ListEnvelope } from "@/lib/api/client";
+import { apiRequest, type ItemEnvelope, type ListEnvelope, type StatusEnvelope } from "@/lib/api/client";
 
 import type {
     FieldSelector,
@@ -72,6 +72,19 @@ export const updateProperty = async (propertyId: string, req: PropertyUpsertRequ
     });
 
     return response.item;
+};
+
+/**
+ * Deletes an existing tracked property.
+ *
+ * @param propertyId The property identifier.
+ */
+export const deleteProperty = async (propertyId: string): Promise<void> => {
+    await apiRequest<StatusEnvelope>({
+        auth: true,
+        method: "DELETE",
+        path: `/api/v1/backoffice/properties/${propertyId}`,
+    });
 };
 
 /**

@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { RouterProvider, createMemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ToastProvider } from "@/components/ui/ToastProvider";
 import { SourceDetailPage } from "@/features/backoffice/SourceDetailPage";
 import type { Source } from "@/services/backoffice-sources/sources.types";
 
@@ -37,7 +38,9 @@ const renderSourceDetailPage = (initialEntries: string[]): ReturnType<typeof ren
 
     return render(
         <QueryClientProvider client={queryClient}>
-            <RouterProvider router={router} />
+            <ToastProvider>
+                <RouterProvider router={router} />
+            </ToastProvider>
         </QueryClientProvider>,
     );
 };
@@ -51,7 +54,7 @@ describe("SourceDetailPage", () => {
     it("resets the form when navigating from an existing source to create mode", async () => {
         const existingSourceView = renderSourceDetailPage(["/sources/source-1"]);
 
-        expect(await screen.findByDisplayValue("Existing Source")).toBeInTheDocument();
+        expect(await screen.findByText("Existing Source")).toBeInTheDocument();
 
         existingSourceView.unmount();
         renderSourceDetailPage(["/sources/new"]);
@@ -60,6 +63,17 @@ describe("SourceDetailPage", () => {
             expect(screen.getByLabelText("Template id")).toHaveValue("");
             expect(screen.getByLabelText("Template name")).toHaveValue("");
             expect(screen.getAllByLabelText("Field name").map((input) => (input as HTMLInputElement).value)).toEqual(["price", "title", "location"]);
+        });
+    });
+
+    it("opens the edit modal with the existing source values populated", async () => {
+        renderSourceDetailPage(["/sources/source-1"]);
+
+        fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+
+        await waitFor(() => {
+            expect(screen.getByLabelText("Template id")).toHaveValue("source-1");
+            expect(screen.getByLabelText("Template name")).toHaveValue("Existing Source");
         });
     });
 

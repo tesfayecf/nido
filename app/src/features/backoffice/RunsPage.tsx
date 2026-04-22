@@ -1,26 +1,32 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { Link, useSearchParams } from "react-router-dom";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
-import { LiveEventsPanel } from "@/features/backoffice/LiveEventsPanel";
-import { AsyncContent } from "@/components/ui/AsyncContent";
 import { Button } from "@/components/ui/Button";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { DataTable } from "@/components/ui/DataTable";
+import { Dialog } from "@/components/ui/Dialog";
+import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Field } from "@/components/ui/Field";
 import { FormGrid } from "@/components/ui/FormGrid";
 import { Input } from "@/components/ui/Input";
-import { ItemList } from "@/components/ui/ItemList";
-import { ListRow, ListRowFooter, ListRowMain } from "@/components/ui/ListRow";
 import { PageCard } from "@/components/ui/PageCard";
-import { SplitLayout } from "@/components/ui/SplitLayout";
+import { Select } from "@/components/ui/Select";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { useToast } from "@/components/ui/ToastProvider";
 import { formatDateTime } from "@/lib/format/date";
 import { readNumberParam, readStringParam, writeParam } from "@/lib/routing/searchParams";
 import { runKeys } from "@/services/backoffice-runs/runs.keys";
-import { listRuns } from "@/services/backoffice-runs/runs.service";
+import { deleteRun, listRuns } from "@/services/backoffice-runs/runs.service";
 import type { Run, RunFilters } from "@/services/backoffice-runs/runs.types";
+import { propertyKeys } from "@/services/properties/properties.keys";
+import { ingestProperty, listProperties } from "@/services/properties/properties.service";
 
 export const RunsPage = (): JSX.Element => {
+    const navigate = useNavigate();
+    const queryClient = useQueryClient();
+    const { pushToast } = useToast();
     const [searchParams, setSearchParams] = useSearchParams();
     const filters: RunFilters = {
         limit: readNumberParam(searchParams, "limit", 25),
@@ -28,20 +34,57 @@ export const RunsPage = (): JSX.Element => {
     };
     const [draftPropertyId, setDraftPropertyId] = useState(filters.property_id);
     const [draftLimit, setDraftLimit] = useState(`${filters.limit}`);
+    const [triggerOpen, setTriggerOpen] = useState(false);
+    const [triggerPropertyId, setTriggerPropertyId] = useState(filters.property_id);
+    const [deleteTarget, setDeleteTarget] = useState<Run | null>(null);
     const runsQuery = useQuery({
         placeholderData: keepPreviousData,
         queryFn: () => listRuns(filters),
         queryKey: runKeys.list(filters),
     });
+    const propertiesQuery = useQuery({
+        queryFn: listProperties,
+        queryKey: propertyKeys.list(),
+    });
+    const triggerMutation = useMutation({
+        mutationFn: (propertyId: string) => ingestProperty(propertyId),
+        onError() {
+            pushToast("Could not trigger the run.", "error");
+        },
+        onSuccess() {
+            void queryClient.invalidateQueries({ queryKey: runKeys.all() });
+            void queryClient.invalidateQueries({ queryKey: propertyKeys.list() });
+            setTriggerOpen(false);
+            pushToast("Run started.", "success");
+        },
+    });
+    const deleteMutation = useMutation({
+        mutationFn: deleteRun,
+        onError() {
+            pushToast("Could not delete the run.", "error");
+        },
+        onSuccess() {
+            void queryClient.invalidateQueries({ queryKey: runKeys.all() });
+            setDeleteTarget(null);
+            pushToast("Run deleted.", "success");
+        },
+    });
 
     useEffect(() => {
         setDraftPropertyId(filters.property_id);
         setDraftLimit(`${filters.limit}`);
+        setTriggerPropertyId(filters.property_id);
     }, [filters.limit, filters.property_id]);
 
+    const propertyOptions = useMemo(() => propertiesQuery.data ?? [], [propertiesQuery.data]);
+
     return (
-        <SplitLayout aside={<LiveEventsPanel />}>
-            <PageCard description={"Runs can be filtered by property id and limit."} title={"Runs"}>
+        <>
+            <PageCard
+                action={<Button onClick={() => { setTriggerOpen(true); }}>{"Create run"}</Button>}
+                description={"Runs are stored as snapshots and managed directly from the table."}
+                title={"Runs"}
+            >
                 <FormGrid
                     variant={"inline"}
                     onSubmit={(event) => {
@@ -64,37 +107,129 @@ export const RunsPage = (): JSX.Element => {
                 </FormGrid>
             </PageCard>
 
-            <PageCard description={"Every run is a point-in-time snapshot of one property fetch and extraction attempt."} title={"Recent Runs"}>
-                <AsyncContent
-                    emptyMessage={"No runs matched the current filters."}
-                    errorMessage={"Could not load runs."}
-                    isEmpty={runsQuery.isSuccess && runsQuery.data.items.length === 0}
-                    isError={runsQuery.isError}
-                    isLoading={runsQuery.isLoading}
-                    loadingMessage={"Loading runs..."}
-                >
-                    <ItemList>
-                        {(runsQuery.data?.items ?? []).map((item) => {
-                            return (
-                                <ListRow key={item.id}>
-                                    <ListRowMain>
-                                        <div>
-                                            <h3 className={"list-row__title"}><Link to={`/runs/${item.id}`}>{item.id}</Link></h3>
-                                            <p className={"list-row__meta"}>{item.property_id}{" · observed "}{formatDateTime(item.observed_at)}</p>
-                                        </div>
-                                        <StatusBadge tone={statusTone(item)} value={item.is_valid ? "valid" : "invalid"} />
-                                    </ListRowMain>
-                                    <ListRowFooter>
-                                        <span>{`Fields ${Object.keys(item.values).length}`}</span>
-                                        <span>{item.error_message === undefined || item.error_message === "" ? "Completed" : item.error_message}</span>
-                                    </ListRowFooter>
-                                </ListRow>
-                            );
-                        })}
-                    </ItemList>
-                </AsyncContent>
+            <PageCard description={"Select a row to inspect the full snapshot payload."} title={"Recent Runs"}>
+                {runsQuery.isLoading ? <p className={"state-message state-message--loading"}>{"Loading runs..."}</p> : null}
+                {runsQuery.isError ? <ErrorBanner>{"Could not load runs."}</ErrorBanner> : null}
+                {!runsQuery.isLoading && !runsQuery.isError ? (
+                    <DataTable
+                        caption={"Recent runs"}
+                        columns={[
+                            {
+                                cell: (item) => item.id,
+                                header: "Run",
+                                id: "id",
+                                sortValue: (item) => item.id,
+                            },
+                            {
+                                cell: (item) => item.property_id,
+                                header: "Property",
+                                id: "property_id",
+                                sortValue: (item) => item.property_id,
+                            },
+                            {
+                                cell: (item) => <StatusBadge tone={statusTone(item)} value={item.is_valid ? "valid" : "invalid"} />,
+                                header: "Status",
+                                id: "status",
+                                sortValue: (item) => item.is_valid ? "valid" : "invalid",
+                            },
+                            {
+                                cell: (item) => formatDateTime(item.observed_at),
+                                header: "Observed",
+                                id: "observed_at",
+                                sortValue: (item) => item.observed_at,
+                            },
+                            {
+                                align: "right",
+                                cell: (item) => `${Object.keys(item.values).length}`,
+                                header: "Fields",
+                                id: "fields",
+                                sortValue: (item) => Object.keys(item.values).length,
+                            },
+                            {
+                                cell: (item) => item.error_message === undefined || item.error_message === "" ? "Completed" : item.error_message,
+                                header: "Message",
+                                id: "message",
+                            },
+                            {
+                                cell: (item) => (
+                                    <div className={"action-group"} onClick={(event) => { event.stopPropagation(); }}>
+                                        <Button
+                                            onClick={() => {
+                                                void navigate(`/runs/${item.id}`);
+                                            }}
+                                            size={"small"}
+                                            variant={"secondary"}
+                                        >
+                                            {"Open"}
+                                        </Button>
+                                        <Button onClick={() => { setDeleteTarget(item); }} size={"small"} variant={"secondary"}>{"Delete"}</Button>
+                                    </div>
+                                ),
+                                header: "Actions",
+                                id: "actions",
+                            },
+                        ]}
+                        compact
+                        emptyMessage={"No runs matched the current filters."}
+                        getRowId={(item) => item.id}
+                        items={runsQuery.data?.items ?? []}
+                        onRowClick={(item) => { void navigate(`/runs/${item.id}`); }}
+                        pageSize={12}
+                        rowLabel={(item) => `Open run ${item.id}`}
+                    />
+                ) : null}
             </PageCard>
-        </SplitLayout>
+
+            <Dialog
+                onOpenChange={setTriggerOpen}
+                open={triggerOpen}
+                title={"Create run"}
+            >
+                <FormGrid
+                    onSubmit={(event) => {
+                        event.preventDefault();
+                        if (triggerPropertyId.trim() !== "") {
+                            triggerMutation.mutate(triggerPropertyId.trim());
+                        }
+                    }}
+                >
+                    <Field label={"Property"}>
+                        <Select onChange={(event) => { setTriggerPropertyId(event.target.value); }} value={triggerPropertyId}>
+                            <option value={""}>{"Select a property"}</option>
+                            {propertyOptions.map((property) => (
+                                <option key={property.id} value={property.id}>
+                                    {property.label !== "" ? property.label : property.url}
+                                </option>
+                            ))}
+                        </Select>
+                    </Field>
+                    <div className={"action-group"}>
+                        <Button onClick={() => { setTriggerOpen(false); }} variant={"secondary"}>{"Cancel"}</Button>
+                        <Button disabled={triggerPropertyId.trim() === ""} isLoading={triggerMutation.isPending} type={"submit"}>
+                            {"Trigger run"}
+                        </Button>
+                    </div>
+                </FormGrid>
+            </Dialog>
+
+            <ConfirmDialog
+                confirmLabel={"Delete run"}
+                description={deleteTarget === null ? "" : `Delete run ${deleteTarget.id}? This removes the stored snapshot permanently.`}
+                isPending={deleteMutation.isPending}
+                onConfirm={() => {
+                    if (deleteTarget !== null) {
+                        deleteMutation.mutate(deleteTarget.id);
+                    }
+                }}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setDeleteTarget(null);
+                    }
+                }}
+                open={deleteTarget !== null}
+                title={"Delete run"}
+            />
+        </>
     );
 };
 

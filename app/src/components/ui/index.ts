@@ -1,6 +1,7 @@
 export * from "@/components/ui/ActionGroup";
 export * from "@/components/ui/AsyncContent";
 export * from "@/components/ui/Button";
+export * from "@/components/ui/ConfirmDialog";
 export * from "@/components/ui/DataTable";
 export * from "@/components/ui/Dialog";
 export * from "@/components/ui/EmptyState";

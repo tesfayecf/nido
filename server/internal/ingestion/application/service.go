@@ -197,7 +197,12 @@ func (s *Service) GetSource(ctx context.Context, sourceID string) (domain.Source
 
 // DeleteSource removes one configured source.
 func (s *Service) DeleteSource(ctx context.Context, sourceID string) error {
-	return s.store.DeleteSource(ctx, sourceID)
+	err := s.store.DeleteSource(ctx, sourceID)
+	if err != nil {
+		return mapLookupError(err, ErrSourceNotFound)
+	}
+
+	return nil
 }
 
 func normalizeSourceForUpsert(source domain.Source, now time.Time) domain.Source {

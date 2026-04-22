@@ -67,6 +67,11 @@ func Register(mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, s
 		}
 
 		if err := service.DeleteSource(r.Context(), sourceID); err != nil {
+			if errors.Is(err, app.ErrSourceNotFound) {
+				platformhttp.WriteError(w, http.StatusNotFound, err.Error())
+				return
+			}
+
 			platformhttp.WriteError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
@@ -108,10 +113,35 @@ func RegisterRuns(mux *http.ServeMux, requireAuth func(http.Handler) http.Handle
 	mux.Handle("GET /api/v1/backoffice/runs/{runID}", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		run, err := service.GetRun(r.Context(), strings.TrimSpace(r.PathValue("runID")))
 		if err != nil {
+			if errors.Is(err, app.ErrPropertyRunNotFound) {
+				platformhttp.WriteError(w, http.StatusNotFound, err.Error())
+				return
+			}
+
 			platformhttp.WriteError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
 
 		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{"item": run})
+	})))
+
+	mux.Handle("DELETE /api/v1/backoffice/runs/{runID}", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		runID := strings.TrimSpace(r.PathValue("runID"))
+		if runID == "" {
+			platformhttp.WriteError(w, http.StatusBadRequest, "run id is required")
+			return
+		}
+
+		if err := service.DeleteRun(r.Context(), runID); err != nil {
+			if errors.Is(err, app.ErrPropertyRunNotFound) {
+				platformhttp.WriteError(w, http.StatusNotFound, err.Error())
+				return
+			}
+
+			platformhttp.WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		platformhttp.WriteJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
 	})))
 }

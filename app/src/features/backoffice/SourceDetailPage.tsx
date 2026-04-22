@@ -6,6 +6,9 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { SelectorBuilder } from "@/components/selectors/SelectorBuilder";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { DataTable } from "@/components/ui/DataTable";
+import { Dialog } from "@/components/ui/Dialog";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Field } from "@/components/ui/Field";
 import { FormGrid } from "@/components/ui/FormGrid";
@@ -13,6 +16,8 @@ import { Input } from "@/components/ui/Input";
 import { KeyValueGrid, KeyValuePair } from "@/components/ui/KeyValueGrid";
 import { PageCard } from "@/components/ui/PageCard";
 import { PageStack } from "@/components/ui/PageStack";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import { useToast } from "@/components/ui/ToastProvider";
 import { formatDateTime } from "@/lib/format/date";
 import { sourceKeys } from "@/services/backoffice-sources/sources.keys";
 import { deleteSource, getSource, upsertSource } from "@/services/backoffice-sources/sources.service";
@@ -40,6 +45,7 @@ const defaultSourceState = (): Source => ({
 export const SourceDetailPage = (): JSX.Element => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
+    const { pushToast } = useToast();
     const { sourceId } = useParams();
     const isCreateMode = sourceId === undefined;
     const sourceQuery = useQuery({
@@ -53,18 +59,26 @@ export const SourceDetailPage = (): JSX.Element => {
     const [configError, setConfigError] = useState<string | null>(null);
     const [previewFailures, setPreviewFailures] = useState<string[]>([]);
     const [previewMap, setPreviewMap] = useState<Map<string, PropertyPreviewFieldResult>>(new Map());
+    const [editOpen, setEditOpen] = useState(false);
+    const [deleteOpen, setDeleteOpen] = useState(false);
     const saveMutation = useMutation({
         mutationFn: upsertSource,
         onSuccess(savedSource) {
             void queryClient.invalidateQueries({ queryKey: sourceKeys.list() });
             void queryClient.invalidateQueries({ queryKey: sourceKeys.detail(savedSource.id) });
+            pushToast(isCreateMode ? "Source created." : "Source updated.", "success");
+            setEditOpen(false);
             void navigate(`/sources/${savedSource.id}`);
         },
     });
     const deleteMutation = useMutation({
         mutationFn: deleteSource,
+        onError() {
+            pushToast("Could not delete the source.", "error");
+        },
         onSuccess() {
             void queryClient.invalidateQueries({ queryKey: sourceKeys.list() });
+            pushToast("Source deleted.", "success");
             void navigate("/sources");
         },
     });
@@ -115,13 +129,18 @@ export const SourceDetailPage = (): JSX.Element => {
             .filter((field) => field.name !== "");
     }, [selectorFields]);
     const validationMessages = useMemo(() => validateSelectorDrafts(selectorFields), [selectorFields]);
-
-    return (
+    const fieldRows = selectedFields.map((field) => ({
+        mode: field.extraction_mode,
+        name: field.name,
+        required: field.required ? "Required" : "Optional",
+        selector: field.selector_value,
+    }));
+    const editorContent = (
         <PageStack>
             <PageCard
                 action={<Button as={Link} to={"/sources"} variant={"secondary"}>{"Back to templates"}</Button>}
                 description={"Build a reusable extraction template with clear selectors, fallbacks, and a quick preview."}
-                title={isCreateMode ? "Create Template" : `Template ${formState.name}`}
+                title={isCreateMode ? "Create Template" : `Edit ${formState.name}`}
             >
                 {sourceQuery.isLoading ? <p className={"muted-copy"}>{"Loading template..."}</p> : null}
                 {sourceQuery.isError ? <ErrorBanner>{"Could not load the selected template."}</ErrorBanner> : null}
@@ -157,7 +176,6 @@ export const SourceDetailPage = (): JSX.Element => {
                         <Button disabled={formState.id.trim() === "" || formState.name.trim() === "" || validationMessages.length > 0} isLoading={saveMutation.isPending} type={"submit"}>
                             {saveMutation.isPending ? "Saving..." : isCreateMode ? "Create template" : "Save template"}
                         </Button>
-                        {!isCreateMode ? <Button disabled={deleteMutation.isPending} onClick={() => { deleteMutation.mutate(formState.id); }} variant={"secondary"}>{"Delete template"}</Button> : null}
                     </ActionGroup>
                     {validationMessages.length > 0 ? (
                         <div className={"selector-builder__validation-list"}>
@@ -175,15 +193,67 @@ export const SourceDetailPage = (): JSX.Element => {
                     </div>
                 )}
             </PageCard>
+        </PageStack>
+    );
 
-            {!isCreateMode && sourceQuery.data !== undefined ? (
-                <PageCard description={"Timestamps come directly from the saved template record."} title={"Metadata"}>
-                    <KeyValueGrid>
-                        <KeyValuePair label={"Created at"} value={sourceQuery.data.created_at === undefined ? "—" : formatDateTime(sourceQuery.data.created_at)} />
-                        <KeyValuePair label={"Updated at"} value={sourceQuery.data.updated_at === undefined ? "—" : formatDateTime(sourceQuery.data.updated_at)} />
+    if (isCreateMode) {
+        return editorContent;
+    }
+
+    return (
+        <>
+            <PageStack>
+                <PageCard
+                    action={(
+                        <ActionGroup>
+                            <Button as={Link} to={"/sources"} variant={"secondary"}>{"Back"}</Button>
+                            <Button onClick={() => { setEditOpen(true); }} variant={"secondary"}>{"Edit"}</Button>
+                            <Button onClick={() => { setDeleteOpen(true); }} variant={"secondary"}>{"Delete"}</Button>
+                        </ActionGroup>
+                    )}
+                    description={"Templates stay read-first by default so operators can scan metadata before opening the modal editor."}
+                    title={formState.name === "" ? formState.id : formState.name}
+                >
+                    <KeyValueGrid compact>
+                        <KeyValuePair label={"Template id"} value={formState.id} />
+                        <KeyValuePair label={"Status"} value={<StatusBadge tone={formState.active === false ? "danger" : "success"} value={formState.active === false ? "inactive" : "active"} />} />
+                        <KeyValuePair label={"Created"} value={sourceQuery.data?.created_at === undefined ? "—" : formatDateTime(sourceQuery.data.created_at)} />
+                        <KeyValuePair label={"Updated"} value={sourceQuery.data?.updated_at === undefined ? "—" : formatDateTime(sourceQuery.data.updated_at)} />
                     </KeyValueGrid>
                 </PageCard>
-            ) : null}
-        </PageStack>
+
+                <PageCard description={"Configured fields are presented as a compact read-only table."} title={"Configured Fields"}>
+                    <DataTable
+                        caption={"Configured source fields"}
+                        columns={[
+                            { cell: (item) => item.name, header: "Field", id: "name", sortValue: (item) => item.name },
+                            { cell: (item) => item.selector, header: "Selector", id: "selector" },
+                            { cell: (item) => item.mode, header: "Mode", id: "mode", sortValue: (item) => item.mode },
+                            { cell: (item) => item.required, header: "Required", id: "required", sortValue: (item) => item.required },
+                        ]}
+                        compact
+                        emptyMessage={"No selector fields are configured yet."}
+                        getRowId={(item) => item.name}
+                        items={fieldRows}
+                        pageSize={12}
+                    />
+                </PageCard>
+            </PageStack>
+
+            <Dialog onOpenChange={setEditOpen} open={editOpen} title={"Edit source"}>
+                {editorContent}
+            </Dialog>
+            <ConfirmDialog
+                confirmLabel={"Delete source"}
+                description={`Delete ${formState.name}? This removes the source and any related ingestion artifacts.`}
+                isPending={deleteMutation.isPending}
+                onConfirm={() => {
+                    deleteMutation.mutate(formState.id);
+                }}
+                onOpenChange={setDeleteOpen}
+                open={deleteOpen}
+                title={"Delete source"}
+            />
+        </>
     );
 };

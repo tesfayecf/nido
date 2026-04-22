@@ -11,6 +11,7 @@ interface LiveEventsState {
     readonly items: BackofficeEvent[];
     addEvent: (event: BackofficeEvent) => void;
     clearEvents: () => void;
+    removeEvent: (eventId: string, receivedAt: string) => void;
     setConnectionState: (state: StreamConnectionState) => void;
 }
 
@@ -27,6 +28,9 @@ export const useLiveEventsStore = create<LiveEventsState>((set) => ({
     },
     clearEvents: () => {
         set({ items: [] });
+    },
+    removeEvent: (eventId: string, receivedAt: string) => {
+        set((state) => ({ items: state.items.filter((item) => item.id !== eventId || item.received_at !== receivedAt) }));
     },
     setConnectionState: (connectionState: StreamConnectionState) => {
         set({ connectionState });

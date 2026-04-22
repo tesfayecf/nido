@@ -104,6 +104,26 @@ func RegisterProperties(mux *http.ServeMux, requireAuth func(http.Handler) http.
 		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{"item": property})
 	})))
 
+	mux.Handle("DELETE /api/v1/backoffice/properties/{propertyID}", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		propertyID := strings.TrimSpace(r.PathValue("propertyID"))
+		if propertyID == "" {
+			platformhttp.WriteError(w, http.StatusBadRequest, "property id is required")
+			return
+		}
+
+		if err := service.DeleteProperty(r.Context(), propertyID); err != nil {
+			if errors.Is(err, app.ErrPropertyNotFound) {
+				platformhttp.WriteError(w, http.StatusNotFound, err.Error())
+				return
+			}
+
+			platformhttp.WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		platformhttp.WriteJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
+	})))
+
 	mux.Handle("POST /api/v1/backoffice/properties/{propertyID}/config", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		propertyID := strings.TrimSpace(r.PathValue("propertyID"))
 		if propertyID == "" {

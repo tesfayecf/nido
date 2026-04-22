@@ -7,6 +7,9 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { SelectorBuilder } from "@/components/selectors/SelectorBuilder";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { DataTable } from "@/components/ui/DataTable";
+import { Dialog } from "@/components/ui/Dialog";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Field } from "@/components/ui/Field";
 import { FormGrid } from "@/components/ui/FormGrid";
@@ -16,9 +19,9 @@ import { KeyValueGrid, KeyValuePair } from "@/components/ui/KeyValueGrid";
 import { ListRow, ListRowMain } from "@/components/ui/ListRow";
 import { PageCard } from "@/components/ui/PageCard";
 import { PageStack } from "@/components/ui/PageStack";
-import { Preformatted } from "@/components/ui/Preformatted";
 import { Select } from "@/components/ui/Select";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { useToast } from "@/components/ui/ToastProvider";
 import { alertRuleKeys } from "@/services/alert-rules/alert-rules.keys";
 import { listAlertRules } from "@/services/alert-rules/alert-rules.service";
 import { runKeys } from "@/services/backoffice-runs/runs.keys";
@@ -41,6 +44,7 @@ import {
 } from "@/features/selectors/selectorSchema";
 import {
     createProperty,
+    deleteProperty,
     getProperty,
     getPropertyConfig,
     ingestProperty,
@@ -54,6 +58,7 @@ import type { PropertyPreviewFieldResult } from "@/services/properties/propertie
 export const PropertyDetailPage = (): JSX.Element => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
+    const { pushToast } = useToast();
     const { propertyId } = useParams<{ propertyId: string; }>();
     const isCreateMode = propertyId === undefined || propertyId === "new";
     const resolvedId = isCreateMode ? "" : propertyId;
@@ -68,6 +73,8 @@ export const PropertyDetailPage = (): JSX.Element => {
     const [previewValues, setPreviewValues] = useState<Record<string, string>>({});
     const [previewMap, setPreviewMap] = useState<Map<string, PropertyPreviewFieldResult>>(new Map());
     const [previewFailures, setPreviewFailures] = useState<string[]>([]);
+    const [editOpen, setEditOpen] = useState(false);
+    const [deleteOpen, setDeleteOpen] = useState(false);
 
     const propertyQuery = useQuery({
         enabled: !isCreateMode,
@@ -134,12 +141,14 @@ export const PropertyDetailPage = (): JSX.Element => {
         },
         onSuccess(data) {
             void queryClient.invalidateQueries({ queryKey: propertyKeys.list() });
+            pushToast(isCreateMode ? "Property created." : "Property updated.", "success");
             if (isCreateMode) {
                 void navigate(`/properties/${data.id}`, { replace: true });
                 return;
             }
 
             void queryClient.invalidateQueries({ queryKey: propertyKeys.detail(resolvedId) });
+            setEditOpen(false);
         },
     });
     const saveConfigMutation = useMutation({
@@ -151,6 +160,7 @@ export const PropertyDetailPage = (): JSX.Element => {
         ),
         onSuccess() {
             void queryClient.invalidateQueries({ queryKey: propertyKeys.config(resolvedId) });
+            pushToast("Configuration saved.", "success");
         },
     });
     const previewMutation = useMutation({
@@ -178,6 +188,7 @@ export const PropertyDetailPage = (): JSX.Element => {
             void queryClient.invalidateQueries({ queryKey: propertyKeys.snapshots(resolvedId) });
             void queryClient.invalidateQueries({ queryKey: runKeys.all() });
             void queryClient.invalidateQueries({ queryKey: notificationKeys.all() });
+            pushToast("Run started.", "success");
         },
     });
     const bookmarkMutation = useMutation({
@@ -198,6 +209,18 @@ export const PropertyDetailPage = (): JSX.Element => {
             void queryClient.invalidateQueries({ queryKey: bookmarkKeys.all() });
         },
     });
+    const deleteMutation = useMutation({
+        mutationFn: deleteProperty,
+        onError() {
+            pushToast("Could not delete property.", "error");
+        },
+        onSuccess() {
+            void queryClient.invalidateQueries({ queryKey: propertyKeys.list() });
+            void queryClient.invalidateQueries({ queryKey: bookmarkKeys.all() });
+            pushToast("Property deleted.", "success");
+            void navigate("/properties");
+        },
+    });
 
     const latestSnapshot = snapshotsQuery.data?.[0];
     const propertyAlerts = useMemo(() => {
@@ -205,13 +228,17 @@ export const PropertyDetailPage = (): JSX.Element => {
     }, [alertsQuery.data, resolvedId]);
     const isBookmarked = (bookmarksQuery.data ?? []).some((item) => item.property_id === resolvedId);
     const validationMessages = useMemo(() => validateSelectorDrafts(fieldRows), [fieldRows]);
+    const extractedValueRows = useMemo(() => {
+        return Object.entries(latestSnapshot?.values ?? {}).map(([field, value]) => ({ field, value }));
+    }, [latestSnapshot?.values]);
+    const recentRuns = snapshotsQuery.data ?? [];
 
-    return (
+    const editorContent = (
         <PageStack>
             <PageCard
                 action={!isCreateMode ? <Button as={Link} to={"/properties"} variant={"secondary"}>{"Back to properties"}</Button> : undefined}
                 description={isCreateMode ? "Add a property URL and optionally assign a reusable source template." : "Update the property URL, template assignment, and run cadence."}
-                title={isCreateMode ? "Add Property" : "Property Settings"}
+                title={isCreateMode ? "Add Property" : "Edit Property"}
             >
                 {propertyQuery.isError ? <ErrorBanner>{"Could not load property."}</ErrorBanner> : null}
                 <FormGrid as={"div"} variant={"two-column"}>
@@ -284,27 +311,97 @@ export const PropertyDetailPage = (): JSX.Element => {
                     ) : null}
                 </PageCard>
             ) : null}
+        </PageStack>
+    );
 
-            {!isCreateMode ? (
-                <PageCard description={"The latest successful or failed run becomes the current property snapshot."} title={"Current Snapshot"}>
+    if (isCreateMode) {
+        return editorContent;
+    }
+
+    return (
+        <>
+            <PageStack>
+                <PageCard
+                    action={(
+                        <ActionGroup>
+                            <Button as={Link} to={"/properties"} variant={"secondary"}>{"Back"}</Button>
+                            <Button onClick={() => { setEditOpen(true); }} variant={"secondary"}>{"Edit"}</Button>
+                            <Button onClick={() => { setDeleteOpen(true); }} variant={"secondary"}>{"Delete"}</Button>
+                        </ActionGroup>
+                    )}
+                    description={"Read the latest tracked state first, then open the modal editor only when you need to make changes."}
+                    title={propertyQuery.data?.label !== undefined && propertyQuery.data.label !== "" ? propertyQuery.data.label : propertyQuery.data?.url ?? "Property"}
+                >
+                    {propertyQuery.isError ? <ErrorBanner>{"Could not load property."}</ErrorBanner> : null}
+                    {propertyQuery.data !== undefined ? (
+                        <KeyValueGrid compact>
+                            <KeyValuePair label={"URL"} value={propertyQuery.data.url} />
+                            <KeyValuePair label={"Status"} value={<StatusBadge tone={propertyQuery.data.status === "active" ? "success" : propertyQuery.data.status === "degraded" ? "warning" : propertyQuery.data.status === "inactive" ? "danger" : "neutral"} value={propertyQuery.data.status} />} />
+                            <KeyValuePair label={"Source"} value={sourcesQuery.data?.find((source) => source.id === propertyQuery.data?.source_id)?.name ?? "No template"} />
+                            <KeyValuePair label={"Updated"} value={propertyQuery.data.updated_at === undefined ? "—" : formatDateTime(propertyQuery.data.updated_at)} />
+                            <KeyValuePair label={"Last run"} value={propertyQuery.data.last_run_at === undefined ? "No runs yet" : formatDateTime(propertyQuery.data.last_run_at)} />
+                            <KeyValuePair label={"Bookmark"} value={isBookmarked ? "Bookmarked" : "Not bookmarked"} />
+                        </KeyValueGrid>
+                    ) : null}
+                </PageCard>
+
+                <PageCard
+                    action={(
+                        <ActionGroup>
+                            <Button disabled={bookmarkMutation.isPending} onClick={() => { bookmarkMutation.mutate(); }} variant={"secondary"}>
+                                {isBookmarked ? "Remove bookmark" : "Bookmark"}
+                            </Button>
+                            <Button disabled={ingestMutation.isPending} onClick={() => { ingestMutation.mutate(); }}>
+                                {ingestMutation.isPending ? "Running..." : "Run now"}
+                            </Button>
+                            <Button as={Link} to={`/runs?property_id=${resolvedId}`} variant={"secondary"}>{"View history"}</Button>
+                        </ActionGroup>
+                    )}
+                    description={"The latest successful or failed snapshot is shown in a dense read-only table."}
+                    title={"Current Extracted Values"}
+                >
                     {latestSnapshot === undefined ? <EmptyState message={"No runs have been recorded for this property yet."} /> : (
                         <>
-                            <KeyValueGrid>
-                                <KeyValuePair label={"Status"} value={<StatusBadge tone={latestSnapshot.is_valid ? "success" : "warning"} value={latestSnapshot.is_valid ? "valid" : "invalid"} />} />
+                            <KeyValueGrid compact>
+                                <KeyValuePair label={"Snapshot status"} value={<StatusBadge tone={latestSnapshot.is_valid ? "success" : "warning"} value={latestSnapshot.is_valid ? "valid" : "invalid"} />} />
                                 <KeyValuePair label={"Observed at"} value={formatDateTime(latestSnapshot.observed_at)} />
                             </KeyValueGrid>
                             {latestSnapshot.error_message !== undefined && latestSnapshot.error_message !== "" ? <ErrorBanner>{latestSnapshot.error_message}</ErrorBanner> : null}
-                            <Preformatted>{JSON.stringify(latestSnapshot.values, null, 2)}</Preformatted>
-                            <ActionGroup>
-                                <Button disabled={ingestMutation.isPending} onClick={() => { ingestMutation.mutate(); }}>{ingestMutation.isPending ? "Running..." : "Run now"}</Button>
-                                <Button as={Link} to={`/runs?property_id=${resolvedId}`} variant={"secondary"}>{"View full history"}</Button>
-                            </ActionGroup>
+                            <DataTable
+                                caption={"Current extracted values"}
+                                columns={[
+                                    { cell: (item) => item.field, header: "Field", id: "field", sortValue: (item) => item.field },
+                                    { cell: (item) => item.value, header: "Value", id: "value" },
+                                ]}
+                                compact
+                                emptyMessage={"No extracted values are available for the latest run."}
+                                getRowId={(item) => item.field}
+                                items={extractedValueRows}
+                                pageSize={8}
+                            />
                         </>
                     )}
                 </PageCard>
-            ) : null}
 
-            {!isCreateMode ? (
+                <PageCard description={"Recent runs stay directly attached to the property for fast scanning."} title={"Recent Runs"}>
+                    <DataTable
+                        caption={"Recent property runs"}
+                        columns={[
+                            { cell: (item) => item.id, header: "Run", id: "id", sortValue: (item) => item.id },
+                            { cell: (item) => formatDateTime(item.observed_at), header: "Observed", id: "observed_at", sortValue: (item) => item.observed_at },
+                            { cell: (item) => <StatusBadge tone={item.is_valid ? "success" : "warning"} value={item.is_valid ? "valid" : "invalid"} />, header: "Status", id: "status" },
+                            { align: "right", cell: (item) => `${Object.keys(item.values).length}`, header: "Fields", id: "fields", sortValue: (item) => Object.keys(item.values).length },
+                        ]}
+                        compact
+                        emptyMessage={"No runs have been recorded for this property yet."}
+                        getRowId={(item) => item.id}
+                        items={recentRuns}
+                        onRowClick={(item) => { void navigate(`/runs/${item.id}`); }}
+                        pageSize={8}
+                        rowLabel={(item) => `Open run ${item.id}`}
+                    />
+                </PageCard>
+
                 <PageCard description={"Alerts trigger when new runs meet property-level conditions."} title={"Alerts"}>
                     {propertyAlerts.length === 0 ? <EmptyState message={"No alerts are linked to this property yet."} /> : (
                         <ItemList>
@@ -324,7 +421,22 @@ export const PropertyDetailPage = (): JSX.Element => {
                         </ItemList>
                     )}
                 </PageCard>
-            ) : null}
-        </PageStack>
+            </PageStack>
+
+            <Dialog onOpenChange={setEditOpen} open={editOpen} title={"Edit property"}>
+                {editorContent}
+            </Dialog>
+            <ConfirmDialog
+                confirmLabel={"Delete property"}
+                description={`Delete ${propertyQuery.data?.label !== undefined && propertyQuery.data.label !== "" ? propertyQuery.data.label : propertyQuery.data?.url ?? "this property"}? This also removes its runs, alerts, bookmarks, and extraction config.`}
+                isPending={deleteMutation.isPending}
+                onConfirm={() => {
+                    deleteMutation.mutate(resolvedId);
+                }}
+                onOpenChange={setDeleteOpen}
+                open={deleteOpen}
+                title={"Delete property"}
+            />
+        </>
     );
 };

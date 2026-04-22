@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
 import { Button } from "@/components/ui/Button";
@@ -14,23 +14,29 @@ interface DataTableColumn<TItem> {
 }
 
 interface DataTableProps<TItem> {
+    readonly caption?: ReactNode;
     readonly className?: string;
     readonly columns: DataTableColumn<TItem>[];
     readonly compact?: boolean;
     readonly emptyMessage: string;
     readonly getRowId: (item: TItem) => string;
     readonly items: TItem[];
+    readonly onRowClick?: (item: TItem) => void;
     readonly pageSize?: number;
+    readonly rowLabel?: (item: TItem) => string;
 }
 
 export const DataTable = <TItem,>({
+    caption,
     className,
     columns,
     compact = false,
     emptyMessage,
     getRowId,
     items,
+    onRowClick,
     pageSize = 10,
+    rowLabel,
 }: DataTableProps<TItem>): JSX.Element => {
     const [page, setPage] = useState(0);
     const [sortColumnId, setSortColumnId] = useState<string | null>(null);
@@ -62,6 +68,10 @@ export const DataTable = <TItem,>({
     const pagedItems = sortedItems.slice(startIndex, startIndex + pageSize);
     const totalPages = Math.max(1, Math.ceil(sortedItems.length / pageSize));
 
+    useEffect(() => {
+        setPage((current) => Math.min(current, Math.max(0, totalPages - 1)));
+    }, [totalPages]);
+
     if (items.length === 0) {
         return <EmptyState message={emptyMessage} />;
     }
@@ -69,6 +79,7 @@ export const DataTable = <TItem,>({
     return (
         <div className={classNames("data-table-shell", className)}>
             <table className={classNames("data-table", compact && "data-table--compact")}>
+                {caption !== undefined ? <caption className={"sr-only"}>{caption}</caption> : null}
                 <thead>
                     <tr>
                         {columns.map((column) => {
@@ -100,8 +111,27 @@ export const DataTable = <TItem,>({
                 </thead>
                 <tbody>
                     {pagedItems.map((item) => {
+                        const interactive = onRowClick !== undefined;
                         return (
-                            <tr key={getRowId(item)}>
+                            <tr
+                                aria-label={rowLabel?.(item)}
+                                className={interactive ? "data-table__row data-table__row--interactive" : "data-table__row"}
+                                key={getRowId(item)}
+                                onClick={() => {
+                                    onRowClick?.(item);
+                                }}
+                                onKeyDown={(event) => {
+                                    if (!interactive) {
+                                        return;
+                                    }
+
+                                    if (event.key === "Enter" || event.key === " ") {
+                                        event.preventDefault();
+                                        onRowClick(item);
+                                    }
+                                }}
+                                tabIndex={interactive ? 0 : undefined}
+                            >
                                 {columns.map((column) => {
                                     return (
                                         <td className={column.align === "right" ? "data-table__cell--right" : undefined} key={column.id}>

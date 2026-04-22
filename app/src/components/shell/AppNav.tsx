@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { NavLink, useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/Button";
+import { ThemeToggle } from "@/components/shell/ThemeToggle";
 import { clearAuthenticatedState, hasActiveSession } from "@/lib/auth/session";
 import { authKeys } from "@/services/auth/auth.keys";
 import { getCurrentUser, logout } from "@/services/auth/auth.service";
@@ -15,18 +16,21 @@ interface NavSection {
 
 const authenticatedSections: readonly NavSection[] = [
     {
-        items: [{ label: "Properties", to: "/properties" }],
-        title: "Track",
+        items: [
+            { label: "Properties", to: "/properties" },
+            { label: "Events", to: "/events" },
+            { label: "Sources", to: "/sources" },
+            { label: "Runs", to: "/runs" },
+        ],
+        title: "Workspace",
     },
     {
         items: [
-            { label: "Sources", to: "/sources" },
-            { label: "Runs", to: "/runs" },
             { label: "Bookmarks", to: "/bookmarks" },
             { label: "Alerts", to: "/alerts" },
             { label: "Notifications", to: "/notifications" },
         ],
-        title: "Manage",
+        title: "Engagement",
     },
 ];
 
@@ -96,6 +100,10 @@ export const AppNav = (): JSX.Element => {
                             <span className={"app-nav__section-label"}>{"Signed in"}</span>
                             <strong>{meQuery.data?.display_name ?? "Authenticated user"}</strong>
                             <span className={"muted-copy"}>{meQuery.data?.email ?? "Loading profile..."}</span>
+                        </div>
+                        <div className={"app-nav__user-controls"}>
+                            <span className={"app-nav__section-label"}>{"Theme"}</span>
+                            <ThemeToggle />
                         </div>
                         <Button
                             disabled={logoutMutation.isPending}
