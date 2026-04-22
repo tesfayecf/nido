@@ -1,6 +1,8 @@
+import { useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 
 import { Button } from "@/components/ui/Button";
+import { Dialog } from "@/components/ui/Dialog";
 import { Field } from "@/components/ui/Field";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
@@ -27,7 +29,12 @@ const TEXT_MODE_LABELS = {
 
 const TRANSFORM_OPTIONS = [
     { label: "Keep text as-is", value: "" },
-    { label: "Numbers only", value: "number" },
+    { label: "Trim whitespace", value: "trim" },
+    { label: "Lowercase", value: "lowercase" },
+    { label: "Uppercase", value: "uppercase" },
+    { label: "Integer (digits only)", value: "integer" },
+    { label: "Decimal number", value: "decimal" },
+    { label: "Currency amount", value: "currency" },
 ] as const;
 
 const updateField = (fields: SelectorFieldDraft[], fieldId: string, patch: Partial<SelectorFieldDraft>): SelectorFieldDraft[] => {
@@ -59,10 +66,17 @@ const previewLabel = (field?: PropertyPreviewFieldResult): string => {
 };
 
 export const SelectorBuilder = ({ fields, onChange, previewByFieldName }: SelectorBuilderProps): JSX.Element => {
+    const [helpOpen, setHelpOpen] = useState(false);
+
     return (
         <div className={"selector-builder"}>
             <div className={"selector-builder__intro"}>
-                <p className={"selector-builder__eyebrow"}>{"Selector builder"}</p>
+                <div className={"selector-builder__intro-header"}>
+                    <p className={"selector-builder__eyebrow"}>{"Selector builder"}</p>
+                    <Button onClick={() => { setHelpOpen(true); }} size={"small"} variant={"secondary"}>
+                        {"How to use"}
+                    </Button>
+                </div>
                 <h3 className={"selector-builder__title"}>{"Tell Home Searcher where each value lives on the page."}</h3>
                 <p className={"selector-builder__copy"}>
                     {"A selector points to the part of the page you want to read. Start with CSS for most pages, add a fallback if the first selector fails, and switch to XPath only when you need advanced targeting."}
@@ -226,6 +240,43 @@ export const SelectorBuilder = ({ fields, onChange, previewByFieldName }: Select
                     );
                 })}
             </div>
+            <Dialog
+                actions={<Button onClick={() => { setHelpOpen(false); }}>{"Got it"}</Button>}
+                className={"selector-builder__help-dialog"}
+                description={"Quick guide for creating stable selectors, testing them, and fixing common issues."}
+                onOpenChange={setHelpOpen}
+                open={helpOpen}
+                title={"How to use the selector tool"}
+            >
+                <div className={"selector-builder__help-body"}>
+                    <section className={"selector-builder__help-section"}>
+                        <h3>{"Recommended workflow"}</h3>
+                        <ol className={"selector-builder__help-list"}>
+                            <li>{"Open the property page and inspect the value you want to track, such as price or title."}</li>
+                            <li>{"Start with a simple CSS selector that targets that value, like .price or [data-testid='price']."}</li>
+                            <li>{"Use Preview to confirm the extracted value before saving."}</li>
+                            <li>{"Add a fallback selector when the same value appears in more than one possible place on the page."}</li>
+                        </ol>
+                    </section>
+                    <section className={"selector-builder__help-section"}>
+                        <h3>{"Field options"}</h3>
+                        <ul className={"selector-builder__help-list"}>
+                            <li><strong>{"Selector type:"}</strong>{" Use CSS first. Use Attribute when you need href, src, or content. Use XPath only when CSS cannot target the element reliably."}</li>
+                            <li><strong>{"Fallback selectors:"}</strong>{" Add one selector per line. Home Searcher tries them from top to bottom until one works."}</li>
+                            <li><strong>{"Extraction type:"}</strong>{' Choose "Text" for visible page content, or "Attribute" to read an HTML attribute.'}</li>
+                            <li><strong>{"Value cleanup:"}</strong>{" Use Currency or Decimal for prices, Integer for counts, and Trim when you only need whitespace cleanup."}</li>
+                        </ul>
+                    </section>
+                    <section className={"selector-builder__help-section"}>
+                        <h3>{"Troubleshooting"}</h3>
+                        <ul className={"selector-builder__help-list"}>
+                            <li>{"If Preview says no selector matched, simplify the selector and test again."}</li>
+                            <li>{"If multiple matches are found, make the selector more specific so it points to only one element."}</li>
+                            <li>{"If the page changes often, prefer stable ids, data-* attributes, or add a fallback selector."}</li>
+                        </ul>
+                    </section>
+                </div>
+            </Dialog>
         </div>
     );
 };

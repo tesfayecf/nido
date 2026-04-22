@@ -614,9 +614,17 @@ func selectFieldValue(document *goquery.Document, rootNode *html.Node, field ing
 		nodes, err := querySelectorNodes(document, rootNode, field, selector)
 		if err != nil {
 			result.Message = err.Error()
+			if errors.Is(err, errUnsupportedSelectorType) {
+				result.ErrorCode = ingestiondomain.PreviewErrorCodeUnsupportedType
+			} else {
+				result.ErrorCode = ingestiondomain.PreviewErrorCodeSelectorInvalid
+			}
 			continue
 		}
 		if len(nodes) == 0 {
+			if result.ErrorCode == "" {
+				result.ErrorCode = ingestiondomain.PreviewErrorCodeNoMatch
+			}
 			continue
 		}
 		result.MatchCount = len(nodes)
@@ -624,14 +632,21 @@ func selectFieldValue(document *goquery.Document, rootNode *html.Node, field ing
 		value, ok := extractNodeValue(nodes[0], field)
 		if !ok {
 			result.Message = missingValueMessage(field)
+			if field.ExtractionMode == ingestiondomain.ExtractionModeAttribute || field.SelectorType == ingestiondomain.SelectorTypeAttribute {
+				result.ErrorCode = ingestiondomain.PreviewErrorCodeAttributeMissing
+			} else {
+				result.ErrorCode = ingestiondomain.PreviewErrorCodeEmptyValue
+			}
 			continue
 		}
 
-		switch strings.TrimSpace(strings.ToLower(field.Transform)) {
-		case "number":
-			value = normalizeNumberString(value)
-		case "trim", "":
+		transformed, transformErr := applyTransform(value, field.Transform)
+		if transformErr != nil {
+			result.Message = transformErr.Error()
+			result.ErrorCode = ingestiondomain.PreviewErrorCodeTransformFailed
+			continue
 		}
+		value = transformed
 
 		if value != "" {
 			result.MatchedSelector = selector
@@ -639,18 +654,25 @@ func selectFieldValue(document *goquery.Document, rootNode *html.Node, field ing
 			result.Success = true
 			result.UsedFallback = index > 0
 			result.Value = value
+			result.ErrorCode = ingestiondomain.PreviewErrorCodeOK
 			if len(nodes) > 1 {
 				result.Message = fmt.Sprintf("%d matches found. Using the first result.", len(nodes))
 			}
 			return result
 		}
 		result.Message = "The matched element was empty."
+		result.ErrorCode = ingestiondomain.PreviewErrorCodeEmptyValue
 	}
 	if result.Message == "" {
 		result.Message = "No selector matched."
 	}
+	if result.ErrorCode == "" {
+		result.ErrorCode = ingestiondomain.PreviewErrorCodeNoMatch
+	}
 	return result
 }
+
+var errUnsupportedSelectorType = errors.New("unsupported selector type")
 
 func querySelectorNodes(document *goquery.Document, rootNode *html.Node, field ingestiondomain.FieldSelector, selector string) ([]*html.Node, error) {
 	trimmedSelector := strings.TrimSpace(selector)
@@ -676,7 +698,7 @@ func querySelectorNodes(document *goquery.Document, rootNode *html.Node, field i
 		}
 		return nodes, nil
 	default:
-		return nil, fmt.Errorf("unsupported selector type")
+		return nil, errUnsupportedSelectorType
 	}
 }
 
@@ -694,8 +716,81 @@ func extractNodeValue(node *html.Node, field ingestiondomain.FieldSelector) (str
 		return "", false
 	}
 
-	value := strings.TrimSpace(goquery.NewDocumentFromNode(node).Text())
+	var value string
+	switch field.TextMode {
+	case ingestiondomain.TextModeTextContent:
+		value = nodeTextContent(node)
+	default:
+		// innerText (and the empty default) renders the way a human reads the page:
+		// strip <script>/<style>, collapse whitespace.
+		value = nodeInnerText(node)
+	}
+	value = strings.TrimSpace(value)
 	return value, value != ""
+}
+
+// nodeTextContent returns the raw concatenation of every descendant text node,
+// matching the DOM textContent property (no whitespace collapsing, no element filtering).
+func nodeTextContent(node *html.Node) string {
+	var builder strings.Builder
+	var walk func(*html.Node)
+	walk = func(current *html.Node) {
+		if current == nil {
+			return
+		}
+		if current.Type == html.TextNode {
+			builder.WriteString(current.Data)
+		}
+		for child := current.FirstChild; child != nil; child = child.NextSibling {
+			walk(child)
+		}
+	}
+	walk(node)
+	return builder.String()
+}
+
+// nodeInnerText approximates the DOM innerText property: it skips <script>,
+// <style>, and <template> subtrees and collapses whitespace runs into single spaces.
+func nodeInnerText(node *html.Node) string {
+	var builder strings.Builder
+	var walk func(*html.Node)
+	walk = func(current *html.Node) {
+		if current == nil {
+			return
+		}
+		if current.Type == html.ElementNode {
+			switch strings.ToLower(current.Data) {
+			case "script", "style", "template", "noscript":
+				return
+			}
+		}
+		if current.Type == html.TextNode {
+			builder.WriteString(current.Data)
+		}
+		for child := current.FirstChild; child != nil; child = child.NextSibling {
+			walk(child)
+		}
+	}
+	walk(node)
+	return collapseWhitespace(builder.String())
+}
+
+func collapseWhitespace(value string) string {
+	var builder strings.Builder
+	builder.Grow(len(value))
+	prevSpace := true
+	for _, r := range value {
+		if r == ' ' || r == '\t' || r == '\n' || r == '\r' || r == '\u00a0' {
+			if !prevSpace {
+				builder.WriteByte(' ')
+				prevSpace = true
+			}
+			continue
+		}
+		builder.WriteRune(r)
+		prevSpace = false
+	}
+	return strings.TrimSpace(builder.String())
 }
 
 func missingValueMessage(field ingestiondomain.FieldSelector) string {
@@ -783,6 +878,9 @@ func normalizeConfiguredFields(fields []ingestiondomain.FieldSelector) ([]ingest
 		if field.ExtractionMode == ingestiondomain.ExtractionModeText && field.TextMode == "" {
 			field.TextMode = ingestiondomain.TextModeInnerText
 		}
+		if _, ok := supportedTransforms[strings.TrimSpace(strings.ToLower(field.Transform))]; !ok {
+			return nil, fmt.Errorf("field %q uses unknown transform %q", field.Name, field.Transform)
+		}
 		normalized = append(normalized, field)
 	}
 
@@ -803,7 +901,47 @@ func validateXPathSelector(selector string) error {
 	return nil
 }
 
-func normalizeNumberString(value string) string {
+// supportedTransforms enumerates the transform identifiers recognised by the
+// extraction engine. Adding a new transform requires updating both this map and
+// applyTransform.
+var supportedTransforms = map[string]struct{}{
+	"":          {}, // no-op
+	"trim":      {},
+	"lowercase": {},
+	"uppercase": {},
+	"number":    {}, // historical alias for "integer"
+	"integer":   {},
+	"decimal":   {},
+	"currency":  {},
+}
+
+// applyTransform normalises an extracted value according to the configured transform.
+// An unknown transform returns an error so that misconfigured fields surface a clear
+// failure rather than silently passing the raw value through.
+func applyTransform(value, transform string) (string, error) {
+	key := strings.TrimSpace(strings.ToLower(transform))
+	if _, ok := supportedTransforms[key]; !ok {
+		return "", fmt.Errorf("unknown transform %q", transform)
+	}
+	switch key {
+	case "", "trim":
+		return strings.TrimSpace(value), nil
+	case "lowercase":
+		return strings.ToLower(strings.TrimSpace(value)), nil
+	case "uppercase":
+		return strings.ToUpper(strings.TrimSpace(value)), nil
+	case "number", "integer":
+		return normalizeIntegerString(value), nil
+	case "decimal", "currency":
+		return normalizeDecimalString(value), nil
+	}
+	return value, nil
+}
+
+// normalizeIntegerString keeps only the digits in value. It is the historical
+// behaviour of the "number" transform and is preserved so that existing configs
+// produce the same output.
+func normalizeIntegerString(value string) string {
 	var digits strings.Builder
 	for _, char := range value {
 		if char >= '0' && char <= '9' {
@@ -811,6 +949,58 @@ func normalizeNumberString(value string) string {
 		}
 	}
 	return digits.String()
+}
+
+// normalizeDecimalString returns a digits-and-decimal-separator version of value.
+// It accepts both '.' and ',' as the decimal separator (heuristic: the right-most
+// run of one of those characters with 1-2 trailing digits is treated as the
+// decimal point) and discards thousands separators and currency symbols.
+func normalizeDecimalString(value string) string {
+	negative := strings.Contains(value, "-")
+
+	// Step 1: keep only digits, '.', ','.
+	var stripped strings.Builder
+	for _, r := range value {
+		if r >= '0' && r <= '9' || r == '.' || r == ',' {
+			stripped.WriteRune(r)
+		}
+	}
+	cleaned := stripped.String()
+	if cleaned == "" {
+		return ""
+	}
+
+	// Step 2: locate the right-most separator and decide whether it is a decimal point.
+	lastSep := strings.LastIndexAny(cleaned, ".,")
+	useDecimal := false
+	if lastSep != -1 {
+		trailing := cleaned[lastSep+1:]
+		if len(trailing) >= 1 && len(trailing) <= 2 {
+			useDecimal = true
+		}
+	}
+
+	// Step 3: emit digits, replacing the chosen separator (if any) with '.' and
+	// dropping every other separator.
+	var out strings.Builder
+	for i := 0; i < len(cleaned); i++ {
+		ch := cleaned[i]
+		if ch >= '0' && ch <= '9' {
+			out.WriteByte(ch)
+			continue
+		}
+		if useDecimal && i == lastSep {
+			out.WriteByte('.')
+		}
+	}
+	result := out.String()
+	if result == "" || result == "." {
+		return ""
+	}
+	if negative {
+		result = "-" + result
+	}
+	return result
 }
 
 func nextPropertyRunAt(now time.Time, interval time.Duration) *time.Time {

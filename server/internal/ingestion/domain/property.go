@@ -256,17 +256,41 @@ type PropertyPreviewResult struct {
 	Success  bool                         `json:"success"`
 }
 
+// PreviewErrorCode is a stable identifier for why a field preview failed.
+//
+// The string values form part of the public API and must not be renamed without
+// coordinating a frontend change. New codes can be added at any time.
+type PreviewErrorCode string
+
+const (
+	// PreviewErrorCodeOK indicates the field was extracted successfully.
+	PreviewErrorCodeOK PreviewErrorCode = "ok"
+	// PreviewErrorCodeSelectorInvalid indicates the selector itself could not be parsed.
+	PreviewErrorCodeSelectorInvalid PreviewErrorCode = "selector_invalid"
+	// PreviewErrorCodeUnsupportedType indicates the selector_type is not supported.
+	PreviewErrorCodeUnsupportedType PreviewErrorCode = "unsupported_type"
+	// PreviewErrorCodeNoMatch indicates no element matched any of the selectors.
+	PreviewErrorCodeNoMatch PreviewErrorCode = "no_match"
+	// PreviewErrorCodeAttributeMissing indicates the matched element had no such attribute.
+	PreviewErrorCodeAttributeMissing PreviewErrorCode = "attribute_missing"
+	// PreviewErrorCodeEmptyValue indicates the matched element produced an empty string.
+	PreviewErrorCodeEmptyValue PreviewErrorCode = "empty_value"
+	// PreviewErrorCodeTransformFailed indicates the configured transform produced an empty value.
+	PreviewErrorCodeTransformFailed PreviewErrorCode = "transform_failed"
+)
+
 // PropertyPreviewFieldResult explains what happened for one configured field.
 type PropertyPreviewFieldResult struct {
-	Name            string         `json:"name"`
-	SelectorType    SelectorType   `json:"selector_type"`
-	SelectorValue   string         `json:"selector_value"`
-	ExtractionMode  ExtractionMode `json:"extraction_mode"`
-	TextMode        TextMode       `json:"text_mode,omitempty"`
-	MatchedSelector string         `json:"matched_selector,omitempty"`
-	MatchCount      int            `json:"match_count"`
-	UsedFallback    bool           `json:"used_fallback,omitempty"`
-	Value           string         `json:"value,omitempty"`
-	Success         bool           `json:"success"`
-	Message         string         `json:"message,omitempty"`
+	Name            string           `json:"name"`
+	SelectorType    SelectorType     `json:"selector_type"`
+	SelectorValue   string           `json:"selector_value"`
+	ExtractionMode  ExtractionMode   `json:"extraction_mode"`
+	TextMode        TextMode         `json:"text_mode,omitempty"`
+	MatchedSelector string           `json:"matched_selector,omitempty"`
+	MatchCount      int              `json:"match_count"`
+	UsedFallback    bool             `json:"used_fallback,omitempty"`
+	Value           string           `json:"value,omitempty"`
+	Success         bool             `json:"success"`
+	Message         string           `json:"message,omitempty"`
+	ErrorCode       PreviewErrorCode `json:"error_code,omitempty"`
 }
