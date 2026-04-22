@@ -18,8 +18,8 @@ type SessionProfile struct {
 	UpgradeInsecureRequests string
 }
 
-// Non-Chromium profiles intentionally leave SecCHUA fields empty because
-// those client hints are Chromium-specific.
+// The Safari and Firefox profiles below intentionally leave SecCHUA fields
+// empty because those client hints are Chromium-specific.
 func defaultProfiles() []SessionProfile {
 	return []SessionProfile{
 		{

@@ -37,6 +37,8 @@ func (e *antiBotChallengeError) Error() string {
 	return fmt.Sprintf("portal returned an anti-bot challenge page via %s (matched %q)", e.via, e.marker)
 }
 
+// detectAntiBotChallenge scans the first 16KB of a response body for known
+// anti-bot challenge markers and returns the matched marker when present.
 func detectAntiBotChallenge(body []byte) string {
 	if len(body) == 0 {
 		return ""
