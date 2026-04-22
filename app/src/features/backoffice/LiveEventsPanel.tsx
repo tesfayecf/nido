@@ -1,8 +1,13 @@
 import { useEffect } from "react";
 
+import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageCard } from "@/components/ui/PageCard";
+import { ItemList } from "@/components/ui/ItemList";
+import { ListRow, ListRowMain } from "@/components/ui/ListRow";
+import { Preformatted } from "@/components/ui/Preformatted";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { Toolbar } from "@/components/ui/Toolbar";
 import { formatDateTime } from "@/lib/format/date";
 import { connectBackofficeEvents } from "@/services/backoffice-events/events.service";
 import { useLiveEventsStore } from "@/stores/live-events.store";
@@ -55,32 +60,32 @@ export const LiveEventsPanel = (): JSX.Element => {
 
     return (
         <PageCard
-            action={<button className={"button button--secondary"} onClick={clearEvents} type={"button"}>{"Clear"}</button>}
+            action={<Button onClick={clearEvents} variant={"secondary"}>{"Clear"}</Button>}
             description={"The SSE stream mirrors the backend backoffice event feed and is scoped to authenticated operator routes."}
             title={"Live Events"}
         >
-            <div className={"toolbar"}>
+            <Toolbar>
                 <span className={"muted-copy"}>{"Connection"}</span>
                 <StatusBadge tone={connectionTone(connectionState)} value={connectionState} />
-            </div>
+            </Toolbar>
 
             {items.length === 0 ? <EmptyState message={"No live events have been received in this session yet."} /> : null}
             {items.length > 0 ? (
-                <div className={"item-list"}>
+                <ItemList>
                     {items.map((item) => {
                         return (
-                            <article className={"list-row"} key={`${item.id}-${item.received_at}`}>
-                                <div className={"list-row__main"}>
+                            <ListRow key={`${item.id}-${item.received_at}`}>
+                                <ListRowMain>
                                     <div>
                                         <h3 className={"list-row__title"}>{item.type}</h3>
                                         <p className={"list-row__meta"}>{"Received "}{formatDateTime(item.received_at)}</p>
                                     </div>
-                                </div>
-                                <pre className={"preformatted preformatted--compact"}>{JSON.stringify(item.data, null, 2)}</pre>
-                            </article>
+                                </ListRowMain>
+                                <Preformatted compact>{JSON.stringify(item.data, null, 2)}</Preformatted>
+                            </ListRow>
                         );
                     })}
-                </div>
+                </ItemList>
             ) : null}
         </PageCard>
     );

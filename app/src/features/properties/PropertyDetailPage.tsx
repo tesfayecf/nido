@@ -5,7 +5,19 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SelectorBuilder } from "@/components/selectors/SelectorBuilder";
+import { ActionGroup } from "@/components/ui/ActionGroup";
+import { Button } from "@/components/ui/Button";
+import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { Field } from "@/components/ui/Field";
+import { FormGrid } from "@/components/ui/FormGrid";
+import { Input } from "@/components/ui/Input";
+import { ItemList } from "@/components/ui/ItemList";
+import { KeyValueGrid, KeyValuePair } from "@/components/ui/KeyValueGrid";
+import { ListRow, ListRowMain } from "@/components/ui/ListRow";
 import { PageCard } from "@/components/ui/PageCard";
+import { PageStack } from "@/components/ui/PageStack";
+import { Preformatted } from "@/components/ui/Preformatted";
+import { Select } from "@/components/ui/Select";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { alertRuleKeys } from "@/services/alert-rules/alert-rules.keys";
 import { listAlertRules } from "@/services/alert-rules/alert-rules.service";
@@ -195,80 +207,69 @@ export const PropertyDetailPage = (): JSX.Element => {
     const validationMessages = useMemo(() => validateSelectorDrafts(fieldRows), [fieldRows]);
 
     return (
-        <div className={"page-stack"}>
+        <PageStack>
             <PageCard
-                action={!isCreateMode ? <Link className={"button button--secondary"} to={"/properties"}>{"Back to properties"}</Link> : undefined}
+                action={!isCreateMode ? <Button as={Link} to={"/properties"} variant={"secondary"}>{"Back to properties"}</Button> : undefined}
                 description={isCreateMode ? "Add a property URL and optionally assign a reusable source template." : "Update the property URL, template assignment, and run cadence."}
                 title={isCreateMode ? "Add Property" : "Property Settings"}
             >
-                {propertyQuery.isError ? <p className={"error-banner"}>{"Could not load property."}</p> : null}
-                <div className={"key-value-grid"}>
-                    <label className={"key-value-grid__label field__label"} htmlFor={"prop-url"}>{"URL"}</label>
-                    <div className={"key-value-grid__value"}>
-                        <input className={"field__control"} id={"prop-url"} onChange={(event) => { setUrl(event.target.value); }} placeholder={"https://example.com/property/123"} type={"url"} value={url} />
-                    </div>
-
-                    <label className={"key-value-grid__label field__label"} htmlFor={"prop-label"}>{"Label"}</label>
-                    <div className={"key-value-grid__value"}>
-                        <input className={"field__control"} id={"prop-label"} onChange={(event) => { setLabel(event.target.value); }} placeholder={"Optional display name"} type={"text"} value={label} />
-                    </div>
-
-                    <label className={"key-value-grid__label field__label"} htmlFor={"prop-source"}>{"Source template"}</label>
-                    <div className={"key-value-grid__value"}>
-                        <select className={"field__control"} id={"prop-source"} onChange={(event) => { setSourceId(event.target.value); }} value={sourceId}>
+                {propertyQuery.isError ? <ErrorBanner>{"Could not load property."}</ErrorBanner> : null}
+                <FormGrid as={"div"} variant={"two-column"}>
+                    <Field fullWidth label={"URL"}>
+                        <Input id={"prop-url"} onChange={(event) => { setUrl(event.target.value); }} placeholder={"https://example.com/property/123"} type={"url"} value={url} />
+                    </Field>
+                    <Field label={"Label"}>
+                        <Input id={"prop-label"} onChange={(event) => { setLabel(event.target.value); }} placeholder={"Optional display name"} type={"text"} value={label} />
+                    </Field>
+                    <Field label={"Source template"}>
+                        <Select id={"prop-source"} onChange={(event) => { setSourceId(event.target.value); }} value={sourceId}>
                             <option value={""}>{"No template"}</option>
                             {(sourcesQuery.data ?? []).map((source) => {
                                 return <option key={source.id} value={source.id}>{source.name}</option>;
                             })}
-                        </select>
-                    </div>
-
-                    <label className={"key-value-grid__label field__label"} htmlFor={"prop-schedule"}>{"Schedule interval (s)"}</label>
-                    <div className={"key-value-grid__value"}>
-                        <input className={"field__control"} id={"prop-schedule"} min={0} onChange={(event) => { setScheduleInterval(readNonNegativeNumber(event.target.value, 0)); }} type={"number"} value={scheduleInterval} />
-                    </div>
-
-                    <label className={"key-value-grid__label field__label"} htmlFor={"prop-retry"}>{"Retry attempts"}</label>
-                    <div className={"key-value-grid__value"}>
-                        <input className={"field__control"} id={"prop-retry"} min={1} onChange={(event) => { setRetryMaxAttempts(readNonNegativeNumber(event.target.value, 1)); }} type={"number"} value={retryMaxAttempts} />
-                    </div>
-
-                    <label className={"key-value-grid__label field__label"} htmlFor={"prop-backoff"}>{"Retry backoff (ms)"}</label>
-                    <div className={"key-value-grid__value"}>
-                        <input className={"field__control"} id={"prop-backoff"} min={0} onChange={(event) => { setRetryBackoffMillis(readNonNegativeNumber(event.target.value, 500)); }} type={"number"} value={retryBackoffMillis} />
-                    </div>
-                </div>
-                {savePropertyMutation.isError ? <p className={"error-banner"}>{"Could not save property. Check the URL and selected source."}</p> : null}
-                <div className={"action-group"}>
-                    <button className={"button"} disabled={savePropertyMutation.isPending || url.trim() === ""} onClick={() => { savePropertyMutation.mutate(); }} type={"button"}>
+                        </Select>
+                    </Field>
+                    <Field label={"Schedule interval (s)"}>
+                        <Input id={"prop-schedule"} min={0} onChange={(event) => { setScheduleInterval(readNonNegativeNumber(event.target.value, 0)); }} type={"number"} value={scheduleInterval} />
+                    </Field>
+                    <Field label={"Retry attempts"}>
+                        <Input id={"prop-retry"} min={1} onChange={(event) => { setRetryMaxAttempts(readNonNegativeNumber(event.target.value, 1)); }} type={"number"} value={retryMaxAttempts} />
+                    </Field>
+                    <Field label={"Retry backoff (ms)"}>
+                        <Input id={"prop-backoff"} min={0} onChange={(event) => { setRetryBackoffMillis(readNonNegativeNumber(event.target.value, 500)); }} type={"number"} value={retryBackoffMillis} />
+                    </Field>
+                </FormGrid>
+                {savePropertyMutation.isError ? <ErrorBanner>{"Could not save property. Check the URL and selected source."}</ErrorBanner> : null}
+                <ActionGroup>
+                    <Button disabled={savePropertyMutation.isPending || url.trim() === ""} onClick={() => { savePropertyMutation.mutate(); }}>
                         {savePropertyMutation.isPending ? "Saving..." : isCreateMode ? "Create property" : "Save changes"}
-                    </button>
+                    </Button>
                     {!isCreateMode ? (
-                        <button className={"button button--secondary"} disabled={bookmarkMutation.isPending} onClick={() => { bookmarkMutation.mutate(); }} type={"button"}>
+                        <Button disabled={bookmarkMutation.isPending} onClick={() => { bookmarkMutation.mutate(); }} variant={"secondary"}>
                             {isBookmarked ? "Remove bookmark" : "Bookmark"}
-                        </button>
+                        </Button>
                     ) : null}
-                </div>
+                </ActionGroup>
             </PageCard>
 
             {!isCreateMode ? (
                 <PageCard description={"Edit the selectors that this property should use after inheriting from its source template."} title={"Extraction Configuration"}>
                     <SelectorBuilder fields={fieldRows} onChange={setFieldRows} previewByFieldName={previewMap} />
                     {fieldRows.length === 0 ? <EmptyState message={"No fields defined yet. Add a field to start extracting data."} /> : null}
-                    <div className={"action-group"}>
-                        <button className={"button button--secondary"} onClick={() => { setFieldRows((rows) => [...rows, createEmptySelectorDraft()]); }} type={"button"}>{"Add field"}</button>
-                        <button className={"button button--secondary"} disabled={previewMutation.isPending || url.trim() === "" || validationMessages.length > 0} onClick={() => { previewMutation.mutate(); }} type={"button"}>{previewMutation.isPending ? "Previewing..." : "Preview extraction"}</button>
-                        <button className={"button"} disabled={saveConfigMutation.isPending || validationMessages.length > 0} onClick={() => { saveConfigMutation.mutate(); }} type={"button"}>{saveConfigMutation.isPending ? "Saving..." : "Save configuration"}</button>
-                    </div>
+                    <ActionGroup>
+                        <Button onClick={() => { setFieldRows((rows) => [...rows, createEmptySelectorDraft()]); }} variant={"secondary"}>{"Add field"}</Button>
+                        <Button disabled={previewMutation.isPending || url.trim() === "" || validationMessages.length > 0} onClick={() => { previewMutation.mutate(); }} variant={"secondary"}>{previewMutation.isPending ? "Previewing..." : "Preview extraction"}</Button>
+                        <Button disabled={saveConfigMutation.isPending || validationMessages.length > 0} onClick={() => { saveConfigMutation.mutate(); }}>{saveConfigMutation.isPending ? "Saving..." : "Save configuration"}</Button>
+                    </ActionGroup>
                     {validationMessages.length > 0 ? (
                         <div className={"selector-builder__validation-list"}>
-                            {validationMessages.map((message) => <p className={"error-banner"} key={message}>{message}</p>)}
+                            {validationMessages.map((message) => <ErrorBanner key={message}>{message}</ErrorBanner>)}
                         </div>
                     ) : null}
-                    {saveConfigMutation.isError ? <p className={"error-banner"}>{"Could not save configuration."}</p> : null}
+                    {saveConfigMutation.isError ? <ErrorBanner>{"Could not save configuration."}</ErrorBanner> : null}
                     {previewFailures.length > 0 ? (
                         <div className={"selector-builder__validation-list"}>
-                            {previewFailures.map((failure) => <p className={"error-banner"} key={failure}>{failure}</p>)}
+                            {previewFailures.map((failure) => <ErrorBanner key={failure}>{failure}</ErrorBanner>)}
                         </div>
                     ) : null}
                     {Object.keys(previewValues).length > 0 ? (
@@ -288,22 +289,16 @@ export const PropertyDetailPage = (): JSX.Element => {
                 <PageCard description={"The latest successful or failed run becomes the current property snapshot."} title={"Current Snapshot"}>
                     {latestSnapshot === undefined ? <EmptyState message={"No runs have been recorded for this property yet."} /> : (
                         <>
-                            <div className={"key-value-grid"}>
-                                <div>
-                                    <span className={"key-value-grid__label"}>{"Status"}</span>
-                                    <strong className={"key-value-grid__value"}><StatusBadge tone={latestSnapshot.is_valid ? "success" : "warning"} value={latestSnapshot.is_valid ? "valid" : "invalid"} /></strong>
-                                </div>
-                                <div>
-                                    <span className={"key-value-grid__label"}>{"Observed at"}</span>
-                                    <strong className={"key-value-grid__value"}>{formatDateTime(latestSnapshot.observed_at)}</strong>
-                                </div>
-                            </div>
-                            {latestSnapshot.error_message !== undefined && latestSnapshot.error_message !== "" ? <p className={"error-banner"}>{latestSnapshot.error_message}</p> : null}
-                            <pre className={"preformatted"}>{JSON.stringify(latestSnapshot.values, null, 2)}</pre>
-                            <div className={"action-group"}>
-                                <button className={"button"} disabled={ingestMutation.isPending} onClick={() => { ingestMutation.mutate(); }} type={"button"}>{ingestMutation.isPending ? "Running..." : "Run now"}</button>
-                                <Link className={"button button--secondary"} to={`/runs?property_id=${resolvedId}`}>{"View full history"}</Link>
-                            </div>
+                            <KeyValueGrid>
+                                <KeyValuePair label={"Status"} value={<StatusBadge tone={latestSnapshot.is_valid ? "success" : "warning"} value={latestSnapshot.is_valid ? "valid" : "invalid"} />} />
+                                <KeyValuePair label={"Observed at"} value={formatDateTime(latestSnapshot.observed_at)} />
+                            </KeyValueGrid>
+                            {latestSnapshot.error_message !== undefined && latestSnapshot.error_message !== "" ? <ErrorBanner>{latestSnapshot.error_message}</ErrorBanner> : null}
+                            <Preformatted>{JSON.stringify(latestSnapshot.values, null, 2)}</Preformatted>
+                            <ActionGroup>
+                                <Button disabled={ingestMutation.isPending} onClick={() => { ingestMutation.mutate(); }}>{ingestMutation.isPending ? "Running..." : "Run now"}</Button>
+                                <Button as={Link} to={`/runs?property_id=${resolvedId}`} variant={"secondary"}>{"View full history"}</Button>
+                            </ActionGroup>
                         </>
                     )}
                 </PageCard>
@@ -312,24 +307,24 @@ export const PropertyDetailPage = (): JSX.Element => {
             {!isCreateMode ? (
                 <PageCard description={"Alerts trigger when new runs meet property-level conditions."} title={"Alerts"}>
                     {propertyAlerts.length === 0 ? <EmptyState message={"No alerts are linked to this property yet."} /> : (
-                        <div className={"item-list"}>
+                        <ItemList>
                             {propertyAlerts.map((rule) => {
                                 return (
-                                    <article className={"list-row"} key={rule.id}>
-                                        <div className={"list-row__main"}>
+                                    <ListRow key={rule.id}>
+                                        <ListRowMain>
                                             <div>
                                                 <h3 className={"list-row__title"}>{rule.rule_type}</h3>
                                                 <p className={"list-row__meta"}>{rule.threshold_amount === undefined ? "No threshold" : `Threshold ${rule.threshold_amount}`}</p>
                                             </div>
                                             <strong className={"list-row__price"}>{rule.enabled ? "Active" : "Inactive"}</strong>
-                                        </div>
-                                    </article>
+                                        </ListRowMain>
+                                    </ListRow>
                                 );
                             })}
-                        </div>
+                        </ItemList>
                     )}
                 </PageCard>
             ) : null}
-        </div>
+        </PageStack>
     );
 };

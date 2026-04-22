@@ -66,10 +66,23 @@
 
     --shadow-soft: 0 20px 60px -32px var(--color-shadow-strong);
     --shadow-card: 0 18px 48px -32px var(--color-shadow);
+    --shadow-overlay: 0 32px 96px -36px var(--color-shadow-strong);
+
+    --control-height-sm: 2.25rem;
+    --control-height-md: 2.75rem;
+    --control-height-lg: 3.25rem;
+
+    --duration-fast: 120ms;
+    --duration-normal: 160ms;
+
+    --z-index-overlay: 30;
+    --z-index-toast: 50;
 
     --color-bg: var(--color-background);
     --color-accent: var(--color-primary);
     --color-accent-soft: var(--color-primary-soft);
+    --color-info: var(--color-primary);
+    --color-info-soft: var(--color-primary-soft);
 }
 
 :root[data-theme="dark"] {

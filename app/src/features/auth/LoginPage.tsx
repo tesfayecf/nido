@@ -3,6 +3,12 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 
+import { Button } from "@/components/ui/Button";
+import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { Field } from "@/components/ui/Field";
+import { FormGrid } from "@/components/ui/FormGrid";
+import { Input } from "@/components/ui/Input";
+import { Toolbar } from "@/components/ui/Toolbar";
 import { ThemeToggle } from "@/components/shell/ThemeToggle";
 import { isApiError } from "@/lib/api/errors";
 import { authKeys } from "@/services/auth/auth.keys";
@@ -43,29 +49,26 @@ export const LoginPage = (): JSX.Element => {
     return (
         <main className={"login-layout"}>
             <section className={"login-panel"}>
-                <div className={"toolbar"}>
+                <Toolbar>
                     <div>
                         <p className={"login-panel__eyebrow"}>{"Access"}</p>
                         <h1 className={"login-panel__title"}>{"Home Searcher"}</h1>
                     </div>
                     <ThemeToggle />
-                </div>
+                </Toolbar>
                 <p className={"login-panel__description"}>
                     {"Sign in with your local admin account to manage saved searches, notifications, tracked properties, and ingestion workflows from one workspace."}
                 </p>
 
-                <form
-                    className={"form-grid"}
+                <FormGrid
                     onSubmit={(event) => {
                         event.preventDefault();
                         loginMutation.mutate({ email, password });
                     }}
                 >
-                    <label className={"field"}>
-                        <span className={"field__label"}>{"Email"}</span>
-                        <input
+                    <Field label={"Email"}>
+                        <Input
                             autoComplete={"username"}
-                            className={"field__control"}
                             onChange={(event) => {
                                 setEmail(event.target.value);
                             }}
@@ -73,13 +76,11 @@ export const LoginPage = (): JSX.Element => {
                             type={"email"}
                             value={email}
                         />
-                    </label>
+                    </Field>
 
-                    <label className={"field"}>
-                        <span className={"field__label"}>{"Password"}</span>
-                        <input
+                    <Field label={"Password"}>
+                        <Input
                             autoComplete={"current-password"}
-                            className={"field__control"}
                             onChange={(event) => {
                                 setPassword(event.target.value);
                             }}
@@ -87,20 +88,20 @@ export const LoginPage = (): JSX.Element => {
                             type={"password"}
                             value={password}
                         />
-                    </label>
+                    </Field>
 
                     {loginMutation.isError ? (
-                        <p className={"error-banner"} role={"alert"}>
+                        <ErrorBanner>
                             {isApiError(loginMutation.error) ? loginMutation.error.message : "Login failed."}
-                        </p>
+                        </ErrorBanner>
                     ) : null}
 
                     <div className={"login-panel__actions"}>
-                        <button className={"button"} disabled={loginMutation.isPending} type={"submit"}>
-                            {loginMutation.isPending ? "Signing in..." : "Sign in"}
-                        </button>
+                        <Button isLoading={loginMutation.isPending} loadingLabel={"Signing in"} type={"submit"}>
+                            {"Sign in"}
+                        </Button>
                     </div>
-                </form>
+                </FormGrid>
             </section>
         </main>
     );

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { NavLink, useNavigate } from "react-router-dom";
 
+import { Button } from "@/components/ui/Button";
 import { clearAuthenticatedState, hasActiveSession } from "@/lib/auth/session";
 import { authKeys } from "@/services/auth/auth.keys";
 import { getCurrentUser, logout } from "@/services/auth/auth.service";
@@ -57,16 +58,16 @@ export const AppNav = (): JSX.Element => {
                     <span className={"app-nav__eyebrow"}>{"Property Tracker"}</span>
                     <h2>{"Home Searcher"}</h2>
                 </div>
-                <button
+                <Button
                     aria-label={"Close navigation"}
-                    className={"button button--secondary app-nav__close"}
+                    className={"app-nav__close"}
                     onClick={() => {
                         setNavOpen(false);
                     }}
-                    type={"button"}
+                    variant={"secondary"}
                 >
                     {"Close"}
-                </button>
+                </Button>
             </div>
 
             <nav aria-label={"Primary"} className={"app-nav__sections"}>
@@ -96,21 +97,20 @@ export const AppNav = (): JSX.Element => {
                             <strong>{meQuery.data?.display_name ?? "Authenticated user"}</strong>
                             <span className={"muted-copy"}>{meQuery.data?.email ?? "Loading profile..."}</span>
                         </div>
-                        <button
-                            className={"button button--secondary"}
+                        <Button
                             disabled={logoutMutation.isPending}
                             onClick={() => {
                                 logoutMutation.mutate();
                             }}
-                            type={"button"}
+                            variant={"secondary"}
                         >
                             {logoutMutation.isPending ? "Signing out..." : "Sign out"}
-                        </button>
+                        </Button>
                     </>
                 ) : (
                     <div className={"app-nav__identity"}>
                         <span className={"muted-copy"}>{"Sign in to manage tracked properties, runs, and notifications."}</span>
-                        <NavLink className={"button"} to={"/login"}>{"Sign in"}</NavLink>
+                        <Button as={NavLink} to={"/login"}>{"Sign in"}</Button>
                     </div>
                 )}
             </div>

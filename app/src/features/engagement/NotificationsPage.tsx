@@ -4,7 +4,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
 
 import { AsyncContent } from "@/components/ui/AsyncContent";
+import { Button } from "@/components/ui/Button";
+import { Field } from "@/components/ui/Field";
+import { FormGrid } from "@/components/ui/FormGrid";
+import { Input } from "@/components/ui/Input";
+import { ItemList } from "@/components/ui/ItemList";
+import { ListRow, ListRowFooter, ListRowMain } from "@/components/ui/ListRow";
 import { PageCard } from "@/components/ui/PageCard";
+import { PageStack } from "@/components/ui/PageStack";
 import { formatDateTime } from "@/lib/format/date";
 import { readBooleanParam, readNumberParam, writeParam } from "@/lib/routing/searchParams";
 import { notificationKeys } from "@/services/notifications/notifications.keys";
@@ -43,10 +50,10 @@ export const NotificationsPage = (): JSX.Element => {
     }, [filters.limit, filters.unread_only]);
 
     return (
-        <div className={"page-stack"}>
+        <PageStack>
             <PageCard description={"Notifications are generated after property runs satisfy alert conditions."} title={"Notifications"}>
-                <form
-                    className={"form-grid form-grid--inline"}
+                <FormGrid
+                    variant={"inline"}
                     onSubmit={(event) => {
                         event.preventDefault();
                         const nextParams = new URLSearchParams(searchParams);
@@ -55,18 +62,16 @@ export const NotificationsPage = (): JSX.Element => {
                         setSearchParams(nextParams);
                     }}
                 >
-                    <label className={"field field--checkbox"}>
+                    <Field label={"Unread only"} variant={"checkbox"}>
                         <input checked={unreadOnly} onChange={(event) => { setUnreadOnly(event.target.checked); }} type={"checkbox"} />
-                        <span className={"field__label"}>{"Unread only"}</span>
-                    </label>
-                    <label className={"field"}>
-                        <span className={"field__label"}>{"Limit"}</span>
-                        <input className={"field__control"} min={1} onChange={(event) => { setLimit(event.target.value); }} step={1} type={"number"} value={limit} />
-                    </label>
-                    <div className={"field field--actions"}>
-                        <button className={"button"} type={"submit"}>{"Apply"}</button>
-                    </div>
-                </form>
+                    </Field>
+                    <Field label={"Limit"}>
+                        <Input min={1} onChange={(event) => { setLimit(event.target.value); }} step={1} type={"number"} value={limit} />
+                    </Field>
+                    <Field as={"div"} variant={"actions"}>
+                        <Button type={"submit"}>{"Apply"}</Button>
+                    </Field>
+                </FormGrid>
             </PageCard>
 
             <PageCard description={"Use the property link to jump directly back into the tracked record that triggered the alert."} title={"Inbox"}>
@@ -78,33 +83,33 @@ export const NotificationsPage = (): JSX.Element => {
                     isLoading={notificationsQuery.isLoading}
                     loadingMessage={"Loading notifications..."}
                 >
-                    <div className={"item-list"}>
+                    <ItemList>
                         {(notificationsQuery.data?.items ?? []).map((item) => {
                             return (
-                                <article className={"list-row"} key={item.id}>
-                                    <div className={"list-row__main"}>
+                                <ListRow key={item.id}>
+                                    <ListRowMain>
                                         <div>
                                             <h3 className={"list-row__title"}>{item.title}</h3>
                                             <p className={"list-row__meta"}>{item.body}</p>
                                         </div>
                                         <strong className={"list-row__price"}>{item.kind}</strong>
-                                    </div>
-                                    <div className={"list-row__footer"}>
+                                    </ListRowMain>
+                                    <ListRowFooter>
                                         <span>{item.read_at === undefined ? "Unread" : `Read ${formatDateTime(item.read_at)}`}</span>
                                         <span>{"Created "}{formatDateTime(item.created_at)}</span>
                                         {item.property_id !== undefined ? <Link className={"text-link"} to={`/properties/${item.property_id}`}>{"Open property"}</Link> : null}
                                         {item.read_at === undefined ? 
-                                            <button className={"button button--secondary"} disabled={markReadMutation.isPending} onClick={() => { markReadMutation.mutate(item.id); }} type={"button"}>{"Mark read"}</button>
+                                            <Button disabled={markReadMutation.isPending} onClick={() => { markReadMutation.mutate(item.id); }} variant={"secondary"}>{"Mark read"}</Button>
                                             : 
-                                            <button className={"button button--secondary"} disabled={markUnreadMutation.isPending} onClick={() => { markUnreadMutation.mutate(item.id); }} type={"button"}>{"Mark unread"}</button>
+                                            <Button disabled={markUnreadMutation.isPending} onClick={() => { markUnreadMutation.mutate(item.id); }} variant={"secondary"}>{"Mark unread"}</Button>
                                         }
-                                    </div>
-                                </article>
+                                    </ListRowFooter>
+                                </ListRow>
                             );
                         })}
-                    </div>
+                    </ItemList>
                 </AsyncContent>
             </PageCard>
-        </div>
+        </PageStack>
     );
 };

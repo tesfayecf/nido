@@ -2,7 +2,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 
 import { AsyncContent } from "@/components/ui/AsyncContent";
+import { Button } from "@/components/ui/Button";
+import { ItemList } from "@/components/ui/ItemList";
+import { ListRow, ListRowFooter, ListRowMain } from "@/components/ui/ListRow";
 import { PageCard } from "@/components/ui/PageCard";
+import { PageStack } from "@/components/ui/PageStack";
 import { formatCurrency } from "@/lib/format/currency";
 import { formatDateTime } from "@/lib/format/date";
 import { bookmarkKeys } from "@/services/bookmarks/bookmarks.keys";
@@ -23,7 +27,7 @@ export const BookmarksPage = (): JSX.Element => {
     const bookmarks = bookmarksQuery.data ?? [];
 
     return (
-        <div className={"page-stack"}>
+        <PageStack>
             <PageCard description={"Bookmarks save properties directly, without any watchlist or listing intermediary."} title={"Bookmarks"}>
                 <AsyncContent
                     emptyMessage={"No properties have been bookmarked yet."}
@@ -33,27 +37,27 @@ export const BookmarksPage = (): JSX.Element => {
                     isLoading={bookmarksQuery.isLoading}
                     loadingMessage={"Loading bookmarks..."}
                 >
-                    <div className={"item-list"}>
+                    <ItemList>
                         {bookmarks.map((item) => {
                             return (
-                                <article className={"list-row"} key={item.property_id}>
-                                    <div className={"list-row__main"}>
+                                <ListRow key={item.property_id}>
+                                    <ListRowMain>
                                         <div>
                                             <h3 className={"list-row__title"}><Link to={`/properties/${item.property_id}`}>{item.title}</Link></h3>
                                             <p className={"list-row__meta"}>{item.location}{" · saved "}{formatDateTime(item.bookmarked_at)}</p>
                                         </div>
                                         <strong className={"list-row__price"}>{item.currency === "" ? `${item.price_amount}` : formatCurrency(item.price_amount, item.currency)}</strong>
-                                    </div>
-                                    <div className={"list-row__footer"}>
+                                    </ListRowMain>
+                                    <ListRowFooter>
                                         <a className={"text-link"} href={item.url} rel={"noreferrer"} target={"_blank"}>{"Open original"}</a>
-                                        <button className={"button button--secondary"} disabled={deleteMutation.isPending} onClick={() => { deleteMutation.mutate(item.property_id); }} type={"button"}>{"Remove"}</button>
-                                    </div>
-                                </article>
+                                        <Button disabled={deleteMutation.isPending} onClick={() => { deleteMutation.mutate(item.property_id); }} variant={"secondary"}>{"Remove"}</Button>
+                                    </ListRowFooter>
+                                </ListRow>
                             );
                         })}
-                    </div>
+                    </ItemList>
                 </AsyncContent>
             </PageCard>
-        </div>
+        </PageStack>
     );
 };
