@@ -16,6 +16,8 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/antchfx/htmlquery"
+	"golang.org/x/net/html"
 
 	ingestiondomain "home-searcher/server/internal/ingestion/domain"
 	"home-searcher/server/internal/platform/id"
@@ -111,6 +113,10 @@ func (s *PropertyService) UpsertPropertyConfig(ctx context.Context, propertyID s
 	if err != nil {
 		return ingestiondomain.PropertyExtractionConfig{}, err
 	}
+	normalizedFields, err := normalizeConfiguredFields(fields)
+	if err != nil {
+		return ingestiondomain.PropertyExtractionConfig{}, err
+	}
 
 	nextVersion := existing.Version + 1
 	now := s.clock.Now().UTC()
@@ -118,7 +124,7 @@ func (s *PropertyService) UpsertPropertyConfig(ctx context.Context, propertyID s
 	config := ingestiondomain.PropertyExtractionConfig{
 		ID:         id.New("pconf"),
 		PropertyID: propertyID,
-		Fields:     fields,
+		Fields:     normalizedFields,
 		Version:    nextVersion,
 		CreatedAt:  now,
 	}
@@ -170,15 +176,20 @@ func (s *PropertyService) PreviewExtraction(ctx context.Context, req ingestiondo
 	if err := validatePropertyURL(req.URL); err != nil {
 		return ingestiondomain.PropertyPreviewResult{}, err
 	}
+	normalizedFields, err := normalizeConfiguredFields(req.Fields)
+	if err != nil {
+		return ingestiondomain.PropertyPreviewResult{}, err
+	}
 
 	body, err := fetchHTML(ctx, req.URL)
 	if err != nil {
 		return ingestiondomain.PropertyPreviewResult{}, fmt.Errorf("fetch page: %w", err)
 	}
 
-	values, failures := applySelectors(body, req.Fields)
+	values, failures, fieldResults := applySelectors(body, normalizedFields)
 
 	return ingestiondomain.PropertyPreviewResult{
+		Fields:   fieldResults,
 		Values:   values,
 		Failures: failures,
 		Success:  len(failures) == 0,
@@ -229,7 +240,7 @@ func (s *PropertyService) IngestProperty(ctx context.Context, propertyID string)
 		return snapshot, nil
 	}
 
-	values, failures := applySelectors(body, config.Fields)
+	values, failures, _ := applySelectors(body, config.Fields)
 	isValid := true
 	for _, field := range config.Fields {
 		if field.Required {
@@ -352,7 +363,7 @@ func (s *PropertyService) resolveFields(ctx context.Context, sourceID string, cu
 		}
 		for _, field := range fieldsFromSource(source) {
 			field.Name = strings.TrimSpace(field.Name)
-			if field.Name == "" {
+			if field.Name == "" || strings.TrimSpace(field.SelectorValue) == "" {
 				continue
 			}
 			indexByName[field.Name] = len(resolved)
@@ -362,7 +373,7 @@ func (s *PropertyService) resolveFields(ctx context.Context, sourceID string, cu
 
 	for _, field := range customFields {
 		field.Name = strings.TrimSpace(field.Name)
-		if field.Name == "" {
+		if field.Name == "" || strings.TrimSpace(field.SelectorValue) == "" {
 			continue
 		}
 		if idx, ok := indexByName[field.Name]; ok {
@@ -481,39 +492,52 @@ func validateFetchHost(host string) error {
 	return nil
 }
 
-func applySelectors(body []byte, fields []ingestiondomain.FieldSelector) (map[string]string, []string) {
-	document, err := goquery.NewDocumentFromReader(bytes.NewReader(body))
+func applySelectors(body []byte, fields []ingestiondomain.FieldSelector) (map[string]string, []string, []ingestiondomain.PropertyPreviewFieldResult) {
+	rootNode, err := html.Parse(bytes.NewReader(body))
 	if err != nil {
-		return map[string]string{}, []string{fmt.Sprintf("parse html: %v", err)}
+		return map[string]string{}, []string{fmt.Sprintf("parse html: %v", err)}, []ingestiondomain.PropertyPreviewFieldResult{}
 	}
+	document := goquery.NewDocumentFromNode(rootNode)
 
 	values := make(map[string]string, len(fields))
 	failures := make([]string, 0)
+	fieldResults := make([]ingestiondomain.PropertyPreviewFieldResult, 0, len(fields))
 	for _, field := range fields {
-		value, ok := selectFieldValue(document, field)
-		if !ok {
-			failures = append(failures, fmt.Sprintf("%s: no selector matched", field.Name))
+		result := selectFieldValue(document, rootNode, field)
+		fieldResults = append(fieldResults, result)
+		if !result.Success {
+			failures = append(failures, fmt.Sprintf("%s: %s", field.Name, result.Message))
 			continue
 		}
-		values[field.Name] = value
+		values[field.Name] = result.Value
 	}
-	return values, failures
+	return values, failures, fieldResults
 }
 
-func selectFieldValue(document *goquery.Document, field ingestiondomain.FieldSelector) (string, bool) {
-	for _, selector := range field.Selectors {
-		selection := document.Find(selector).First()
-		if selection.Length() == 0 {
+func selectFieldValue(document *goquery.Document, rootNode *html.Node, field ingestiondomain.FieldSelector) ingestiondomain.PropertyPreviewFieldResult {
+	result := ingestiondomain.PropertyPreviewFieldResult{
+		ExtractionMode: field.ExtractionMode,
+		Name:           field.Name,
+		SelectorType:   field.SelectorType,
+		SelectorValue:  field.SelectorValue,
+		TextMode:       field.TextMode,
+	}
+	selectors := append([]string{field.SelectorValue}, field.FallbackSelectors...)
+	for index, selector := range selectors {
+		nodes, err := querySelectorNodes(document, rootNode, field, selector)
+		if err != nil {
+			result.Message = err.Error()
 			continue
 		}
+		if len(nodes) == 0 {
+			continue
+		}
+		result.MatchCount = len(nodes)
 
-		value := strings.TrimSpace(selection.Text())
-		if strings.TrimSpace(field.Attribute) != "" {
-			attributeValue, ok := selection.Attr(field.Attribute)
-			if !ok {
-				continue
-			}
-			value = strings.TrimSpace(attributeValue)
+		value, ok := extractNodeValue(nodes[0], field)
+		if !ok {
+			result.Message = missingValueMessage(field)
+			continue
 		}
 
 		switch strings.TrimSpace(strings.ToLower(field.Transform)) {
@@ -523,10 +547,154 @@ func selectFieldValue(document *goquery.Document, field ingestiondomain.FieldSel
 		}
 
 		if value != "" {
-			return value, true
+			result.MatchedSelector = selector
+			result.Message = "Ready"
+			result.Success = true
+			result.UsedFallback = index > 0
+			result.Value = value
+			if len(nodes) > 1 {
+				result.Message = fmt.Sprintf("%d matches found. Using the first result.", len(nodes))
+			}
+			return result
 		}
+		result.Message = "The matched element was empty."
 	}
-	return "", false
+	if result.Message == "" {
+		result.Message = "No selector matched."
+	}
+	return result
+}
+
+func querySelectorNodes(document *goquery.Document, rootNode *html.Node, field ingestiondomain.FieldSelector, selector string) ([]*html.Node, error) {
+	trimmedSelector := strings.TrimSpace(selector)
+	if trimmedSelector == "" {
+		return nil, nil
+	}
+
+	switch resolveSelectorStrategy(field.SelectorType) {
+	case ingestiondomain.SelectorTypeCSS:
+		selection := document.Find(trimmedSelector)
+		nodes := make([]*html.Node, 0, selection.Length())
+		selection.Each(func(_ int, item *goquery.Selection) {
+			nodes = append(nodes, item.Nodes...)
+		})
+		return nodes, nil
+	case ingestiondomain.SelectorTypeXPath:
+		nodes, err := htmlquery.QueryAll(rootNode, trimmedSelector)
+		if err != nil {
+			return nil, fmt.Errorf("invalid XPath selector")
+		}
+		return nodes, nil
+	default:
+		return nil, fmt.Errorf("unsupported selector type")
+	}
+}
+
+func extractNodeValue(node *html.Node, field ingestiondomain.FieldSelector) (string, bool) {
+	if field.ExtractionMode == ingestiondomain.ExtractionModeAttribute || field.SelectorType == ingestiondomain.SelectorTypeAttribute {
+		attributeName := strings.TrimSpace(field.Attribute)
+		if attributeName == "" {
+			return "", false
+		}
+		for _, attribute := range node.Attr {
+			if attribute.Key == attributeName {
+				return strings.TrimSpace(attribute.Val), true
+			}
+		}
+		return "", false
+	}
+
+	value := strings.TrimSpace(goquery.NewDocumentFromNode(node).Text())
+	return value, value != ""
+}
+
+func missingValueMessage(field ingestiondomain.FieldSelector) string {
+	if field.ExtractionMode == ingestiondomain.ExtractionModeAttribute || field.SelectorType == ingestiondomain.SelectorTypeAttribute {
+		return fmt.Sprintf("Attribute %q was not found.", field.Attribute)
+	}
+	return "The matched element was empty."
+}
+
+func resolveSelectorStrategy(selectorType ingestiondomain.SelectorType) ingestiondomain.SelectorType {
+	switch selectorType {
+	case ingestiondomain.SelectorTypeXPath:
+		return ingestiondomain.SelectorTypeXPath
+	case ingestiondomain.SelectorTypeAttribute, ingestiondomain.SelectorTypeText, ingestiondomain.SelectorTypeCSS, "":
+		return ingestiondomain.SelectorTypeCSS
+	default:
+		return ""
+	}
+}
+
+func normalizeConfiguredFields(fields []ingestiondomain.FieldSelector) ([]ingestiondomain.FieldSelector, error) {
+	if len(fields) == 0 {
+		return nil, fmt.Errorf("at least one field is required")
+	}
+
+	normalized := make([]ingestiondomain.FieldSelector, 0, len(fields))
+	names := make(map[string]struct{}, len(fields))
+	for _, field := range fields {
+		field.Name = strings.TrimSpace(field.Name)
+		field.SelectorValue = strings.TrimSpace(field.SelectorValue)
+		field.Attribute = strings.TrimSpace(field.Attribute)
+		field.Transform = strings.TrimSpace(field.Transform)
+		field.FallbackSelectors = normalizeSelectorList(field.FallbackSelectors)
+
+		if field.Name == "" {
+			return nil, fmt.Errorf("field name is required")
+		}
+		if _, exists := names[field.Name]; exists {
+			return nil, fmt.Errorf("field %q is duplicated", field.Name)
+		}
+		names[field.Name] = struct{}{}
+		if field.SelectorValue == "" {
+			return nil, fmt.Errorf("field %q must include a selector", field.Name)
+		}
+
+		switch resolveSelectorStrategy(field.SelectorType) {
+		case ingestiondomain.SelectorTypeCSS, ingestiondomain.SelectorTypeXPath:
+		default:
+			return nil, fmt.Errorf("field %q uses an unsupported selector type", field.Name)
+		}
+
+		if field.ExtractionMode == "" {
+			if field.SelectorType == ingestiondomain.SelectorTypeAttribute || field.Attribute != "" {
+				field.ExtractionMode = ingestiondomain.ExtractionModeAttribute
+			} else {
+				field.ExtractionMode = ingestiondomain.ExtractionModeText
+			}
+		}
+		switch field.ExtractionMode {
+		case ingestiondomain.ExtractionModeText, ingestiondomain.ExtractionModeAttribute:
+		default:
+			return nil, fmt.Errorf("field %q uses an unsupported extraction mode", field.Name)
+		}
+
+		if field.ExtractionMode == ingestiondomain.ExtractionModeAttribute && field.Attribute == "" {
+			return nil, fmt.Errorf("field %q needs an attribute name", field.Name)
+		}
+		if field.ExtractionMode == ingestiondomain.ExtractionModeText && field.TextMode == "" {
+			field.TextMode = ingestiondomain.TextModeInnerText
+		}
+		normalized = append(normalized, field)
+	}
+
+	return normalized, nil
+}
+
+func normalizeSelectorList(selectors []string) []string {
+	normalized := make([]string, 0, len(selectors))
+	for _, selector := range selectors {
+		trimmed := strings.TrimSpace(selector)
+		if trimmed == "" {
+			continue
+		}
+		normalized = append(normalized, trimmed)
+	}
+	if len(normalized) == 0 {
+		return nil
+	}
+	return normalized
 }
 
 func normalizeNumberString(value string) string {

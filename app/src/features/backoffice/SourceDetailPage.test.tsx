@@ -57,23 +57,25 @@ describe("SourceDetailPage", () => {
         renderSourceDetailPage(["/sources/new"]);
 
         await waitFor(() => {
-            expect(screen.getByLabelText("Id")).toHaveValue("");
-            expect(screen.getByLabelText("Name")).toHaveValue("");
-            expect(screen.getByLabelText("Selectors JSON")).toHaveValue("[]");
+            expect(screen.getByLabelText("Template id")).toHaveValue("");
+            expect(screen.getByLabelText("Template name")).toHaveValue("");
+            expect(screen.getAllByLabelText("Field name").map((input) => (input as HTMLInputElement).value)).toEqual(["price", "title", "location"]);
         });
     });
 
     it("keeps manual source fields editable in create mode", async () => {
         renderSourceDetailPage(["/sources/new"]);
 
-        fireEvent.change(screen.getByLabelText("Id"), { target: { value: "idealista-template" } });
-        fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Idealista Template" } });
-        fireEvent.change(screen.getByLabelText("Selectors JSON"), { target: { value: '[{"name":"price","selectors":[".price"],"required":true}]' } });
+        fireEvent.change(screen.getByLabelText("Template id"), { target: { value: "idealista-template" } });
+        fireEvent.change(screen.getByLabelText("Template name"), { target: { value: "Idealista Template" } });
+        fireEvent.change(screen.getAllByLabelText("Field name")[0], { target: { value: "salePrice" } });
+        fireEvent.change(screen.getAllByLabelText("Primary selector")[0], { target: { value: ".price" } });
 
         await waitFor(() => {
-            expect(screen.getByLabelText("Id")).toHaveValue("idealista-template");
-            expect(screen.getByLabelText("Name")).toHaveValue("Idealista Template");
-            expect(screen.getByLabelText("Selectors JSON")).toHaveValue('[{"name":"price","selectors":[".price"],"required":true}]');
+            expect(screen.getByLabelText("Template id")).toHaveValue("idealista-template");
+            expect(screen.getByLabelText("Template name")).toHaveValue("Idealista Template");
+            expect(screen.getAllByLabelText("Field name")[0]).toHaveValue("salePrice");
+            expect(screen.getAllByLabelText("Primary selector")[0]).toHaveValue(".price");
         });
     });
 });

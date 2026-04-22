@@ -2,6 +2,7 @@ package domain
 
 import (
 	"encoding/json"
+	"strings"
 	"time"
 )
 
@@ -19,13 +20,159 @@ const (
 	PropertyStatusInactive PropertyStatus = "inactive"
 )
 
+// SelectorType describes how the selector itself is interpreted.
+type SelectorType string
+
+const (
+	SelectorTypeCSS       SelectorType = "css"
+	SelectorTypeXPath     SelectorType = "xpath"
+	SelectorTypeAttribute SelectorType = "attribute"
+	SelectorTypeText      SelectorType = "text"
+)
+
+// ExtractionMode describes which value to read from a matched element.
+type ExtractionMode string
+
+const (
+	ExtractionModeText      ExtractionMode = "text"
+	ExtractionModeAttribute ExtractionMode = "attribute"
+)
+
+// TextMode describes which textual content should be preferred.
+type TextMode string
+
+const (
+	TextModeTextContent TextMode = "textContent"
+	TextModeInnerText   TextMode = "innerText"
+)
+
 // FieldSelector describes how to extract one named field from a page.
 type FieldSelector struct {
-	Name      string   `json:"name"`
-	Selectors []string `json:"selectors"`
-	Attribute string   `json:"attribute,omitempty"`
-	Transform string   `json:"transform,omitempty"`
-	Required  bool     `json:"required"`
+	Name              string         `json:"name"`
+	SelectorType      SelectorType   `json:"selector_type"`
+	SelectorValue     string         `json:"selector_value"`
+	FallbackSelectors []string       `json:"fallback_selectors,omitempty"`
+	ExtractionMode    ExtractionMode `json:"extraction_mode"`
+	TextMode          TextMode       `json:"text_mode,omitempty"`
+	Attribute         string         `json:"attribute,omitempty"`
+	Transform         string         `json:"transform,omitempty"`
+	Required          bool           `json:"required"`
+}
+
+type fieldSelectorPayload struct {
+	Name              string         `json:"name"`
+	SelectorType      SelectorType   `json:"selector_type"`
+	SelectorValue     string         `json:"selector_value"`
+	FallbackSelectors []string       `json:"fallback_selectors,omitempty"`
+	ExtractionMode    ExtractionMode `json:"extraction_mode"`
+	TextMode          TextMode       `json:"text_mode,omitempty"`
+	Attribute         string         `json:"attribute,omitempty"`
+	Transform         string         `json:"transform,omitempty"`
+	Required          bool           `json:"required"`
+	Selectors         []string       `json:"selectors,omitempty"`
+}
+
+// UnmarshalJSON keeps old selector arrays compatible with the new structured model.
+func (field *FieldSelector) UnmarshalJSON(data []byte) error {
+	var payload fieldSelectorPayload
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return err
+	}
+
+	normalized := FieldSelector{
+		Attribute:     strings.TrimSpace(payload.Attribute),
+		ExtractionMode: payload.ExtractionMode,
+		Name:          strings.TrimSpace(payload.Name),
+		Required:      payload.Required,
+		SelectorType:  payload.SelectorType,
+		SelectorValue: strings.TrimSpace(payload.SelectorValue),
+		TextMode:      payload.TextMode,
+		Transform:     strings.TrimSpace(payload.Transform),
+	}
+
+	if normalized.SelectorValue == "" && len(payload.Selectors) > 0 {
+		normalized.SelectorValue = strings.TrimSpace(payload.Selectors[0])
+	}
+
+	if len(payload.FallbackSelectors) > 0 {
+		normalized.FallbackSelectors = normalizeSelectorList(payload.FallbackSelectors)
+	} else if len(payload.Selectors) > 1 {
+		normalized.FallbackSelectors = normalizeSelectorList(payload.Selectors[1:])
+	}
+
+	if normalized.SelectorType == "" {
+		switch {
+		case payload.SelectorType == SelectorTypeAttribute:
+			normalized.SelectorType = SelectorTypeAttribute
+		case payload.SelectorType == SelectorTypeText:
+			normalized.SelectorType = SelectorTypeText
+		case normalized.ExtractionMode == ExtractionModeAttribute:
+			normalized.SelectorType = SelectorTypeAttribute
+		default:
+			normalized.SelectorType = SelectorTypeCSS
+		}
+	}
+
+	if normalized.ExtractionMode == "" {
+		if normalized.SelectorType == SelectorTypeAttribute || normalized.Attribute != "" {
+			normalized.ExtractionMode = ExtractionModeAttribute
+		} else {
+			normalized.ExtractionMode = ExtractionModeText
+		}
+	}
+
+	if normalized.TextMode == "" && normalized.ExtractionMode == ExtractionModeText {
+		normalized.TextMode = TextModeInnerText
+	}
+
+	*field = normalized
+	return nil
+}
+
+// MarshalJSON writes the structured selector format used by the redesigned UI.
+func (field FieldSelector) MarshalJSON() ([]byte, error) {
+	payload := fieldSelectorPayload{
+		Attribute:         strings.TrimSpace(field.Attribute),
+		ExtractionMode:    field.ExtractionMode,
+		FallbackSelectors: normalizeSelectorList(field.FallbackSelectors),
+		Name:              strings.TrimSpace(field.Name),
+		Required:          field.Required,
+		SelectorType:      field.SelectorType,
+		SelectorValue:     strings.TrimSpace(field.SelectorValue),
+		TextMode:          field.TextMode,
+		Transform:         strings.TrimSpace(field.Transform),
+	}
+
+	if payload.SelectorType == "" {
+		payload.SelectorType = SelectorTypeCSS
+	}
+	if payload.ExtractionMode == "" {
+		if payload.Attribute != "" || payload.SelectorType == SelectorTypeAttribute {
+			payload.ExtractionMode = ExtractionModeAttribute
+		} else {
+			payload.ExtractionMode = ExtractionModeText
+		}
+	}
+	if payload.TextMode == "" && payload.ExtractionMode == ExtractionModeText {
+		payload.TextMode = TextModeInnerText
+	}
+
+	return json.Marshal(payload)
+}
+
+func normalizeSelectorList(selectors []string) []string {
+	normalized := make([]string, 0, len(selectors))
+	for _, selector := range selectors {
+		trimmed := strings.TrimSpace(selector)
+		if trimmed == "" {
+			continue
+		}
+		normalized = append(normalized, trimmed)
+	}
+	if len(normalized) == 0 {
+		return nil
+	}
+	return normalized
 }
 
 // PropertyExtractionConfig holds the user-defined extraction rules for a property.
@@ -100,7 +247,23 @@ type PropertyPreviewRequest struct {
 
 // PropertyPreviewResult is the output of a one-off extraction preview.
 type PropertyPreviewResult struct {
-	Values   map[string]string `json:"values"`
-	Failures []string          `json:"failures,omitempty"`
-	Success  bool              `json:"success"`
+	Values   map[string]string            `json:"values"`
+	Fields   []PropertyPreviewFieldResult `json:"fields"`
+	Failures []string                     `json:"failures,omitempty"`
+	Success  bool                         `json:"success"`
+}
+
+// PropertyPreviewFieldResult explains what happened for one configured field.
+type PropertyPreviewFieldResult struct {
+	Name           string         `json:"name"`
+	SelectorType   SelectorType   `json:"selector_type"`
+	SelectorValue  string         `json:"selector_value"`
+	ExtractionMode ExtractionMode `json:"extraction_mode"`
+	TextMode       TextMode       `json:"text_mode,omitempty"`
+	MatchedSelector string        `json:"matched_selector,omitempty"`
+	MatchCount     int            `json:"match_count"`
+	UsedFallback   bool           `json:"used_fallback,omitempty"`
+	Value          string         `json:"value,omitempty"`
+	Success        bool           `json:"success"`
+	Message        string         `json:"message,omitempty"`
 }

@@ -98,17 +98,17 @@ The frontend must document and respect the following backend limitations:
 - Listing detail only returns the listing and price history.
 - There are no public aggregate endpoints for comparisons or trend analytics.
 - Source create and update are both handled through the same POST upsert route.
-- Source `config_json` is a raw JSON string field, not a structured schema-driven object.
+- Source `config_json` is still stored as JSON, but the supported shape is now a structured selector object with `fields`.
 - The live event stream is authenticated and unidirectional.
 - Property preview fetches the target URL directly from the backend (no browser rendering); JavaScript-heavy pages may return incomplete HTML.
-- Property snapshots store extracted values as a JSON map of field name → string; numeric conversion happens via `transform: "number"` on the selector.
-- Visual DOM selector (iframe-based click-to-select) is deferred to a later iteration; only manual CSS selector entry is implemented now.
+- Property snapshots store extracted values as a JSON map of field name → string; numeric conversion still happens via `transform: "number"` on the selector.
+- Visual DOM selector (iframe-based click-to-select) is still deferred; the current builder focuses on guided manual CSS/XPath entry with fallbacks and preview feedback.
 
 ## Frontend Consequences
 
 - Map views stay behind a null adapter until backend geospatial data exists.
 - Region and category comparisons stay deferred.
 - Analytics should not be faked from incomplete data.
-- Source editing in iteration 1 should use a raw JSON textarea for advanced config.
+- Source editing should use the structured selector builder and serialize the result back into `config_json`.
 - The frontend must use an authenticated fetch-based SSE client instead of native `EventSource`.
 - Property preview results use the stateless `/api/v1/backoffice/properties/preview` route so no property must exist before previewing.
