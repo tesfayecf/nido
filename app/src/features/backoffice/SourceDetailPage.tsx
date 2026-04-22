@@ -13,6 +13,7 @@ import { previewExtraction } from "@/services/properties/properties.service";
 import type { PropertyPreviewFieldResult } from "@/services/properties/properties.types";
 import {
     buildPreviewFieldMap,
+    createDefaultSelectorDrafts,
     createEmptySelectorDraft,
     draftToSelector,
     parseSelectorConfigJson,
@@ -22,14 +23,8 @@ import {
     type SelectorFieldDraft,
 } from "@/features/selectors/selectorSchema";
 
-const defaultTemplateFields = (): SelectorFieldDraft[] => [
-    { ...createEmptySelectorDraft(), name: "price", required: true },
-    { ...createEmptySelectorDraft(), name: "title" },
-    { ...createEmptySelectorDraft(), name: "location" },
-];
-
 const defaultSourceState = (): Source => ({
-    config_json: stringifySelectorConfigJson(defaultTemplateFields().map(draftToSelector)),
+    config_json: stringifySelectorConfigJson(createDefaultSelectorDrafts().map(draftToSelector)),
     id: "",
     name: "",
 });
@@ -46,7 +41,7 @@ export const SourceDetailPage = (): JSX.Element => {
     });
     const [formState, setFormState] = useState<Source>(defaultSourceState);
     const [previewUrl, setPreviewUrl] = useState("");
-    const [selectorFields, setSelectorFields] = useState<SelectorFieldDraft[]>(defaultTemplateFields);
+    const [selectorFields, setSelectorFields] = useState<SelectorFieldDraft[]>(createDefaultSelectorDrafts);
     const [configError, setConfigError] = useState<string | null>(null);
     const [previewFailures, setPreviewFailures] = useState<string[]>([]);
     const [previewMap, setPreviewMap] = useState<Map<string, PropertyPreviewFieldResult>>(new Map());
@@ -89,10 +84,10 @@ export const SourceDetailPage = (): JSX.Element => {
 
             try {
                 const parsedFields = parseSelectorConfigJson(sourceQuery.data.config_json ?? stringifySelectorConfigJson([]));
-                setSelectorFields(parsedFields.length > 0 ? parsedFields.map(selectorToDraft) : defaultTemplateFields());
+                setSelectorFields(parsedFields.length > 0 ? parsedFields.map(selectorToDraft) : createDefaultSelectorDrafts());
                 setConfigError(null);
             } catch {
-                setSelectorFields(defaultTemplateFields());
+                setSelectorFields(createDefaultSelectorDrafts());
                 setConfigError("This template uses an older format. Please review and re-save the template to convert it to the new selector structure.");
             }
 
@@ -101,7 +96,7 @@ export const SourceDetailPage = (): JSX.Element => {
 
         if (isCreateMode) {
             setFormState(defaultSourceState());
-            setSelectorFields(defaultTemplateFields());
+            setSelectorFields(createDefaultSelectorDrafts());
             setConfigError(null);
         }
     }, [isCreateMode, sourceQuery.data]);

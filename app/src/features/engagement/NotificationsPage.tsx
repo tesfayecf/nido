@@ -27,13 +27,13 @@ export const NotificationsPage = (): JSX.Element => {
     const markReadMutation = useMutation({
         mutationFn: markNotificationRead,
         onSuccess() {
-            void queryClient.invalidateQueries({ queryKey: ["me", "notifications"] });
+            void queryClient.invalidateQueries({ queryKey: notificationKeys.all() });
         },
     });
     const markUnreadMutation = useMutation({
         mutationFn: markNotificationUnread,
         onSuccess() {
-            void queryClient.invalidateQueries({ queryKey: ["me", "notifications"] });
+            void queryClient.invalidateQueries({ queryKey: notificationKeys.all() });
         },
     });
 

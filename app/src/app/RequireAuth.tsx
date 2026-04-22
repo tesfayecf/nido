@@ -1,3 +1,5 @@
+import { useEffect, useRef } from "react";
+
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 
 import { clearAuthenticatedClientState, hasActiveSession } from "@/lib/auth/session";
@@ -13,9 +15,18 @@ export const RequireAuth = (): JSX.Element => {
     const location = useLocation();
     const expiresAt = useSessionStore((state) => state.expiresAt);
     const token = useSessionStore((state) => state.token);
+    const isAuthenticated = hasActiveSession({ expiresAt, token });
+    const previousAuthState = useRef<boolean | null>(null);
 
-    if (!hasActiveSession({ expiresAt, token })) {
-        clearAuthenticatedClientState();
+    useEffect(() => {
+        if (!isAuthenticated && previousAuthState.current !== false) {
+            clearAuthenticatedClientState();
+        }
+
+        previousAuthState.current = isAuthenticated;
+    }, [isAuthenticated]);
+
+    if (!isAuthenticated) {
         const redirect = `${location.pathname}${location.search}`;
         return <Navigate replace to={`/login?redirect=${encodeURIComponent(redirect)}`} />;
     }

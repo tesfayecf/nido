@@ -6,8 +6,6 @@ import (
 )
 
 const (
-	// RuleTypeNewListing is retained only for compatibility with deprecated code paths.
-	RuleTypeNewListing = "new_listing"
 	// RuleTypePriceDrop notifies when a tracked property drops in price.
 	RuleTypePriceDrop = "price_drop"
 	// RuleTypePriceBelow notifies when a tracked property reaches a threshold.
@@ -37,7 +35,7 @@ type BookmarkedProperty struct {
 	URL          string    `json:"url"`
 }
 
-// Watchlist is retained only so deprecated persistence code can still compile.
+// Watchlist stores a saved search definition for the current user.
 type Watchlist struct {
 	ID             string
 	UserID         string

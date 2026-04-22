@@ -137,7 +137,7 @@ func Register(mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, s
 			return
 		}
 
-		items, err := service.ListNotifications(r.Context(), principal.User.ID, parseBool(r.URL.Query().Get("unread_only")), parseLimit(r.URL.Query().Get("limit")))
+		items, err := service.ListNotifications(r.Context(), principal.User.ID, parseBool(r.URL.Query().Get("unread_only")), platformhttp.ParseLimit(r.URL.Query().Get("limit")))
 		if err != nil {
 			platformhttp.WriteError(w, http.StatusInternalServerError, err.Error())
 			return
@@ -180,17 +180,4 @@ func Register(mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, s
 func parseBool(raw string) bool {
 	parsed, _ := strconv.ParseBool(strings.TrimSpace(raw))
 	return parsed
-}
-
-func parseLimit(raw string) int {
-	if strings.TrimSpace(raw) == "" {
-		return 0
-	}
-
-	limit, err := strconv.Atoi(raw)
-	if err != nil {
-		return 0
-	}
-
-	return limit
 }

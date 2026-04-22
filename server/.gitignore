@@ -1,5 +1,6 @@
 .go
 .build
+.install
 
 go.work
 go.work.sum

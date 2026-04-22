@@ -9,15 +9,18 @@ import { PageCard } from "@/components/ui/PageCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { alertRuleKeys } from "@/services/alert-rules/alert-rules.keys";
 import { listAlertRules } from "@/services/alert-rules/alert-rules.service";
+import { runKeys } from "@/services/backoffice-runs/runs.keys";
 import { sourceKeys } from "@/services/backoffice-sources/sources.keys";
 import { listSources } from "@/services/backoffice-sources/sources.service";
 import { bookmarkKeys } from "@/services/bookmarks/bookmarks.keys";
 import { createBookmark, deleteBookmark, listBookmarks } from "@/services/bookmarks/bookmarks.service";
 import { readNonNegativeNumber } from "@/lib/forms/number";
 import { formatDateTime } from "@/lib/format/date";
+import { notificationKeys } from "@/services/notifications/notifications.keys";
 import { propertyKeys } from "@/services/properties/properties.keys";
 import {
     buildPreviewFieldMap,
+    createDefaultSelectorDrafts,
     createEmptySelectorDraft,
     draftToSelector,
     selectorToDraft,
@@ -36,12 +39,6 @@ import {
 } from "@/services/properties/properties.service";
 import type { PropertyPreviewFieldResult } from "@/services/properties/properties.types";
 
-const defaultFieldRows = (): SelectorFieldDraft[] => [
-    { ...createEmptySelectorDraft(), name: "price", required: true },
-    { ...createEmptySelectorDraft(), name: "title" },
-    { ...createEmptySelectorDraft(), name: "location" },
-];
-
 export const PropertyDetailPage = (): JSX.Element => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
@@ -55,7 +52,7 @@ export const PropertyDetailPage = (): JSX.Element => {
     const [scheduleInterval, setScheduleInterval] = useState(0);
     const [retryMaxAttempts, setRetryMaxAttempts] = useState(1);
     const [retryBackoffMillis, setRetryBackoffMillis] = useState(500);
-    const [fieldRows, setFieldRows] = useState<SelectorFieldDraft[]>(defaultFieldRows);
+    const [fieldRows, setFieldRows] = useState<SelectorFieldDraft[]>(createDefaultSelectorDrafts);
     const [previewValues, setPreviewValues] = useState<Record<string, string>>({});
     const [previewMap, setPreviewMap] = useState<Map<string, PropertyPreviewFieldResult>>(new Map());
     const [previewFailures, setPreviewFailures] = useState<string[]>([]);
@@ -167,8 +164,8 @@ export const PropertyDetailPage = (): JSX.Element => {
         onSuccess() {
             void queryClient.invalidateQueries({ queryKey: propertyKeys.detail(resolvedId) });
             void queryClient.invalidateQueries({ queryKey: propertyKeys.snapshots(resolvedId) });
-            void queryClient.invalidateQueries({ queryKey: ["backoffice", "runs"] });
-            void queryClient.invalidateQueries({ queryKey: ["me", "notifications"] });
+            void queryClient.invalidateQueries({ queryKey: runKeys.all() });
+            void queryClient.invalidateQueries({ queryKey: notificationKeys.all() });
         },
     });
     const bookmarkMutation = useMutation({
