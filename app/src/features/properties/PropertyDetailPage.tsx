@@ -228,7 +228,7 @@ export const PropertyDetailPage = (): JSX.Element => {
     }, [alertsQuery.data, resolvedId]);
     const isBookmarked = (bookmarksQuery.data ?? []).some((item) => item.property_id === resolvedId);
     const validationMessages = useMemo(() => validateSelectorDrafts(fieldRows), [fieldRows]);
-    const currentValueRows = useMemo(() => {
+    const extractedValueRows = useMemo(() => {
         return Object.entries(latestSnapshot?.values ?? {}).map(([field, value]) => ({ field, value }));
     }, [latestSnapshot?.values]);
     const recentRuns = snapshotsQuery.data ?? [];
@@ -376,7 +376,7 @@ export const PropertyDetailPage = (): JSX.Element => {
                                 compact
                                 emptyMessage={"No extracted values are available for the latest run."}
                                 getRowId={(item) => item.field}
-                                items={currentValueRows}
+                                items={extractedValueRows}
                                 pageSize={8}
                             />
                         </>

@@ -132,7 +132,7 @@ func (s *Store) GetSource(ctx context.Context, sourceID string) (ingestiondomain
 func (s *Store) DeleteSource(ctx context.Context, sourceID string) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("begin source delete transaction: %w", err)
+		return fmt.Errorf("begin transaction for source deletion: %w", err)
 	}
 	defer func() {
 		_ = tx.Rollback()
