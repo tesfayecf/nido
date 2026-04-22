@@ -33,7 +33,7 @@ export const hasActiveSession = (session: SessionSnapshot, now: number = Date.no
 export const clearAuthenticatedClientState = (): void => {
     useSessionStore.getState().clearSession();
     useLiveEventsStore.setState({ connectionState: "closed", items: [] });
-    useShellStore.setState({ liveRailOpen: true, navOpen: true });
+    useShellStore.setState({ navOpen: true });
 };
 
 /**

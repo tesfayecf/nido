@@ -102,6 +102,12 @@ export const createEmptySelectorDraft = (): SelectorFieldDraft => ({
     transform: "",
 });
 
+export const createDefaultSelectorDrafts = (): SelectorFieldDraft[] => [
+    { ...createEmptySelectorDraft(), name: "price", required: true },
+    { ...createEmptySelectorDraft(), name: "title" },
+    { ...createEmptySelectorDraft(), name: "location" },
+];
+
 export const selectorToDraft = (selector: FieldSelector): SelectorFieldDraft => ({
     attribute: selector.attribute ?? "",
     extractionMode: selector.extraction_mode,

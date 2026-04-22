@@ -8,6 +8,7 @@ import { AsyncContent } from "@/components/ui/AsyncContent";
 import { PageCard } from "@/components/ui/PageCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { formatDateTime } from "@/lib/format/date";
+import { runKeys } from "@/services/backoffice-runs/runs.keys";
 import { sourceKeys } from "@/services/backoffice-sources/sources.keys";
 import { listSources } from "@/services/backoffice-sources/sources.service";
 import { bookmarkKeys } from "@/services/bookmarks/bookmarks.keys";
@@ -49,7 +50,7 @@ export const PropertiesPage = (): JSX.Element => {
         mutationFn: ({ propertyId }: { propertyId: string; }) => ingestProperty(propertyId),
         onSuccess() {
             void queryClient.invalidateQueries({ queryKey: propertyKeys.list() });
-            void queryClient.invalidateQueries({ queryKey: ["backoffice", "runs"] });
+            void queryClient.invalidateQueries({ queryKey: runKeys.all() });
         },
     });
     const bookmarkMutation = useMutation({

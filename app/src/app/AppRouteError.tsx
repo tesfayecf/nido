@@ -24,7 +24,7 @@ export const AppRouteError = (): JSX.Element => {
     return (
         <div className={"page-stack"}>
             <PageCard
-                action={<Link className={"button button--secondary"} to={"/listings"}>{"Back to listings"}</Link>}
+                action={<Link className={"button button--secondary"} to={"/properties"}>{"Back to properties"}</Link>}
                 description={description}
                 title={title}
             >

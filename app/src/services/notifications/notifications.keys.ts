@@ -1,8 +1,11 @@
 import type { NotificationFilters } from "@/services/notifications/notifications.types";
 
+const notificationsRoot = ["me", "notifications"] as const;
+
 /**
  * Defines stable query keys for notification data.
  */
 export const notificationKeys = {
-    list: (filters: NotificationFilters) => ["me", "notifications", filters] as const,
+    all: () => notificationsRoot,
+    list: (filters: NotificationFilters) => [...notificationsRoot, filters] as const,
 };
