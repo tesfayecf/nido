@@ -65,17 +65,22 @@ describe("SourceDetailPage", () => {
 
     it("keeps manual source fields editable in create mode", async () => {
         renderSourceDetailPage(["/sources/new"]);
+        const firstFieldName = screen.getAllByLabelText("Field name").at(0);
+        const firstPrimarySelector = screen.getAllByLabelText("Primary selector").at(0);
+
+        expect(firstFieldName).toBeDefined();
+        expect(firstPrimarySelector).toBeDefined();
 
         fireEvent.change(screen.getByLabelText("Template id"), { target: { value: "idealista-template" } });
         fireEvent.change(screen.getByLabelText("Template name"), { target: { value: "Idealista Template" } });
-        fireEvent.change(screen.getAllByLabelText("Field name")[0], { target: { value: "salePrice" } });
-        fireEvent.change(screen.getAllByLabelText("Primary selector")[0], { target: { value: ".price" } });
+        fireEvent.change(firstFieldName as HTMLElement, { target: { value: "salePrice" } });
+        fireEvent.change(firstPrimarySelector as HTMLElement, { target: { value: ".price" } });
 
         await waitFor(() => {
             expect(screen.getByLabelText("Template id")).toHaveValue("idealista-template");
             expect(screen.getByLabelText("Template name")).toHaveValue("Idealista Template");
-            expect(screen.getAllByLabelText("Field name")[0]).toHaveValue("salePrice");
-            expect(screen.getAllByLabelText("Primary selector")[0]).toHaveValue(".price");
+            expect(firstFieldName).toHaveValue("salePrice");
+            expect(firstPrimarySelector).toHaveValue(".price");
         });
     });
 });

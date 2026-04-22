@@ -80,14 +80,14 @@ func (field *FieldSelector) UnmarshalJSON(data []byte) error {
 	}
 
 	normalized := FieldSelector{
-		Attribute:     strings.TrimSpace(payload.Attribute),
+		Attribute:      strings.TrimSpace(payload.Attribute),
 		ExtractionMode: payload.ExtractionMode,
-		Name:          strings.TrimSpace(payload.Name),
-		Required:      payload.Required,
-		SelectorType:  payload.SelectorType,
-		SelectorValue: strings.TrimSpace(payload.SelectorValue),
-		TextMode:      payload.TextMode,
-		Transform:     strings.TrimSpace(payload.Transform),
+		Name:           strings.TrimSpace(payload.Name),
+		Required:       payload.Required,
+		SelectorType:   payload.SelectorType,
+		SelectorValue:  strings.TrimSpace(payload.SelectorValue),
+		TextMode:       payload.TextMode,
+		Transform:      strings.TrimSpace(payload.Transform),
 	}
 
 	if normalized.SelectorValue == "" && len(payload.Selectors) > 0 {
@@ -255,15 +255,15 @@ type PropertyPreviewResult struct {
 
 // PropertyPreviewFieldResult explains what happened for one configured field.
 type PropertyPreviewFieldResult struct {
-	Name           string         `json:"name"`
-	SelectorType   SelectorType   `json:"selector_type"`
-	SelectorValue  string         `json:"selector_value"`
-	ExtractionMode ExtractionMode `json:"extraction_mode"`
-	TextMode       TextMode       `json:"text_mode,omitempty"`
-	MatchedSelector string        `json:"matched_selector,omitempty"`
-	MatchCount     int            `json:"match_count"`
-	UsedFallback   bool           `json:"used_fallback,omitempty"`
-	Value          string         `json:"value,omitempty"`
-	Success        bool           `json:"success"`
-	Message        string         `json:"message,omitempty"`
+	Name            string         `json:"name"`
+	SelectorType    SelectorType   `json:"selector_type"`
+	SelectorValue   string         `json:"selector_value"`
+	ExtractionMode  ExtractionMode `json:"extraction_mode"`
+	TextMode        TextMode       `json:"text_mode,omitempty"`
+	MatchedSelector string         `json:"matched_selector,omitempty"`
+	MatchCount      int            `json:"match_count"`
+	UsedFallback    bool           `json:"used_fallback,omitempty"`
+	Value           string         `json:"value,omitempty"`
+	Success         bool           `json:"success"`
+	Message         string         `json:"message,omitempty"`
 }

@@ -171,9 +171,7 @@ export const SourceDetailPage = (): JSX.Element => {
             </PageCard>
 
             <PageCard description={"Preview results update the field cards above so you can see what is ready and what needs attention."} title={"Validation"}>
-                {previewFailures.length === 0 ? (
-                    <p className={"muted-copy"}>{"Preview a page to verify that each field finds the right value."}</p>
-                ) : (
+                {previewFailures.length === 0 ? <p className={"muted-copy"}>{"Preview a page to verify that each field finds the right value."}</p> : (
                     <div className={"selector-builder__validation-list"}>
                         {previewFailures.map((failure) => <p className={"error-banner"} key={failure}>{failure}</p>)}
                     </div>

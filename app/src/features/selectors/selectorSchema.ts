@@ -162,6 +162,7 @@ export const validateSelectorDrafts = (drafts: SelectorFieldDraft[]): string[] =
         if (names.has(fieldName)) {
             messages.push(`Field "${fieldName}" is listed more than once.`);
         }
+
         names.add(fieldName);
 
         if (draft.selectorValue.trim() === "") {

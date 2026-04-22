@@ -9,7 +9,7 @@ interface SelectorBuilderProps {
     readonly previewByFieldName?: Map<string, PropertyPreviewFieldResult>;
 }
 
-const SELECTOR_TYPE_OPTIONS: Array<{ description: string; label: string; value: SelectorType; }> = [
+const SELECTOR_TYPE_OPTIONS: { description: string; label: string; value: SelectorType; }[] = [
     { description: "Best for classes, ids, and page structure.", label: "CSS", value: "css" },
     { description: "Use a CSS selector and read a named attribute like href or src.", label: "Attribute", value: "attribute" },
     { description: "Advanced mode for XPath selectors.", label: "XPath", value: "xpath" },
@@ -135,9 +135,9 @@ export const SelectorBuilder = ({ fields, onChange, previewByFieldName }: Select
                                         }}
                                         value={field.selectorType}
                                     >
-                                        {SELECTOR_TYPE_OPTIONS.map((option) => (
-                                            <option key={option.value} value={option.value}>{option.label}</option>
-                                        ))}
+                                        {SELECTOR_TYPE_OPTIONS.map((option) => {
+                                            return <option key={option.value} value={option.value}>{option.label}</option>;
+                                        })}
                                     </select>
                                     <p className={"field__hint"}>
                                         {SELECTOR_TYPE_OPTIONS.find((option) => option.value === field.selectorType)?.description}
@@ -213,9 +213,9 @@ export const SelectorBuilder = ({ fields, onChange, previewByFieldName }: Select
                                         onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { transform: event.target.value })); }}
                                         value={field.transform}
                                     >
-                                        {TRANSFORM_OPTIONS.map((option) => (
-                                            <option key={option.value} value={option.value}>{option.label}</option>
-                                        ))}
+                                        {TRANSFORM_OPTIONS.map((option) => {
+                                            return <option key={option.value} value={option.value}>{option.label}</option>;
+                                        })}
                                     </select>
                                 </label>
                             </div>

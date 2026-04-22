@@ -650,6 +650,13 @@ func normalizeConfiguredFields(fields []ingestiondomain.FieldSelector) ([]ingest
 		if field.SelectorValue == "" {
 			return nil, fmt.Errorf("field %q must include a selector", field.Name)
 		}
+		if field.SelectorType == "" {
+			if field.ExtractionMode == ingestiondomain.ExtractionModeAttribute || field.Attribute != "" {
+				field.SelectorType = ingestiondomain.SelectorTypeAttribute
+			} else {
+				field.SelectorType = ingestiondomain.SelectorTypeCSS
+			}
+		}
 
 		switch resolveSelectorStrategy(field.SelectorType) {
 		case ingestiondomain.SelectorTypeCSS, ingestiondomain.SelectorTypeXPath:
