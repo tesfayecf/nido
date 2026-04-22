@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/http/cookiejar"
 	"net/url"
 	"strings"
 	"sync"
@@ -36,6 +37,9 @@ type HTTPClient struct {
 	domainMetrics map[string]*domainTelemetry
 	proxyMetrics  map[string]*proxyTelemetry
 	buffers       sync.Pool
+
+	requestGapMu  sync.Mutex
+	lastRequestAt map[string]time.Time
 }
 
 // New constructs a shared fetcher client.
@@ -46,9 +50,11 @@ func New(cfg Config, renderer browser.Renderer) *HTTPClient {
 		if timeout <= 0 {
 			timeout = 20 * time.Second
 		}
+		jar, _ := cookiejar.New(nil)
 		resolvedClient = &http.Client{
 			Timeout:   timeout,
 			Transport: newTransport(cfg),
+			Jar:       jar,
 		}
 	}
 
@@ -67,6 +73,7 @@ func New(cfg Config, renderer browser.Renderer) *HTTPClient {
 		breakers:      make(map[string]*gobreaker.CircuitBreaker),
 		domainMetrics: make(map[string]*domainTelemetry),
 		proxyMetrics:  make(map[string]*proxyTelemetry),
+		lastRequestAt: make(map[string]time.Time),
 		buffers: sync.Pool{New: func() any {
 			return bytes.NewBuffer(make([]byte, 0, 32*1024))
 		}},
@@ -79,28 +86,16 @@ func (c *HTTPClient) Fetch(ctx context.Context, request Request) (Response, erro
 	profile := profileFor(c.profiles, request.SessionKey)
 	startedAt := time.Now()
 
+	if err := c.waitForDomainGap(ctx, domain); err != nil {
+		c.recordTelemetry(domain, c.proxyProvider, time.Since(startedAt), 0, false)
+		return Response{}, err
+	}
+
 	if request.BrowserEnabled {
-		if c.renderer == nil {
-			err := engine.Fatal(fmt.Errorf("browser rendering is not configured for %q", request.URL))
+		response, err := c.renderPage(ctx, request.URL, request.DefaultContentType, domain, startedAt)
+		if err != nil {
 			c.recordTelemetry(domain, c.proxyProvider, time.Since(startedAt), 0, false)
 			return Response{}, err
-		}
-
-		payload, err := c.renderer.Render(ctx, request.URL)
-		if err != nil {
-			classified := c.classifyTransportError(ctx, fmt.Errorf("render source payload: %w", err))
-			c.recordTelemetry(domain, c.proxyProvider, time.Since(startedAt), 0, false)
-			return Response{}, classified
-		}
-
-		response := Response{
-			Payload:        payload,
-			ContentType:    defaultContentType("text/html; charset=utf-8", request.DefaultContentType),
-			FetchedAt:      time.Now().UTC(),
-			BytesProcessed: len(payload),
-			Domain:         domain,
-			ProxyProvider:  c.proxyProvider,
-			Latency:        time.Since(startedAt),
 		}
 		c.recordTelemetry(domain, c.proxyProvider, response.Latency, response.BytesProcessed, true)
 		return response, nil
@@ -108,7 +103,17 @@ func (c *HTTPClient) Fetch(ctx context.Context, request Request) (Response, erro
 
 	breaker := c.breaker(domain)
 	result, err := breaker.Execute(func() (any, error) {
-		return c.fetchHTTP(ctx, request, domain, profile, startedAt)
+		response, err := c.fetchHTTP(ctx, request, domain, profile, startedAt)
+		if err == nil {
+			return response, nil
+		}
+
+		var challengeErr *antiBotChallengeError
+		if request.BrowserFallbackOnChallenge && c.renderer != nil && errorsAs(err, &challengeErr) {
+			return c.renderPage(ctx, request.URL, request.DefaultContentType, domain, startedAt)
+		}
+
+		return Response{}, err
 	})
 	if err != nil {
 		classified := c.classifyCircuitError(err)
@@ -119,6 +124,30 @@ func (c *HTTPClient) Fetch(ctx context.Context, request Request) (Response, erro
 	response := result.(Response)
 	c.recordTelemetry(domain, response.ProxyProvider, response.Latency, response.BytesProcessed, true)
 	return response, nil
+}
+
+func (c *HTTPClient) renderPage(ctx context.Context, requestURL, defaultType, domain string, startedAt time.Time) (Response, error) {
+	if c.renderer == nil {
+		return Response{}, engine.Fatal(fmt.Errorf("browser rendering is not configured for %q", requestURL))
+	}
+
+	payload, err := c.renderer.Render(ctx, requestURL)
+	if err != nil {
+		return Response{}, c.classifyTransportError(ctx, fmt.Errorf("render source payload: %w", err))
+	}
+	if marker := detectAntiBotChallenge(payload); marker != "" {
+		return Response{}, engine.Retryable(&antiBotChallengeError{marker: marker, via: "browser"})
+	}
+
+	return Response{
+		Payload:        payload,
+		ContentType:    defaultContentType("text/html; charset=utf-8", defaultType),
+		FetchedAt:      time.Now().UTC(),
+		BytesProcessed: len(payload),
+		Domain:         domain,
+		ProxyProvider:  c.proxyProvider,
+		Latency:        time.Since(startedAt),
+	}, nil
 }
 
 func (c *HTTPClient) fetchHTTP(ctx context.Context, request Request, domain string, profile SessionProfile, startedAt time.Time) (Response, error) {
@@ -144,6 +173,24 @@ func (c *HTTPClient) fetchHTTP(ctx context.Context, request Request, domain stri
 		httpRequest.Header.Set("Sec-CH-UA", profile.SecCHUA)
 		httpRequest.Header.Set("Sec-CH-UA-Mobile", "?0")
 	}
+	if profile.SecCHUAPlatform != "" {
+		httpRequest.Header.Set("Sec-CH-UA-Platform", profile.SecCHUAPlatform)
+	}
+	if profile.SecFetchDest != "" {
+		httpRequest.Header.Set("Sec-Fetch-Dest", profile.SecFetchDest)
+	}
+	if profile.SecFetchMode != "" {
+		httpRequest.Header.Set("Sec-Fetch-Mode", profile.SecFetchMode)
+	}
+	if profile.SecFetchSite != "" {
+		httpRequest.Header.Set("Sec-Fetch-Site", profile.SecFetchSite)
+	}
+	if profile.SecFetchMode == "navigate" {
+		httpRequest.Header.Set("Sec-Fetch-User", "?1")
+	}
+	if profile.UpgradeInsecureRequests != "" {
+		httpRequest.Header.Set("Upgrade-Insecure-Requests", profile.UpgradeInsecureRequests)
+	}
 	for name, value := range request.Headers {
 		trimmedName := strings.TrimSpace(name)
 		trimmedValue := strings.TrimSpace(value)
@@ -167,6 +214,9 @@ func (c *HTTPClient) fetchHTTP(ctx context.Context, request Request, domain stri
 	if err != nil {
 		return Response{}, c.classifyTransportError(ctx, fmt.Errorf("read source payload: %w", err))
 	}
+	if marker := detectAntiBotChallenge(payload); marker != "" {
+		return Response{}, engine.Retryable(&antiBotChallengeError{marker: marker, via: "http"})
+	}
 
 	return Response{
 		Payload:        payload,
@@ -177,6 +227,45 @@ func (c *HTTPClient) fetchHTTP(ctx context.Context, request Request, domain stri
 		ProxyProvider:  c.proxyProvider,
 		Latency:        time.Since(startedAt),
 	}, nil
+}
+
+func (c *HTTPClient) waitForDomainGap(ctx context.Context, domain string) error {
+	if c.config.MinRequestGap <= 0 {
+		return nil
+	}
+
+	resolvedDomain := strings.TrimSpace(domain)
+	if resolvedDomain == "" {
+		resolvedDomain = "unknown"
+	}
+
+	now := time.Now()
+	reservedAt := now
+
+	c.requestGapMu.Lock()
+	if last, ok := c.lastRequestAt[resolvedDomain]; ok {
+		next := last.Add(c.config.MinRequestGap)
+		if next.After(reservedAt) {
+			reservedAt = next
+		}
+	}
+	c.lastRequestAt[resolvedDomain] = reservedAt
+	c.requestGapMu.Unlock()
+
+	delay := time.Until(reservedAt)
+	if delay <= 0 {
+		return nil
+	}
+
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+
+	select {
+	case <-ctx.Done():
+		return engine.Fatal(ctx.Err())
+	case <-timer.C:
+		return nil
+	}
 }
 
 func (c *HTTPClient) breaker(domain string) *gobreaker.CircuitBreaker {

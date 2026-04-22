@@ -55,6 +55,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Runtime,
 		Timeout:         cfg.Fetcher.Timeout,
 		ProxyProvider:   cfg.Fetcher.ProxyProvider,
 		TLSProfile:      cfg.Fetcher.TLSProfile,
+		MinRequestGap:   cfg.Fetcher.MinRequestGap,
 		BreakerInterval: cfg.Fetcher.BreakerInterval,
 		BreakerTimeout:  cfg.Fetcher.BreakerTimeout,
 	}, renderer)

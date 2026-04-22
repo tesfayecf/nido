@@ -36,11 +36,12 @@ func (c *Connector) Kind() string {
 // Fetch retrieves a source page over HTTP or through the optional browser renderer.
 func (c *Connector) Fetch(ctx context.Context, source domain.Source) (app.FetchResult, error) {
 	response, err := c.fetcher.Fetch(ctx, fetcher.Request{
-		URL:                source.EndpointURL,
-		Accept:             "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-		DefaultContentType: "text/html; charset=utf-8",
-		BrowserEnabled:     source.BrowserEnabled,
-		SessionKey:         source.ID,
+		URL:                        source.EndpointURL,
+		Accept:                     "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+		DefaultContentType:         "text/html; charset=utf-8",
+		BrowserEnabled:             source.BrowserEnabled,
+		BrowserFallbackOnChallenge: true,
+		SessionKey:                 source.ID,
 	})
 	if err != nil {
 		return app.FetchResult{}, err

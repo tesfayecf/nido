@@ -2,10 +2,12 @@ package application
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
 
+	"home-searcher/server/internal/engine"
 	"home-searcher/server/internal/fetcher"
 	ingestiondomain "home-searcher/server/internal/ingestion/domain"
 )
@@ -279,10 +281,7 @@ func TestPreviewExtractionRejectsAntiBotChallengePages(t *testing.T) {
 	t.Parallel()
 
 	client := &stubFetchClient{
-		response: fetcher.Response{
-			Payload:   []byte(`<html><head><title>Pardon Our Interruption</title></head><body><h1>Pardon Our Interruption</h1></body></html>`),
-			FetchedAt: time.Now().UTC(),
-		},
+		err: engine.Retryable(errors.New(`portal returned an anti-bot challenge page via http (matched "pardon our interruption")`)),
 	}
 	service := NewPropertyService(nil, nil, client, nil, nil, nil)
 
