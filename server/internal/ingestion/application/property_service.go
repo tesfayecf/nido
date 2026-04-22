@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
@@ -25,6 +26,8 @@ import (
 
 // ErrPropertyNotFound indicates that the requested property does not exist.
 var ErrPropertyNotFound = errors.New("property not found")
+
+var xpathSelectorPattern = regexp.MustCompile(`^/{1,2}[-@\[\]\w\s="'._:*]+$`)
 
 // PropertyStore defines the persistence contract required by PropertyService.
 type PropertyStore interface {
@@ -580,6 +583,9 @@ func querySelectorNodes(document *goquery.Document, rootNode *html.Node, field i
 		})
 		return nodes, nil
 	case ingestiondomain.SelectorTypeXPath:
+		if err := validateXPathSelector(trimmedSelector); err != nil {
+			return nil, err
+		}
 		nodes, err := htmlquery.QueryAll(rootNode, trimmedSelector)
 		if err != nil {
 			return nil, fmt.Errorf("invalid XPath selector")
@@ -638,7 +644,7 @@ func normalizeConfiguredFields(fields []ingestiondomain.FieldSelector) ([]ingest
 		field.SelectorValue = strings.TrimSpace(field.SelectorValue)
 		field.Attribute = strings.TrimSpace(field.Attribute)
 		field.Transform = strings.TrimSpace(field.Transform)
-		field.FallbackSelectors = normalizeSelectorList(field.FallbackSelectors)
+		field.FallbackSelectors = ingestiondomain.NormalizeSelectorList(field.FallbackSelectors)
 
 		if field.Name == "" {
 			return nil, fmt.Errorf("field name is required")
@@ -662,6 +668,16 @@ func normalizeConfiguredFields(fields []ingestiondomain.FieldSelector) ([]ingest
 		case ingestiondomain.SelectorTypeCSS, ingestiondomain.SelectorTypeXPath:
 		default:
 			return nil, fmt.Errorf("field %q uses an unsupported selector type", field.Name)
+		}
+		if field.SelectorType == ingestiondomain.SelectorTypeXPath {
+			if err := validateXPathSelector(field.SelectorValue); err != nil {
+				return nil, fmt.Errorf("field %q %w", field.Name, err)
+			}
+			for _, fallbackSelector := range field.FallbackSelectors {
+				if err := validateXPathSelector(fallbackSelector); err != nil {
+					return nil, fmt.Errorf("field %q %w", field.Name, err)
+				}
+			}
 		}
 
 		if field.ExtractionMode == "" {
@@ -689,19 +705,18 @@ func normalizeConfiguredFields(fields []ingestiondomain.FieldSelector) ([]ingest
 	return normalized, nil
 }
 
-func normalizeSelectorList(selectors []string) []string {
-	normalized := make([]string, 0, len(selectors))
-	for _, selector := range selectors {
-		trimmed := strings.TrimSpace(selector)
-		if trimmed == "" {
-			continue
-		}
-		normalized = append(normalized, trimmed)
+func validateXPathSelector(selector string) error {
+	trimmedSelector := strings.TrimSpace(selector)
+	if trimmedSelector == "" {
+		return fmt.Errorf("needs a valid XPath selector")
 	}
-	if len(normalized) == 0 {
-		return nil
+	if strings.ContainsAny(trimmedSelector, "()|$;\\") {
+		return fmt.Errorf("uses unsupported XPath syntax")
 	}
-	return normalized
+	if !xpathSelectorPattern.MatchString(trimmedSelector) {
+		return fmt.Errorf("uses unsupported XPath syntax")
+	}
+	return nil
 }
 
 func normalizeNumberString(value string) string {

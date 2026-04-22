@@ -93,7 +93,7 @@ export const SourceDetailPage = (): JSX.Element => {
                 setConfigError(null);
             } catch {
                 setSelectorFields(defaultTemplateFields());
-                setConfigError("This template uses an older format that cannot be shown here yet. Save it again after reviewing the fields below to convert it to the new selector structure.");
+                setConfigError("This template uses an older format. Please review and re-save the template to convert it to the new selector structure.");
             }
 
             return;

@@ -95,9 +95,9 @@ func (field *FieldSelector) UnmarshalJSON(data []byte) error {
 	}
 
 	if len(payload.FallbackSelectors) > 0 {
-		normalized.FallbackSelectors = normalizeSelectorList(payload.FallbackSelectors)
+		normalized.FallbackSelectors = NormalizeSelectorList(payload.FallbackSelectors)
 	} else if len(payload.Selectors) > 1 {
-		normalized.FallbackSelectors = normalizeSelectorList(payload.Selectors[1:])
+		normalized.FallbackSelectors = NormalizeSelectorList(payload.Selectors[1:])
 	}
 
 	if normalized.SelectorType == "" {
@@ -134,7 +134,7 @@ func (field FieldSelector) MarshalJSON() ([]byte, error) {
 	payload := fieldSelectorPayload{
 		Attribute:         strings.TrimSpace(field.Attribute),
 		ExtractionMode:    field.ExtractionMode,
-		FallbackSelectors: normalizeSelectorList(field.FallbackSelectors),
+		FallbackSelectors: NormalizeSelectorList(field.FallbackSelectors),
 		Name:              strings.TrimSpace(field.Name),
 		Required:          field.Required,
 		SelectorType:      field.SelectorType,
@@ -160,7 +160,8 @@ func (field FieldSelector) MarshalJSON() ([]byte, error) {
 	return json.Marshal(payload)
 }
 
-func normalizeSelectorList(selectors []string) []string {
+// NormalizeSelectorList trims selectors and removes empty entries.
+func NormalizeSelectorList(selectors []string) []string {
 	normalized := make([]string, 0, len(selectors))
 	for _, selector := range selectors {
 		trimmed := strings.TrimSpace(selector)

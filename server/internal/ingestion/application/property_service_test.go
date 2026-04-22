@@ -110,3 +110,19 @@ func TestNormalizeConfiguredFieldsSupportsLegacySelectorShape(t *testing.T) {
 		t.Fatalf("expected text extraction mode, got %q", fields[0].ExtractionMode)
 	}
 }
+
+func TestNormalizeConfiguredFieldsRejectsUnsupportedXPathSyntax(t *testing.T) {
+	t.Parallel()
+
+	_, err := normalizeConfiguredFields([]ingestiondomain.FieldSelector{
+		{
+			Name:           "price",
+			SelectorType:   ingestiondomain.SelectorTypeXPath,
+			SelectorValue:  "//span[contains(@class,'price')]",
+			ExtractionMode: ingestiondomain.ExtractionModeText,
+		},
+	})
+	if err == nil {
+		t.Fatal("expected xpath validation error")
+	}
+}
