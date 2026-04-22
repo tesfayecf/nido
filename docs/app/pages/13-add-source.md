@@ -1,36 +1,31 @@
-# Register Source
+# Create Template
 
 ## Purpose
-Create a new ingestion source using a raw backend-compatible payload editor.
+Create a reusable source template with the guided selector builder.
 
 ## Screenshot
-![Register source form](../assets/add-source.png)
+![Create template form](../assets/add-source.png)
 
 ## UI Elements
-### Element: Preset selector
-- Type: selector
-- Description: Seeds kind, browser mode, and starter config for common source types.
-- Behavior: Leaves id, name, and endpoint editable.
-
-### Element: Source identity fields
+### Element: Template identity fields
 - Type: inputs
-- Description: Capture id, name, kind, and endpoint URL.
-- Behavior: Define the persisted source record.
+- Description: Capture the template id, template name, and an optional preview URL.
+- Behavior: Define the reusable template record and optional preview target.
 
-### Element: Policy fields
-- Type: checkbox and numeric inputs
-- Description: Control active state, browser rendering, rate limits, retries, schedules, and freshness windows.
-- Behavior: Save directly to the source payload.
+### Element: Selector builder
+- Type: structured form
+- Description: Starts with common fields and explains selector type, extraction mode, fallback selectors, and required state in plain language.
+- Behavior: Adds, removes, and edits typed selector fields without exposing raw JSON.
 
-### Element: Config JSON
-- Type: textarea
-- Description: Holds source-specific connector configuration.
-- Behavior: Accepts raw JSON sent to the backend.
+### Element: Validation
+- Type: status panel
+- Description: Shows readiness notes before the template is saved or previewed.
+- Behavior: Keeps required selector details visible and blocks save actions until the builder is complete.
 
 ## User Actions
-- Select a preset → Default kind and config values update.
-- Fill the editor and submit → The source is created and opened in detail mode.
-- Leave required fields incomplete → Backend validation returns an error.
+- Fill the identity fields and selector cards → The template becomes ready to save.
+- Add or remove fields → The template structure updates immediately.
+- Leave required selector details incomplete → Inline validation explains what still needs attention.
 
 ## Navigation
 - Previous: [Sources](./12-sources.md)
