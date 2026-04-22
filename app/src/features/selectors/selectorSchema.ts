@@ -135,8 +135,13 @@ export const parseSelectorConfigJson = (configJson?: string): FieldSelector[] =>
         return [];
     }
 
-    const parsed = JSON.parse(configJson ?? "[]") as LegacyFieldSelector[] | { fields?: LegacyFieldSelector[]; };
-    const fields = Array.isArray(parsed) ? parsed : parsed.fields ?? [];
+    const parsed = JSON.parse(configJson ?? "[]") as unknown;
+    const fields = Array.isArray(parsed)
+        ? parsed
+        : typeof parsed === "object" && parsed !== null && Array.isArray((parsed as { fields?: unknown; }).fields)
+            ? (parsed as { fields: unknown[]; }).fields
+            : [];
+
     return fields.map(normalizeFieldSelector);
 };
 

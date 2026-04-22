@@ -102,10 +102,8 @@ func (field *FieldSelector) UnmarshalJSON(data []byte) error {
 
 	if normalized.SelectorType == "" {
 		switch {
-		case payload.SelectorType == SelectorTypeAttribute:
-			normalized.SelectorType = SelectorTypeAttribute
-		case payload.SelectorType == SelectorTypeText:
-			normalized.SelectorType = SelectorTypeText
+		case payload.SelectorType != "":
+			normalized.SelectorType = payload.SelectorType
 		case normalized.ExtractionMode == ExtractionModeAttribute:
 			normalized.SelectorType = SelectorTypeAttribute
 		default:

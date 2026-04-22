@@ -149,7 +149,7 @@ export const SelectorBuilder = ({ fields, onChange, previewByFieldName }: Select
                                     <input
                                         className={"field__control"}
                                         onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { selectorValue: event.target.value })); }}
-                                        placeholder={field.selectorType === "xpath" ? "//span[@class='price']" : ".price"}
+                                        placeholder={field.selectorType === "xpath" ? "//span[@data-price]" : ".price"}
                                         type={"text"}
                                         value={field.selectorValue}
                                     />
