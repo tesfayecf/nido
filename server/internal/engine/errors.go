@@ -77,7 +77,7 @@ func IsRetryable(err error) bool {
 // ClassifyHTTPStatus classifies HTTP status codes into retry buckets.
 func ClassifyHTTPStatus(statusCode int) FailureClass {
 	switch {
-	case statusCode == 408, statusCode == 425, statusCode == 429, statusCode == 503:
+	case statusCode == 403, statusCode == 408, statusCode == 425, statusCode == 429, statusCode == 503:
 		return FailureRetryable
 	case statusCode >= 500:
 		return FailureRetryable

@@ -29,23 +29,20 @@ var ErrPropertyNotFound = errors.New("property not found")
 
 var xpathSelectorPattern = regexp.MustCompile(`^/{1,2}[-@/\[\]\w\s="'._:*]+$`)
 
-var antiBotChallengeMarkers = []string{
-	"pardon our interruption",
-	"captcha",
-	"access denied",
-	"verify you are human",
-	"automated access",
-}
-
 var supportedPropertyRequestHeaders = map[string]struct{}{
-	"Accept":            {},
-	"Accept-Language":   {},
-	"Cookie":            {},
-	"Referer":           {},
-	"Sec-Ch-Ua":         {},
-	"Sec-Ch-Ua-Mobile":  {},
-	"Sec-Ch-Ua-Platform": {},
-	"User-Agent":        {},
+	"Accept":                    {},
+	"Accept-Language":           {},
+	"Cookie":                    {},
+	"Referer":                   {},
+	"Sec-Ch-Ua":                 {},
+	"Sec-Ch-Ua-Mobile":          {},
+	"Sec-Ch-Ua-Platform":        {},
+	"Sec-Fetch-Dest":            {},
+	"Sec-Fetch-Mode":            {},
+	"Sec-Fetch-Site":            {},
+	"Sec-Fetch-User":            {},
+	"Upgrade-Insecure-Requests": {},
+	"User-Agent":                {},
 }
 
 type propertyFetchOptions struct {
@@ -504,34 +501,19 @@ func (s *PropertyService) fetchHTML(ctx context.Context, targetURL string, optio
 	}
 
 	response, err := s.fetcher.Fetch(ctx, fetcher.Request{
-		URL:                parsed.String(),
-		Accept:             "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-		DefaultContentType: "text/html; charset=utf-8",
-		BrowserEnabled:     options.BrowserEnabled,
-		Headers:            options.RequestHeaders,
-		SessionKey:         parsed.Hostname(),
+		URL:                        parsed.String(),
+		Accept:                     "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+		DefaultContentType:         "text/html; charset=utf-8",
+		BrowserEnabled:             options.BrowserEnabled,
+		BrowserFallbackOnChallenge: true,
+		Headers:                    options.RequestHeaders,
+		SessionKey:                 parsed.Hostname(),
 	})
 	if err != nil {
 		return nil, err
 	}
-	if looksLikeAntiBotChallenge(response.Payload) {
-		return nil, fmt.Errorf("portal returned an anti-bot challenge page")
-	}
 
 	return response.Payload, nil
-}
-
-func looksLikeAntiBotChallenge(body []byte) bool {
-	if len(body) == 0 {
-		return false
-	}
-	lowered := strings.ToLower(string(body))
-	for _, marker := range antiBotChallengeMarkers {
-		if strings.Contains(lowered, marker) {
-			return true
-		}
-	}
-	return false
 }
 
 func normalizePropertyRequestHeaders(headers map[string]string) (map[string]string, error) {

@@ -19,6 +19,7 @@ type Config struct {
 	Timeout         time.Duration
 	ProxyProvider   string
 	TLSProfile      string
+	MinRequestGap   time.Duration
 	BreakerInterval time.Duration
 	BreakerTimeout  time.Duration
 	Profiles        []SessionProfile
@@ -26,12 +27,13 @@ type Config struct {
 
 // Request captures one outbound fetch operation.
 type Request struct {
-	URL                string
-	Accept             string
-	DefaultContentType string
-	BrowserEnabled     bool
-	Headers            map[string]string
-	SessionKey         string
+	URL                        string
+	Accept                     string
+	DefaultContentType         string
+	BrowserEnabled             bool
+	BrowserFallbackOnChallenge bool
+	Headers                    map[string]string
+	SessionKey                 string
 }
 
 // Response contains the fetched payload and transport metadata.

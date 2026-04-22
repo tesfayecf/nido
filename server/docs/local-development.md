@@ -61,6 +61,7 @@ export HS_BOOTSTRAP_SOURCE_KIND="http-json-feed"
 export HS_BOOTSTRAP_SOURCE_SCHEDULE_INTERVAL="60s"
 export HS_BOOTSTRAP_SOURCE_RETRY_MAX_ATTEMPTS="2"
 export HS_BOOTSTRAP_SOURCE_RETRY_BACKOFF="1500ms"
+export HS_FETCHER_MIN_REQUEST_GAP="750ms"
 export HS_BOOTSTRAP_SOURCE_RATE_LIMIT_WINDOW="60s"
 export HS_BOOTSTRAP_SOURCE_RATE_LIMIT_MAX_REQUESTS="5"
 export HS_SCHEDULER_ENABLED="true"
@@ -94,6 +95,8 @@ export HS_BROWSER_TIMEOUT="20s"
 `HS_BROWSER_ARGS` accepts either a shell-style space-separated string or a comma-separated list.
 
 Portal search presets such as Idealista, Fotocasa, and Habitaclia should usually run with `browser_enabled=true`, so configure `HS_BROWSER_COMMAND` before ingesting those sources.
+
+When `HS_BROWSER_COMMAND` is configured, the shared fetcher now starts with a browser-like HTTP request and only escalates to browser rendering when the response matches a known anti-bot challenge page. The fetcher also keeps a shared cookie jar and enforces a small per-domain request gap to reduce repetitive request fingerprints.
 
 For property trackers that only load correctly in your browser session, the property create and preview APIs also accept `request_headers` so you can replay cookies or a user-agent for a specific listing URL.
 
