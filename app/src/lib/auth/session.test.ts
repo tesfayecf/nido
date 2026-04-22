@@ -25,7 +25,7 @@ describe("session helpers", () => {
         const queryClient = new QueryClient();
         queryClient.setQueryData(authKeys.me(), { id: "user-1" });
         queryClient.setQueryData(bookmarkKeys.all(), [{ id: "bookmark-1" }]);
-        queryClient.setQueryData(runKeys.list({ limit: 20 }), [{ id: "run-1" }]);
+        queryClient.setQueryData(runKeys.list({ limit: 20, property_id: "" }), [{ id: "run-1" }]);
         queryClient.setQueryData(propertyKeys.list(), [{ id: "property-1" }]);
 
         useSessionStore.getState().setSession({
@@ -49,7 +49,7 @@ describe("session helpers", () => {
         expect(useShellStore.getState().navOpen).toBe(true);
         expect(queryClient.getQueryData(authKeys.me())).toBeUndefined();
         expect(queryClient.getQueryData(bookmarkKeys.all())).toBeUndefined();
-        expect(queryClient.getQueryData(runKeys.list({ limit: 20 }))).toBeUndefined();
+        expect(queryClient.getQueryData(runKeys.list({ limit: 20, property_id: "" }))).toBeUndefined();
         expect(queryClient.getQueryData(propertyKeys.list())).toEqual([{ id: "property-1" }]);
     });
 });

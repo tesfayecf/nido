@@ -197,7 +197,7 @@ func RegisterProperties(mux *http.ServeMux, requireAuth func(http.Handler) http.
 		snapshots, err := service.ListPropertySnapshots(
 			r.Context(),
 			propertyID,
-			parseLimit(r.URL.Query().Get("limit")),
+			platformhttp.ParseLimit(r.URL.Query().Get("limit")),
 		)
 		if err != nil {
 			platformhttp.WriteError(w, http.StatusInternalServerError, err.Error())
