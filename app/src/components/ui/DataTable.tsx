@@ -11,6 +11,8 @@ interface DataTableColumn<TItem> {
     readonly header: ReactNode;
     readonly id: string;
     readonly sortValue?: (item: TItem) => number | string;
+    readonly width?: string;
+    readonly wrap?: boolean;
 }
 
 interface DataTableProps<TItem> {
@@ -86,7 +88,7 @@ export const DataTable = <TItem,>({
                             const sortable = column.sortValue !== undefined;
                             const active = column.id === sortColumnId;
                             return (
-                                <th className={column.align === "right" ? "data-table__cell--right" : undefined} key={column.id} scope={"col"}>
+                                <th className={classNames(column.align === "right" && "data-table__cell--right")} key={column.id} scope={"col"} style={column.width !== undefined ? { width: column.width } : undefined}>
                                     {sortable ? (
                                         <button
                                             className={active ? "data-table__sort data-table__sort--active" : "data-table__sort"}
@@ -133,9 +135,15 @@ export const DataTable = <TItem,>({
                                 tabIndex={interactive ? 0 : undefined}
                             >
                                 {columns.map((column) => {
+                                    const cellClassName = classNames(
+                                        column.align === "right" && "data-table__cell--right",
+                                        column.wrap === true ? "data-table__cell--wrap" : "data-table__cell--truncate",
+                                    );
                                     return (
-                                        <td className={column.align === "right" ? "data-table__cell--right" : undefined} key={column.id}>
-                                            {column.cell?.(item)}
+                                        <td className={cellClassName} key={column.id} style={column.width !== undefined ? { width: column.width } : undefined}>
+                                            <div className={column.wrap === true ? "data-table__cell-content data-table__cell-content--wrap" : "data-table__cell-content"}>
+                                                {column.cell?.(item)}
+                                            </div>
                                         </td>
                                     );
                                 })}

@@ -2,7 +2,7 @@ import { useEffect, useId, useRef } from "react";
 import type { PropsWithChildren, ReactNode } from "react";
 import { createPortal } from "react-dom";
 
-import { Button } from "@/components/ui/Button";
+import { Icon } from "@/components/ui/Icon";
 import { classNames } from "@/lib/ui/classNames";
 
 interface DialogProps extends PropsWithChildren {
@@ -115,11 +115,11 @@ export const Dialog = ({
                         <h2 className={"dialog__title"} id={titleId}>{title}</h2>
                         {description !== undefined ? <p className={"dialog__description"} id={descriptionId}>{description}</p> : null}
                     </div>
-                    <Button aria-label={"Close dialog"} onClick={() => { onOpenChange(false); }} size={"small"} variant={"ghost"}>
-                        {"Close"}
-                    </Button>
+                    <button aria-label={"Close dialog"} className={"icon-button dialog__close"} onClick={() => { onOpenChange(false); }} type={"button"}>
+                        <Icon name={"close"} />
+                    </button>
                 </div>
-                <div className={"dialog__body"}>{children}</div>
+                {children !== undefined ? <div className={"dialog__body"}>{children}</div> : null}
                 {actions !== undefined ? <div className={"dialog__footer"}>{actions}</div> : null}
             </div>
         </div>,

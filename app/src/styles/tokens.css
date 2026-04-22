@@ -61,8 +61,9 @@
     --container-md: 48rem;
     --container-lg: 64rem;
     --container-xl: 80rem;
-    --nav-width: 16.5rem;
-    --shell-header-height: 4rem;
+    --nav-width: 14rem;
+    --nav-width-collapsed: 3.5rem;
+    --shell-header-height: 3rem;
 
     --shadow-soft: 0 18px 40px -30px var(--color-shadow-strong);
     --shadow-card: 0 10px 24px -18px var(--color-shadow);
