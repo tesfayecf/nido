@@ -47,7 +47,7 @@ const statusTone = (status: PropertyStatus): "danger" | "neutral" | "success" | 
         case "degraded":
             return "warning";
         case "inactive":
-            return "danger";
+            return "neutral";
         case "pending":
         default:
             return "neutral";

@@ -66,6 +66,17 @@ describe("SourceDetailPage", () => {
         });
     });
 
+    it("opens the edit modal with the existing source values populated", async () => {
+        renderSourceDetailPage(["/sources/source-1"]);
+
+        fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+
+        await waitFor(() => {
+            expect(screen.getByLabelText("Template id")).toHaveValue("source-1");
+            expect(screen.getByLabelText("Template name")).toHaveValue("Existing Source");
+        });
+    });
+
     it("keeps manual source fields editable in create mode", async () => {
         renderSourceDetailPage(["/sources/new"]);
         const firstFieldName = screen.getAllByLabelText("Field name").at(0);
