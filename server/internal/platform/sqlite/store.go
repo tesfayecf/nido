@@ -130,10 +130,38 @@ func (s *Store) GetSource(ctx context.Context, sourceID string) (ingestiondomain
 
 // DeleteSource removes one source definition.
 func (s *Store) DeleteSource(ctx context.Context, sourceID string) error {
-	_, err := s.db.ExecContext(ctx, `DELETE FROM sources WHERE id = ?`, sourceID)
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin source delete transaction: %w", err)
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	if _, err := tx.ExecContext(ctx, `DELETE FROM artifacts WHERE source_id = ?`, sourceID); err != nil {
+		return fmt.Errorf("delete source artifacts: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM ingestion_runs WHERE source_id = ?`, sourceID); err != nil {
+		return fmt.Errorf("delete source runs: %w", err)
+	}
+
+	result, err := tx.ExecContext(ctx, `DELETE FROM sources WHERE id = ?`, sourceID)
 	if err != nil {
 		return fmt.Errorf("delete source: %w", err)
 	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read deleted source rows: %w", err)
+	}
+	if rowsAffected == 0 {
+		return sql.ErrNoRows
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit source delete: %w", err)
+	}
+
 	return nil
 }
 
@@ -1501,6 +1529,24 @@ func (s *Store) GetProperty(ctx context.Context, propertyID string) (ingestiondo
 	return scanProperty(s.db.QueryRowContext(ctx, propertySelect+` WHERE id = ?`, propertyID))
 }
 
+// DeleteProperty removes one property and dependent records.
+func (s *Store) DeleteProperty(ctx context.Context, propertyID string) error {
+	result, err := s.db.ExecContext(ctx, `DELETE FROM properties WHERE id = ?`, propertyID)
+	if err != nil {
+		return fmt.Errorf("delete property: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read deleted property rows: %w", err)
+	}
+	if rowsAffected == 0 {
+		return sql.ErrNoRows
+	}
+
+	return nil
+}
+
 // UpdatePropertyRunState records the latest ingest timestamps and health status.
 func (s *Store) UpdatePropertyRunState(ctx context.Context, propertyID string, status ingestiondomain.PropertyStatus, lastRunAt, nextRunAt *time.Time) error {
 	_, err := s.db.ExecContext(
@@ -1688,6 +1734,24 @@ func (s *Store) GetPropertySnapshot(ctx context.Context, snapshotID string) (ing
 		`SELECT id, property_id, config_version, observed_at, values_json, change_flags_json, is_valid, error_message FROM property_snapshots WHERE id = ?`,
 		snapshotID,
 	))
+}
+
+// DeletePropertySnapshot removes one property snapshot.
+func (s *Store) DeletePropertySnapshot(ctx context.Context, snapshotID string) error {
+	result, err := s.db.ExecContext(ctx, `DELETE FROM property_snapshots WHERE id = ?`, snapshotID)
+	if err != nil {
+		return fmt.Errorf("delete property snapshot: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read deleted property snapshot rows: %w", err)
+	}
+	if rowsAffected == 0 {
+		return sql.ErrNoRows
+	}
+
+	return nil
 }
 
 // GetLastValidPropertySnapshot returns the most recent valid snapshot for a property.

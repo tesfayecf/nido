@@ -27,6 +27,9 @@ import (
 // ErrPropertyNotFound indicates that the requested property does not exist.
 var ErrPropertyNotFound = errors.New("property not found")
 
+// ErrPropertyRunNotFound indicates that the requested property snapshot does not exist.
+var ErrPropertyRunNotFound = errors.New("run not found")
+
 var xpathSelectorPattern = regexp.MustCompile(`^/{1,2}[-@/\[\]\w\s="'._:*]+$`)
 
 var supportedPropertyRequestHeaders = map[string]struct{}{
@@ -55,6 +58,7 @@ type PropertyStore interface {
 	UpsertProperty(ctx context.Context, property ingestiondomain.Property) error
 	ListProperties(ctx context.Context) ([]ingestiondomain.Property, error)
 	GetProperty(ctx context.Context, propertyID string) (ingestiondomain.Property, error)
+	DeleteProperty(ctx context.Context, propertyID string) error
 	UpdatePropertyRunState(ctx context.Context, propertyID string, status ingestiondomain.PropertyStatus, lastRunAt, nextRunAt *time.Time) error
 	UpsertPropertyConfig(ctx context.Context, config ingestiondomain.PropertyExtractionConfig) error
 	GetLatestPropertyConfig(ctx context.Context, propertyID string) (ingestiondomain.PropertyExtractionConfig, error)
@@ -62,6 +66,7 @@ type PropertyStore interface {
 	ListPropertySnapshots(ctx context.Context, propertyID string, limit int) ([]ingestiondomain.PropertySnapshot, error)
 	ListAllPropertySnapshots(ctx context.Context, propertyID string, limit int) ([]ingestiondomain.PropertySnapshot, error)
 	GetPropertySnapshot(ctx context.Context, snapshotID string) (ingestiondomain.PropertySnapshot, error)
+	DeletePropertySnapshot(ctx context.Context, snapshotID string) error
 	GetLastValidPropertySnapshot(ctx context.Context, propertyID string) (ingestiondomain.PropertySnapshot, error)
 	GetSource(ctx context.Context, sourceID string) (ingestiondomain.Source, error)
 }
@@ -138,6 +143,16 @@ func (s *PropertyService) GetProperty(ctx context.Context, propertyID string) (i
 	return property, err
 }
 
+// DeleteProperty removes one tracked property and its dependent records.
+func (s *PropertyService) DeleteProperty(ctx context.Context, propertyID string) error {
+	err := s.store.DeleteProperty(ctx, propertyID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrPropertyNotFound
+	}
+
+	return err
+}
+
 // UpsertPropertyConfig saves a new extraction config version for a property.
 func (s *PropertyService) UpsertPropertyConfig(ctx context.Context, propertyID string, fields []ingestiondomain.FieldSelector) (ingestiondomain.PropertyExtractionConfig, error) {
 	existing, err := s.store.GetLatestPropertyConfig(ctx, propertyID)
@@ -199,7 +214,22 @@ func (s *PropertyService) ListRuns(ctx context.Context, propertyID string, limit
 
 // GetRun returns a single run by identifier.
 func (s *PropertyService) GetRun(ctx context.Context, runID string) (ingestiondomain.PropertySnapshot, error) {
-	return s.store.GetPropertySnapshot(ctx, runID)
+	run, err := s.store.GetPropertySnapshot(ctx, runID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ingestiondomain.PropertySnapshot{}, ErrPropertyRunNotFound
+	}
+
+	return run, err
+}
+
+// DeleteRun removes one stored property snapshot.
+func (s *PropertyService) DeleteRun(ctx context.Context, runID string) error {
+	err := s.store.DeletePropertySnapshot(ctx, runID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrPropertyRunNotFound
+	}
+
+	return err
 }
 
 // PreviewExtraction fetches and applies selectors without persisting any state.

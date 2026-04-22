@@ -1,7 +1,6 @@
 import { useLocation } from "react-router-dom";
 
 import { Button } from "@/components/ui/Button";
-import { ThemeToggle } from "@/components/shell/ThemeToggle";
 import { useShellStore } from "@/stores/shell.store";
 
 interface RouteMeta {
@@ -11,10 +10,11 @@ interface RouteMeta {
 }
 
 const routeMeta: readonly [RegExp, RouteMeta][] = [
-    [/^\/properties\/[^/]+$/, { description: "Review the latest extracted data, source template, alerts, and run history for one property.", section: "Properties", title: "Property Detail" }],
-    [/^\/properties(?:\/new)?$/, { description: "Add direct property URLs, assign source templates, bookmark what matters, and monitor the latest extraction state.", section: "Properties", title: "Tracked Properties" }],
-    [/^\/sources(?:\/.*)?$/, { description: "Manage reusable extraction templates that properties can inherit or override.", section: "Sources", title: "Source Templates" }],
-    [/^\/runs(?:\/.*)?$/, { description: "Inspect property extraction runs and their captured snapshot data.", section: "Runs", title: "Property Runs" }],
+    [/^\/properties\/[^/]+$/, { description: "Read the latest tracked state and open edits only when needed.", section: "Properties", title: "Property" }],
+    [/^\/properties(?:\/new)?$/, { description: "Track properties in a dense table with explicit actions.", section: "Properties", title: "Properties" }],
+    [/^\/events$/, { description: "Watch live backoffice activity in one focused stream.", section: "Events", title: "Events" }],
+    [/^\/sources(?:\/.*)?$/, { description: "Manage reusable extraction templates with compact detail views.", section: "Sources", title: "Sources" }],
+    [/^\/runs(?:\/.*)?$/, { description: "Inspect extraction history, trigger new runs, and remove stale snapshots.", section: "Runs", title: "Runs" }],
     [/^\/bookmarks$/, { description: "Review the properties you have explicitly bookmarked for follow-up.", section: "Bookmarks", title: "Bookmarks" }],
     [/^\/alerts$/, { description: "Configure property-level alert rules that react to new runs.", section: "Alerts", title: "Alerts" }],
     [/^\/notifications$/, { description: "Work through triggered property alerts and manage read state.", section: "Notifications", title: "Notifications" }],
@@ -22,7 +22,7 @@ const routeMeta: readonly [RegExp, RouteMeta][] = [
 ];
 
 const defaultMeta: RouteMeta = {
-    description: "Track specific properties, reusable source templates, runs, and property-level alerts.",
+    description: "Data-first tooling for tracked properties, sources, runs, and events.",
     section: "Workspace",
     title: "Home Searcher",
 };
@@ -59,7 +59,6 @@ export const AppHeader = (): JSX.Element => {
                     >
                         {"Menu"}
                     </Button>
-                    <ThemeToggle />
                 </div>
             </div>
         </header>

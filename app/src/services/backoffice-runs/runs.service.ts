@@ -1,4 +1,4 @@
-import { apiRequest, type ItemEnvelope, type ListEnvelope } from "@/lib/api/client";
+import { apiRequest, type ItemEnvelope, type ListEnvelope, type StatusEnvelope } from "@/lib/api/client";
 
 import type { Run, RunFilters } from "@/services/backoffice-runs/runs.types";
 
@@ -23,4 +23,12 @@ export const getRun = async (runId: string): Promise<Run> => {
     });
 
     return response.item;
+};
+
+export const deleteRun = async (runId: string): Promise<void> => {
+    await apiRequest<StatusEnvelope>({
+        auth: true,
+        method: "DELETE",
+        path: `/api/v1/backoffice/runs/${runId}`,
+    });
 };

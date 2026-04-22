@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { RouterProvider, createMemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ToastProvider } from "@/components/ui/ToastProvider";
 import { SourceDetailPage } from "@/features/backoffice/SourceDetailPage";
 import type { Source } from "@/services/backoffice-sources/sources.types";
 
@@ -37,7 +38,9 @@ const renderSourceDetailPage = (initialEntries: string[]): ReturnType<typeof ren
 
     return render(
         <QueryClientProvider client={queryClient}>
-            <RouterProvider router={router} />
+            <ToastProvider>
+                <RouterProvider router={router} />
+            </ToastProvider>
         </QueryClientProvider>,
     );
 };
@@ -51,7 +54,7 @@ describe("SourceDetailPage", () => {
     it("resets the form when navigating from an existing source to create mode", async () => {
         const existingSourceView = renderSourceDetailPage(["/sources/source-1"]);
 
-        expect(await screen.findByDisplayValue("Existing Source")).toBeInTheDocument();
+        expect(await screen.findByText("Existing Source")).toBeInTheDocument();
 
         existingSourceView.unmount();
         renderSourceDetailPage(["/sources/new"]);
