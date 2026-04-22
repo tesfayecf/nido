@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 
@@ -16,11 +16,14 @@ export const RequireAuth = (): JSX.Element => {
     const expiresAt = useSessionStore((state) => state.expiresAt);
     const token = useSessionStore((state) => state.token);
     const isAuthenticated = hasActiveSession({ expiresAt, token });
+    const previousAuthState = useRef<boolean>();
 
     useEffect(() => {
-        if (!isAuthenticated) {
+        if (!isAuthenticated && previousAuthState.current !== false) {
             clearAuthenticatedClientState();
         }
+
+        previousAuthState.current = isAuthenticated;
     }, [isAuthenticated]);
 
     if (!isAuthenticated) {
