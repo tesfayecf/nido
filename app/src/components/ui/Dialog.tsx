@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import type { PropsWithChildren, ReactNode } from "react";
 import { createPortal } from "react-dom";
 
@@ -33,6 +33,8 @@ export const Dialog = ({
     title,
 }: DialogProps): JSX.Element | null => {
     const contentRef = useRef<HTMLDivElement | null>(null);
+    const titleId = useId();
+    const descriptionId = useId();
 
     useEffect(() => {
         if (!open) {
@@ -100,11 +102,18 @@ export const Dialog = ({
             }}
             role={"presentation"}
         >
-            <div aria-modal className={classNames("dialog", className)} ref={contentRef} role={"dialog"}>
+            <div
+                aria-describedby={description !== undefined ? descriptionId : undefined}
+                aria-labelledby={titleId}
+                aria-modal
+                className={classNames("dialog", className)}
+                ref={contentRef}
+                role={"dialog"}
+            >
                 <div className={"dialog__header"}>
                     <div>
-                        <h2 className={"dialog__title"}>{title}</h2>
-                        {description !== undefined ? <p className={"dialog__description"}>{description}</p> : null}
+                        <h2 className={"dialog__title"} id={titleId}>{title}</h2>
+                        {description !== undefined ? <p className={"dialog__description"} id={descriptionId}>{description}</p> : null}
                     </div>
                     <Button aria-label={"Close dialog"} onClick={() => { onOpenChange(false); }} size={"small"} variant={"ghost"}>
                         {"Close"}

@@ -1,3 +1,4 @@
+/* eslint-disable react/jsx-props-no-spreading */
 import type { InputHTMLAttributes, ReactNode } from "react";
 
 import { InlineSpinner } from "@/components/ui/InlineSpinner";

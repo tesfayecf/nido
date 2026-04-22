@@ -78,7 +78,7 @@ export const AlertsPage = (): JSX.Element => {
                     </Field>
                     <Field as={"div"} variant={"actions"}>
                         <Button disabled={propertyId === ""} isLoading={createMutation.isPending} loadingLabel={"Saving rule"} type={"submit"}>
-                            {createMutation.isPending ? "Saving..." : "Create rule"}
+                            {"Create rule"}
                         </Button>
                     </Field>
                 </FormGrid>

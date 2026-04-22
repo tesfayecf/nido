@@ -98,7 +98,7 @@ export const LoginPage = (): JSX.Element => {
 
                     <div className={"login-panel__actions"}>
                         <Button isLoading={loginMutation.isPending} loadingLabel={"Signing in"} type={"submit"}>
-                            {loginMutation.isPending ? "Signing in..." : "Sign in"}
+                            {"Sign in"}
                         </Button>
                     </div>
                 </FormGrid>

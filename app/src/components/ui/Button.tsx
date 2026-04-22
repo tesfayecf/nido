@@ -1,3 +1,5 @@
+/* eslint-disable react/jsx-props-no-spreading */
+/* eslint-disable @typescript-eslint/naming-convention */
 import type { ComponentPropsWithoutRef, ElementType, ReactNode } from "react";
 
 import { InlineSpinner } from "@/components/ui/InlineSpinner";

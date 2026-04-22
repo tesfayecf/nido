@@ -1,3 +1,4 @@
+/* eslint-disable react/jsx-props-no-spreading */
 import type { FormHTMLAttributes, HTMLAttributes, PropsWithChildren } from "react";
 
 import { classNames } from "@/lib/ui/classNames";
