@@ -1399,18 +1399,29 @@ func boolToInt(value bool) int {
 
 // ── Property persistence ──────────────────────────────────────────────────────
 
-var propertySelect = `SELECT id, url, label, source_id, status, schedule_interval_seconds, retry_max_attempts, retry_backoff_millis, last_run_at, next_run_at, created_at, updated_at FROM properties`
+var propertySelect = `SELECT id, url, label, source_id, browser_enabled, request_headers_json, status, schedule_interval_seconds, retry_max_attempts, retry_backoff_millis, last_run_at, next_run_at, created_at, updated_at FROM properties`
 
 // UpsertProperty creates or updates a property record.
 func (s *Store) UpsertProperty(ctx context.Context, property ingestiondomain.Property) error {
+	requestHeadersJSON := "{}"
+	if len(property.RequestHeaders) > 0 {
+		encodedRequestHeaders, err := json.Marshal(property.RequestHeaders)
+		if err != nil {
+			return fmt.Errorf("marshal property request headers: %w", err)
+		}
+		requestHeadersJSON = string(encodedRequestHeaders)
+	}
+
 	_, err := s.db.ExecContext(
 		ctx,
-		`INSERT INTO properties (id, url, label, source_id, status, schedule_interval_seconds, retry_max_attempts, retry_backoff_millis, last_run_at, next_run_at, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`INSERT INTO properties (id, url, label, source_id, browser_enabled, request_headers_json, status, schedule_interval_seconds, retry_max_attempts, retry_backoff_millis, last_run_at, next_run_at, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		 ON CONFLICT(id) DO UPDATE SET
 		 	url = excluded.url,
 		 	label = excluded.label,
 		 	source_id = excluded.source_id,
+		 	browser_enabled = excluded.browser_enabled,
+		 	request_headers_json = excluded.request_headers_json,
 		 	status = excluded.status,
 		 	schedule_interval_seconds = excluded.schedule_interval_seconds,
 		 	retry_max_attempts = excluded.retry_max_attempts,
@@ -1422,6 +1433,8 @@ func (s *Store) UpsertProperty(ctx context.Context, property ingestiondomain.Pro
 		property.URL,
 		property.Label,
 		nullableString(property.SourceID),
+		boolToInt(property.BrowserEnabled),
+		normalizeJSONString(requestHeadersJSON),
 		string(property.Status),
 		property.ScheduleIntervalSeconds,
 		property.RetryMaxAttempts,
@@ -1695,6 +1708,8 @@ func scanProperty(s scanner) (ingestiondomain.Property, error) {
 	var (
 		property             ingestiondomain.Property
 		sourceID             sql.NullString
+		browserEnabled       int
+		requestHeadersJSON   string
 		status               string
 		lastRunAt, nextRunAt sql.NullString
 		createdAt, updatedAt string
@@ -1705,6 +1720,8 @@ func scanProperty(s scanner) (ingestiondomain.Property, error) {
 		&property.URL,
 		&property.Label,
 		&sourceID,
+		&browserEnabled,
+		&requestHeadersJSON,
 		&status,
 		&property.ScheduleIntervalSeconds,
 		&property.RetryMaxAttempts,
@@ -1719,6 +1736,15 @@ func scanProperty(s scanner) (ingestiondomain.Property, error) {
 	}
 	if sourceID.Valid {
 		property.SourceID = sourceID.String
+	}
+	property.BrowserEnabled = browserEnabled == 1
+	if strings.TrimSpace(requestHeadersJSON) != "" {
+		if err := json.Unmarshal([]byte(requestHeadersJSON), &property.RequestHeaders); err != nil {
+			return ingestiondomain.Property{}, fmt.Errorf("unmarshal property request headers: %w", err)
+		}
+		if len(property.RequestHeaders) == 0 {
+			property.RequestHeaders = nil
+		}
 	}
 
 	property.Status = ingestiondomain.PropertyStatus(status)

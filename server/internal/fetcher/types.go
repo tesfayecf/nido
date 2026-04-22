@@ -30,6 +30,7 @@ type Request struct {
 	Accept             string
 	DefaultContentType string
 	BrowserEnabled     bool
+	Headers            map[string]string
 	SessionKey         string
 }
 

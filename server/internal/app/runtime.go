@@ -12,7 +12,9 @@ import (
 	authhttp "home-searcher/server/internal/auth/transport/httpapi"
 	engagementapp "home-searcher/server/internal/engagement/application"
 	engagementhttp "home-searcher/server/internal/engagement/transport/httpapi"
+	"home-searcher/server/internal/fetcher"
 	ingestionapp "home-searcher/server/internal/ingestion/application"
+	"home-searcher/server/internal/ingestion/browser"
 	ingestionhttp "home-searcher/server/internal/ingestion/transport/httpapi"
 	"home-searcher/server/internal/platform/config"
 	platformevents "home-searcher/server/internal/platform/events"
@@ -47,6 +49,15 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Runtime,
 
 	eventBroker := platformevents.NewBroker()
 	store := platformsqlite.NewStore(db)
+	renderer := browser.NewRenderer(cfg.Browser)
+	propertyFetcher := fetcher.New(fetcher.Config{
+		Logger:          logger,
+		Timeout:         cfg.Fetcher.Timeout,
+		ProxyProvider:   cfg.Fetcher.ProxyProvider,
+		TLSProfile:      cfg.Fetcher.TLSProfile,
+		BreakerInterval: cfg.Fetcher.BreakerInterval,
+		BreakerTimeout:  cfg.Fetcher.BreakerTimeout,
+	}, renderer)
 	authService := authapp.NewService(logger, store, cfg.Auth)
 	if _, err := authService.EnsureBootstrapUser(runtimeCtx); err != nil {
 		cancel()
@@ -60,7 +71,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Runtime,
 		_ = db.Close()
 		return nil, err
 	}
-	propertyService := ingestionapp.NewPropertyService(logger, store, nil, engagementService, eventBroker)
+	propertyService := ingestionapp.NewPropertyService(logger, store, propertyFetcher, nil, engagementService, eventBroker)
 
 	mux := http.NewServeMux()
 	registerHealthEndpoints(mux, db)

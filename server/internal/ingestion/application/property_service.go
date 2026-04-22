@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"net"
 	"net/http"
@@ -20,6 +19,7 @@ import (
 	"github.com/antchfx/htmlquery"
 	"golang.org/x/net/html"
 
+	"home-searcher/server/internal/fetcher"
 	ingestiondomain "home-searcher/server/internal/ingestion/domain"
 	"home-searcher/server/internal/platform/id"
 )
@@ -27,7 +27,31 @@ import (
 // ErrPropertyNotFound indicates that the requested property does not exist.
 var ErrPropertyNotFound = errors.New("property not found")
 
-var xpathSelectorPattern = regexp.MustCompile(`^/{1,2}[-@\[\]\w\s="'._:*]+$`)
+var xpathSelectorPattern = regexp.MustCompile(`^/{1,2}[-@/\[\]\w\s="'._:*]+$`)
+
+var antiBotChallengeMarkers = []string{
+	"pardon our interruption",
+	"captcha",
+	"access denied",
+	"verify you are human",
+	"automated access",
+}
+
+var supportedPropertyRequestHeaders = map[string]struct{}{
+	"Accept":            {},
+	"Accept-Language":   {},
+	"Cookie":            {},
+	"Referer":           {},
+	"Sec-Ch-Ua":         {},
+	"Sec-Ch-Ua-Mobile":  {},
+	"Sec-Ch-Ua-Platform": {},
+	"User-Agent":        {},
+}
+
+type propertyFetchOptions struct {
+	BrowserEnabled bool
+	RequestHeaders map[string]string
+}
 
 // PropertyStore defines the persistence contract required by PropertyService.
 type PropertyStore interface {
@@ -54,6 +78,7 @@ type PropertyRunProcessor interface {
 type PropertyService struct {
 	logger  *slog.Logger
 	store   PropertyStore
+	fetcher fetcher.Client
 	clock   Clock
 	changes PropertyRunProcessor
 	events  Publisher
@@ -63,6 +88,7 @@ type PropertyService struct {
 func NewPropertyService(
 	logger *slog.Logger,
 	store PropertyStore,
+	client fetcher.Client,
 	clock Clock,
 	changes PropertyRunProcessor,
 	events Publisher,
@@ -71,10 +97,15 @@ func NewPropertyService(
 	if resolvedClock == nil {
 		resolvedClock = systemClock{}
 	}
+	resolvedFetcher := client
+	if resolvedFetcher == nil {
+		resolvedFetcher = fetcher.New(fetcher.Config{}, nil)
+	}
 
 	return &PropertyService{
 		logger:  logger,
 		store:   store,
+		fetcher: resolvedFetcher,
 		clock:   resolvedClock,
 		changes: changes,
 		events:  events,
@@ -179,12 +210,19 @@ func (s *PropertyService) PreviewExtraction(ctx context.Context, req ingestiondo
 	if err := validatePropertyURL(req.URL); err != nil {
 		return ingestiondomain.PropertyPreviewResult{}, err
 	}
+	normalizedHeaders, err := normalizePropertyRequestHeaders(req.RequestHeaders)
+	if err != nil {
+		return ingestiondomain.PropertyPreviewResult{}, err
+	}
 	normalizedFields, err := normalizeConfiguredFields(req.Fields)
 	if err != nil {
 		return ingestiondomain.PropertyPreviewResult{}, err
 	}
 
-	body, err := fetchHTML(ctx, req.URL)
+	body, err := s.fetchHTML(ctx, req.URL, propertyFetchOptions{
+		BrowserEnabled: req.BrowserEnabled,
+		RequestHeaders: normalizedHeaders,
+	})
 	if err != nil {
 		return ingestiondomain.PropertyPreviewResult{}, fmt.Errorf("fetch page: %w", err)
 	}
@@ -224,7 +262,10 @@ func (s *PropertyService) IngestProperty(ctx context.Context, propertyID string)
 	now := s.clock.Now().UTC()
 	lastValid, _ := s.store.GetLastValidPropertySnapshot(ctx, propertyID)
 
-	body, fetchErr := fetchHTML(ctx, property.URL)
+	body, fetchErr := s.fetchHTML(ctx, property.URL, propertyFetchOptions{
+		BrowserEnabled: property.BrowserEnabled,
+		RequestHeaders: property.RequestHeaders,
+	})
 	if fetchErr != nil {
 		snapshot := ingestiondomain.PropertySnapshot{
 			ID:            id.New("run"),
@@ -324,6 +365,11 @@ func (s *PropertyService) normalizeAndValidateProperty(ctx context.Context, prop
 	if err := validatePropertyURL(property.URL); err != nil {
 		return ingestiondomain.Property{}, err
 	}
+	normalizedHeaders, err := normalizePropertyRequestHeaders(property.RequestHeaders)
+	if err != nil {
+		return ingestiondomain.Property{}, err
+	}
+	property.RequestHeaders = normalizedHeaders
 	property.SourceID = strings.TrimSpace(property.SourceID)
 	if property.SourceID != "" {
 		if _, err := s.store.GetSource(ctx, property.SourceID); err != nil {
@@ -448,7 +494,7 @@ func validatePropertyURL(rawURL string) error {
 	return nil
 }
 
-func fetchHTML(ctx context.Context, targetURL string) ([]byte, error) {
+func (s *PropertyService) fetchHTML(ctx context.Context, targetURL string, options propertyFetchOptions) ([]byte, error) {
 	parsed, err := url.Parse(strings.TrimSpace(targetURL))
 	if err != nil {
 		return nil, err
@@ -457,26 +503,64 @@ func fetchHTML(ctx context.Context, targetURL string) ([]byte, error) {
 		return nil, err
 	}
 
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, parsed.String(), nil)
+	response, err := s.fetcher.Fetch(ctx, fetcher.Request{
+		URL:                parsed.String(),
+		Accept:             "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+		DefaultContentType: "text/html; charset=utf-8",
+		BrowserEnabled:     options.BrowserEnabled,
+		Headers:            options.RequestHeaders,
+		SessionKey:         parsed.Hostname(),
+	})
 	if err != nil {
 		return nil, err
 	}
-
-	response, err := http.DefaultClient.Do(request)
-	if err != nil {
-		return nil, err
-	}
-	defer response.Body.Close()
-
-	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return nil, fmt.Errorf("unexpected status %d", response.StatusCode)
+	if looksLikeAntiBotChallenge(response.Payload) {
+		return nil, fmt.Errorf("portal returned an anti-bot challenge page")
 	}
 
-	body, err := io.ReadAll(response.Body)
-	if err != nil {
-		return nil, err
+	return response.Payload, nil
+}
+
+func looksLikeAntiBotChallenge(body []byte) bool {
+	if len(body) == 0 {
+		return false
 	}
-	return body, nil
+	lowered := strings.ToLower(string(body))
+	for _, marker := range antiBotChallengeMarkers {
+		if strings.Contains(lowered, marker) {
+			return true
+		}
+	}
+	return false
+}
+
+func normalizePropertyRequestHeaders(headers map[string]string) (map[string]string, error) {
+	if len(headers) == 0 {
+		return nil, nil
+	}
+
+	normalized := make(map[string]string, len(headers))
+	for name, value := range headers {
+		canonicalName := http.CanonicalHeaderKey(strings.TrimSpace(name))
+		if canonicalName == "" {
+			return nil, fmt.Errorf("request header name is required")
+		}
+		if _, ok := supportedPropertyRequestHeaders[canonicalName]; !ok {
+			return nil, fmt.Errorf("request header %q is not supported", canonicalName)
+		}
+		trimmedValue := strings.TrimSpace(value)
+		if trimmedValue == "" {
+			continue
+		}
+		if strings.ContainsAny(canonicalName, "\r\n") || strings.ContainsAny(trimmedValue, "\r\n") {
+			return nil, fmt.Errorf("request header %q contains invalid characters", canonicalName)
+		}
+		normalized[canonicalName] = trimmedValue
+	}
+	if len(normalized) == 0 {
+		return nil, nil
+	}
+	return normalized, nil
 }
 
 func validateFetchHost(host string) error {

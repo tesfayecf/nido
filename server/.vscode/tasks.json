@@ -57,19 +57,7 @@
             "options": {
                 "cwd": "${workspaceFolder}"
             },
-            "isBackground": true,
-            "problemMatcher": {
-                "owner": "garage-logs",
-                "pattern": [
-                    {
-                        "regexp": ".*"
-                    }
-                ],
-                "background": {
-                    "activeOnStart": true,
-                    "beginsPattern": ".*"
-                }
-            }
+            "isBackground": true
         }
     ]
 }

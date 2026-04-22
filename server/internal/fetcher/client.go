@@ -144,6 +144,14 @@ func (c *HTTPClient) fetchHTTP(ctx context.Context, request Request, domain stri
 		httpRequest.Header.Set("Sec-CH-UA", profile.SecCHUA)
 		httpRequest.Header.Set("Sec-CH-UA-Mobile", "?0")
 	}
+	for name, value := range request.Headers {
+		trimmedName := strings.TrimSpace(name)
+		trimmedValue := strings.TrimSpace(value)
+		if trimmedName == "" || trimmedValue == "" {
+			continue
+		}
+		httpRequest.Header.Set(trimmedName, trimmedValue)
+	}
 
 	response, err := c.client.Do(httpRequest)
 	if err != nil {

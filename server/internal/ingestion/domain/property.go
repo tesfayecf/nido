@@ -189,6 +189,8 @@ type Property struct {
 	URL                     string         `json:"url"`
 	Label                   string         `json:"label"`
 	SourceID                string         `json:"source_id,omitempty"`
+	BrowserEnabled          bool           `json:"browser_enabled,omitempty"`
+	RequestHeaders          map[string]string `json:"request_headers,omitempty"`
 	Status                  PropertyStatus `json:"status"`
 	ScheduleIntervalSeconds int            `json:"schedule_interval_seconds,omitempty"`
 	RetryMaxAttempts        int            `json:"retry_max_attempts,omitempty"`
@@ -240,8 +242,10 @@ type PropertySnapshot struct {
 
 // PropertyPreviewRequest is the input for a one-off extraction preview.
 type PropertyPreviewRequest struct {
-	URL    string          `json:"url"`
-	Fields []FieldSelector `json:"fields"`
+	URL            string            `json:"url"`
+	BrowserEnabled bool              `json:"browser_enabled,omitempty"`
+	RequestHeaders map[string]string `json:"request_headers,omitempty"`
+	Fields         []FieldSelector   `json:"fields"`
 }
 
 // PropertyPreviewResult is the output of a one-off extraction preview.

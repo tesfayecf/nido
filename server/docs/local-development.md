@@ -95,6 +95,8 @@ export HS_BROWSER_TIMEOUT="20s"
 
 Portal search presets such as Idealista, Fotocasa, and Habitaclia should usually run with `browser_enabled=true`, so configure `HS_BROWSER_COMMAND` before ingesting those sources.
 
+For property trackers that only load correctly in your browser session, the property create and preview APIs also accept `request_headers` so you can replay cookies or a user-agent for a specific listing URL.
+
 ### Optional outbound notifications
 
 ```bash
