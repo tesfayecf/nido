@@ -16,7 +16,7 @@ export const RequireAuth = (): JSX.Element => {
     const expiresAt = useSessionStore((state) => state.expiresAt);
     const token = useSessionStore((state) => state.token);
     const isAuthenticated = hasActiveSession({ expiresAt, token });
-    const previousAuthState = useRef<boolean>();
+    const previousAuthState = useRef<boolean | undefined>(undefined);
 
     useEffect(() => {
         if (!isAuthenticated && previousAuthState.current !== false) {
