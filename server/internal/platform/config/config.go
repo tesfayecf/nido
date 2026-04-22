@@ -65,6 +65,7 @@ type FetcherConfig struct {
 	Timeout         time.Duration
 	ProxyProvider   string
 	TLSProfile      string
+	MinRequestGap   time.Duration
 	BreakerInterval time.Duration
 	BreakerTimeout  time.Duration
 }
@@ -147,6 +148,7 @@ func Load() (Config, error) {
 			Timeout:         durationEnvOrDefault("HS_FETCHER_TIMEOUT", 20*time.Second),
 			ProxyProvider:   strings.TrimSpace(os.Getenv("HS_FETCHER_PROXY_PROVIDER")),
 			TLSProfile:      envOrDefault("HS_FETCHER_TLS_PROFILE", "chrome-2026"),
+			MinRequestGap:   durationEnvOrDefault("HS_FETCHER_MIN_REQUEST_GAP", 750*time.Millisecond),
 			BreakerInterval: durationEnvOrDefault("HS_FETCHER_BREAKER_INTERVAL", 30*time.Second),
 			BreakerTimeout:  durationEnvOrDefault("HS_FETCHER_BREAKER_TIMEOUT", 15*time.Second),
 		},
@@ -192,6 +194,9 @@ func Load() (Config, error) {
 	}
 	if cfg.Fetcher.Timeout <= 0 {
 		cfg.Fetcher.Timeout = 20 * time.Second
+	}
+	if cfg.Fetcher.MinRequestGap < 0 {
+		cfg.Fetcher.MinRequestGap = 0
 	}
 	if cfg.Auth.SessionTTL <= 0 {
 		cfg.Auth.SessionTTL = 24 * time.Hour

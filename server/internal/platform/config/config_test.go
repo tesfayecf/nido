@@ -63,3 +63,16 @@ func TestLoadAcceptsNotificationWebhookEnvAliases(t *testing.T) {
 		})
 	}
 }
+
+func TestLoadParsesFetcherMinRequestGap(t *testing.T) {
+	t.Setenv("HS_FETCHER_MIN_REQUEST_GAP", "1500ms")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+
+	if cfg.Fetcher.MinRequestGap.Milliseconds() != 1500 {
+		t.Fatalf("unexpected fetcher min request gap %s", cfg.Fetcher.MinRequestGap)
+	}
+}

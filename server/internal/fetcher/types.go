@@ -19,6 +19,7 @@ type Config struct {
 	Timeout         time.Duration
 	ProxyProvider   string
 	TLSProfile      string
+	MinRequestGap   time.Duration
 	BreakerInterval time.Duration
 	BreakerTimeout  time.Duration
 	Profiles        []SessionProfile
@@ -30,6 +31,7 @@ type Request struct {
 	Accept             string
 	DefaultContentType string
 	BrowserEnabled     bool
+	BrowserFallbackOnChallenge bool
 	Headers            map[string]string
 	SessionKey         string
 }
