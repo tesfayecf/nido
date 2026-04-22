@@ -64,6 +64,15 @@ export interface PropertyPreviewResult {
     readonly success: boolean;
 }
 
+export type PreviewErrorCode =
+    | "ok"
+    | "selector_invalid"
+    | "unsupported_type"
+    | "no_match"
+    | "attribute_missing"
+    | "empty_value"
+    | "transform_failed";
+
 export interface PropertyPreviewFieldResult {
     readonly name: string;
     readonly selector_type: SelectorType;
@@ -76,6 +85,7 @@ export interface PropertyPreviewFieldResult {
     readonly value?: string;
     readonly success: boolean;
     readonly message?: string;
+    readonly error_code?: PreviewErrorCode;
 }
 
 export interface PropertyUpsertRequest {

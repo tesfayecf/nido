@@ -27,7 +27,12 @@ const TEXT_MODE_LABELS = {
 
 const TRANSFORM_OPTIONS = [
     { label: "Keep text as-is", value: "" },
-    { label: "Numbers only", value: "number" },
+    { label: "Trim whitespace", value: "trim" },
+    { label: "Lowercase", value: "lowercase" },
+    { label: "Uppercase", value: "uppercase" },
+    { label: "Integer (digits only)", value: "integer" },
+    { label: "Decimal number", value: "decimal" },
+    { label: "Currency amount", value: "currency" },
 ] as const;
 
 const updateField = (fields: SelectorFieldDraft[], fieldId: string, patch: Partial<SelectorFieldDraft>): SelectorFieldDraft[] => {
