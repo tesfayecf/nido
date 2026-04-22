@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"sync"
 	"time"
 
 	"home-searcher/server/internal/engine"
@@ -18,7 +17,6 @@ type Scheduler struct {
 	batchSize       int
 	shutdownTimeout time.Duration
 	done            chan struct{}
-	waitOnce        sync.Once
 }
 
 // NewScheduler builds a background scheduler.

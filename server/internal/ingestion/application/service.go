@@ -559,18 +559,6 @@ func nextRunAt(base time.Time, interval time.Duration) *time.Time {
 	return &next
 }
 
-func sleepContext(ctx context.Context, duration time.Duration) error {
-	timer := time.NewTimer(duration)
-	defer timer.Stop()
-
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-timer.C:
-		return nil
-	}
-}
-
 func failureClass(err error) string {
 	var classified interface{ FailureClass() engine.FailureClass }
 	if errors.As(err, &classified) {

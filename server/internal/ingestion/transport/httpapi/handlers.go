@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"strconv"
 	"strings"
 
 	authhttp "home-searcher/server/internal/auth/transport/httpapi"
@@ -76,12 +75,10 @@ func Register(mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, s
 	})))
 
 	mux.Handle("GET /api/v1/backoffice/events", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		principal, ok := authhttp.CurrentPrincipal(r.Context())
-		if !ok {
+		if _, ok := authhttp.CurrentPrincipal(r.Context()); !ok {
 			platformhttp.WriteError(w, http.StatusUnauthorized, "authentication required")
 			return
 		}
-		_ = principal
 
 		events, cancel := broker.Subscribe(32)
 		defer cancel()
@@ -95,7 +92,7 @@ func RegisterRuns(mux *http.ServeMux, requireAuth func(http.Handler) http.Handle
 		runs, err := service.ListRuns(
 			r.Context(),
 			strings.TrimSpace(r.URL.Query().Get("property_id")),
-			parseLimit(r.URL.Query().Get("limit")),
+			platformhttp.ParseLimit(r.URL.Query().Get("limit")),
 		)
 		if err != nil {
 			platformhttp.WriteError(w, http.StatusInternalServerError, err.Error())
@@ -117,17 +114,4 @@ func RegisterRuns(mux *http.ServeMux, requireAuth func(http.Handler) http.Handle
 
 		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{"item": run})
 	})))
-}
-
-func parseLimit(raw string) int {
-	if strings.TrimSpace(raw) == "" {
-		return 0
-	}
-
-	limit, err := strconv.Atoi(raw)
-	if err != nil {
-		return 0
-	}
-
-	return limit
 }

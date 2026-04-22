@@ -3,7 +3,6 @@ package httpapi
 import (
 	"errors"
 	"net/http"
-	"strconv"
 	"strings"
 
 	app "home-searcher/server/internal/catalog/application"
@@ -17,7 +16,7 @@ func Register(mux *http.ServeMux, service *app.Service) {
 		query := domain.ListQuery{
 			Query:    strings.TrimSpace(r.URL.Query().Get("q")),
 			SourceID: strings.TrimSpace(r.URL.Query().Get("source_id")),
-			Limit:    parseLimit(r.URL.Query().Get("limit")),
+			Limit:    platformhttp.ParseLimit(r.URL.Query().Get("limit")),
 		}
 
 		items, err := service.List(r.Context(), query)
@@ -55,17 +54,4 @@ func Register(mux *http.ServeMux, service *app.Service) {
 			"price_history": detail.PriceHistory,
 		})
 	})
-}
-
-func parseLimit(raw string) int {
-	if strings.TrimSpace(raw) == "" {
-		return 0
-	}
-
-	limit, err := strconv.Atoi(raw)
-	if err != nil {
-		return 0
-	}
-
-	return limit
 }
