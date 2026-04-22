@@ -91,7 +91,20 @@ func TestHTTPClientAppliesBrowserLikeHeaders(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := New(Config{}, nil)
+	client := New(Config{
+		Profiles: []SessionProfile{
+			{
+				UserAgent:               "Mozilla/5.0",
+				SecCHUA:                 `"Chromium";v="135"`,
+				SecCHUAPlatform:         `"Windows"`,
+				AcceptLanguage:          "en-US,en;q=0.9",
+				SecFetchDest:            "document",
+				SecFetchMode:            "navigate",
+				SecFetchSite:            "none",
+				UpgradeInsecureRequests: "1",
+			},
+		},
+	}, nil)
 	if _, err := client.Fetch(context.Background(), Request{URL: server.URL, SessionKey: "property-1"}); err != nil {
 		t.Fatalf("fetch: %v", err)
 	}
