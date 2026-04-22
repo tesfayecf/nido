@@ -1,6 +1,8 @@
 import { Link, isRouteErrorResponse, useRouteError } from "react-router-dom";
 
+import { Button } from "@/components/ui/Button";
 import { PageCard } from "@/components/ui/PageCard";
+import { PageStack } from "@/components/ui/PageStack";
 
 /**
  * Renders a stable fallback when a routed screen throws during rendering or loading.
@@ -22,14 +24,14 @@ export const AppRouteError = (): JSX.Element => {
     }
 
     return (
-        <div className={"page-stack"}>
+        <PageStack>
             <PageCard
-                action={<Link className={"button button--secondary"} to={"/properties"}>{"Back to properties"}</Link>}
+                action={<Button as={Link} to={"/properties"} variant={"secondary"}>{"Back to properties"}</Button>}
                 description={description}
                 title={title}
             >
                 <p className={"muted-copy"}>{"Reload the page after the underlying problem is resolved, or return to a stable route."}</p>
             </PageCard>
-        </div>
+        </PageStack>
     );
 };

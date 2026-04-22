@@ -1,5 +1,10 @@
 import type { Dispatch, SetStateAction } from "react";
 
+import { Button } from "@/components/ui/Button";
+import { Field } from "@/components/ui/Field";
+import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
+import { Textarea } from "@/components/ui/Textarea";
 import type { PropertyPreviewFieldResult, SelectorType } from "@/services/properties/properties.types";
 import type { SelectorFieldDraft } from "@/features/selectors/selectorSchema";
 
@@ -100,32 +105,30 @@ export const SelectorBuilder = ({ fields, onChange, previewByFieldName }: Select
                                         />
                                         <span>{"Required"}</span>
                                     </label>
-                                    <button
-                                        className={"button button--secondary"}
+                                    <Button
                                         onClick={() => { onChange((currentFields) => currentFields.filter((item) => item.id !== field.id)); }}
-                                        type={"button"}
+                                        variant={"secondary"}
                                     >
                                         {"Remove"}
-                                    </button>
+                                    </Button>
                                 </div>
                             </div>
 
                             <div className={"selector-builder__grid"}>
-                                <label className={"field"}>
-                                    <span className={"field__label"}>{"Field name"}</span>
-                                    <input
-                                        className={"field__control"}
+                                <Field label={"Field name"}>
+                                    <Input
                                         onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { name: event.target.value })); }}
                                         placeholder={"Price"}
                                         type={"text"}
                                         value={field.name}
                                     />
-                                </label>
+                                </Field>
 
-                                <label className={"field"}>
-                                    <span className={"field__label"}>{"Selector type"}</span>
-                                    <select
-                                        className={"field__control"}
+                                <Field
+                                    hint={SELECTOR_TYPE_OPTIONS.find((option) => option.value === field.selectorType)?.description}
+                                    label={"Selector type"}
+                                >
+                                    <Select
                                         onChange={(event) => {
                                             const selectorType = event.target.value as SelectorType;
                                             onChange((currentFields) => updateField(currentFields, field.id, {
@@ -138,86 +141,75 @@ export const SelectorBuilder = ({ fields, onChange, previewByFieldName }: Select
                                         {SELECTOR_TYPE_OPTIONS.map((option) => {
                                             return <option key={option.value} value={option.value}>{option.label}</option>;
                                         })}
-                                    </select>
-                                    <p className={"field__hint"}>
-                                        {SELECTOR_TYPE_OPTIONS.find((option) => option.value === field.selectorType)?.description}
-                                    </p>
-                                </label>
+                                    </Select>
+                                </Field>
 
-                                <label className={"field field--full-width"}>
-                                    <span className={"field__label"}>{"Primary selector"}</span>
-                                    <input
-                                        className={"field__control"}
+                                <Field fullWidth label={"Primary selector"}>
+                                    <Input
                                         onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { selectorValue: event.target.value })); }}
                                         placeholder={field.selectorType === "xpath" ? "//span[@data-price]" : ".price"}
                                         type={"text"}
                                         value={field.selectorValue}
                                     />
-                                </label>
+                                </Field>
 
-                                <label className={"field field--full-width"}>
-                                    <span className={"field__label"}>{"Fallback selectors"}</span>
-                                    <textarea
-                                        className={"field__control selector-builder__textarea"}
+                                <Field
+                                    fullWidth
+                                    hint={"Optional. Add one selector per line in the order you want to try them."}
+                                    label={"Fallback selectors"}
+                                >
+                                    <Textarea
+                                        className={"selector-builder__textarea"}
                                         onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { fallbackSelectorsRaw: event.target.value })); }}
                                         placeholder={field.selectorType === "xpath" ? "//div[@data-price]" : ".price-alt\n[data-price]"}
                                         rows={3}
                                         value={field.fallbackSelectorsRaw}
                                     />
-                                    <p className={"field__hint"}>{"Optional. Add one selector per line in the order you want to try them."}</p>
-                                </label>
+                                </Field>
 
-                                <label className={"field"}>
-                                    <span className={"field__label"}>{"Extraction type"}</span>
-                                    <select
-                                        className={"field__control"}
+                                <Field label={"Extraction type"}>
+                                    <Select
                                         onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { extractionMode: event.target.value === "attribute" ? "attribute" : "text" })); }}
                                         value={field.extractionMode}
                                     >
                                         <option value={"text"}>{"Text"}</option>
                                         <option value={"attribute"}>{"Attribute"}</option>
-                                    </select>
-                                </label>
+                                    </Select>
+                                </Field>
 
                                 {field.extractionMode === "text" ? (
-                                    <label className={"field"}>
-                                        <span className={"field__label"}>{"Text to read"}</span>
-                                        <select
-                                            className={"field__control"}
+                                    <Field label={"Text to read"}>
+                                        <Select
                                             onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { textMode: event.target.value === "textContent" ? "textContent" : "innerText" })); }}
                                             value={field.textMode}
                                         >
                                             <option value={"innerText"}>{TEXT_MODE_LABELS.innerText}</option>
                                             <option value={"textContent"}>{TEXT_MODE_LABELS.textContent}</option>
-                                        </select>
-                                    </label>
+                                        </Select>
+                                    </Field>
                                 ) : null}
 
                                 {needsAttribute ? (
-                                    <label className={"field"}>
-                                        <span className={"field__label"}>{"Attribute name"}</span>
-                                        <input
-                                            className={"field__control"}
+                                    <Field label={"Attribute name"}>
+                                        <Input
                                             onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { attribute: event.target.value })); }}
                                             placeholder={"href"}
                                             type={"text"}
                                             value={field.attribute}
                                         />
-                                    </label>
+                                    </Field>
                                 ) : null}
 
-                                <label className={"field"}>
-                                    <span className={"field__label"}>{"Value cleanup"}</span>
-                                    <select
-                                        className={"field__control"}
+                                <Field label={"Value cleanup"}>
+                                    <Select
                                         onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { transform: event.target.value })); }}
                                         value={field.transform}
                                     >
                                         {TRANSFORM_OPTIONS.map((option) => {
                                             return <option key={option.value} value={option.value}>{option.label}</option>;
                                         })}
-                                    </select>
-                                </label>
+                                    </Select>
+                                </Field>
                             </div>
 
                             <div className={`selector-builder__preview ${previewTone(preview)}`}>

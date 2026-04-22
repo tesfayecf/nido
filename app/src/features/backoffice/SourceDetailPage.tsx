@@ -4,7 +4,15 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { SelectorBuilder } from "@/components/selectors/SelectorBuilder";
+import { ActionGroup } from "@/components/ui/ActionGroup";
+import { Button } from "@/components/ui/Button";
+import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { Field } from "@/components/ui/Field";
+import { FormGrid } from "@/components/ui/FormGrid";
+import { Input } from "@/components/ui/Input";
+import { KeyValueGrid, KeyValuePair } from "@/components/ui/KeyValueGrid";
 import { PageCard } from "@/components/ui/PageCard";
+import { PageStack } from "@/components/ui/PageStack";
 import { formatDateTime } from "@/lib/format/date";
 import { sourceKeys } from "@/services/backoffice-sources/sources.keys";
 import { deleteSource, getSource, upsertSource } from "@/services/backoffice-sources/sources.service";
@@ -109,17 +117,16 @@ export const SourceDetailPage = (): JSX.Element => {
     const validationMessages = useMemo(() => validateSelectorDrafts(selectorFields), [selectorFields]);
 
     return (
-        <div className={"page-stack"}>
+        <PageStack>
             <PageCard
-                action={<Link className={"button button--secondary"} to={"/sources"}>{"Back to templates"}</Link>}
+                action={<Button as={Link} to={"/sources"} variant={"secondary"}>{"Back to templates"}</Button>}
                 description={"Build a reusable extraction template with clear selectors, fallbacks, and a quick preview."}
                 title={isCreateMode ? "Create Template" : `Template ${formState.name}`}
             >
                 {sourceQuery.isLoading ? <p className={"muted-copy"}>{"Loading template..."}</p> : null}
-                {sourceQuery.isError ? <p className={"error-banner"}>{"Could not load the selected template."}</p> : null}
-                {configError !== null ? <p className={"error-banner"}>{configError}</p> : null}
-                <form
-                    className={"form-grid"}
+                {sourceQuery.isError ? <ErrorBanner>{"Could not load the selected template."}</ErrorBanner> : null}
+                {configError !== null ? <ErrorBanner>{configError}</ErrorBanner> : null}
+                <FormGrid
                     onSubmit={(event) => {
                         event.preventDefault();
                         saveMutation.mutate({
@@ -129,64 +136,54 @@ export const SourceDetailPage = (): JSX.Element => {
                     }}
                 >
                     <div className={"selector-builder__identity-grid"}>
-                        <label className={"field"}>
-                            <span className={"field__label"}>{"Template id"}</span>
-                            <input className={"field__control"} disabled={!isCreateMode} onChange={(event) => { setFormState((previous) => ({ ...previous, id: event.target.value })); }} value={formState.id} />
-                        </label>
-                        <label className={"field"}>
-                            <span className={"field__label"}>{"Template name"}</span>
-                            <input className={"field__control"} onChange={(event) => { setFormState((previous) => ({ ...previous, name: event.target.value })); }} placeholder={"Search results template"} value={formState.name} />
-                        </label>
-                        <label className={"field"}>
-                            <span className={"field__label"}>{"Preview URL"}</span>
-                            <input className={"field__control"} onChange={(event) => { setPreviewUrl(event.target.value); }} placeholder={"https://example.com/property"} type={"url"} value={previewUrl} />
-                            <p className={"field__hint"}>{"Use any page that matches this template to confirm the selectors before saving."}</p>
-                        </label>
+                        <Field label={"Template id"}>
+                            <Input disabled={!isCreateMode} onChange={(event) => { setFormState((previous) => ({ ...previous, id: event.target.value })); }} value={formState.id} />
+                        </Field>
+                        <Field label={"Template name"}>
+                            <Input onChange={(event) => { setFormState((previous) => ({ ...previous, name: event.target.value })); }} placeholder={"Search results template"} value={formState.name} />
+                        </Field>
+                        <Field hint={"Use any page that matches this template to confirm the selectors before saving."} label={"Preview URL"}>
+                            <Input onChange={(event) => { setPreviewUrl(event.target.value); }} placeholder={"https://example.com/property"} type={"url"} value={previewUrl} />
+                        </Field>
                     </div>
 
                     <SelectorBuilder fields={selectorFields} onChange={setSelectorFields} previewByFieldName={previewMap} />
 
-                    <div className={"action-group"}>
-                        <button className={"button button--secondary"} onClick={() => { setSelectorFields((currentFields) => [...currentFields, createEmptySelectorDraft()]); }} type={"button"}>{"Add field"}</button>
-                        <button className={"button button--secondary"} disabled={previewMutation.isPending || previewUrl.trim() === "" || validationMessages.length > 0} onClick={() => { previewMutation.mutate(); }} type={"button"}>
+                    <ActionGroup>
+                        <Button onClick={() => { setSelectorFields((currentFields) => [...currentFields, createEmptySelectorDraft()]); }} variant={"secondary"}>{"Add field"}</Button>
+                        <Button disabled={previewUrl.trim() === "" || validationMessages.length > 0} isLoading={previewMutation.isPending} onClick={() => { previewMutation.mutate(); }} variant={"secondary"}>
                             {previewMutation.isPending ? "Checking..." : "Preview template"}
-                        </button>
-                        <button className={"button"} disabled={saveMutation.isPending || formState.id.trim() === "" || formState.name.trim() === "" || validationMessages.length > 0} type={"submit"}>
+                        </Button>
+                        <Button disabled={formState.id.trim() === "" || formState.name.trim() === "" || validationMessages.length > 0} isLoading={saveMutation.isPending} type={"submit"}>
                             {saveMutation.isPending ? "Saving..." : isCreateMode ? "Create template" : "Save template"}
-                        </button>
-                        {!isCreateMode ? <button className={"button button--secondary"} disabled={deleteMutation.isPending} onClick={() => { deleteMutation.mutate(formState.id); }} type={"button"}>{"Delete template"}</button> : null}
-                    </div>
+                        </Button>
+                        {!isCreateMode ? <Button disabled={deleteMutation.isPending} onClick={() => { deleteMutation.mutate(formState.id); }} variant={"secondary"}>{"Delete template"}</Button> : null}
+                    </ActionGroup>
                     {validationMessages.length > 0 ? (
                         <div className={"selector-builder__validation-list"}>
-                            {validationMessages.map((message) => <p className={"error-banner"} key={message}>{message}</p>)}
+                            {validationMessages.map((message) => <ErrorBanner key={message}>{message}</ErrorBanner>)}
                         </div>
                     ) : null}
-                    {saveMutation.isError ? <p className={"error-banner"}>{"Could not save the template. Review the names and selectors, then try again."}</p> : null}
-                </form>
+                    {saveMutation.isError ? <ErrorBanner>{"Could not save the template. Review the names and selectors, then try again."}</ErrorBanner> : null}
+                </FormGrid>
             </PageCard>
 
             <PageCard description={"Preview results update the field cards above so you can see what is ready and what needs attention."} title={"Validation"}>
                 {previewFailures.length === 0 ? <p className={"muted-copy"}>{"Preview a page to verify that each field finds the right value."}</p> : (
                     <div className={"selector-builder__validation-list"}>
-                        {previewFailures.map((failure) => <p className={"error-banner"} key={failure}>{failure}</p>)}
+                        {previewFailures.map((failure) => <ErrorBanner key={failure}>{failure}</ErrorBanner>)}
                     </div>
                 )}
             </PageCard>
 
             {!isCreateMode && sourceQuery.data !== undefined ? (
                 <PageCard description={"Timestamps come directly from the saved template record."} title={"Metadata"}>
-                    <div className={"key-value-grid"}>
-                        <div>
-                            <span className={"key-value-grid__label"}>{"Created at"}</span>
-                            <strong className={"key-value-grid__value"}>{sourceQuery.data.created_at === undefined ? "—" : formatDateTime(sourceQuery.data.created_at)}</strong>
-                        </div>
-                        <div>
-                            <span className={"key-value-grid__label"}>{"Updated at"}</span>
-                            <strong className={"key-value-grid__value"}>{sourceQuery.data.updated_at === undefined ? "—" : formatDateTime(sourceQuery.data.updated_at)}</strong>
-                        </div>
-                    </div>
+                    <KeyValueGrid>
+                        <KeyValuePair label={"Created at"} value={sourceQuery.data.created_at === undefined ? "—" : formatDateTime(sourceQuery.data.created_at)} />
+                        <KeyValuePair label={"Updated at"} value={sourceQuery.data.updated_at === undefined ? "—" : formatDateTime(sourceQuery.data.updated_at)} />
+                    </KeyValueGrid>
                 </PageCard>
             ) : null}
-        </div>
+        </PageStack>
     );
 };

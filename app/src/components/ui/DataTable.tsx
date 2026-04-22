@@ -1,0 +1,128 @@
+import { useMemo, useState } from "react";
+import type { ReactNode } from "react";
+
+import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { classNames } from "@/lib/ui/classNames";
+
+interface DataTableColumn<TItem> {
+    readonly align?: "left" | "right";
+    readonly cell?: (item: TItem) => ReactNode;
+    readonly header: ReactNode;
+    readonly id: string;
+    readonly sortValue?: (item: TItem) => number | string;
+}
+
+interface DataTableProps<TItem> {
+    readonly className?: string;
+    readonly columns: DataTableColumn<TItem>[];
+    readonly compact?: boolean;
+    readonly emptyMessage: string;
+    readonly getRowId: (item: TItem) => string;
+    readonly items: TItem[];
+    readonly pageSize?: number;
+}
+
+export const DataTable = <TItem,>({
+    className,
+    columns,
+    compact = false,
+    emptyMessage,
+    getRowId,
+    items,
+    pageSize = 10,
+}: DataTableProps<TItem>): JSX.Element => {
+    const [page, setPage] = useState(0);
+    const [sortColumnId, setSortColumnId] = useState<string | null>(null);
+    const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+
+    const sortedItems = useMemo(() => {
+        if (sortColumnId === null) {
+            return items;
+        }
+
+        const column = columns.find((candidate) => candidate.id === sortColumnId);
+        if (column?.sortValue === undefined) {
+            return items;
+        }
+
+        return [...items].sort((left, right) => {
+            const leftValue = column.sortValue?.(left) ?? "";
+            const rightValue = column.sortValue?.(right) ?? "";
+            if (leftValue === rightValue) {
+                return 0;
+            }
+
+            const order = leftValue > rightValue ? 1 : -1;
+            return sortDirection === "asc" ? order : -order;
+        });
+    }, [columns, items, sortColumnId, sortDirection]);
+
+    const startIndex = page * pageSize;
+    const pagedItems = sortedItems.slice(startIndex, startIndex + pageSize);
+    const totalPages = Math.max(1, Math.ceil(sortedItems.length / pageSize));
+
+    if (items.length === 0) {
+        return <EmptyState message={emptyMessage} />;
+    }
+
+    return (
+        <div className={classNames("data-table-shell", className)}>
+            <table className={classNames("data-table", compact && "data-table--compact")}>
+                <thead>
+                    <tr>
+                        {columns.map((column) => {
+                            const sortable = column.sortValue !== undefined;
+                            const active = column.id === sortColumnId;
+                            return (
+                                <th className={column.align === "right" ? "data-table__cell--right" : undefined} key={column.id} scope={"col"}>
+                                    {sortable ? (
+                                        <button
+                                            className={active ? "data-table__sort data-table__sort--active" : "data-table__sort"}
+                                            onClick={() => {
+                                                if (active) {
+                                                    setSortDirection((current) => current === "asc" ? "desc" : "asc");
+                                                    return;
+                                                }
+
+                                                setSortColumnId(column.id);
+                                                setSortDirection("asc");
+                                            }}
+                                            type={"button"}
+                                        >
+                                            {column.header}
+                                        </button>
+                                    ) : column.header}
+                                </th>
+                            );
+                        })}
+                    </tr>
+                </thead>
+                <tbody>
+                    {pagedItems.map((item) => {
+                        return (
+                            <tr key={getRowId(item)}>
+                                {columns.map((column) => {
+                                    return (
+                                        <td className={column.align === "right" ? "data-table__cell--right" : undefined} key={column.id}>
+                                            {column.cell?.(item)}
+                                        </td>
+                                    );
+                                })}
+                            </tr>
+                        );
+                    })}
+                </tbody>
+            </table>
+            {totalPages > 1 ? (
+                <div className={"data-table__pagination"}>
+                    <span>{`Page ${page + 1} of ${totalPages}`}</span>
+                    <div className={"action-group"}>
+                        <Button disabled={page === 0} onClick={() => { setPage((current) => Math.max(0, current - 1)); }} size={"small"} variant={"secondary"}>{"Previous"}</Button>
+                        <Button disabled={page >= totalPages - 1} onClick={() => { setPage((current) => Math.min(totalPages - 1, current + 1)); }} size={"small"} variant={"secondary"}>{"Next"}</Button>
+                    </div>
+                </div>
+            ) : null}
+        </div>
+    );
+};

@@ -3,6 +3,7 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { RouterProvider } from "react-router-dom";
 
 import { router } from "@/app/router";
+import { ToastProvider } from "@/components/ui/ToastProvider";
 import { ThemeProvider } from "@/hooks/useTheme";
 
 /**
@@ -34,8 +35,10 @@ export const AppProviders = (): JSX.Element => {
     return (
         <QueryClientProvider client={queryClient}>
             <ThemeProvider>
-                <RouterProvider router={router} />
-                <ReactQueryDevtools initialIsOpen={false} />
+                <ToastProvider>
+                    <RouterProvider router={router} />
+                    <ReactQueryDevtools initialIsOpen={false} />
+                </ToastProvider>
             </ThemeProvider>
         </QueryClientProvider>
     );

@@ -1,7 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 
+import { Button } from "@/components/ui/Button";
+import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { KeyValueGrid, KeyValuePair } from "@/components/ui/KeyValueGrid";
 import { PageCard } from "@/components/ui/PageCard";
+import { PageStack } from "@/components/ui/PageStack";
+import { Preformatted } from "@/components/ui/Preformatted";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { formatDateTime } from "@/lib/format/date";
 import { runKeys } from "@/services/backoffice-runs/runs.keys";
@@ -17,69 +22,57 @@ export const RunDetailPage = (): JSX.Element => {
 
     if (runId === "") {
         return (
-            <div className={"page-stack"}>
+            <PageStack>
                 <PageCard description={"The route was loaded without a run identifier."} title={"Run detail unavailable"}>
-                    <p className={"error-banner"}>{"A run id is required."}</p>
+                    <ErrorBanner>{"A run id is required."}</ErrorBanner>
                 </PageCard>
-            </div>
+            </PageStack>
         );
     }
 
     if (runQuery.isLoading) {
         return (
-            <div className={"page-stack"}>
+            <PageStack>
                 <PageCard description={"The run metadata and extracted values are loading."} title={"Run Detail"}>
                     <p className={"muted-copy"}>{"Loading run..."}</p>
                 </PageCard>
-            </div>
+            </PageStack>
         );
     }
 
     if (runQuery.isError || runQuery.data === undefined) {
         return (
-            <div className={"page-stack"}>
+            <PageStack>
                 <PageCard description={"The selected run could not be loaded."} title={"Run Detail"}>
-                    <p className={"error-banner"}>{"Could not load run detail."}</p>
+                    <ErrorBanner>{"Could not load run detail."}</ErrorBanner>
                 </PageCard>
-            </div>
+            </PageStack>
         );
     }
 
     const run = runQuery.data;
 
     return (
-        <div className={"page-stack"}>
+        <PageStack>
             <PageCard
-                action={<Link className={"button button--secondary"} to={"/runs"}>{"Back to runs"}</Link>}
+                action={<Button as={Link} to={"/runs"} variant={"secondary"}>{"Back to runs"}</Button>}
                 description={"A run stores the extracted snapshot values plus change flags and any extraction error."}
                 title={`Run ${run.id}`}
             >
-                <div className={"key-value-grid"}>
-                    <div>
-                        <span className={"key-value-grid__label"}>{"Status"}</span>
-                        <strong className={"key-value-grid__value"}><StatusBadge tone={run.is_valid ? "success" : "warning"} value={run.is_valid ? "valid" : "invalid"} /></strong>
-                    </div>
-                    <div>
-                        <span className={"key-value-grid__label"}>{"Property id"}</span>
-                        <strong className={"key-value-grid__value"}>{run.property_id}</strong>
-                    </div>
-                    <div>
-                        <span className={"key-value-grid__label"}>{"Observed at"}</span>
-                        <strong className={"key-value-grid__value"}>{formatDateTime(run.observed_at)}</strong>
-                    </div>
-                    <div>
-                        <span className={"key-value-grid__label"}>{"Config version"}</span>
-                        <strong className={"key-value-grid__value"}>{run.config_version}</strong>
-                    </div>
-                </div>
-                {run.error_message !== undefined && run.error_message !== "" ? <p className={"error-banner"}>{run.error_message}</p> : null}
+                <KeyValueGrid>
+                    <KeyValuePair label={"Status"} value={<StatusBadge tone={run.is_valid ? "success" : "warning"} value={run.is_valid ? "valid" : "invalid"} />} />
+                    <KeyValuePair label={"Property id"} value={run.property_id} />
+                    <KeyValuePair label={"Observed at"} value={formatDateTime(run.observed_at)} />
+                    <KeyValuePair label={"Config version"} value={run.config_version} />
+                </KeyValueGrid>
+                {run.error_message !== undefined && run.error_message !== "" ? <ErrorBanner>{run.error_message}</ErrorBanner> : null}
             </PageCard>
             <PageCard description={"Extracted values are stored exactly as captured by the run."} title={"Extracted Data"}>
-                <pre className={"preformatted"}>{JSON.stringify(run.values, null, 2)}</pre>
+                <Preformatted>{JSON.stringify(run.values, null, 2)}</Preformatted>
             </PageCard>
             <PageCard description={"Change flags indicate which fields changed compared with the previous valid run."} title={"Change Flags"}>
-                <pre className={"preformatted"}>{JSON.stringify(run.change_flags ?? {}, null, 2)}</pre>
+                <Preformatted>{JSON.stringify(run.change_flags ?? {}, null, 2)}</Preformatted>
             </PageCard>
-        </div>
+        </PageStack>
     );
 };

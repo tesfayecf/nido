@@ -1,5 +1,6 @@
 import { useLocation } from "react-router-dom";
 
+import { Button } from "@/components/ui/Button";
 import { ThemeToggle } from "@/components/shell/ThemeToggle";
 import { useShellStore } from "@/stores/shell.store";
 
@@ -50,14 +51,14 @@ export const AppHeader = (): JSX.Element => {
                     <p className={"app-shell__page-description"}>{meta.description}</p>
                 </div>
                 <div className={"app-shell__header-actions"}>
-                    <button
+                    <Button
                         aria-label={"Toggle navigation"}
-                        className={"button button--secondary app-shell__nav-toggle"}
+                        className={"app-shell__nav-toggle"}
                         onClick={toggleNavOpen}
-                        type={"button"}
+                        variant={"secondary"}
                     >
                         {"Menu"}
-                    </button>
+                    </Button>
                     <ThemeToggle />
                 </div>
             </div>

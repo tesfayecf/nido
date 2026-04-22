@@ -2,8 +2,16 @@ import { useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { Button } from "@/components/ui/Button";
+import { Field } from "@/components/ui/Field";
+import { FormGrid } from "@/components/ui/FormGrid";
+import { Input } from "@/components/ui/Input";
+import { ItemList } from "@/components/ui/ItemList";
+import { ListRow, ListRowFooter, ListRowMain } from "@/components/ui/ListRow";
 import { AsyncContent } from "@/components/ui/AsyncContent";
 import { PageCard } from "@/components/ui/PageCard";
+import { PageStack } from "@/components/ui/PageStack";
+import { Select } from "@/components/ui/Select";
 import { parseOptionalNonNegativeInteger } from "@/lib/forms/number";
 import { alertRuleKeys } from "@/services/alert-rules/alert-rules.keys";
 import { createAlertRule, deleteAlertRule, listAlertRules } from "@/services/alert-rules/alert-rules.service";
@@ -39,10 +47,9 @@ export const AlertsPage = (): JSX.Element => {
     const alertRules = alertRulesQuery.data ?? [];
 
     return (
-        <div className={"page-stack"}>
+        <PageStack>
             <PageCard description={"Alert rules are evaluated per property after each new run."} title={"Create Alert Rule"}>
-                <form
-                    className={"form-grid"}
+                <FormGrid
                     onSubmit={(event) => {
                         event.preventDefault();
                         createMutation.mutate({
@@ -52,30 +59,29 @@ export const AlertsPage = (): JSX.Element => {
                         });
                     }}
                 >
-                    <label className={"field"}>
-                        <span className={"field__label"}>{"Property"}</span>
-                        <select className={"field__control"} onChange={(event) => { setPropertyId(event.target.value); }} value={propertyId}>
+                    <Field label={"Property"}>
+                        <Select onChange={(event) => { setPropertyId(event.target.value); }} value={propertyId}>
                             <option value={""}>{"Select a property"}</option>
                             {(propertiesQuery.data ?? []).map((item) => {
                                 return <option key={item.id} value={item.id}>{item.label !== "" ? item.label : item.url}</option>;
                             })}
-                        </select>
-                    </label>
-                    <label className={"field"}>
-                        <span className={"field__label"}>{"Rule type"}</span>
-                        <select className={"field__control"} onChange={(event) => { setRuleType(event.target.value); }} value={ruleType}>
+                        </Select>
+                    </Field>
+                    <Field label={"Rule type"}>
+                        <Select onChange={(event) => { setRuleType(event.target.value); }} value={ruleType}>
                             <option value={"price_drop"}>{"Price drop"}</option>
                             <option value={"price_below"}>{"Price below threshold"}</option>
-                        </select>
-                    </label>
-                    <label className={"field"}>
-                        <span className={"field__label"}>{"Threshold amount"}</span>
-                        <input className={"field__control"} min={0} onChange={(event) => { setThresholdAmount(event.target.value); }} step={1} type={"number"} value={thresholdAmount} />
-                    </label>
-                    <div className={"field field--actions"}>
-                        <button className={"button"} disabled={createMutation.isPending || propertyId === ""} type={"submit"}>{createMutation.isPending ? "Saving..." : "Create rule"}</button>
-                    </div>
-                </form>
+                        </Select>
+                    </Field>
+                    <Field label={"Threshold amount"}>
+                        <Input min={0} onChange={(event) => { setThresholdAmount(event.target.value); }} step={1} type={"number"} value={thresholdAmount} />
+                    </Field>
+                    <Field as={"div"} variant={"actions"}>
+                        <Button disabled={propertyId === ""} isLoading={createMutation.isPending} loadingLabel={"Saving rule"} type={"submit"}>
+                            {createMutation.isPending ? "Saving..." : "Create rule"}
+                        </Button>
+                    </Field>
+                </FormGrid>
             </PageCard>
 
             <PageCard description={"Active rules stay attached to their property until you delete them."} title={"Current Alert Rules"}>
@@ -87,27 +93,27 @@ export const AlertsPage = (): JSX.Element => {
                     isLoading={alertRulesQuery.isLoading}
                     loadingMessage={"Loading alert rules..."}
                 >
-                    <div className={"item-list"}>
+                    <ItemList>
                         {alertRules.map((item) => {
                             return (
-                                <article className={"list-row"} key={item.id}>
-                                    <div className={"list-row__main"}>
+                                <ListRow key={item.id}>
+                                    <ListRowMain>
                                         <div>
                                             <h3 className={"list-row__title"}>{item.rule_type}</h3>
                                             <p className={"list-row__meta"}>{"Property "}{item.property_id}</p>
                                         </div>
                                         <strong className={"list-row__price"}>{item.threshold_amount === undefined ? "No threshold" : `${item.threshold_amount}`}</strong>
-                                    </div>
-                                    <div className={"list-row__footer"}>
+                                    </ListRowMain>
+                                    <ListRowFooter>
                                         <span>{item.enabled ? "Active" : "Inactive"}</span>
-                                        <button className={"button button--secondary"} disabled={deleteMutation.isPending} onClick={() => { deleteMutation.mutate(item.id); }} type={"button"}>{"Delete"}</button>
-                                    </div>
-                                </article>
+                                        <Button disabled={deleteMutation.isPending} onClick={() => { deleteMutation.mutate(item.id); }} variant={"secondary"}>{"Delete"}</Button>
+                                    </ListRowFooter>
+                                </ListRow>
                             );
                         })}
-                    </div>
+                    </ItemList>
                 </AsyncContent>
             </PageCard>
-        </div>
+        </PageStack>
     );
 };
