@@ -16,7 +16,7 @@ This repo-native manual documents the real frontend UI implemented under `/app`.
 - [10 Add Property](./pages/10-add-property.md)
 - [11 Property Detail](./pages/11-property-detail.md)
 - [12 Sources](./pages/12-sources.md)
-- [13 Register Source](./pages/13-add-source.md)
+- [13 Create Template](./pages/13-add-source.md)
 - [14 Source Detail](./pages/14-source-detail.md)
 - [15 Runs](./pages/15-runs.md)
 - [16 Run Detail](./pages/16-run-detail.md)
@@ -27,4 +27,5 @@ This repo-native manual documents the real frontend UI implemented under `/app`.
 ## Coverage Notes
 - Screenshots are stored locally in `/docs/app/assets`.
 - Documentation reflects the current shipped UI only.
-- The current property tooling supports manual CSS selector entry. A visual DOM selector is **not** implemented in the UI at this time.
+- The current selector tooling uses a structured selector builder with CSS, attribute, and advanced XPath modes plus ordered fallback selectors.
+- A visual DOM selector is still **not** implemented in the UI at this time.

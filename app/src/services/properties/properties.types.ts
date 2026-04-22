@@ -1,8 +1,18 @@
 export type PropertyStatus = "pending" | "active" | "degraded" | "inactive";
 
+export type SelectorType = "css" | "xpath" | "attribute" | "text";
+
+export type ExtractionMode = "text" | "attribute";
+
+export type TextMode = "textContent" | "innerText";
+
 export interface FieldSelector {
     readonly name: string;
-    readonly selectors: string[];
+    readonly selector_type: SelectorType;
+    readonly selector_value: string;
+    readonly fallback_selectors?: string[];
+    readonly extraction_mode: ExtractionMode;
+    readonly text_mode?: TextMode;
     readonly attribute?: string;
     readonly transform?: string;
     readonly required: boolean;
@@ -49,8 +59,23 @@ export interface PropertyPreviewRequest {
 
 export interface PropertyPreviewResult {
     readonly values: Record<string, string>;
+    readonly fields: PropertyPreviewFieldResult[];
     readonly failures?: string[];
     readonly success: boolean;
+}
+
+export interface PropertyPreviewFieldResult {
+    readonly name: string;
+    readonly selector_type: SelectorType;
+    readonly selector_value: string;
+    readonly extraction_mode: ExtractionMode;
+    readonly text_mode?: TextMode;
+    readonly matched_selector?: string;
+    readonly match_count: number;
+    readonly used_fallback?: boolean;
+    readonly value?: string;
+    readonly success: boolean;
+    readonly message?: string;
 }
 
 export interface PropertyUpsertRequest {

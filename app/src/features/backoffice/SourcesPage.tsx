@@ -26,9 +26,9 @@ export const SourcesPage = (): JSX.Element => {
         <div className={"split-layout"}>
             <div className={"page-stack"}>
                 <PageCard
-                    action={<Link className={"button"} to={"/sources/new"}>{"Create source"}</Link>}
-                    description={"Sources are reusable extraction templates. Properties can inherit these selectors and override them when needed."}
-                    title={"Sources"}
+                    action={<Link className={"button"} to={"/sources/new"}>{"Create template"}</Link>}
+                    description={"Templates are reusable selector sets. Properties can inherit them and override individual fields when needed."}
+                    title={"Source Templates"}
                 >
                     <AsyncContent
                         emptyMessage={"No sources are configured yet."}

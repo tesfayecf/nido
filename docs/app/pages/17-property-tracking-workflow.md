@@ -12,15 +12,15 @@ Document the end-to-end operator workflow for adding a property, configuring sel
 - Description: Starts with the add-property form.
 - Behavior: Creates a tracked property record from a target URL.
 
-### Element: Manual selector configuration step
+### Element: Selector configuration step
 - Type: workflow step
-- Description: Uses the repeatable extraction configuration rows in property detail.
-- Behavior: Stores CSS selectors for fields such as title, price, and location.
+- Description: Uses the property detail selector builder and any inherited source template fields.
+- Behavior: Stores typed selectors for fields such as title, summary, price, and links.
 
 ### Element: Validation step
 - Type: workflow step
-- Description: Uses Run preview and Snapshot History.
-- Behavior: Shows live extracted values before and after persisted ingest.
+- Description: Uses Preview extraction and Current Snapshot.
+- Behavior: Shows live extracted values when available and persisted values after ingest.
 
 ### Element: Monitoring step
 - Type: workflow step
@@ -29,10 +29,10 @@ Document the end-to-end operator workflow for adding a property, configuring sel
 
 ## User Actions
 - Add a property in [Add Property](./10-add-property.md) → A new property detail route is created.
-- Enter CSS selectors in [Property Detail](./11-property-detail.md) → Manual extraction rules are versioned.
-- Run preview → Extracted values confirm whether the selectors match the page.
+- Adjust selectors in [Property Detail](./11-property-detail.md) → Structured extraction rules are versioned.
+- Run preview → Extracted values confirm whether the selectors match the page when the preview target is reachable.
 - Press Ingest now → Tracking becomes active through a persisted snapshot.
-- Look for a visual DOM selector → This workflow does not exist in the current UI; the shipped product uses manual selector entry only.
+- Look for a visual DOM selector → This workflow does not exist in the current UI; the shipped product uses the manual selector builder only.
 
 ## Navigation
 - Previous: [Run Detail](./16-run-detail.md)

@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { EmptyState } from "@/components/ui/EmptyState";
+import { SelectorBuilder } from "@/components/selectors/SelectorBuilder";
 import { PageCard } from "@/components/ui/PageCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { alertRuleKeys } from "@/services/alert-rules/alert-rules.keys";
@@ -16,6 +17,14 @@ import { readNonNegativeNumber } from "@/lib/forms/number";
 import { formatDateTime } from "@/lib/format/date";
 import { propertyKeys } from "@/services/properties/properties.keys";
 import {
+    buildPreviewFieldMap,
+    createEmptySelectorDraft,
+    draftToSelector,
+    selectorToDraft,
+    validateSelectorDrafts,
+    type SelectorFieldDraft,
+} from "@/features/selectors/selectorSchema";
+import {
     createProperty,
     getProperty,
     getPropertyConfig,
@@ -25,48 +34,13 @@ import {
     updateProperty,
     upsertPropertyConfig,
 } from "@/services/properties/properties.service";
-import type { FieldSelector } from "@/services/properties/properties.types";
+import type { PropertyPreviewFieldResult } from "@/services/properties/properties.types";
 
-const DEFAULT_FIELDS: FieldSelector[] = [
-    { name: "price", required: true, selectors: [] },
-    { name: "title", required: false, selectors: [] },
-    { name: "location", required: false, selectors: [] },
+const defaultFieldRows = (): SelectorFieldDraft[] => [
+    { ...createEmptySelectorDraft(), name: "price", required: true },
+    { ...createEmptySelectorDraft(), name: "title" },
+    { ...createEmptySelectorDraft(), name: "location" },
 ];
-
-interface FieldRow {
-    readonly attribute: string;
-    readonly id: string;
-    readonly name: string;
-    readonly required: boolean;
-    readonly selectorsRaw: string;
-    readonly transform: string;
-}
-
-const fieldRowToSelector = (row: FieldRow): FieldSelector => ({
-    attribute: row.attribute.trim() !== "" ? row.attribute.trim() : undefined,
-    name: row.name.trim(),
-    required: row.required,
-    selectors: row.selectorsRaw
-        .split("\n")
-        .map((selector) => selector.trim())
-        .filter((selector) => selector !== ""),
-    transform: row.transform.trim() !== "" ? row.transform.trim() : undefined,
-});
-
-const selectorToFieldRow = (selector: FieldSelector): FieldRow => ({
-    attribute: selector.attribute ?? "",
-    id: crypto.randomUUID(),
-    name: selector.name,
-    required: selector.required,
-    selectorsRaw: selector.selectors.join("\n"),
-    transform: selector.transform ?? "",
-});
-
-const defaultFieldRows = (): FieldRow[] => DEFAULT_FIELDS.map(selectorToFieldRow);
-
-const updateRow = (rows: FieldRow[], rowId: string, patch: Partial<FieldRow>): FieldRow[] => {
-    return rows.map((row) => row.id === rowId ? { ...row, ...patch } : row);
-};
 
 export const PropertyDetailPage = (): JSX.Element => {
     const navigate = useNavigate();
@@ -81,8 +55,9 @@ export const PropertyDetailPage = (): JSX.Element => {
     const [scheduleInterval, setScheduleInterval] = useState(0);
     const [retryMaxAttempts, setRetryMaxAttempts] = useState(1);
     const [retryBackoffMillis, setRetryBackoffMillis] = useState(500);
-    const [fieldRows, setFieldRows] = useState<FieldRow[]>(defaultFieldRows);
-    const [previewValues, setPreviewValues] = useState<Record<string, string> | null>(null);
+    const [fieldRows, setFieldRows] = useState<SelectorFieldDraft[]>(defaultFieldRows);
+    const [previewValues, setPreviewValues] = useState<Record<string, string>>({});
+    const [previewMap, setPreviewMap] = useState<Map<string, PropertyPreviewFieldResult>>(new Map());
     const [previewFailures, setPreviewFailures] = useState<string[]>([]);
 
     const propertyQuery = useQuery({
@@ -127,7 +102,7 @@ export const PropertyDetailPage = (): JSX.Element => {
 
     useEffect(() => {
         if (configQuery.data?.fields !== undefined && configQuery.data.fields.length > 0) {
-            setFieldRows(configQuery.data.fields.map(selectorToFieldRow));
+            setFieldRows(configQuery.data.fields.map(selectorToDraft));
         }
     }, [configQuery.data]);
 
@@ -163,20 +138,27 @@ export const PropertyDetailPage = (): JSX.Element => {
             resolvedId,
             fieldRows
                 .filter((row) => row.name.trim() !== "")
-                .map(fieldRowToSelector),
+                .map(draftToSelector),
         ),
         onSuccess() {
             void queryClient.invalidateQueries({ queryKey: propertyKeys.config(resolvedId) });
         },
     });
     const previewMutation = useMutation({
-        mutationFn: () => previewExtraction({ fields: fieldRows.map(fieldRowToSelector), url }),
+        mutationFn: () => previewExtraction({
+            fields: fieldRows
+                .map(draftToSelector)
+                .filter((field) => field.name !== ""),
+            url,
+        }),
         onSuccess(data) {
             setPreviewValues(data.values);
+            setPreviewMap(buildPreviewFieldMap(data.fields));
             setPreviewFailures(data.failures ?? []);
         },
         onError() {
-            setPreviewValues(null);
+            setPreviewValues({});
+            setPreviewMap(new Map());
             setPreviewFailures(["Extraction preview failed. Check the URL and selectors."]);
         },
     });
@@ -213,6 +195,7 @@ export const PropertyDetailPage = (): JSX.Element => {
         return (alertsQuery.data ?? []).filter((rule) => rule.property_id === resolvedId);
     }, [alertsQuery.data, resolvedId]);
     const isBookmarked = (bookmarksQuery.data ?? []).some((item) => item.property_id === resolvedId);
+    const validationMessages = useMemo(() => validateSelectorDrafts(fieldRows), [fieldRows]);
 
     return (
         <div className={"page-stack"}>
@@ -272,39 +255,35 @@ export const PropertyDetailPage = (): JSX.Element => {
             </PageCard>
 
             {!isCreateMode ? (
-                <PageCard description={"Edit selectors that the property should use after inheriting from its source template."} title={"Extraction Configuration"}>
-                    <div className={"item-list"}>
-                        {fieldRows.map((row) => (
-                            <div className={"list-row"} key={row.id}>
-                                <div className={"key-value-grid"}>
-                                    <span className={"key-value-grid__label field__label"}>{"Field name"}</span>
-                                    <input className={"key-value-grid__value field__control"} onChange={(event) => { setFieldRows((rows) => updateRow(rows, row.id, { name: event.target.value })); }} type={"text"} value={row.name} />
-                                    <span className={"key-value-grid__label field__label"}>{"Selectors"}</span>
-                                    <textarea className={"key-value-grid__value field__control"} onChange={(event) => { setFieldRows((rows) => updateRow(rows, row.id, { selectorsRaw: event.target.value })); }} rows={3} value={row.selectorsRaw} />
-                                    <span className={"key-value-grid__label field__label"}>{"Attribute"}</span>
-                                    <input className={"key-value-grid__value field__control"} onChange={(event) => { setFieldRows((rows) => updateRow(rows, row.id, { attribute: event.target.value })); }} type={"text"} value={row.attribute} />
-                                    <span className={"key-value-grid__label field__label"}>{"Transform"}</span>
-                                    <input className={"key-value-grid__value field__control"} onChange={(event) => { setFieldRows((rows) => updateRow(rows, row.id, { transform: event.target.value })); }} type={"text"} value={row.transform} />
-                                    <span className={"key-value-grid__label field__label"}>{"Required"}</span>
-                                    <div className={"key-value-grid__value"}>
-                                        <input checked={row.required} onChange={(event) => { setFieldRows((rows) => updateRow(rows, row.id, { required: event.target.checked })); }} type={"checkbox"} />
-                                    </div>
-                                </div>
-                                <div className={"action-group"}>
-                                    <button className={"button button--secondary"} onClick={() => { setFieldRows((rows) => rows.filter((item) => item.id !== row.id)); }} type={"button"}>{"Remove field"}</button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+                <PageCard description={"Edit the selectors that this property should use after inheriting from its source template."} title={"Extraction Configuration"}>
+                    <SelectorBuilder fields={fieldRows} onChange={setFieldRows} previewByFieldName={previewMap} />
                     {fieldRows.length === 0 ? <EmptyState message={"No fields defined yet. Add a field to start extracting data."} /> : null}
                     <div className={"action-group"}>
-                        <button className={"button button--secondary"} onClick={() => { setFieldRows((rows) => [...rows, { attribute: "", id: crypto.randomUUID(), name: "", required: false, selectorsRaw: "", transform: "" }]); }} type={"button"}>{"Add field"}</button>
-                        <button className={"button button--secondary"} disabled={previewMutation.isPending || url.trim() === ""} onClick={() => { previewMutation.mutate(); }} type={"button"}>{previewMutation.isPending ? "Previewing..." : "Preview extraction"}</button>
-                        <button className={"button"} disabled={saveConfigMutation.isPending} onClick={() => { saveConfigMutation.mutate(); }} type={"button"}>{saveConfigMutation.isPending ? "Saving..." : "Save configuration"}</button>
+                        <button className={"button button--secondary"} onClick={() => { setFieldRows((rows) => [...rows, createEmptySelectorDraft()]); }} type={"button"}>{"Add field"}</button>
+                        <button className={"button button--secondary"} disabled={previewMutation.isPending || url.trim() === "" || validationMessages.length > 0} onClick={() => { previewMutation.mutate(); }} type={"button"}>{previewMutation.isPending ? "Previewing..." : "Preview extraction"}</button>
+                        <button className={"button"} disabled={saveConfigMutation.isPending || validationMessages.length > 0} onClick={() => { saveConfigMutation.mutate(); }} type={"button"}>{saveConfigMutation.isPending ? "Saving..." : "Save configuration"}</button>
                     </div>
+                    {validationMessages.length > 0 ? (
+                        <div className={"selector-builder__validation-list"}>
+                            {validationMessages.map((message) => <p className={"error-banner"} key={message}>{message}</p>)}
+                        </div>
+                    ) : null}
                     {saveConfigMutation.isError ? <p className={"error-banner"}>{"Could not save configuration."}</p> : null}
-                    {previewFailures.length > 0 ? <p className={"error-banner"}>{previewFailures.join(" ")}</p> : null}
-                    {previewValues !== null ? <pre className={"preformatted"}>{JSON.stringify(previewValues, null, 2)}</pre> : null}
+                    {previewFailures.length > 0 ? (
+                        <div className={"selector-builder__validation-list"}>
+                            {previewFailures.map((failure) => <p className={"error-banner"} key={failure}>{failure}</p>)}
+                        </div>
+                    ) : null}
+                    {Object.keys(previewValues).length > 0 ? (
+                        <div className={"selector-builder__results"}>
+                            {Object.entries(previewValues).map(([fieldName, value]) => (
+                                <article className={"selector-builder__result-card"} key={fieldName}>
+                                    <span className={"selector-builder__result-label"}>{fieldName}</span>
+                                    <strong className={"selector-builder__result-value"}>{value}</strong>
+                                </article>
+                            ))}
+                        </div>
+                    ) : null}
                 </PageCard>
             ) : null}
 

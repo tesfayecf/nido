@@ -1,7 +1,7 @@
 # Sources
 
 ## Purpose
-List registered ingestion sources and expose manual ingest controls.
+List reusable source templates and jump into the selector builder for each one.
 
 ## Screenshot
 ![Sources list](../assets/sources.png)
@@ -9,18 +9,13 @@ List registered ingestion sources and expose manual ingest controls.
 ## UI Elements
 ### Element: Source rows
 - Type: interactive list
-- Description: Shows source name, kind, endpoint, activity state, last run, and actions.
-- Behavior: Links to source detail and to filtered runs.
+- Description: Shows the template name, id, updated timestamp, and edit/delete actions.
+- Behavior: Opens the template builder for review or maintenance.
 
-### Element: Register source
+### Element: Create template
 - Type: link
-- Description: Opens create mode for a new source definition.
-- Behavior: Navigates to `/backoffice/sources/new`.
-
-### Element: Ingest and Force ingest
-- Type: buttons
-- Description: Trigger source execution immediately.
-- Behavior: Invalidate sources, runs, listings, and notifications after completion.
+- Description: Opens create mode for a new reusable selector template.
+- Behavior: Navigates to `/sources/new`.
 
 ### Element: Live Events panel
 - Type: status panel
@@ -28,10 +23,10 @@ List registered ingestion sources and expose manual ingest controls.
 - Behavior: Displays recent event payloads when received.
 
 ## User Actions
-- Open a source row → The source editor loads.
-- Trigger Ingest → A new run record appears in `/backoffice/runs`.
-- Open the page with no sources → The empty state explains registration as the next step.
+- Open a template row → The template builder loads.
+- Press Create template → A new template starts with guided selector fields.
+- Open the page with no templates → The empty state explains creation as the next step.
 
 ## Navigation
 - Previous: [Property Detail](./11-property-detail.md)
-- Next: [Register Source](./13-add-source.md)
+- Next: [Create Template](./13-add-source.md)
