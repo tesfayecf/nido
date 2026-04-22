@@ -38,7 +38,7 @@ type HTTPClient struct {
 	proxyMetrics  map[string]*proxyTelemetry
 	buffers       sync.Pool
 
-	requestGapMu sync.Mutex
+	requestGapMu  sync.Mutex
 	lastRequestAt map[string]time.Time
 }
 

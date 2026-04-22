@@ -27,13 +27,13 @@ type Config struct {
 
 // Request captures one outbound fetch operation.
 type Request struct {
-	URL                string
-	Accept             string
-	DefaultContentType string
-	BrowserEnabled     bool
+	URL                        string
+	Accept                     string
+	DefaultContentType         string
+	BrowserEnabled             bool
 	BrowserFallbackOnChallenge bool
-	Headers            map[string]string
-	SessionKey         string
+	Headers                    map[string]string
+	SessionKey                 string
 }
 
 // Response contains the fetched payload and transport metadata.
