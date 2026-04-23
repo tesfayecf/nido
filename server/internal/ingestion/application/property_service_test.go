@@ -20,12 +20,12 @@ type stubFetchClient struct {
 }
 
 type propertyServiceStoreStub struct {
-	property             ingestiondomain.Property
-	propertyErr          error
-	config               ingestiondomain.PropertyExtractionConfig
-	upserted             ingestiondomain.Property
-	updateRunStateCalls  []updateRunStateCall
-	snapshots            []ingestiondomain.PropertySnapshot
+	property            ingestiondomain.Property
+	propertyErr         error
+	config              ingestiondomain.PropertyExtractionConfig
+	upserted            ingestiondomain.Property
+	updateRunStateCalls []updateRunStateCall
+	snapshots           []ingestiondomain.PropertySnapshot
 }
 
 func (client *stubFetchClient) Fetch(_ context.Context, request fetcher.Request) (fetcher.Response, error) {

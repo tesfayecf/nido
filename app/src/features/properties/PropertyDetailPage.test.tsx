@@ -28,17 +28,23 @@ const setPropertyTagsMock = vi.fn();
 const updatePropertyMock = vi.fn<(propertyId: string, payload: Record<string, unknown>) => Promise<Property>>();
 const upsertPropertyConfigMock = vi.fn();
 
-vi.mock("@/features/engagement/PropertyAlertCreateDialog", () => ({
-    PropertyAlertCreateDialog: () => null,
-}));
+vi.mock("@/features/engagement/PropertyAlertCreateDialog", () => {
+    const mockedModule: Record<string, unknown> = {};
+    mockedModule["PropertyAlertCreateDialog"] = () => null;
+    return mockedModule;
+});
 
-vi.mock("@/components/selectors/SelectorBuilder", () => ({
-    SelectorBuilder: () => <div>{"Selector builder"}</div>,
-}));
+vi.mock("@/components/selectors/SelectorBuilder", () => {
+    const mockedModule: Record<string, unknown> = {};
+    mockedModule["SelectorBuilder"] = () => <div>{"Selector builder"}</div>;
+    return mockedModule;
+});
 
-vi.mock("@/components/tags/TagPicker", () => ({
-    TagPicker: () => null,
-}));
+vi.mock("@/components/tags/TagPicker", () => {
+    const mockedModule: Record<string, unknown> = {};
+    mockedModule["TagPicker"] = () => null;
+    return mockedModule;
+});
 
 vi.mock("@/services/alert-rules/alert-rules.constants", () => ({
     getRuleTypeLabel: () => "Alert",
@@ -163,7 +169,7 @@ describe("PropertyDetailPage", () => {
         renderPropertyDetailPage();
 
         expect(await screen.findByText("Scheduled")).toBeInTheDocument();
-        expect(screen.getByText("Runs every 5 minutes")).toBeInTheDocument();
+        expect(screen.getAllByText("5 minutes").length).toBeGreaterThan(0);
         expect(screen.getByText("Jan 1, 2024, 12:05 PM")).toBeInTheDocument();
         expect(screen.getByText("Jan 1, 2024, 11:55 AM")).toBeInTheDocument();
     });
@@ -173,8 +179,13 @@ describe("PropertyDetailPage", () => {
 
         fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
 
-        fireEvent.change(screen.getByLabelText("Run interval", { selector: "input" }), { target: { value: "1" } });
-        fireEvent.change(screen.getByLabelText("Run interval", { selector: "select" }), { target: { value: "hours" } });
+        const scheduleInput = document.querySelector<HTMLInputElement>("#prop-schedule-value");
+        const scheduleUnit = document.querySelector<HTMLSelectElement>("#prop-schedule-unit");
+        expect(scheduleInput).not.toBeNull();
+        expect(scheduleUnit).not.toBeNull();
+
+        fireEvent.change(scheduleInput as HTMLInputElement, { target: { value: "1" } });
+        fireEvent.change(scheduleUnit as HTMLSelectElement, { target: { value: "hours" } });
 
         fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
 

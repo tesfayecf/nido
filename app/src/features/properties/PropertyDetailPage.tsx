@@ -29,10 +29,10 @@ import { TagBadge } from "@/components/tags/TagBadge";
 import { TagPicker } from "@/components/tags/TagPicker";
 import { PropertyAlertCreateDialog } from "@/features/engagement/PropertyAlertCreateDialog";
 import {
+    SCHEDULE_PRESETS,
     durationDraftFromSeconds,
     durationDraftToSeconds,
     formatDurationFromSeconds,
-    schedulePresets,
     type DurationUnit,
 } from "@/features/properties/propertySchedule";
 import { getRuleTypeLabel, getRuleTypeLogic } from "@/services/alert-rules/alert-rules.constants";
@@ -96,14 +96,17 @@ const scheduleStatusLabel = (
     if (latestRun?.status === "running") {
         return "Running";
     }
+
     if (latestRun?.status === "failed") {
         return latestRun.attempt_count < latestRun.max_attempts
             ? `Failed · retry ${latestRun.attempt_count + 1} of ${latestRun.max_attempts} pending`
             : "Failed";
     }
+
     if (scheduleIntervalSeconds !== undefined && scheduleIntervalSeconds > 0) {
         return "Scheduled";
     }
+
     return "Manual only";
 };
 
@@ -325,6 +328,7 @@ export const PropertyDetailPage = (): JSX.Element => {
         if (propertyQuery.data?.schedule_interval_seconds === undefined || propertyQuery.data.schedule_interval_seconds <= 0) {
             return "Manual only";
         }
+
         return `Runs every ${formatDurationFromSeconds(propertyQuery.data.schedule_interval_seconds).toLowerCase()}`;
     }, [propertyQuery.data?.schedule_interval_seconds]);
     const persistedRetrySummary = useMemo(() => {
@@ -395,7 +399,7 @@ export const PropertyDetailPage = (): JSX.Element => {
                                 </Select>
                             </div>
                             <ActionGroup>
-                                {schedulePresets.map((preset) => {
+                                {SCHEDULE_PRESETS.map((preset) => {
                                     const presetLabel = formatDurationFromSeconds(durationDraftToSeconds(preset.value, preset.unit) ?? 0);
                                     return (
                                         <Button
