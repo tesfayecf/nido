@@ -266,6 +266,86 @@ func TestPropertySchedulerPicksDueProperties(t *testing.T) {
 	runner.mu.Unlock()
 }
 
+func TestPropertySchedulerSetsConfiguredNextRunAt(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2024, time.January, 1, 12, 0, 0, 0, time.UTC)
+	pastDue := now.Add(-30 * time.Minute)
+
+	store := &propertySchedulerStoreStub{
+		properties: []ingestiondomain.Property{
+			{
+				ID:                      "prop_1",
+				URL:                     "https://example.com/listing",
+				ScheduleIntervalSeconds: 7200,
+				RetryMaxAttempts:        1,
+				NextRunAt:               &pastDue,
+			},
+		},
+	}
+
+	scheduler := NewPropertyScheduler(
+		nil,
+		store,
+		&propertyRunnerStub{},
+		fixedClock{now: now},
+		nil,
+		PropertySchedulerConfig{TickInterval: 10 * time.Millisecond, GlobalConcurrency: 1, PerDomainConcurrency: 1},
+	)
+
+	scheduler.tick()
+
+	store.mu.Lock()
+	defer store.mu.Unlock()
+
+	if len(store.updateRunStateCalls) == 0 || store.updateRunStateCalls[0].nextRunAt == nil {
+		t.Fatal("expected scheduler to persist the next run timestamp")
+	}
+
+	expectedNextRun := pastDue.Add(2 * time.Hour)
+	if !store.updateRunStateCalls[0].nextRunAt.Equal(expectedNextRun) {
+		t.Fatalf("expected next run %v, got %v", expectedNextRun, *store.updateRunStateCalls[0].nextRunAt)
+	}
+}
+
+func TestPropertySchedulerSkipsAlreadyRunningProperty(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2024, time.January, 1, 12, 0, 0, 0, time.UTC)
+	pastDue := now.Add(-1 * time.Minute)
+	runner := &propertyRunnerStub{}
+	store := &propertySchedulerStoreStub{
+		properties: []ingestiondomain.Property{
+			{
+				ID:                      "prop_1",
+				URL:                     "https://example.com/listing",
+				ScheduleIntervalSeconds: 60,
+				RetryMaxAttempts:        1,
+				NextRunAt:               &pastDue,
+			},
+		},
+	}
+
+	scheduler := NewPropertyScheduler(
+		nil,
+		store,
+		runner,
+		fixedClock{now: now},
+		nil,
+		PropertySchedulerConfig{TickInterval: 10 * time.Millisecond, GlobalConcurrency: 1, PerDomainConcurrency: 1},
+	)
+	scheduler.markRunning("prop_1", true)
+
+	scheduler.tick()
+	time.Sleep(100 * time.Millisecond)
+
+	runner.mu.Lock()
+	defer runner.mu.Unlock()
+	if len(runner.ingestCalls) != 0 {
+		t.Fatalf("expected running property to be skipped, got %d runs", len(runner.ingestCalls))
+	}
+}
+
 func TestPropertySchedulerBackoffCalculation(t *testing.T) {
 	scheduler := &PropertyScheduler{
 		config: PropertySchedulerConfig{},

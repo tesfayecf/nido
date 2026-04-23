@@ -495,7 +495,7 @@ func (s *PropertyService) IngestPropertyOnce(ctx context.Context, propertyID str
 			ErrorMessage:  fetchErr.Error(),
 		}
 		_ = s.store.CreatePropertySnapshot(ctx, snapshot)
-		_ = s.store.UpdatePropertyRunState(ctx, propertyID, ingestiondomain.PropertyStatusDegraded, &now, nil)
+		_ = s.store.UpdatePropertyRunState(ctx, propertyID, ingestiondomain.PropertyStatusDegraded, &now, property.NextRunAt)
 
 		return snapshot, fetchErr
 	}
@@ -548,7 +548,7 @@ func (s *PropertyService) IngestPropertyOnce(ctx context.Context, propertyID str
 		return ingestiondomain.PropertySnapshot{}, err
 	}
 
-	if err := s.store.UpdatePropertyRunState(ctx, propertyID, status, &now, nil); err != nil {
+	if err := s.store.UpdatePropertyRunState(ctx, propertyID, status, &now, property.NextRunAt); err != nil {
 		return ingestiondomain.PropertySnapshot{}, err
 	}
 
@@ -592,8 +592,21 @@ func (s *PropertyService) normalizeAndValidateProperty(ctx context.Context, prop
 	}
 
 	now := s.clock.Now().UTC()
+	var existing *ingestiondomain.Property
+	if strings.TrimSpace(property.ID) != "" {
+		current, err := s.store.GetProperty(ctx, property.ID)
+		switch {
+		case err == nil:
+			existing = &current
+		case !errors.Is(err, sql.ErrNoRows):
+			return ingestiondomain.Property{}, err
+		}
+	}
 	if property.ID == "" {
 		property.ID = id.New("prop")
+	}
+	if property.Status == "" && existing != nil {
+		property.Status = existing.Status
 	}
 	if property.Status == "" {
 		property.Status = ingestiondomain.PropertyStatusPending
@@ -603,6 +616,13 @@ func (s *PropertyService) normalizeAndValidateProperty(ctx context.Context, prop
 	}
 	if property.RetryBackoffMillis <= 0 {
 		property.RetryBackoffMillis = 500
+	}
+	if existing != nil {
+		property.CreatedAt = existing.CreatedAt
+		property.LastRunAt = existing.LastRunAt
+		property.NextRunAt = reschedulePropertyRunAt(now, *existing, property.ScheduleInterval())
+	} else {
+		property.NextRunAt = nextPropertyRunAt(now, property.ScheduleInterval())
 	}
 	property.UpdatedAt = now
 	if property.CreatedAt.IsZero() {
@@ -1205,6 +1225,25 @@ func nextPropertyRunAt(now time.Time, interval time.Duration) *time.Time {
 	}
 	nextRun := now.Add(interval)
 	return &nextRun
+}
+
+func reschedulePropertyRunAt(now time.Time, existing ingestiondomain.Property, interval time.Duration) *time.Time {
+	if interval <= 0 {
+		return nil
+	}
+	if existing.ScheduleInterval() == interval && existing.NextRunAt != nil {
+		preserved := existing.NextRunAt.UTC()
+		return &preserved
+	}
+	if existing.LastRunAt != nil {
+		nextRun := existing.LastRunAt.Add(interval)
+		if nextRun.After(now) {
+			return &nextRun
+		}
+		immediate := now
+		return &immediate
+	}
+	return nextPropertyRunAt(now, interval)
 }
 
 func max(a, b int) int {

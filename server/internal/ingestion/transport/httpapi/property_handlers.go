@@ -11,6 +11,15 @@ import (
 	platformhttp "home-searcher/server/internal/platform/httpapi"
 )
 
+type propertyUpsertRequest struct {
+	Label                   string  `json:"label"`
+	RetryBackoffMillis      *int    `json:"retry_backoff_millis,omitempty"`
+	RetryMaxAttempts        *int    `json:"retry_max_attempts,omitempty"`
+	ScheduleIntervalSeconds *int    `json:"schedule_interval_seconds,omitempty"`
+	SourceID                *string `json:"source_id,omitempty"`
+	URL                     string  `json:"url"`
+}
+
 // RegisterProperties binds property tracking HTTP routes to the supplied mux.
 func RegisterProperties(mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, service *app.PropertyService) {
 	mux.Handle("GET /api/v1/backoffice/properties", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -33,13 +42,13 @@ func RegisterProperties(mux *http.ServeMux, requireAuth func(http.Handler) http.
 	})))
 
 	mux.Handle("POST /api/v1/backoffice/properties", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var request ingestiondomain.Property
+		var request propertyUpsertRequest
 		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 			platformhttp.WriteError(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
 
-		property, err := service.EnsureProperty(r.Context(), request)
+		property, err := service.EnsureProperty(r.Context(), propertyFromUpsertRequest(request))
 		if err != nil {
 			platformhttp.WriteError(w, http.StatusBadRequest, err.Error())
 			return
@@ -94,14 +103,23 @@ func RegisterProperties(mux *http.ServeMux, requireAuth func(http.Handler) http.
 			return
 		}
 
-		var request ingestiondomain.Property
+		existing, err := service.GetProperty(r.Context(), propertyID)
+		if err != nil {
+			if errors.Is(err, app.ErrPropertyNotFound) {
+				platformhttp.WriteError(w, http.StatusNotFound, err.Error())
+				return
+			}
+			platformhttp.WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		var request propertyUpsertRequest
 		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 			platformhttp.WriteError(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
 
-		request.ID = propertyID
-		property, err := service.EnsureProperty(r.Context(), request)
+		property, err := service.EnsureProperty(r.Context(), mergePropertyUpsertRequest(existing, request))
 		if err != nil {
 			platformhttp.WriteError(w, http.StatusBadRequest, err.Error())
 			return
@@ -259,4 +277,43 @@ func RegisterProperties(mux *http.ServeMux, requireAuth func(http.Handler) http.
 			"count": len(runs),
 		})
 	})))
+}
+
+func propertyFromUpsertRequest(request propertyUpsertRequest) ingestiondomain.Property {
+	property := ingestiondomain.Property{
+		Label: request.Label,
+		URL:   request.URL,
+	}
+	if request.SourceID != nil {
+		property.SourceID = strings.TrimSpace(*request.SourceID)
+	}
+	if request.ScheduleIntervalSeconds != nil {
+		property.ScheduleIntervalSeconds = *request.ScheduleIntervalSeconds
+	}
+	if request.RetryMaxAttempts != nil {
+		property.RetryMaxAttempts = *request.RetryMaxAttempts
+	}
+	if request.RetryBackoffMillis != nil {
+		property.RetryBackoffMillis = *request.RetryBackoffMillis
+	}
+	return property
+}
+
+func mergePropertyUpsertRequest(existing ingestiondomain.Property, request propertyUpsertRequest) ingestiondomain.Property {
+	property := existing
+	property.URL = request.URL
+	property.Label = request.Label
+	if request.SourceID != nil {
+		property.SourceID = strings.TrimSpace(*request.SourceID)
+	}
+	if request.ScheduleIntervalSeconds != nil {
+		property.ScheduleIntervalSeconds = *request.ScheduleIntervalSeconds
+	}
+	if request.RetryMaxAttempts != nil {
+		property.RetryMaxAttempts = *request.RetryMaxAttempts
+	}
+	if request.RetryBackoffMillis != nil {
+		property.RetryBackoffMillis = *request.RetryBackoffMillis
+	}
+	return property
 }

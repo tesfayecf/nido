@@ -146,7 +146,7 @@ func (s *PropertyScheduler) tick() {
 
 		// Mark as running and update next_run_at immediately to avoid double-scheduling
 		s.markRunning(property.ID, true)
-		nextRun := nextPropertyRunAt(now, property.ScheduleInterval())
+		nextRun := advancePropertyRunAt(now, property.NextRunAt, property.ScheduleInterval())
 		if err := s.store.UpdatePropertyRunState(s.ctx, property.ID, property.Status, nil, nextRun); err != nil {
 			s.markRunning(property.ID, false)
 			if s.logger != nil {
@@ -405,4 +405,20 @@ func (s *PropertyScheduler) emit(eventType string, data map[string]any) {
 	if s.events != nil {
 		s.events.Publish(eventType, data)
 	}
+}
+
+func advancePropertyRunAt(now time.Time, scheduledAt *time.Time, interval time.Duration) *time.Time {
+	if interval <= 0 {
+		return nil
+	}
+	if scheduledAt == nil {
+		return nextPropertyRunAt(now, interval)
+	}
+
+	nextRun := scheduledAt.UTC()
+	for !nextRun.After(now) {
+		nextRun = nextRun.Add(interval)
+	}
+
+	return &nextRun
 }

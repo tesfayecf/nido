@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"strings"
 	"testing"
@@ -18,9 +19,97 @@ type stubFetchClient struct {
 	err      error
 }
 
+type propertyServiceStoreStub struct {
+	property             ingestiondomain.Property
+	propertyErr          error
+	config               ingestiondomain.PropertyExtractionConfig
+	upserted             ingestiondomain.Property
+	updateRunStateCalls  []updateRunStateCall
+	snapshots            []ingestiondomain.PropertySnapshot
+}
+
 func (client *stubFetchClient) Fetch(_ context.Context, request fetcher.Request) (fetcher.Response, error) {
 	client.requests = append(client.requests, request)
 	return client.response, client.err
+}
+
+func (s *propertyServiceStoreStub) UpsertProperty(_ context.Context, property ingestiondomain.Property) error {
+	s.property = property
+	s.upserted = property
+	return nil
+}
+
+func (s *propertyServiceStoreStub) ListProperties(context.Context) ([]ingestiondomain.Property, error) {
+	return nil, nil
+}
+
+func (s *propertyServiceStoreStub) GetProperty(context.Context, string) (ingestiondomain.Property, error) {
+	if s.propertyErr != nil {
+		return ingestiondomain.Property{}, s.propertyErr
+	}
+	return s.property, nil
+}
+
+func (s *propertyServiceStoreStub) DeleteProperty(context.Context, string) error {
+	return nil
+}
+
+func (s *propertyServiceStoreStub) UpdatePropertyRunState(_ context.Context, propertyID string, status ingestiondomain.PropertyStatus, lastRunAt, nextRunAt *time.Time) error {
+	s.updateRunStateCalls = append(s.updateRunStateCalls, updateRunStateCall{
+		propertyID: propertyID,
+		status:     status,
+		lastRunAt:  lastRunAt,
+		nextRunAt:  nextRunAt,
+	})
+	s.property.Status = status
+	s.property.LastRunAt = lastRunAt
+	s.property.NextRunAt = nextRunAt
+	return nil
+}
+
+func (s *propertyServiceStoreStub) UpsertPropertyConfig(context.Context, ingestiondomain.PropertyExtractionConfig) error {
+	return nil
+}
+
+func (s *propertyServiceStoreStub) GetLatestPropertyConfig(context.Context, string) (ingestiondomain.PropertyExtractionConfig, error) {
+	return s.config, nil
+}
+
+func (s *propertyServiceStoreStub) CreatePropertySnapshot(_ context.Context, snapshot ingestiondomain.PropertySnapshot) error {
+	s.snapshots = append(s.snapshots, snapshot)
+	return nil
+}
+
+func (s *propertyServiceStoreStub) ListPropertySnapshots(context.Context, string, int) ([]ingestiondomain.PropertySnapshot, error) {
+	return nil, nil
+}
+
+func (s *propertyServiceStoreStub) ListAllPropertySnapshots(context.Context, string, int) ([]ingestiondomain.PropertySnapshot, error) {
+	return nil, nil
+}
+
+func (s *propertyServiceStoreStub) GetPropertySnapshot(context.Context, string) (ingestiondomain.PropertySnapshot, error) {
+	return ingestiondomain.PropertySnapshot{}, nil
+}
+
+func (s *propertyServiceStoreStub) DeletePropertySnapshot(context.Context, string) error {
+	return nil
+}
+
+func (s *propertyServiceStoreStub) GetLastValidPropertySnapshot(context.Context, string) (ingestiondomain.PropertySnapshot, error) {
+	return ingestiondomain.PropertySnapshot{}, nil
+}
+
+func (s *propertyServiceStoreStub) GetSource(context.Context, string) (ingestiondomain.Source, error) {
+	return ingestiondomain.Source{}, nil
+}
+
+func (s *propertyServiceStoreStub) ListPropertiesByTagIDs(context.Context, []string, bool) ([]string, error) {
+	return nil, nil
+}
+
+func (s *propertyServiceStoreStub) ListPropertyRuns(context.Context, string, int) ([]ingestiondomain.PropertyRun, error) {
+	return nil, nil
 }
 
 func TestApplySelectorsSupportsStructuredSelectors(t *testing.T) {
@@ -302,5 +391,132 @@ func TestPreviewExtractionRejectsAntiBotChallengePages(t *testing.T) {
 	}
 	if got := err.Error(); !strings.Contains(got, "anti-bot challenge") {
 		t.Fatalf("expected anti-bot challenge error, got %q", got)
+	}
+}
+
+func TestEnsurePropertySchedulesNewPropertyFromConfiguredInterval(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2024, time.January, 1, 12, 0, 0, 0, time.UTC)
+	store := &propertyServiceStoreStub{propertyErr: sql.ErrNoRows}
+	service := NewPropertyService(nil, store, nil, fixedClock{now: now}, nil, nil)
+
+	property, err := service.EnsureProperty(context.Background(), ingestiondomain.Property{
+		Label:                   "Tracked listing",
+		ScheduleIntervalSeconds: 300,
+		URL:                     "https://example.com/listing",
+	})
+	if err != nil {
+		t.Fatalf("expected property to save, got %v", err)
+	}
+
+	if property.NextRunAt == nil {
+		t.Fatal("expected next run to be computed")
+	}
+	expectedNextRun := now.Add(5 * time.Minute)
+	if !property.NextRunAt.Equal(expectedNextRun) {
+		t.Fatalf("expected next run %v, got %v", expectedNextRun, *property.NextRunAt)
+	}
+}
+
+func TestEnsurePropertyReschedulesExistingPropertyWithoutResettingRunState(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2024, time.January, 1, 12, 0, 30, 0, time.UTC)
+	lastRun := now.Add(-30 * time.Second)
+	nextRun := now.Add(30 * time.Second)
+	store := &propertyServiceStoreStub{
+		property: ingestiondomain.Property{
+			ID:                      "prop_1",
+			Label:                   "Tracked listing",
+			LastRunAt:               &lastRun,
+			NextRunAt:               &nextRun,
+			RetryBackoffMillis:      500,
+			RetryMaxAttempts:        2,
+			ScheduleIntervalSeconds: 60,
+			Status:                  ingestiondomain.PropertyStatusActive,
+			URL:                     "https://example.com/listing",
+			CreatedAt:               now.Add(-2 * time.Hour),
+		},
+	}
+	service := NewPropertyService(nil, store, nil, fixedClock{now: now}, nil, nil)
+
+	property, err := service.EnsureProperty(context.Background(), ingestiondomain.Property{
+		ID:                      "prop_1",
+		Label:                   "Tracked listing",
+		RetryBackoffMillis:      1_000,
+		RetryMaxAttempts:        4,
+		ScheduleIntervalSeconds: 3600,
+		URL:                     "https://example.com/listing",
+	})
+	if err != nil {
+		t.Fatalf("expected property update to succeed, got %v", err)
+	}
+
+	if property.Status != ingestiondomain.PropertyStatusActive {
+		t.Fatalf("expected existing status to be preserved, got %q", property.Status)
+	}
+	if property.LastRunAt == nil || !property.LastRunAt.Equal(lastRun) {
+		t.Fatalf("expected last run to be preserved, got %v", property.LastRunAt)
+	}
+	if property.NextRunAt == nil {
+		t.Fatal("expected rescheduled next run to be computed")
+	}
+	expectedNextRun := lastRun.Add(1 * time.Hour)
+	if !property.NextRunAt.Equal(expectedNextRun) {
+		t.Fatalf("expected next run %v, got %v", expectedNextRun, *property.NextRunAt)
+	}
+}
+
+func TestIngestPropertyOncePreservesReservedNextRunAt(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2024, time.January, 1, 12, 0, 0, 0, time.UTC)
+	nextRun := now.Add(10 * time.Minute)
+	store := &propertyServiceStoreStub{
+		property: ingestiondomain.Property{
+			ID:                      "prop_1",
+			Label:                   "Tracked listing",
+			NextRunAt:               &nextRun,
+			RetryMaxAttempts:        2,
+			RetryBackoffMillis:      500,
+			ScheduleIntervalSeconds: 600,
+			Status:                  ingestiondomain.PropertyStatusPending,
+			URL:                     "https://example.com/listing",
+		},
+		config: ingestiondomain.PropertyExtractionConfig{
+			PropertyID: "prop_1",
+			Version:    1,
+			Fields: []ingestiondomain.FieldSelector{
+				{
+					Name:           "title",
+					SelectorType:   ingestiondomain.SelectorTypeCSS,
+					SelectorValue:  ".title",
+					ExtractionMode: ingestiondomain.ExtractionModeText,
+					Required:       true,
+				},
+			},
+		},
+	}
+	service := NewPropertyService(nil, store, &stubFetchClient{
+		response: fetcher.Response{
+			Payload:   []byte(`<html><body><h1 class="title">Sunny flat</h1></body></html>`),
+			FetchedAt: now,
+		},
+	}, fixedClock{now: now}, nil, nil)
+
+	if _, err := service.IngestPropertyOnce(context.Background(), "prop_1", 1, "run_1"); err != nil {
+		t.Fatalf("expected scheduled ingest to succeed, got %v", err)
+	}
+
+	if len(store.updateRunStateCalls) == 0 {
+		t.Fatal("expected property run state to be updated")
+	}
+	lastCall := store.updateRunStateCalls[len(store.updateRunStateCalls)-1]
+	if lastCall.nextRunAt == nil {
+		t.Fatal("expected reserved next run timestamp to be preserved")
+	}
+	if !lastCall.nextRunAt.Equal(nextRun) {
+		t.Fatalf("expected next run %v, got %v", nextRun, *lastCall.nextRunAt)
 	}
 }
