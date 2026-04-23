@@ -27,8 +27,9 @@ const parseNumeric = (raw: string): number | undefined => {
         return undefined;
     }
 
-    // Drop thousands separators and treat trailing single comma decimal locales
-    const cleaned = match[0].replace(/(?<=\d),(?=\d{3}\b)/gu, "").replace(",", ".");
+    // Drop thousands separators (e.g. "1,234,567") then normalize a single
+    // remaining comma as a decimal separator for European locales.
+    const cleaned = match[0].replace(/,(?=\d{3}(?!\d))/gu, "").replace(",", ".");
     const parsed = Number.parseFloat(cleaned);
     return Number.isFinite(parsed) ? parsed : undefined;
 };

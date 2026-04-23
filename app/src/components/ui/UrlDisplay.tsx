@@ -57,7 +57,7 @@ export const UrlDisplay = ({ url, label, inlineLength = 56 }: UrlDisplayProps): 
                             as={"a"}
                             href={trimmed}
                             iconBefore={<Icon name={"external"} />}
-                            rel={"noreferrer noopener"}
+                            rel={"noopener noreferrer"}
                             target={"_blank"}
                         >
                             {"Open original"}

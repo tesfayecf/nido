@@ -13,7 +13,7 @@ import { Select } from "@/components/ui/Select";
 import { useToast } from "@/components/ui/ToastProvider";
 import { parseOptionalNonNegativeInteger } from "@/lib/forms/number";
 import { alertRuleKeys } from "@/services/alert-rules/alert-rules.keys";
-import { ALERT_RULE_TYPES, getRuleTypeLabel } from "@/services/alert-rules/alert-rules.constants";
+import { ALERT_RULE_TYPES, getRuleTypeLabel, ruleRequiresThreshold } from "@/services/alert-rules/alert-rules.constants";
 import { createAlertRule } from "@/services/alert-rules/alert-rules.service";
 
 interface PropertyAlertCreateDialogProps {
@@ -22,10 +22,6 @@ interface PropertyAlertCreateDialogProps {
     readonly propertyId: string;
     readonly propertyLabel: string;
 }
-
-const requiresThreshold = (ruleType: string): boolean => {
-    return ruleType === "price_below" || ruleType === "price_above";
-};
 
 export const PropertyAlertCreateDialog = ({
     onOpenChange,
@@ -52,7 +48,7 @@ export const PropertyAlertCreateDialog = ({
         },
     });
 
-    const thresholdNeeded = requiresThreshold(ruleType);
+    const thresholdNeeded = ruleRequiresThreshold(ruleType);
     const thresholdValue = parseOptionalNonNegativeInteger(thresholdAmount);
     const isReady = !thresholdNeeded || thresholdValue !== undefined;
 
