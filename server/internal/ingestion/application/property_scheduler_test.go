@@ -11,12 +11,12 @@ import (
 )
 
 type propertySchedulerStoreStub struct {
-	mu                    sync.Mutex
-	properties            []ingestiondomain.Property
-	runs                  []ingestiondomain.PropertyRun
-	updateRunStateCalls   []updateRunStateCall
-	createRunCalls        int
-	updateRunCalls        int
+	mu                  sync.Mutex
+	properties          []ingestiondomain.Property
+	runs                []ingestiondomain.PropertyRun
+	updateRunStateCalls []updateRunStateCall
+	createRunCalls      int
+	updateRunCalls      int
 }
 
 type updateRunStateCall struct {
@@ -29,7 +29,7 @@ type updateRunStateCall struct {
 func (s *propertySchedulerStoreStub) ListDueProperties(ctx context.Context, before time.Time, limit int) ([]ingestiondomain.Property, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	due := make([]ingestiondomain.Property, 0)
 	for _, p := range s.properties {
 		if p.ScheduleIntervalSeconds > 0 && p.NextRunAt != nil && p.NextRunAt.Before(before) {
@@ -42,7 +42,7 @@ func (s *propertySchedulerStoreStub) ListDueProperties(ctx context.Context, befo
 func (s *propertySchedulerStoreStub) GetProperty(ctx context.Context, propertyID string) (ingestiondomain.Property, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	for _, p := range s.properties {
 		if p.ID == propertyID {
 			return p, nil
@@ -54,14 +54,14 @@ func (s *propertySchedulerStoreStub) GetProperty(ctx context.Context, propertyID
 func (s *propertySchedulerStoreStub) UpdatePropertyRunState(ctx context.Context, propertyID string, status ingestiondomain.PropertyStatus, lastRunAt, nextRunAt *time.Time) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	s.updateRunStateCalls = append(s.updateRunStateCalls, updateRunStateCall{
 		propertyID: propertyID,
 		status:     status,
 		lastRunAt:  lastRunAt,
 		nextRunAt:  nextRunAt,
 	})
-	
+
 	for i := range s.properties {
 		if s.properties[i].ID == propertyID {
 			s.properties[i].Status = status
@@ -76,7 +76,7 @@ func (s *propertySchedulerStoreStub) UpdatePropertyRunState(ctx context.Context,
 func (s *propertySchedulerStoreStub) CreatePropertyRun(ctx context.Context, run ingestiondomain.PropertyRun) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	s.runs = append(s.runs, run)
 	s.createRunCalls++
 	return nil
@@ -85,7 +85,7 @@ func (s *propertySchedulerStoreStub) CreatePropertyRun(ctx context.Context, run 
 func (s *propertySchedulerStoreStub) UpdatePropertyRun(ctx context.Context, run ingestiondomain.PropertyRun) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	s.updateRunCalls++
 	for i := range s.runs {
 		if s.runs[i].ID == run.ID {
@@ -116,14 +116,14 @@ type ingestCall struct {
 func (r *propertyRunnerStub) IngestPropertyOnce(ctx context.Context, propertyID string, attemptNum int, runID string) (ingestiondomain.PropertySnapshot, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	
+
 	r.currentAttempt++
 	r.ingestCalls = append(r.ingestCalls, ingestCall{
 		propertyID: propertyID,
 		attemptNum: attemptNum,
 		runID:      runID,
 	})
-	
+
 	// Fail for the first N attempts, then succeed
 	if r.currentAttempt <= r.failureCount {
 		return ingestiondomain.PropertySnapshot{
@@ -133,7 +133,7 @@ func (r *propertyRunnerStub) IngestPropertyOnce(ctx context.Context, propertyID 
 			ErrorMessage: "simulated fetch error",
 		}, errors.New("simulated fetch error")
 	}
-	
+
 	return ingestiondomain.PropertySnapshot{
 		ID:         "snap_" + runID,
 		PropertyID: propertyID,
@@ -146,7 +146,7 @@ func TestPropertySchedulerRetryBehavior(t *testing.T) {
 
 	now := time.Date(2024, time.January, 1, 12, 0, 0, 0, time.UTC)
 	nextRun := now.Add(-1 * time.Hour) // Past due
-	
+
 	property := ingestiondomain.Property{
 		ID:                      "prop_1",
 		URL:                     "https://example.com/listing",
@@ -159,7 +159,7 @@ func TestPropertySchedulerRetryBehavior(t *testing.T) {
 	store := &propertySchedulerStoreStub{
 		properties: []ingestiondomain.Property{property},
 	}
-	
+
 	// Configure runner to fail twice, then succeed
 	runner := &propertyRunnerStub{
 		failureCount: 2,
@@ -231,7 +231,7 @@ func TestPropertySchedulerPicksDueProperties(t *testing.T) {
 	store := &propertySchedulerStoreStub{
 		properties: properties,
 	}
-	
+
 	runner := &propertyRunnerStub{}
 
 	scheduler := NewPropertyScheduler(
@@ -264,6 +264,86 @@ func TestPropertySchedulerPicksDueProperties(t *testing.T) {
 		t.Errorf("expected prop_1 to be ingested, got %q", runner.ingestCalls[0].propertyID)
 	}
 	runner.mu.Unlock()
+}
+
+func TestPropertySchedulerSetsConfiguredNextRunAt(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2024, time.January, 1, 12, 0, 0, 0, time.UTC)
+	pastDue := now.Add(-30 * time.Minute)
+
+	store := &propertySchedulerStoreStub{
+		properties: []ingestiondomain.Property{
+			{
+				ID:                      "prop_1",
+				URL:                     "https://example.com/listing",
+				ScheduleIntervalSeconds: 7200,
+				RetryMaxAttempts:        1,
+				NextRunAt:               &pastDue,
+			},
+		},
+	}
+
+	scheduler := NewPropertyScheduler(
+		nil,
+		store,
+		&propertyRunnerStub{},
+		fixedClock{now: now},
+		nil,
+		PropertySchedulerConfig{TickInterval: 10 * time.Millisecond, GlobalConcurrency: 1, PerDomainConcurrency: 1},
+	)
+
+	scheduler.tick()
+
+	store.mu.Lock()
+	defer store.mu.Unlock()
+
+	if len(store.updateRunStateCalls) == 0 || store.updateRunStateCalls[0].nextRunAt == nil {
+		t.Fatal("expected scheduler to persist the next run timestamp")
+	}
+
+	expectedNextRun := pastDue.Add(2 * time.Hour)
+	if !store.updateRunStateCalls[0].nextRunAt.Equal(expectedNextRun) {
+		t.Fatalf("expected next run %v, got %v", expectedNextRun, *store.updateRunStateCalls[0].nextRunAt)
+	}
+}
+
+func TestPropertySchedulerSkipsAlreadyRunningProperty(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2024, time.January, 1, 12, 0, 0, 0, time.UTC)
+	pastDue := now.Add(-1 * time.Minute)
+	runner := &propertyRunnerStub{}
+	store := &propertySchedulerStoreStub{
+		properties: []ingestiondomain.Property{
+			{
+				ID:                      "prop_1",
+				URL:                     "https://example.com/listing",
+				ScheduleIntervalSeconds: 60,
+				RetryMaxAttempts:        1,
+				NextRunAt:               &pastDue,
+			},
+		},
+	}
+
+	scheduler := NewPropertyScheduler(
+		nil,
+		store,
+		runner,
+		fixedClock{now: now},
+		nil,
+		PropertySchedulerConfig{TickInterval: 10 * time.Millisecond, GlobalConcurrency: 1, PerDomainConcurrency: 1},
+	)
+	scheduler.markRunning("prop_1", true)
+
+	scheduler.tick()
+	time.Sleep(100 * time.Millisecond)
+
+	runner.mu.Lock()
+	defer runner.mu.Unlock()
+	if len(runner.ingestCalls) != 0 {
+		t.Fatalf("expected running property to be skipped, got %d runs", len(runner.ingestCalls))
+	}
 }
 
 func TestPropertySchedulerBackoffCalculation(t *testing.T) {

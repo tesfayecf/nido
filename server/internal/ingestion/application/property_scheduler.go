@@ -39,18 +39,18 @@ type PropertySchedulerConfig struct {
 
 // PropertyScheduler periodically checks for due properties and schedules them for ingestion.
 type PropertyScheduler struct {
-	logger  *slog.Logger
-	store   PropertySchedulerStore
-	runner  PropertyRunner
-	pool    *engine.WorkerPool
-	clock   Clock
-	events  Publisher
-	config  PropertySchedulerConfig
-	
-	mu               sync.Mutex
+	logger *slog.Logger
+	store  PropertySchedulerStore
+	runner PropertyRunner
+	pool   *engine.WorkerPool
+	clock  Clock
+	events Publisher
+	config PropertySchedulerConfig
+
+	mu                sync.Mutex
 	runningProperties map[string]bool
 	domainSemaphores  map[string]chan struct{}
-	
+
 	ctx    context.Context
 	cancel context.CancelFunc
 	done   chan struct{}
@@ -146,7 +146,7 @@ func (s *PropertyScheduler) tick() {
 
 		// Mark as running and update next_run_at immediately to avoid double-scheduling
 		s.markRunning(property.ID, true)
-		nextRun := nextPropertyRunAt(now, property.ScheduleInterval())
+		nextRun := advancePropertyRunAt(now, property.NextRunAt, property.ScheduleInterval())
 		if err := s.store.UpdatePropertyRunState(s.ctx, property.ID, property.Status, nil, nextRun); err != nil {
 			s.markRunning(property.ID, false)
 			if s.logger != nil {
@@ -193,7 +193,7 @@ func (s *PropertyScheduler) isDuplicateRun(property ingestiondomain.Property) bo
 
 func (s *PropertyScheduler) schedulePropertyRun(property ingestiondomain.Property) {
 	s.emit("run.scheduled", map[string]any{
-		"property_id": property.ID,
+		"property_id":  property.ID,
 		"scheduled_at": s.clock.Now().UTC(),
 	})
 
@@ -209,7 +209,7 @@ func (s *PropertyScheduler) executePropertyRun(property ingestiondomain.Property
 	// Acquire domain semaphore
 	domain := s.extractDomain(property.URL)
 	sem := s.getDomainSemaphore(domain)
-	
+
 	select {
 	case sem <- struct{}{}:
 		defer func() { <-sem }()
@@ -308,7 +308,7 @@ func (s *PropertyScheduler) runWithRetries(ctx context.Context, property ingesti
 		if attempt < maxAttempts {
 			// Calculate backoff with jitter
 			backoff := s.calculateBackoff(attempt, property.RetryBackoff())
-			
+
 			if s.logger != nil {
 				s.logger.Info("property run failed, retrying",
 					"property_id", property.ID,
@@ -364,14 +364,14 @@ func (s *PropertyScheduler) calculateBackoff(attempt int, baseBackoff time.Durat
 	// Add jitter: ±20%
 	jitterFactor := 0.2
 	jitter := backoff * jitterFactor
-	
+
 	// Generate random jitter value between -jitter and +jitter
 	maxJitter := big.NewInt(int64(jitter * 2))
 	randomJitter, err := rand.Int(rand.Reader, maxJitter)
 	if err != nil {
 		randomJitter = big.NewInt(0)
 	}
-	
+
 	finalBackoff := backoff - jitter + float64(randomJitter.Int64())
 	if finalBackoff < 0 {
 		finalBackoff = 0
@@ -405,4 +405,20 @@ func (s *PropertyScheduler) emit(eventType string, data map[string]any) {
 	if s.events != nil {
 		s.events.Publish(eventType, data)
 	}
+}
+
+func advancePropertyRunAt(now time.Time, scheduledAt *time.Time, interval time.Duration) *time.Time {
+	if interval <= 0 {
+		return nil
+	}
+	if scheduledAt == nil {
+		return nextPropertyRunAt(now, interval)
+	}
+
+	nextRun := scheduledAt.UTC()
+	for !nextRun.After(now) {
+		nextRun = nextRun.Add(interval)
+	}
+
+	return &nextRun
 }

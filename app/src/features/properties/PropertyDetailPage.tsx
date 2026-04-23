@@ -28,6 +28,13 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { TagBadge } from "@/components/tags/TagBadge";
 import { TagPicker } from "@/components/tags/TagPicker";
 import { PropertyAlertCreateDialog } from "@/features/engagement/PropertyAlertCreateDialog";
+import {
+    SCHEDULE_PRESETS,
+    durationDraftFromSeconds,
+    durationDraftToSeconds,
+    formatDurationFromSeconds,
+    type DurationUnit,
+} from "@/features/properties/propertySchedule";
 import { getRuleTypeLabel, getRuleTypeLogic } from "@/services/alert-rules/alert-rules.constants";
 import { alertRuleKeys } from "@/services/alert-rules/alert-rules.keys";
 import { listAlertRules } from "@/services/alert-rules/alert-rules.service";
@@ -66,6 +73,7 @@ import { tagKeys } from "@/services/tags/tags.keys";
 import { listPropertyTags, setPropertyTags } from "@/services/tags/tags.service";
 
 const PROPERTY_RUNS_REFETCH_INTERVAL_MS = 5000;
+const MIN_RETRY_BACKOFF_MS = 500;
 
 const runStatusTone = (status: PropertyRunStatus): "danger" | "neutral" | "success" | "warning" => {
     switch (status) {
@@ -81,6 +89,27 @@ const runStatusTone = (status: PropertyRunStatus): "danger" | "neutral" | "succe
     }
 };
 
+const scheduleStatusLabel = (
+    scheduleIntervalSeconds: number | undefined,
+    latestRun: { readonly attempt_count: number; readonly max_attempts: number; readonly status: PropertyRunStatus; } | undefined,
+): string => {
+    if (latestRun?.status === "running") {
+        return "Running";
+    }
+
+    if (latestRun?.status === "failed") {
+        return latestRun.attempt_count < latestRun.max_attempts
+            ? `Failed · retry ${latestRun.attempt_count + 1} of ${latestRun.max_attempts} pending`
+            : "Failed";
+    }
+
+    if (scheduleIntervalSeconds !== undefined && scheduleIntervalSeconds > 0) {
+        return "Scheduled";
+    }
+
+    return "Manual only";
+};
+
 export const PropertyDetailPage = (): JSX.Element => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
@@ -92,7 +121,8 @@ export const PropertyDetailPage = (): JSX.Element => {
     const [url, setUrl] = useState("");
     const [label, setLabel] = useState("");
     const [sourceId, setSourceId] = useState("");
-    const [scheduleInterval, setScheduleInterval] = useState(0);
+    const [scheduleIntervalValue, setScheduleIntervalValue] = useState("");
+    const [scheduleIntervalUnit, setScheduleIntervalUnit] = useState<DurationUnit>("minutes");
     const [retryMaxAttempts, setRetryMaxAttempts] = useState(1);
     const [retryBackoffMillis, setRetryBackoffMillis] = useState(500);
     const [fieldRows, setFieldRows] = useState<SelectorFieldDraft[]>(createDefaultSelectorDrafts);
@@ -149,7 +179,9 @@ export const PropertyDetailPage = (): JSX.Element => {
             setUrl(propertyQuery.data.url);
             setLabel(propertyQuery.data.label);
             setSourceId(propertyQuery.data.source_id ?? "");
-            setScheduleInterval(propertyQuery.data.schedule_interval_seconds ?? 0);
+            const scheduleDraft = durationDraftFromSeconds(propertyQuery.data.schedule_interval_seconds);
+            setScheduleIntervalValue(scheduleDraft.value);
+            setScheduleIntervalUnit(scheduleDraft.unit);
             setRetryMaxAttempts(propertyQuery.data.retry_max_attempts ?? 1);
             setRetryBackoffMillis(propertyQuery.data.retry_backoff_millis ?? 500);
         }
@@ -161,13 +193,20 @@ export const PropertyDetailPage = (): JSX.Element => {
         }
     }, [configQuery.data]);
 
+    const scheduleIntervalSeconds = durationDraftToSeconds(scheduleIntervalValue, scheduleIntervalUnit);
+    const scheduleIntervalError = scheduleIntervalSeconds === null ? "Choose a run interval greater than zero." : undefined;
+    const retryBackoffError = retryBackoffMillis < MIN_RETRY_BACKOFF_MS
+        ? `Retry interval must be at least ${MIN_RETRY_BACKOFF_MS}ms.`
+        : undefined;
+    const propertySaveError = scheduleIntervalError ?? retryBackoffError;
+
     const savePropertyMutation = useMutation({
         mutationFn: async () => {
             const payload = {
                 label,
                 retry_backoff_millis: retryBackoffMillis,
                 retry_max_attempts: retryMaxAttempts,
-                schedule_interval_seconds: scheduleInterval,
+                schedule_interval_seconds: scheduleIntervalSeconds ?? 0,
                 source_id: sourceId.trim() !== "" ? sourceId.trim() : undefined,
                 url,
             };
@@ -179,6 +218,7 @@ export const PropertyDetailPage = (): JSX.Element => {
             return updateProperty(resolvedId, payload);
         },
         onSuccess(data) {
+            queryClient.setQueryData(propertyKeys.detail(data.id), data);
             void queryClient.invalidateQueries({ queryKey: propertyKeys.list() });
             pushToast(isCreateMode ? "Property created." : "Property updated.", "success");
             if (isCreateMode) {
@@ -274,6 +314,7 @@ export const PropertyDetailPage = (): JSX.Element => {
     });
 
     const latestSnapshot = snapshotsQuery.data?.[0];
+    const latestAutomationRun = propertyRunsQuery.data?.[0];
     const propertyAlerts = useMemo(() => {
         return (alertsQuery.data ?? []).filter((rule) => rule.property_id === resolvedId);
     }, [alertsQuery.data, resolvedId]);
@@ -283,12 +324,34 @@ export const PropertyDetailPage = (): JSX.Element => {
         return Object.entries(latestSnapshot?.values ?? {}).map(([field, value]) => ({ field, value }));
     }, [latestSnapshot?.values]);
     const recentRuns = snapshotsQuery.data ?? [];
+    const persistedScheduleSummary = useMemo(() => {
+        if (propertyQuery.data?.schedule_interval_seconds === undefined || propertyQuery.data.schedule_interval_seconds <= 0) {
+            return "Manual only";
+        }
+
+        return `Runs every ${formatDurationFromSeconds(propertyQuery.data.schedule_interval_seconds).toLowerCase()}`;
+    }, [propertyQuery.data?.schedule_interval_seconds]);
+    const persistedRetrySummary = useMemo(() => {
+        return retryMaxAttempts <= 1
+            ? "Retries are disabled for failed runs."
+            : `Retry on failure up to ${retryMaxAttempts} attempts with ${retryBackoffMillis}ms between attempts.`;
+    }, [retryBackoffMillis, retryMaxAttempts]);
+    const automationStatus = useMemo(() => {
+        return scheduleStatusLabel(propertyQuery.data?.schedule_interval_seconds, latestAutomationRun);
+    }, [latestAutomationRun, propertyQuery.data?.schedule_interval_seconds]);
+    const automationStatusTone: "danger" | "neutral" | "success" | "warning" = latestAutomationRun?.status === "running"
+        ? "warning"
+        : latestAutomationRun?.status === "failed"
+            ? "danger"
+            : propertyQuery.data?.schedule_interval_seconds !== undefined && propertyQuery.data.schedule_interval_seconds > 0
+                ? "success"
+                : "neutral";
 
     const editorContent = (
         <PageStack>
             <PageCard
                 action={!isCreateMode ? <Button as={Link} to={"/properties"} variant={"secondary"}>{"Back to properties"}</Button> : undefined}
-                description={isCreateMode ? "Add a property URL and optionally assign a reusable source template." : "Update the property URL, template assignment, and run cadence."}
+                description={isCreateMode ? "Add a property URL and define exactly how often automated runs should happen." : "Update the property URL, template assignment, schedule, and retry behavior."}
                 title={isCreateMode ? "Add Property" : "Edit Property"}
             >
                 {propertyQuery.isError ? <ErrorBanner>{"Could not load property."}</ErrorBanner> : null}
@@ -307,19 +370,83 @@ export const PropertyDetailPage = (): JSX.Element => {
                             })}
                         </Select>
                     </Field>
-                    <Field label={"Schedule interval (s)"}>
-                        <Input id={"prop-schedule"} min={0} onChange={(event) => { setScheduleInterval(readNonNegativeNumber(event.target.value, 0)); }} type={"number"} value={scheduleInterval} />
+                    <Field
+                        error={scheduleIntervalError}
+                        fullWidth
+                        hint={scheduleIntervalError === undefined ? "Runs every X minutes/hours using the saved backend schedule." : undefined}
+                        label={"Run interval"}
+                    >
+                        <div style={{ display: "grid", gap: "0.75rem" }}>
+                            <div style={{ display: "grid", gap: "0.75rem", gridTemplateColumns: "minmax(0, 1fr) 11rem" }}>
+                                <Input
+                                    id={"prop-schedule-value"}
+                                    invalid={scheduleIntervalError !== undefined}
+                                    min={1}
+                                    onChange={(event) => { setScheduleIntervalValue(event.target.value); }}
+                                    placeholder={"15"}
+                                    type={"number"}
+                                    value={scheduleIntervalValue}
+                                />
+                                <Select
+                                    id={"prop-schedule-unit"}
+                                    invalid={scheduleIntervalError !== undefined}
+                                    onChange={(event) => { setScheduleIntervalUnit(event.target.value as DurationUnit); }}
+                                    value={scheduleIntervalUnit}
+                                >
+                                    <option value={"seconds"}>{"Seconds"}</option>
+                                    <option value={"minutes"}>{"Minutes"}</option>
+                                    <option value={"hours"}>{"Hours"}</option>
+                                </Select>
+                            </div>
+                            <ActionGroup>
+                                {SCHEDULE_PRESETS.map((preset) => {
+                                    const presetLabel = formatDurationFromSeconds(durationDraftToSeconds(preset.value, preset.unit) ?? 0);
+                                    return (
+                                        <Button
+                                            key={`${preset.value}-${preset.unit}`}
+                                            onClick={() => {
+                                                setScheduleIntervalValue(preset.value);
+                                                setScheduleIntervalUnit(preset.unit);
+                                            }}
+                                            size={"small"}
+                                            variant={"secondary"}
+                                        >
+                                            {presetLabel}
+                                        </Button>
+                                    );
+                                })}
+                            </ActionGroup>
+                        </div>
                     </Field>
-                    <Field label={"Retry attempts"}>
+                    <div style={{ display: "grid", gap: "0.25rem", gridColumn: "1 / -1" }}>
+                        <strong>{"Retry on failure"}</strong>
+                        <p className={"muted-copy"}>{"Only failed runs use retry attempts and retry interval. Successful runs wait for the next scheduled execution."}</p>
+                    </div>
+                    <Field hint={"Retry on failure before the base schedule resumes."} label={"Max attempts"}>
                         <Input id={"prop-retry"} min={1} onChange={(event) => { setRetryMaxAttempts(readNonNegativeNumber(event.target.value, 1)); }} type={"number"} value={retryMaxAttempts} />
                     </Field>
-                    <Field label={"Retry backoff (ms)"}>
-                        <Input id={"prop-backoff"} min={0} onChange={(event) => { setRetryBackoffMillis(readNonNegativeNumber(event.target.value, 500)); }} type={"number"} value={retryBackoffMillis} />
+                    <Field error={retryBackoffError} hint={"Retry interval between failed attempts."} label={"Retry interval (ms)"}>
+                        <Input
+                            id={"prop-backoff"}
+                            invalid={retryBackoffError !== undefined}
+                            min={MIN_RETRY_BACKOFF_MS}
+                            onChange={(event) => { setRetryBackoffMillis(readNonNegativeNumber(event.target.value, 500)); }}
+                            type={"number"}
+                            value={retryBackoffMillis}
+                        />
                     </Field>
                 </FormGrid>
+                {!isCreateMode && propertyQuery.data !== undefined ? (
+                    <KeyValueGrid compact>
+                        <KeyValuePair label={"Scheduling"} value={persistedScheduleSummary} />
+                        <KeyValuePair label={"Next run"} value={propertyQuery.data.next_run_at === undefined ? "Waiting for save" : formatDateTime(propertyQuery.data.next_run_at)} />
+                        <KeyValuePair label={"Last run"} value={propertyQuery.data.last_run_at === undefined ? "No runs yet" : formatDateTime(propertyQuery.data.last_run_at)} />
+                        <KeyValuePair label={"Retry policy"} value={persistedRetrySummary} />
+                    </KeyValueGrid>
+                ) : null}
                 {savePropertyMutation.isError ? <ErrorBanner>{"Could not save property. Check the URL and selected source."}</ErrorBanner> : null}
                 <ActionGroup>
-                    <Button disabled={savePropertyMutation.isPending || url.trim() === ""} onClick={() => { savePropertyMutation.mutate(); }}>
+                    <Button disabled={savePropertyMutation.isPending || propertySaveError !== undefined || url.trim() === ""} onClick={() => { savePropertyMutation.mutate(); }}>
                         {savePropertyMutation.isPending ? "Saving..." : isCreateMode ? "Create property" : "Save changes"}
                     </Button>
                     {!isCreateMode ? (
@@ -387,15 +514,18 @@ export const PropertyDetailPage = (): JSX.Element => {
                     {propertyQuery.data !== undefined ? (
                         <KeyValueGrid compact>
                             <KeyValuePair
-                                label={"Status"}
+                                label={"Automation"}
                                 value={(
                                     <span className={"status-with-copy"}>
-                                        <StatusBadge tone={propertyQuery.data.status === "active" ? "success" : propertyQuery.data.status === "degraded" ? "warning" : propertyQuery.data.status === "inactive" ? "danger" : "neutral"} value={propertyQuery.data.status} />
+                                        <StatusBadge tone={automationStatusTone} value={automationStatus} />
                                         <CopyButton label={"Copy property URL"} value={propertyQuery.data.url} />
                                     </span>
                                 )}
                             />
+                            <KeyValuePair label={"Property status"} value={<StatusBadge tone={propertyQuery.data.status === "active" ? "success" : propertyQuery.data.status === "degraded" ? "warning" : propertyQuery.data.status === "inactive" ? "danger" : "neutral"} value={propertyQuery.data.status} />} />
                             <KeyValuePair label={"Source"} value={sourcesQuery.data?.find((source) => source.id === propertyQuery.data?.source_id)?.name ?? "No template"} />
+                            <KeyValuePair label={"Runs every"} value={formatDurationFromSeconds(propertyQuery.data.schedule_interval_seconds)} />
+                            <KeyValuePair label={"Next run"} value={propertyQuery.data.next_run_at === undefined ? "Not scheduled yet" : formatDateTime(propertyQuery.data.next_run_at)} />
                             <KeyValuePair label={"Updated"} value={propertyQuery.data.updated_at === undefined ? "—" : formatDateTime(propertyQuery.data.updated_at)} />
                             <KeyValuePair label={"Last run"} value={propertyQuery.data.last_run_at === undefined ? "No runs yet" : formatDateTime(propertyQuery.data.last_run_at)} />
                             <KeyValuePair label={"Bookmark"} value={isBookmarked ? "Bookmarked" : "Not bookmarked"} />
@@ -409,7 +539,7 @@ export const PropertyDetailPage = (): JSX.Element => {
                             <Button disabled={bookmarkMutation.isPending} onClick={() => { bookmarkMutation.mutate(); }} variant={"secondary"}>
                                 {isBookmarked ? "Remove bookmark" : "Bookmark"}
                             </Button>
-                            <Tooltip content={`Each run will retry up to ${retryMaxAttempts} attempt${retryMaxAttempts === 1 ? "" : "s"} with ${retryBackoffMillis}ms backoff between attempts.`}>
+                            <Tooltip content={persistedRetrySummary}>
                                 <Button disabled={ingestMutation.isPending} onClick={() => { ingestMutation.mutate(); }}>
                                     {ingestMutation.isPending ? "Running..." : "Run now"}
                                 </Button>
@@ -417,7 +547,7 @@ export const PropertyDetailPage = (): JSX.Element => {
                             <Button as={Link} to={`/runs?property_id=${resolvedId}`} variant={"secondary"}>{"View history"}</Button>
                         </ActionGroup>
                     )}
-                    description={`The latest snapshot is shown read-only. Runs use up to ${retryMaxAttempts} attempt${retryMaxAttempts === 1 ? "" : "s"} (${retryBackoffMillis}ms backoff).`}
+                    description={`${persistedScheduleSummary}. ${persistedRetrySummary}`}
                     title={"Current Extracted Values"}
                 >
                     {latestSnapshot === undefined ? <EmptyState message={"No runs have been recorded for this property yet."} /> : (
