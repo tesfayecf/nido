@@ -32,3 +32,18 @@ export interface LoginResponse {
 export interface MeResponse {
     readonly user: AuthUser;
 }
+
+/**
+ * Describes the update-profile request body.
+ */
+export interface UpdateProfileRequest {
+    readonly display_name: string;
+}
+
+/**
+ * Describes the change-password request body.
+ */
+export interface ChangePasswordRequest {
+    readonly current_password: string;
+    readonly new_password: string;
+}

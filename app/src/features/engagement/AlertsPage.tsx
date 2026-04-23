@@ -13,6 +13,7 @@ import { PageCard } from "@/components/ui/PageCard";
 import { PageStack } from "@/components/ui/PageStack";
 import { Select } from "@/components/ui/Select";
 import { parseOptionalNonNegativeInteger } from "@/lib/forms/number";
+import { ALERT_RULE_TYPES, getRuleTypeLabel, getRuleTypeLogic, ruleRequiresThreshold } from "@/services/alert-rules/alert-rules.constants";
 import { alertRuleKeys } from "@/services/alert-rules/alert-rules.keys";
 import { createAlertRule, deleteAlertRule, listAlertRules } from "@/services/alert-rules/alert-rules.service";
 import { propertyKeys } from "@/services/properties/properties.keys";
@@ -45,6 +46,11 @@ export const AlertsPage = (): JSX.Element => {
         },
     });
     const alertRules = alertRulesQuery.data ?? [];
+    const properties = propertiesQuery.data ?? [];
+    const propertyLabelById = new Map(properties.map((item) => [item.id, item.label !== "" ? item.label : item.url]));
+    const thresholdNeeded = ruleRequiresThreshold(ruleType);
+    const parsedThreshold = parseOptionalNonNegativeInteger(thresholdAmount);
+    const submitDisabled = propertyId === "" || (thresholdNeeded && parsedThreshold === undefined);
 
     return (
         <PageStack>
@@ -52,32 +58,39 @@ export const AlertsPage = (): JSX.Element => {
                 <FormGrid
                     onSubmit={(event) => {
                         event.preventDefault();
+                        if (submitDisabled) {
+                            return;
+                        }
+
                         createMutation.mutate({
                             property_id: propertyId,
                             rule_type: ruleType,
-                            threshold_amount: parseOptionalNonNegativeInteger(thresholdAmount),
+                            threshold_amount: thresholdNeeded ? parsedThreshold : undefined,
                         });
                     }}
                 >
                     <Field label={"Property"}>
                         <Select onChange={(event) => { setPropertyId(event.target.value); }} value={propertyId}>
                             <option value={""}>{"Select a property"}</option>
-                            {(propertiesQuery.data ?? []).map((item) => {
+                            {properties.map((item) => {
                                 return <option key={item.id} value={item.id}>{item.label !== "" ? item.label : item.url}</option>;
                             })}
                         </Select>
                     </Field>
-                    <Field label={"Rule type"}>
+                    <Field hint={getRuleTypeLogic(ruleType, parsedThreshold)} label={"Rule type"}>
                         <Select onChange={(event) => { setRuleType(event.target.value); }} value={ruleType}>
-                            <option value={"price_drop"}>{"Price drop"}</option>
-                            <option value={"price_below"}>{"Price below threshold"}</option>
+                            {ALERT_RULE_TYPES.map((option) => {
+                                return <option key={option.value} value={option.value}>{option.description}</option>;
+                            })}
                         </Select>
                     </Field>
-                    <Field label={"Threshold amount"}>
-                        <Input min={0} onChange={(event) => { setThresholdAmount(event.target.value); }} step={1} type={"number"} value={thresholdAmount} />
-                    </Field>
+                    {thresholdNeeded ? (
+                        <Field hint={"Whole number, in the same unit as the tracked field."} label={"Threshold amount"}>
+                            <Input min={0} onChange={(event) => { setThresholdAmount(event.target.value); }} step={1} type={"number"} value={thresholdAmount} />
+                        </Field>
+                    ) : null}
                     <Field as={"div"} variant={"actions"}>
-                        <Button disabled={propertyId === ""} isLoading={createMutation.isPending} loadingLabel={"Saving rule"} type={"submit"}>
+                        <Button disabled={submitDisabled} isLoading={createMutation.isPending} loadingLabel={"Saving rule"} type={"submit"}>
                             {"Create rule"}
                         </Button>
                     </Field>
@@ -99,8 +112,12 @@ export const AlertsPage = (): JSX.Element => {
                                 <ListRow key={item.id}>
                                     <ListRowMain>
                                         <div>
-                                            <h3 className={"list-row__title"}>{item.rule_type}</h3>
-                                            <p className={"list-row__meta"}>{"Property "}{item.property_id}</p>
+                                            <h3 className={"list-row__title"}>{getRuleTypeLabel(item.rule_type)}</h3>
+                                            <p className={"list-row__meta"}>
+                                                {"When "}
+                                                <strong>{propertyLabelById.get(item.property_id) ?? item.property_id}</strong>
+                                                {" "}{getRuleTypeLogic(item.rule_type, item.threshold_amount)}
+                                            </p>
                                         </div>
                                         <strong className={"list-row__price"}>{item.threshold_amount === undefined ? "No threshold" : `${item.threshold_amount}`}</strong>
                                     </ListRowMain>

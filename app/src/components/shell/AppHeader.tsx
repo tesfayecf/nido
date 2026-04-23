@@ -22,11 +22,12 @@ const routeMeta: readonly [RegExp, RouteMeta][] = [
     [/^\/alerts$/, { section: "Alerts", title: "Alerts" }],
     [/^\/notifications$/, { section: "Notifications", title: "Notifications" }],
     [/^\/login$/, { section: "Access", title: "Sign In" }],
+    [/^\/settings$/, { section: "Account", title: "Settings" }],
 ];
 
 const defaultMeta: RouteMeta = {
     section: "Workspace",
-    title: "Home Searcher",
+    title: "Property Tracker",
 };
 
 const getRouteMeta = (pathname: string): RouteMeta => {

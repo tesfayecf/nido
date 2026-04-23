@@ -10,11 +10,17 @@ const (
 	RuleTypePriceDrop = "price_drop"
 	// RuleTypePriceBelow notifies when a tracked property reaches a threshold.
 	RuleTypePriceBelow = "price_below"
+	// RuleTypePriceAbove notifies when a tracked property exceeds a threshold.
+	RuleTypePriceAbove = "price_above"
+	// RuleTypeAnyChange notifies when any tracked field changes between snapshots.
+	RuleTypeAnyChange = "any_change"
 )
 
 var supportedRuleTypes = map[string]struct{}{
 	RuleTypePriceDrop:  {},
 	RuleTypePriceBelow: {},
+	RuleTypePriceAbove: {},
+	RuleTypeAnyChange:  {},
 }
 
 // IsSupportedRuleType reports whether the provided rule type is implemented.
