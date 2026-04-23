@@ -14,6 +14,7 @@ import { BookmarksPage } from "@/features/engagement/BookmarksPage";
 import { NotificationsPage } from "@/features/engagement/NotificationsPage";
 import { PropertiesPage } from "@/features/properties/PropertiesPage";
 import { PropertyDetailPage } from "@/features/properties/PropertyDetailPage";
+import { FieldAnalysisPage } from "@/features/properties/FieldAnalysisPage";
 import { SettingsPage } from "@/features/settings/SettingsPage";
 
 export const router = createBrowserRouter([
@@ -45,6 +46,10 @@ export const router = createBrowserRouter([
                     {
                         path: "properties/:propertyId",
                         element: <PropertyDetailPage />,
+                    },
+                    {
+                        path: "properties/:propertyId/fields/:fieldName/analysis",
+                        element: <FieldAnalysisPage />,
                     },
                     {
                         path: "events",

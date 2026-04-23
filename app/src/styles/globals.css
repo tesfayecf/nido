@@ -2197,3 +2197,127 @@ body {
         background-position: -200% 0;
     }
 }
+
+.status-with-copy {
+    align-items: center;
+    display: inline-flex;
+    gap: var(--space-2);
+}
+
+.copy-button {
+    align-items: center;
+    background: transparent;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    display: inline-flex;
+    height: 1.75rem;
+    justify-content: center;
+    padding: 0;
+    transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+    width: 1.75rem;
+}
+
+.copy-button:hover {
+    background: var(--color-surface-muted);
+    color: var(--color-text);
+}
+
+.copy-button:focus-visible {
+    outline: 2px solid var(--color-focus-ring, var(--color-primary));
+    outline-offset: 2px;
+}
+
+.copy-button--copied {
+    border-color: var(--color-success);
+    color: var(--color-success);
+}
+
+.copy-button .icon {
+    height: 0.95rem;
+    width: 0.95rem;
+}
+
+.field-analysis__chart {
+    margin-bottom: var(--space-4);
+}
+
+.field-analysis__histogram,
+.field-analysis__frequency {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.field-analysis__histogram-row,
+.field-analysis__frequency-row {
+    align-items: center;
+    display: grid;
+    gap: var(--space-3);
+    grid-template-columns: minmax(7rem, 12rem) 1fr minmax(4rem, auto);
+}
+
+.field-analysis__histogram-range,
+.field-analysis__frequency-label {
+    color: var(--color-text-secondary);
+    font-size: var(--text-xs);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.field-analysis__histogram-bar,
+.field-analysis__frequency-bar {
+    background: var(--color-surface-muted);
+    border-radius: var(--radius-pill);
+    display: block;
+    height: 0.5rem;
+    overflow: hidden;
+    width: 100%;
+}
+
+.field-analysis__histogram-fill,
+.field-analysis__frequency-fill {
+    background: var(--color-primary, var(--color-text));
+    display: block;
+    height: 100%;
+}
+
+.field-analysis__histogram-count,
+.field-analysis__frequency-count {
+    color: var(--color-text-secondary);
+    font-size: var(--text-xs);
+    text-align: right;
+}
+
+.field-analysis__list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    list-style: none;
+    margin: 0;
+    max-height: 24rem;
+    overflow-y: auto;
+    padding: 0;
+}
+
+.field-analysis__list-entry {
+    align-items: center;
+    display: flex;
+    gap: var(--space-3);
+    justify-content: space-between;
+}
+
+.field-analysis__list-time {
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+}
+
+.field-analysis__list-value {
+    background: var(--color-surface-muted);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-xs);
+    padding: var(--space-1) var(--space-2);
+    word-break: break-word;
+}

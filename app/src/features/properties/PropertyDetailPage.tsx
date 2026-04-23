@@ -23,9 +23,8 @@ import { RowActions } from "@/components/ui/RowActions";
 import { Select } from "@/components/ui/Select";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Tooltip } from "@/components/ui/Tooltip";
-import { UrlDisplay } from "@/components/ui/UrlDisplay";
+import { CopyButton } from "@/components/ui/CopyButton";
 import { useToast } from "@/components/ui/ToastProvider";
-import { FieldHistoryDialog } from "@/features/properties/FieldHistoryDialog";
 import { PropertyAlertCreateDialog } from "@/features/engagement/PropertyAlertCreateDialog";
 import { getRuleTypeLabel, getRuleTypeLogic } from "@/services/alert-rules/alert-rules.constants";
 import { alertRuleKeys } from "@/services/alert-rules/alert-rules.keys";
@@ -81,7 +80,6 @@ export const PropertyDetailPage = (): JSX.Element => {
     const [previewFailures, setPreviewFailures] = useState<string[]>([]);
     const [editOpen, setEditOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
-    const [historyFieldName, setHistoryFieldName] = useState<string | undefined>(undefined);
     const [createAlertOpen, setCreateAlertOpen] = useState(false);
 
     const propertyQuery = useQuery({
@@ -343,8 +341,15 @@ export const PropertyDetailPage = (): JSX.Element => {
                     {propertyQuery.isError ? <ErrorBanner>{"Could not load property."}</ErrorBanner> : null}
                     {propertyQuery.data !== undefined ? (
                         <KeyValueGrid compact>
-                            <KeyValuePair label={"URL"} value={<UrlDisplay label={propertyQuery.data.label !== "" ? propertyQuery.data.label : undefined} url={propertyQuery.data.url} />} />
-                            <KeyValuePair label={"Status"} value={<StatusBadge tone={propertyQuery.data.status === "active" ? "success" : propertyQuery.data.status === "degraded" ? "warning" : propertyQuery.data.status === "inactive" ? "danger" : "neutral"} value={propertyQuery.data.status} />} />
+                            <KeyValuePair
+                                label={"Status"}
+                                value={(
+                                    <span className={"status-with-copy"}>
+                                        <StatusBadge tone={propertyQuery.data.status === "active" ? "success" : propertyQuery.data.status === "degraded" ? "warning" : propertyQuery.data.status === "inactive" ? "danger" : "neutral"} value={propertyQuery.data.status} />
+                                        <CopyButton label={"Copy property URL"} value={propertyQuery.data.url} />
+                                    </span>
+                                )}
+                            />
                             <KeyValuePair label={"Source"} value={sourcesQuery.data?.find((source) => source.id === propertyQuery.data?.source_id)?.name ?? "No template"} />
                             <KeyValuePair label={"Updated"} value={propertyQuery.data.updated_at === undefined ? "—" : formatDateTime(propertyQuery.data.updated_at)} />
                             <KeyValuePair label={"Last run"} value={propertyQuery.data.last_run_at === undefined ? "No runs yet" : formatDateTime(propertyQuery.data.last_run_at)} />
@@ -386,8 +391,8 @@ export const PropertyDetailPage = (): JSX.Element => {
                                         align: "right",
                                         cell: (item) => (
                                             <RowActions>
-                                                <Button onClick={() => { setHistoryFieldName(item.field); }} size={"small"} variant={"ghost"}>
-                                                    {"View chart"}
+                                                <Button as={Link} size={"small"} to={`/properties/${resolvedId}/fields/${encodeURIComponent(item.field)}/analysis`} variant={"ghost"}>
+                                                    {"View Analysis"}
                                                 </Button>
                                             </RowActions>
                                         ),
@@ -471,14 +476,6 @@ export const PropertyDetailPage = (): JSX.Element => {
                 propertyId={resolvedId}
                 propertyLabel={propertyQuery.data?.label !== undefined && propertyQuery.data.label !== "" ? propertyQuery.data.label : propertyQuery.data?.url ?? "this property"}
             />
-            {historyFieldName !== undefined ? (
-                <FieldHistoryDialog
-                    fieldName={historyFieldName}
-                    onOpenChange={(open) => { if (!open) { setHistoryFieldName(undefined); } }}
-                    open
-                    snapshots={snapshotsQuery.data ?? []}
-                />
-            ) : null}
         </>
     );
 };
