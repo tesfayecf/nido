@@ -16,15 +16,24 @@ import { formatDateTime } from "@/lib/format/date";
 import { sourceKeys } from "@/services/backoffice-sources/sources.keys";
 import { deleteSource, listSources } from "@/services/backoffice-sources/sources.service";
 import type { Source } from "@/services/backoffice-sources/sources.types";
+import { propertyKeys } from "@/services/properties/properties.keys";
+import { ingestProperty, listProperties } from "@/services/properties/properties.service";
+import type { Property } from "@/services/properties/properties.types";
 
 export const SourcesPage = (): JSX.Element => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const { pushToast } = useToast();
     const [deleteTarget, setDeleteTarget] = useState<Source | null>(null);
+    const [bulkTarget, setBulkTarget] = useState<Source | null>(null);
+    const [bulkProgress, setBulkProgress] = useState<{ done: number; failed: number; total: number; } | null>(null);
     const sourcesQuery = useQuery({
         queryFn: listSources,
         queryKey: sourceKeys.list(),
+    });
+    const propertiesQuery = useQuery({
+        queryFn: listProperties,
+        queryKey: propertyKeys.list(),
     });
     const deleteMutation = useMutation({
         mutationFn: deleteSource,
@@ -37,6 +46,44 @@ export const SourcesPage = (): JSX.Element => {
             pushToast("Source deleted.", "success");
         },
     });
+
+    const propertiesForBulk = useMemo<Property[]>(() => {
+        if (bulkTarget === null) {
+            return [];
+        }
+
+        return (propertiesQuery.data ?? []).filter((property) => property.source_id === bulkTarget.id);
+    }, [bulkTarget, propertiesQuery.data]);
+
+    const runBulk = async (): Promise<void> => {
+        if (bulkTarget === null || propertiesForBulk.length === 0) {
+            return;
+        }
+
+        setBulkProgress({ done: 0, failed: 0, total: propertiesForBulk.length });
+        let done = 0;
+        let failed = 0;
+        for (const property of propertiesForBulk) {
+            try {
+                await ingestProperty(property.id);
+                done += 1;
+            } catch {
+                failed += 1;
+            }
+
+            setBulkProgress({ done: done + failed, failed, total: propertiesForBulk.length });
+        }
+
+        await queryClient.invalidateQueries({ queryKey: propertyKeys.list() });
+        if (failed === 0) {
+            pushToast(`Ran ${done} properties for ${bulkTarget.name}.`, "success");
+        } else {
+            pushToast(`Ran ${done} of ${propertiesForBulk.length}; ${failed} failed.`, "error");
+        }
+
+        setBulkTarget(null);
+        setBulkProgress(null);
+    };
 
     const sources = sourcesQuery.data ?? [];
     const rows = useMemo(() => {
@@ -116,6 +163,11 @@ export const SourcesPage = (): JSX.Element => {
                                             label: "Open",
                                             onSelect: () => { void navigate(`/sources/${item.id}`); },
                                         },
+                                        {
+                                            disabled: (propertiesQuery.data ?? []).filter((property) => property.source_id === item.id).length === 0,
+                                            label: "Run all properties",
+                                            onSelect: () => { setBulkTarget(item); },
+                                        },
                                     ]}
                                 >
                                     <button
@@ -169,6 +221,24 @@ export const SourcesPage = (): JSX.Element => {
                 }}
                 open={deleteTarget !== null}
                 title={"Delete source"}
+            />
+
+            <ConfirmDialog
+                confirmLabel={bulkProgress === null ? `Run ${propertiesForBulk.length} properties` : `Running ${bulkProgress.done}/${bulkProgress.total}`}
+                description={bulkTarget === null
+                    ? ""
+                    : propertiesForBulk.length === 0
+                        ? `${bulkTarget.name} has no properties yet.`
+                        : `Run ${propertiesForBulk.length} properties for ${bulkTarget.name} sequentially. Each run uses its own retry configuration.`}
+                isPending={bulkProgress !== null}
+                onConfirm={() => { void runBulk(); }}
+                onOpenChange={(open) => {
+                    if (!open && bulkProgress === null) {
+                        setBulkTarget(null);
+                    }
+                }}
+                open={bulkTarget !== null}
+                title={"Run all properties"}
             />
         </>
     );

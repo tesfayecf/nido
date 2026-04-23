@@ -86,6 +86,9 @@ func (s *Service) CreateAlertRule(ctx context.Context, input engagementdomain.Al
 	if input.RuleType == engagementdomain.RuleTypePriceBelow && input.ThresholdAmount == nil {
 		return engagementdomain.AlertRule{}, ErrInvalidAlertRule
 	}
+	if input.RuleType == engagementdomain.RuleTypePriceAbove && input.ThresholdAmount == nil {
+		return engagementdomain.AlertRule{}, ErrInvalidAlertRule
+	}
 
 	now := time.Now().UTC()
 	input.ID = id.New("rule")
@@ -154,7 +157,7 @@ func (s *Service) ProcessPropertyRun(ctx context.Context, propertyID string, cur
 		if rule.PropertyID != propertyID || !rule.Enabled {
 			continue
 		}
-		if !ruleMatchesSnapshot(rule, currentPrice, hasCurrentPrice, previousPrice, hasPreviousPrice) {
+		if !ruleMatchesSnapshot(rule, currentValues, previousValues, currentPrice, hasCurrentPrice, previousPrice, hasPreviousPrice) {
 			continue
 		}
 
@@ -193,22 +196,42 @@ func (s *Service) ProcessPropertyRun(ctx context.Context, propertyID string, cur
 	return created, nil
 }
 
-func ruleMatchesSnapshot(rule engagementdomain.AlertRule, currentPrice int64, hasCurrentPrice bool, previousPrice int64, hasPreviousPrice bool) bool {
-	if !hasCurrentPrice {
-		return false
-	}
-
+func ruleMatchesSnapshot(rule engagementdomain.AlertRule, currentValues, previousValues map[string]string, currentPrice int64, hasCurrentPrice bool, previousPrice int64, hasPreviousPrice bool) bool {
 	switch rule.RuleType {
 	case engagementdomain.RuleTypePriceDrop:
-		return hasPreviousPrice && currentPrice < previousPrice
+		return hasCurrentPrice && hasPreviousPrice && currentPrice < previousPrice
 	case engagementdomain.RuleTypePriceBelow:
-		if rule.ThresholdAmount == nil || currentPrice > *rule.ThresholdAmount {
+		if !hasCurrentPrice || rule.ThresholdAmount == nil || currentPrice > *rule.ThresholdAmount {
 			return false
 		}
 		return !hasPreviousPrice || previousPrice > *rule.ThresholdAmount
+	case engagementdomain.RuleTypePriceAbove:
+		if !hasCurrentPrice || rule.ThresholdAmount == nil || currentPrice < *rule.ThresholdAmount {
+			return false
+		}
+		return !hasPreviousPrice || previousPrice < *rule.ThresholdAmount
+	case engagementdomain.RuleTypeAnyChange:
+		return hasFieldChanges(currentValues, previousValues)
 	default:
 		return false
 	}
+}
+
+func hasFieldChanges(current, previous map[string]string) bool {
+	if len(previous) == 0 {
+		return false
+	}
+	for key, value := range current {
+		if previous[key] != value {
+			return true
+		}
+	}
+	for key, value := range previous {
+		if current[key] != value {
+			return true
+		}
+	}
+	return false
 }
 
 func buildNotification(rule engagementdomain.AlertRule, currentValues map[string]string, currentPrice int64, hasCurrentPrice bool, previousPrice int64, hasPreviousPrice bool) (engagementdomain.Notification, error) {
@@ -226,6 +249,14 @@ func buildNotification(rule engagementdomain.AlertRule, currentValues map[string
 		if hasCurrentPrice {
 			body = fmt.Sprintf("%s is now listed at %d.", titleValue, currentPrice)
 		}
+	case engagementdomain.RuleTypePriceAbove:
+		title = "Price ceiling exceeded for " + titleValue
+		if hasCurrentPrice {
+			body = fmt.Sprintf("%s is now listed at %d.", titleValue, currentPrice)
+		}
+	case engagementdomain.RuleTypeAnyChange:
+		title = "Listing changed for " + titleValue
+		body = fmt.Sprintf("%s has new field values.", titleValue)
 	default:
 		return engagementdomain.Notification{}, fmt.Errorf("unsupported rule type %q", rule.RuleType)
 	}

@@ -19,9 +19,15 @@ import { KeyValueGrid, KeyValuePair } from "@/components/ui/KeyValueGrid";
 import { ListRow, ListRowMain } from "@/components/ui/ListRow";
 import { PageCard } from "@/components/ui/PageCard";
 import { PageStack } from "@/components/ui/PageStack";
+import { RowActions } from "@/components/ui/RowActions";
 import { Select } from "@/components/ui/Select";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { Tooltip } from "@/components/ui/Tooltip";
+import { UrlDisplay } from "@/components/ui/UrlDisplay";
 import { useToast } from "@/components/ui/ToastProvider";
+import { FieldHistoryDialog } from "@/features/properties/FieldHistoryDialog";
+import { PropertyAlertCreateDialog } from "@/features/engagement/PropertyAlertCreateDialog";
+import { getRuleTypeLabel, getRuleTypeLogic } from "@/services/alert-rules/alert-rules.constants";
 import { alertRuleKeys } from "@/services/alert-rules/alert-rules.keys";
 import { listAlertRules } from "@/services/alert-rules/alert-rules.service";
 import { runKeys } from "@/services/backoffice-runs/runs.keys";
@@ -75,6 +81,8 @@ export const PropertyDetailPage = (): JSX.Element => {
     const [previewFailures, setPreviewFailures] = useState<string[]>([]);
     const [editOpen, setEditOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
+    const [historyFieldName, setHistoryFieldName] = useState<string | undefined>(undefined);
+    const [createAlertOpen, setCreateAlertOpen] = useState(false);
 
     const propertyQuery = useQuery({
         enabled: !isCreateMode,
@@ -335,7 +343,7 @@ export const PropertyDetailPage = (): JSX.Element => {
                     {propertyQuery.isError ? <ErrorBanner>{"Could not load property."}</ErrorBanner> : null}
                     {propertyQuery.data !== undefined ? (
                         <KeyValueGrid compact>
-                            <KeyValuePair label={"URL"} value={propertyQuery.data.url} />
+                            <KeyValuePair label={"URL"} value={<UrlDisplay label={propertyQuery.data.label !== "" ? propertyQuery.data.label : undefined} url={propertyQuery.data.url} />} />
                             <KeyValuePair label={"Status"} value={<StatusBadge tone={propertyQuery.data.status === "active" ? "success" : propertyQuery.data.status === "degraded" ? "warning" : propertyQuery.data.status === "inactive" ? "danger" : "neutral"} value={propertyQuery.data.status} />} />
                             <KeyValuePair label={"Source"} value={sourcesQuery.data?.find((source) => source.id === propertyQuery.data?.source_id)?.name ?? "No template"} />
                             <KeyValuePair label={"Updated"} value={propertyQuery.data.updated_at === undefined ? "—" : formatDateTime(propertyQuery.data.updated_at)} />
@@ -351,13 +359,15 @@ export const PropertyDetailPage = (): JSX.Element => {
                             <Button disabled={bookmarkMutation.isPending} onClick={() => { bookmarkMutation.mutate(); }} variant={"secondary"}>
                                 {isBookmarked ? "Remove bookmark" : "Bookmark"}
                             </Button>
-                            <Button disabled={ingestMutation.isPending} onClick={() => { ingestMutation.mutate(); }}>
-                                {ingestMutation.isPending ? "Running..." : "Run now"}
-                            </Button>
+                            <Tooltip content={`Each run will retry up to ${retryMaxAttempts} attempt${retryMaxAttempts === 1 ? "" : "s"} with ${retryBackoffMillis}ms backoff between attempts.`}>
+                                <Button disabled={ingestMutation.isPending} onClick={() => { ingestMutation.mutate(); }}>
+                                    {ingestMutation.isPending ? "Running..." : "Run now"}
+                                </Button>
+                            </Tooltip>
                             <Button as={Link} to={`/runs?property_id=${resolvedId}`} variant={"secondary"}>{"View history"}</Button>
                         </ActionGroup>
                     )}
-                    description={"The latest successful or failed snapshot is shown in a dense read-only table."}
+                    description={`The latest snapshot is shown read-only. Runs use up to ${retryMaxAttempts} attempt${retryMaxAttempts === 1 ? "" : "s"} (${retryBackoffMillis}ms backoff).`}
                     title={"Current Extracted Values"}
                 >
                     {latestSnapshot === undefined ? <EmptyState message={"No runs have been recorded for this property yet."} /> : (
@@ -372,6 +382,18 @@ export const PropertyDetailPage = (): JSX.Element => {
                                 columns={[
                                     { cell: (item) => item.field, header: "Field", id: "field", sortValue: (item) => item.field },
                                     { cell: (item) => item.value, header: "Value", id: "value" },
+                                    {
+                                        align: "right",
+                                        cell: (item) => (
+                                            <RowActions>
+                                                <Button onClick={() => { setHistoryFieldName(item.field); }} size={"small"} variant={"ghost"}>
+                                                    {"View chart"}
+                                                </Button>
+                                            </RowActions>
+                                        ),
+                                        header: "Actions",
+                                        id: "actions",
+                                    },
                                 ]}
                                 compact
                                 emptyMessage={"No extracted values are available for the latest run."}
@@ -402,7 +424,13 @@ export const PropertyDetailPage = (): JSX.Element => {
                     />
                 </PageCard>
 
-                <PageCard description={"Alerts trigger when new runs meet property-level conditions."} title={"Alerts"}>
+                <PageCard
+                    action={(
+                        <Button onClick={() => { setCreateAlertOpen(true); }} variant={"secondary"}>{"Create alert"}</Button>
+                    )}
+                    description={"Alerts trigger when new runs meet property-level conditions."}
+                    title={"Alerts"}
+                >
                     {propertyAlerts.length === 0 ? <EmptyState message={"No alerts are linked to this property yet."} /> : (
                         <ItemList>
                             {propertyAlerts.map((rule) => {
@@ -410,8 +438,8 @@ export const PropertyDetailPage = (): JSX.Element => {
                                     <ListRow key={rule.id}>
                                         <ListRowMain>
                                             <div>
-                                                <h3 className={"list-row__title"}>{rule.rule_type}</h3>
-                                                <p className={"list-row__meta"}>{rule.threshold_amount === undefined ? "No threshold" : `Threshold ${rule.threshold_amount}`}</p>
+                                                <h3 className={"list-row__title"}>{getRuleTypeLabel(rule.rule_type)}</h3>
+                                                <p className={"list-row__meta"}>{getRuleTypeLogic(rule.rule_type, rule.threshold_amount)}</p>
                                             </div>
                                             <strong className={"list-row__price"}>{rule.enabled ? "Active" : "Inactive"}</strong>
                                         </ListRowMain>
@@ -437,6 +465,20 @@ export const PropertyDetailPage = (): JSX.Element => {
                 open={deleteOpen}
                 title={"Delete property"}
             />
+            <PropertyAlertCreateDialog
+                onOpenChange={setCreateAlertOpen}
+                open={createAlertOpen}
+                propertyId={resolvedId}
+                propertyLabel={propertyQuery.data?.label !== undefined && propertyQuery.data.label !== "" ? propertyQuery.data.label : propertyQuery.data?.url ?? "this property"}
+            />
+            {historyFieldName !== undefined ? (
+                <FieldHistoryDialog
+                    fieldName={historyFieldName}
+                    onOpenChange={(open) => { if (!open) { setHistoryFieldName(undefined); } }}
+                    open
+                    snapshots={snapshotsQuery.data ?? []}
+                />
+            ) : null}
         </>
     );
 };

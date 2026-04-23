@@ -12,12 +12,15 @@ import { Dialog } from "@/components/ui/Dialog";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Field } from "@/components/ui/Field";
 import { FormGrid } from "@/components/ui/FormGrid";
+import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/Input";
 import { KeyValueGrid, KeyValuePair } from "@/components/ui/KeyValueGrid";
 import { PageCard } from "@/components/ui/PageCard";
 import { PageStack } from "@/components/ui/PageStack";
+import { RowActions } from "@/components/ui/RowActions";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useToast } from "@/components/ui/ToastProvider";
+import { FieldEditorDialog } from "@/features/backoffice/FieldEditorDialog";
 import { formatDateTime } from "@/lib/format/date";
 import { sourceKeys } from "@/services/backoffice-sources/sources.keys";
 import { deleteSource, getSource, upsertSource } from "@/services/backoffice-sources/sources.service";
@@ -61,6 +64,8 @@ export const SourceDetailPage = (): JSX.Element => {
     const [previewMap, setPreviewMap] = useState<Map<string, PropertyPreviewFieldResult>>(new Map());
     const [editOpen, setEditOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
+    const [fieldEditor, setFieldEditor] = useState<{ initial?: SelectorFieldDraft; mode: "add" | "edit"; targetId?: string; } | null>(null);
+    const [fieldDeleteName, setFieldDeleteName] = useState<string | null>(null);
     const saveMutation = useMutation({
         mutationFn: upsertSource,
         onSuccess(savedSource) {
@@ -129,12 +134,53 @@ export const SourceDetailPage = (): JSX.Element => {
             .filter((field) => field.name !== "");
     }, [selectorFields]);
     const validationMessages = useMemo(() => validateSelectorDrafts(selectorFields), [selectorFields]);
-    const fieldRows = selectedFields.map((field) => ({
-        mode: field.extraction_mode,
-        name: field.name,
-        required: field.required ? "Required" : "Optional",
-        selector: field.selector_value,
-    }));
+    const fieldRows = selectorFields
+        .filter((field) => field.name.trim() !== "")
+        .map((field) => ({
+            draft: field,
+            id: field.id,
+            mode: field.extractionMode,
+            name: field.name,
+            required: field.required ? "Required" : "Optional",
+            selector: field.selectorValue,
+        }));
+
+    const persistFields = (nextFields: SelectorFieldDraft[]): void => {
+        setSelectorFields(nextFields);
+        if (!isCreateMode) {
+            const persistable = nextFields
+                .map(draftToSelector)
+                .filter((field) => field.name !== "");
+            saveMutation.mutate({
+                ...formState,
+                config_json: stringifySelectorConfigJson(persistable),
+            });
+        }
+    };
+
+    const handleFieldSave = (draft: SelectorFieldDraft): void => {
+        if (fieldEditor === null) {
+            return;
+        }
+
+        if (fieldEditor.mode === "add") {
+            persistFields([...selectorFields, { ...draft, id: draft.id !== "" ? draft.id : createEmptySelectorDraft().id }]);
+        } else {
+            persistFields(selectorFields.map((field) => field.id === fieldEditor.targetId ? { ...draft, id: field.id } : field));
+        }
+
+        setFieldEditor(null);
+    };
+
+    const handleFieldDelete = (): void => {
+        if (fieldDeleteName === null) {
+            return;
+        }
+
+        persistFields(selectorFields.filter((field) => field.name !== fieldDeleteName));
+        setFieldDeleteName(null);
+    };
+
     const editorContent = (
         <PageStack>
             <PageCard
@@ -222,7 +268,15 @@ export const SourceDetailPage = (): JSX.Element => {
                     </KeyValueGrid>
                 </PageCard>
 
-                <PageCard description={"Configured fields are presented as a compact read-only table."} title={"Configured Fields"}>
+                <PageCard
+                    action={(
+                        <Button iconBefore={<Icon name={"plus"} />} onClick={() => { setFieldEditor({ initial: createEmptySelectorDraft(), mode: "add" }); }} variant={"secondary"}>
+                            {"Add field"}
+                        </Button>
+                    )}
+                    description={"Configured fields are listed below. Use the row actions to change a single field without opening the full editor."}
+                    title={"Configured Fields"}
+                >
                     <DataTable
                         caption={"Configured source fields"}
                         columns={[
@@ -230,10 +284,38 @@ export const SourceDetailPage = (): JSX.Element => {
                             { cell: (item) => item.selector, header: "Selector", id: "selector" },
                             { cell: (item) => item.mode, header: "Mode", id: "mode", sortValue: (item) => item.mode },
                             { cell: (item) => item.required, header: "Required", id: "required", sortValue: (item) => item.required },
+                            {
+                                align: "right",
+                                cell: (item) => (
+                                    <RowActions>
+                                        <button
+                                            aria-label={`Edit field ${item.name}`}
+                                            className={"icon-button"}
+                                            onClick={() => { setFieldEditor({ initial: item.draft, mode: "edit", targetId: item.id }); }}
+                                            title={"Edit field"}
+                                            type={"button"}
+                                        >
+                                            <Icon name={"edit"} />
+                                        </button>
+                                        <button
+                                            aria-label={`Delete field ${item.name}`}
+                                            className={"icon-button icon-button--danger"}
+                                            onClick={() => { setFieldDeleteName(item.name); }}
+                                            title={"Delete field"}
+                                            type={"button"}
+                                        >
+                                            <Icon name={"trash"} />
+                                        </button>
+                                    </RowActions>
+                                ),
+                                header: "Actions",
+                                id: "actions",
+                                width: "8rem",
+                            },
                         ]}
                         compact
                         emptyMessage={"No selector fields are configured yet."}
-                        getRowId={(item) => item.name}
+                        getRowId={(item) => item.id}
                         items={fieldRows}
                         pageSize={12}
                     />
@@ -253,6 +335,23 @@ export const SourceDetailPage = (): JSX.Element => {
                 onOpenChange={setDeleteOpen}
                 open={deleteOpen}
                 title={"Delete source"}
+            />
+            <FieldEditorDialog
+                initialField={fieldEditor?.initial}
+                isSaving={saveMutation.isPending}
+                onClose={() => { setFieldEditor(null); }}
+                onSave={handleFieldSave}
+                open={fieldEditor !== null}
+                title={fieldEditor?.mode === "edit" ? "Edit field" : "Add field"}
+            />
+            <ConfirmDialog
+                confirmLabel={"Delete field"}
+                description={fieldDeleteName === null ? "" : `Delete the "${fieldDeleteName}" field from this template? Existing snapshots remain unchanged.`}
+                isPending={saveMutation.isPending}
+                onConfirm={handleFieldDelete}
+                onOpenChange={(open) => { if (!open) { setFieldDeleteName(null); } }}
+                open={fieldDeleteName !== null}
+                title={"Delete field"}
             />
         </>
     );
