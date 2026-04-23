@@ -69,6 +69,8 @@ type PropertyStore interface {
 	DeletePropertySnapshot(ctx context.Context, snapshotID string) error
 	GetLastValidPropertySnapshot(ctx context.Context, propertyID string) (ingestiondomain.PropertySnapshot, error)
 	GetSource(ctx context.Context, sourceID string) (ingestiondomain.Source, error)
+	ListPropertiesByTagIDs(ctx context.Context, tagIDs []string, matchAll bool) ([]string, error)
+	ListPropertyRuns(ctx context.Context, propertyID string, limit int) ([]ingestiondomain.PropertyRun, error)
 }
 
 // PropertyRunProcessor reacts to completed property runs.
@@ -121,11 +123,71 @@ func (s *PropertyService) EnsureProperty(ctx context.Context, property ingestion
 		return ingestiondomain.Property{}, err
 	}
 
+	// Check if property exists to determine if it's create or update
+	isUpdate := false
+	if normalized.ID != "" {
+		_, err := s.store.GetProperty(ctx, normalized.ID)
+		isUpdate = !errors.Is(err, sql.ErrNoRows)
+	}
+
 	if err := s.store.UpsertProperty(ctx, normalized); err != nil {
 		return ingestiondomain.Property{}, err
 	}
 
+	if isUpdate {
+		s.emit("property.updated", map[string]any{"property_id": normalized.ID})
+	} else {
+		s.emit("property.created", map[string]any{"property_id": normalized.ID})
+	}
+
 	return normalized, nil
+}
+
+// ListPropertiesFiltered returns properties with optional tag and status filtering.
+func (s *PropertyService) ListPropertiesFiltered(ctx context.Context, tagIDs []string, matchAll bool, status string) ([]ingestiondomain.Property, error) {
+	if len(tagIDs) == 0 && status == "" {
+		return s.store.ListProperties(ctx)
+	}
+
+	// Get properties from tag filter first if applicable
+	var propertyIDsFromTags []string
+	if len(tagIDs) > 0 {
+		var err error
+		propertyIDsFromTags, err = s.store.ListPropertiesByTagIDs(ctx, tagIDs, matchAll)
+		if err != nil {
+			return nil, err
+		}
+		// If no properties match tags, return empty
+		if len(propertyIDsFromTags) == 0 {
+			return []ingestiondomain.Property{}, nil
+		}
+	}
+
+	// Get all properties and filter
+	allProperties, err := s.store.ListProperties(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	filtered := make([]ingestiondomain.Property, 0)
+	propertyIDSet := make(map[string]bool)
+	for _, pid := range propertyIDsFromTags {
+		propertyIDSet[pid] = true
+	}
+
+	for _, property := range allProperties {
+		// Filter by tag if applicable
+		if len(tagIDs) > 0 && !propertyIDSet[property.ID] {
+			continue
+		}
+		// Filter by status if applicable
+		if status != "" && string(property.Status) != status {
+			continue
+		}
+		filtered = append(filtered, property)
+	}
+
+	return filtered, nil
 }
 
 // ListProperties returns all tracked properties.
@@ -220,6 +282,11 @@ func (s *PropertyService) GetRun(ctx context.Context, runID string) (ingestiondo
 	}
 
 	return run, err
+}
+
+// ListPropertyRuns returns recent property_runs for a property.
+func (s *PropertyService) ListPropertyRuns(ctx context.Context, propertyID string, limit int) ([]ingestiondomain.PropertyRun, error) {
+	return s.store.ListPropertyRuns(ctx, propertyID, limit)
 }
 
 // DeleteRun removes one stored property snapshot.
@@ -379,6 +446,123 @@ func (s *PropertyService) IngestProperty(ctx context.Context, propertyID string)
 	if s.logger != nil {
 		s.logger.Info("property ingest completed",
 			"property_id", propertyID,
+			"is_valid", isValid,
+			"status", string(status),
+		)
+	}
+
+	return snapshot, nil
+}
+
+// IngestPropertyOnce performs a single ingestion attempt for a property (internal variant for scheduler).
+func (s *PropertyService) IngestPropertyOnce(ctx context.Context, propertyID string, attemptNum int, runID string) (ingestiondomain.PropertySnapshot, error) {
+	property, err := s.store.GetProperty(ctx, propertyID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ingestiondomain.PropertySnapshot{}, ErrPropertyNotFound
+	}
+	if err != nil {
+		return ingestiondomain.PropertySnapshot{}, err
+	}
+
+	config, err := s.store.GetLatestPropertyConfig(ctx, propertyID)
+	if err != nil {
+		return ingestiondomain.PropertySnapshot{}, err
+	}
+	config.Fields, err = s.resolveFields(ctx, property.SourceID, config.Fields)
+	if err != nil {
+		return ingestiondomain.PropertySnapshot{}, err
+	}
+	if len(config.Fields) == 0 {
+		return ingestiondomain.PropertySnapshot{}, fmt.Errorf("property extraction config is required")
+	}
+
+	now := s.clock.Now().UTC()
+	lastValid, _ := s.store.GetLastValidPropertySnapshot(ctx, propertyID)
+
+	body, fetchErr := s.fetchHTML(ctx, property.URL, propertyFetchOptions{
+		BrowserEnabled: property.BrowserEnabled,
+		RequestHeaders: property.RequestHeaders,
+	})
+	if fetchErr != nil {
+		snapshot := ingestiondomain.PropertySnapshot{
+			ID:            id.New("run"),
+			PropertyID:    propertyID,
+			ConfigVersion: config.Version,
+			ObservedAt:    now,
+			Values:        json.RawMessage("{}"),
+			ChangeFlags:   json.RawMessage("{}"),
+			IsValid:       false,
+			ErrorMessage:  fetchErr.Error(),
+		}
+		_ = s.store.CreatePropertySnapshot(ctx, snapshot)
+		_ = s.store.UpdatePropertyRunState(ctx, propertyID, ingestiondomain.PropertyStatusDegraded, &now, nil)
+
+		return snapshot, fetchErr
+	}
+
+	values, failures, _ := applySelectors(body, config.Fields)
+	isValid := true
+	for _, field := range config.Fields {
+		if field.Required {
+			if v, ok := values[field.Name]; !ok || strings.TrimSpace(v) == "" {
+				isValid = false
+				break
+			}
+		}
+	}
+
+	var errorMessage string
+	if len(failures) > 0 {
+		errorMessage = strings.Join(failures, "; ")
+	}
+
+	changeFlags := map[string]bool{}
+	if lastValid.ID != "" && lastValid.IsValid {
+		previousValues := decodeSnapshotValues(lastValid.Values)
+		for key, newValue := range values {
+			if oldValue, ok := previousValues[key]; ok && oldValue != newValue {
+				changeFlags[key] = true
+			}
+		}
+	}
+
+	valuesJSON, _ := json.Marshal(values)
+	changeFlagsJSON, _ := json.Marshal(changeFlags)
+	status := ingestiondomain.PropertyStatusActive
+	if !isValid {
+		status = ingestiondomain.PropertyStatusDegraded
+	}
+
+	snapshot := ingestiondomain.PropertySnapshot{
+		ID:            id.New("run"),
+		PropertyID:    propertyID,
+		ConfigVersion: max(config.Version, 1),
+		ObservedAt:    now,
+		Values:        json.RawMessage(valuesJSON),
+		ChangeFlags:   json.RawMessage(changeFlagsJSON),
+		IsValid:       isValid,
+		ErrorMessage:  errorMessage,
+	}
+
+	if err := s.store.CreatePropertySnapshot(ctx, snapshot); err != nil {
+		return ingestiondomain.PropertySnapshot{}, err
+	}
+
+	if err := s.store.UpdatePropertyRunState(ctx, propertyID, status, &now, nil); err != nil {
+		return ingestiondomain.PropertySnapshot{}, err
+	}
+
+	if s.changes != nil {
+		if _, err := s.changes.ProcessPropertyRun(ctx, propertyID, snapshot, lastValid); err != nil {
+			return ingestiondomain.PropertySnapshot{}, err
+		}
+	}
+
+	if s.logger != nil {
+		s.logger.Info("property ingest attempt completed",
+			"property_id", propertyID,
+			"attempt", attemptNum,
+			"run_id", runID,
 			"is_valid", isValid,
 			"status", string(status),
 		)

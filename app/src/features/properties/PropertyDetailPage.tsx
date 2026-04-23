@@ -28,6 +28,8 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { TagBadge } from "@/components/tags/TagBadge";
 import { TagPicker } from "@/components/tags/TagPicker";
 import { PropertyAlertCreateDialog } from "@/features/engagement/PropertyAlertCreateDialog";
+
+const PROPERTY_RUNS_REFETCH_INTERVAL_MS = 5000;
 import { getRuleTypeLabel, getRuleTypeLogic } from "@/services/alert-rules/alert-rules.constants";
 import { alertRuleKeys } from "@/services/alert-rules/alert-rules.keys";
 import { listAlertRules } from "@/services/alert-rules/alert-rules.service";
@@ -126,7 +128,7 @@ export const PropertyDetailPage = (): JSX.Element => {
         enabled: !isCreateMode,
         queryFn: () => listPropertyRuns(resolvedId, 10),
         queryKey: propertyKeys.runs(resolvedId),
-        refetchInterval: 5000,
+        refetchInterval: PROPERTY_RUNS_REFETCH_INTERVAL_MS,
     });
     const sourcesQuery = useQuery({
         queryFn: listSources,

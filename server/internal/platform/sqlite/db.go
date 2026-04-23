@@ -264,6 +264,41 @@ CREATE TABLE IF NOT EXISTS property_snapshots (
 );
 
 CREATE INDEX IF NOT EXISTS idx_property_snapshots_property_observed ON property_snapshots(property_id, observed_at DESC);
+
+CREATE TABLE IF NOT EXISTS tags (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    color TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS property_tags (
+    property_id TEXT NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+    tag_id TEXT NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+    assigned_at TEXT NOT NULL,
+    PRIMARY KEY(property_id, tag_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_property_tags_tag_id ON property_tags(tag_id);
+CREATE INDEX IF NOT EXISTS idx_property_tags_property_id ON property_tags(property_id);
+
+CREATE TABLE IF NOT EXISTS property_runs (
+    id TEXT PRIMARY KEY,
+    property_id TEXT NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+    status TEXT NOT NULL,
+    trigger_kind TEXT NOT NULL DEFAULT 'scheduled',
+    attempt_count INTEGER NOT NULL DEFAULT 1,
+    max_attempts INTEGER NOT NULL DEFAULT 1,
+    started_at TEXT,
+    finished_at TEXT,
+    error_message TEXT,
+    snapshot_id TEXT,
+    created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_property_runs_property_started ON property_runs(property_id, started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_property_runs_status ON property_runs(status);
 `
 
 var columnMigrations = []columnMigration{

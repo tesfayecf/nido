@@ -1933,3 +1933,423 @@ func scanPropertySnapshot(s scanner) (ingestiondomain.PropertySnapshot, error) {
 
 	return snapshot, nil
 }
+
+// CreateTag inserts a new tag.
+func (s *Store) CreateTag(ctx context.Context, tag ingestiondomain.Tag) error {
+	_, err := s.db.ExecContext(
+		ctx,
+		`INSERT INTO tags (id, name, color, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
+		tag.ID,
+		tag.Name,
+		tag.Color,
+		formatTime(tag.CreatedAt),
+		formatTime(tag.UpdatedAt),
+	)
+	if err != nil {
+		return fmt.Errorf("create tag: %w", err)
+	}
+	return nil
+}
+
+// GetTagByName returns a tag by its name (case-insensitive).
+func (s *Store) GetTagByName(ctx context.Context, name string) (ingestiondomain.Tag, error) {
+	tag, err := scanTag(s.db.QueryRowContext(
+		ctx,
+		`SELECT id, name, color, created_at, updated_at FROM tags WHERE name = ? COLLATE NOCASE`,
+		name,
+	))
+	if err != nil {
+		return ingestiondomain.Tag{}, err
+	}
+	return tag, nil
+}
+
+// GetTag returns a tag by its ID.
+func (s *Store) GetTag(ctx context.Context, tagID string) (ingestiondomain.Tag, error) {
+	tag, err := scanTag(s.db.QueryRowContext(
+		ctx,
+		`SELECT id, name, color, created_at, updated_at FROM tags WHERE id = ?`,
+		tagID,
+	))
+	if err != nil {
+		return ingestiondomain.Tag{}, err
+	}
+	return tag, nil
+}
+
+// ListTags returns all tags ordered by name.
+func (s *Store) ListTags(ctx context.Context) ([]ingestiondomain.Tag, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT id, name, color, created_at, updated_at FROM tags ORDER BY name ASC`)
+	if err != nil {
+		return nil, fmt.Errorf("list tags: %w", err)
+	}
+	defer rows.Close()
+
+	tags := make([]ingestiondomain.Tag, 0)
+	for rows.Next() {
+		tag, err := scanTag(rows)
+		if err != nil {
+			return nil, err
+		}
+		tags = append(tags, tag)
+	}
+
+	return tags, rows.Err()
+}
+
+// DeleteTag removes a tag and its property associations.
+func (s *Store) DeleteTag(ctx context.Context, tagID string) error {
+	result, err := s.db.ExecContext(ctx, `DELETE FROM tags WHERE id = ?`, tagID)
+	if err != nil {
+		return fmt.Errorf("delete tag: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read deleted tag rows: %w", err)
+	}
+	if rowsAffected == 0 {
+		return sql.ErrNoRows
+	}
+
+	return nil
+}
+
+// AssignTags replaces the full set of tags for a property (idempotent).
+func (s *Store) AssignTags(ctx context.Context, propertyID string, tagIDs []string) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Remove existing tags
+	_, err = tx.ExecContext(ctx, `DELETE FROM property_tags WHERE property_id = ?`, propertyID)
+	if err != nil {
+		return fmt.Errorf("delete existing property tags: %w", err)
+	}
+
+	// Add new tags
+	now := formatTime(time.Now().UTC())
+	for _, tagID := range tagIDs {
+		_, err = tx.ExecContext(
+			ctx,
+			`INSERT INTO property_tags (property_id, tag_id, assigned_at) VALUES (?, ?, ?)`,
+			propertyID,
+			tagID,
+			now,
+		)
+		if err != nil {
+			return fmt.Errorf("assign tag: %w", err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit assign tags: %w", err)
+	}
+
+	return nil
+}
+
+// AddPropertyTag adds a single tag to a property.
+func (s *Store) AddPropertyTag(ctx context.Context, propertyID, tagID string) error {
+	now := formatTime(time.Now().UTC())
+	_, err := s.db.ExecContext(
+		ctx,
+		`INSERT OR IGNORE INTO property_tags (property_id, tag_id, assigned_at) VALUES (?, ?, ?)`,
+		propertyID,
+		tagID,
+		now,
+	)
+	if err != nil {
+		return fmt.Errorf("add property tag: %w", err)
+	}
+	return nil
+}
+
+// RemovePropertyTag removes a single tag from a property.
+func (s *Store) RemovePropertyTag(ctx context.Context, propertyID, tagID string) error {
+	_, err := s.db.ExecContext(
+		ctx,
+		`DELETE FROM property_tags WHERE property_id = ? AND tag_id = ?`,
+		propertyID,
+		tagID,
+	)
+	if err != nil {
+		return fmt.Errorf("remove property tag: %w", err)
+	}
+	return nil
+}
+
+// ListPropertyTags returns all tags assigned to a property.
+func (s *Store) ListPropertyTags(ctx context.Context, propertyID string) ([]ingestiondomain.Tag, error) {
+	rows, err := s.db.QueryContext(
+		ctx,
+		`SELECT t.id, t.name, t.color, t.created_at, t.updated_at
+		 FROM tags t
+		 JOIN property_tags pt ON pt.tag_id = t.id
+		 WHERE pt.property_id = ?
+		 ORDER BY t.name ASC`,
+		propertyID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list property tags: %w", err)
+	}
+	defer rows.Close()
+
+	tags := make([]ingestiondomain.Tag, 0)
+	for rows.Next() {
+		tag, err := scanTag(rows)
+		if err != nil {
+			return nil, err
+		}
+		tags = append(tags, tag)
+	}
+
+	return tags, rows.Err()
+}
+
+// ListPropertiesByTagIDs returns property IDs that match the given tags.
+func (s *Store) ListPropertiesByTagIDs(ctx context.Context, tagIDs []string, matchAll bool) ([]string, error) {
+	if len(tagIDs) == 0 {
+		return []string{}, nil
+	}
+
+	var query string
+	args := make([]any, len(tagIDs))
+	for i, tagID := range tagIDs {
+		args[i] = tagID
+	}
+
+	if matchAll {
+		// Match properties that have ALL the specified tags
+		placeholders := strings.Repeat("?,", len(tagIDs))
+		placeholders = placeholders[:len(placeholders)-1]
+		query = fmt.Sprintf(`
+			SELECT property_id
+			FROM property_tags
+			WHERE tag_id IN (%s)
+			GROUP BY property_id
+			HAVING COUNT(DISTINCT tag_id) = ?
+		`, placeholders)
+		args = append(args, len(tagIDs))
+	} else {
+		// Match properties that have ANY of the specified tags
+		placeholders := strings.Repeat("?,", len(tagIDs))
+		placeholders = placeholders[:len(placeholders)-1]
+		query = fmt.Sprintf(`
+			SELECT DISTINCT property_id
+			FROM property_tags
+			WHERE tag_id IN (%s)
+		`, placeholders)
+	}
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list properties by tags: %w", err)
+	}
+	defer rows.Close()
+
+	propertyIDs := make([]string, 0)
+	for rows.Next() {
+		var propertyID string
+		if err := rows.Scan(&propertyID); err != nil {
+			return nil, err
+		}
+		propertyIDs = append(propertyIDs, propertyID)
+	}
+
+	return propertyIDs, rows.Err()
+}
+
+// CreatePropertyRun inserts a new property run.
+func (s *Store) CreatePropertyRun(ctx context.Context, run ingestiondomain.PropertyRun) error {
+	_, err := s.db.ExecContext(
+		ctx,
+		`INSERT INTO property_runs (id, property_id, status, trigger_kind, attempt_count, max_attempts, started_at, finished_at, error_message, snapshot_id, created_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		run.ID,
+		run.PropertyID,
+		string(run.Status),
+		run.TriggerKind,
+		run.AttemptCount,
+		run.MaxAttempts,
+		nullableTimeString(run.StartedAt),
+		nullableTimeString(run.FinishedAt),
+		run.ErrorMessage,
+		run.SnapshotID,
+		formatTime(run.CreatedAt),
+	)
+	if err != nil {
+		return fmt.Errorf("create property run: %w", err)
+	}
+	return nil
+}
+
+// UpdatePropertyRun updates an existing property run.
+func (s *Store) UpdatePropertyRun(ctx context.Context, run ingestiondomain.PropertyRun) error {
+	_, err := s.db.ExecContext(
+		ctx,
+		`UPDATE property_runs
+		 SET status = ?, attempt_count = ?, started_at = ?, finished_at = ?, error_message = ?, snapshot_id = ?
+		 WHERE id = ?`,
+		string(run.Status),
+		run.AttemptCount,
+		nullableTimeString(run.StartedAt),
+		nullableTimeString(run.FinishedAt),
+		run.ErrorMessage,
+		run.SnapshotID,
+		run.ID,
+	)
+	if err != nil {
+		return fmt.Errorf("update property run: %w", err)
+	}
+	return nil
+}
+
+// ListPropertyRuns returns recent runs for a property.
+func (s *Store) ListPropertyRuns(ctx context.Context, propertyID string, limit int) ([]ingestiondomain.PropertyRun, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+
+	rows, err := s.db.QueryContext(
+		ctx,
+		`SELECT id, property_id, status, trigger_kind, attempt_count, max_attempts, started_at, finished_at, error_message, snapshot_id, created_at
+		 FROM property_runs
+		 WHERE property_id = ?
+		 ORDER BY started_at DESC
+		 LIMIT ?`,
+		propertyID,
+		limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list property runs: %w", err)
+	}
+	defer rows.Close()
+
+	runs := make([]ingestiondomain.PropertyRun, 0)
+	for rows.Next() {
+		run, err := scanPropertyRun(rows)
+		if err != nil {
+			return nil, err
+		}
+		runs = append(runs, run)
+	}
+
+	return runs, rows.Err()
+}
+
+// GetPropertyRun returns a single property run by ID.
+func (s *Store) GetPropertyRun(ctx context.Context, runID string) (ingestiondomain.PropertyRun, error) {
+	run, err := scanPropertyRun(s.db.QueryRowContext(
+		ctx,
+		`SELECT id, property_id, status, trigger_kind, attempt_count, max_attempts, started_at, finished_at, error_message, snapshot_id, created_at
+		 FROM property_runs
+		 WHERE id = ?`,
+		runID,
+	))
+	if err != nil {
+		return ingestiondomain.PropertyRun{}, err
+	}
+	return run, nil
+}
+
+// CountRecentPropertyRuns counts runs for a property since a given time.
+func (s *Store) CountRecentPropertyRuns(ctx context.Context, propertyID string, since time.Time) (int, error) {
+	var count int
+	err := s.db.QueryRowContext(
+		ctx,
+		`SELECT COUNT(*) FROM property_runs WHERE property_id = ? AND started_at >= ?`,
+		propertyID,
+		formatTime(since),
+	).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("count recent property runs: %w", err)
+	}
+	return count, nil
+}
+
+func scanTag(s scanner) (ingestiondomain.Tag, error) {
+	var (
+		tag                  ingestiondomain.Tag
+		createdAt, updatedAt string
+	)
+
+	err := s.Scan(
+		&tag.ID,
+		&tag.Name,
+		&tag.Color,
+		&createdAt,
+		&updatedAt,
+	)
+	if err != nil {
+		return ingestiondomain.Tag{}, err
+	}
+
+	tag.CreatedAt, err = parseTime(createdAt)
+	if err != nil {
+		return ingestiondomain.Tag{}, err
+	}
+	tag.UpdatedAt, err = parseTime(updatedAt)
+	if err != nil {
+		return ingestiondomain.Tag{}, err
+	}
+
+	return tag, nil
+}
+
+func scanPropertyRun(s scanner) (ingestiondomain.PropertyRun, error) {
+	var (
+		run                             ingestiondomain.PropertyRun
+		status                          string
+		startedAt, finishedAt           sql.NullString
+		errorMessage, snapshotID        sql.NullString
+		createdAt                       string
+	)
+
+	err := s.Scan(
+		&run.ID,
+		&run.PropertyID,
+		&status,
+		&run.TriggerKind,
+		&run.AttemptCount,
+		&run.MaxAttempts,
+		&startedAt,
+		&finishedAt,
+		&errorMessage,
+		&snapshotID,
+		&createdAt,
+	)
+	if err != nil {
+		return ingestiondomain.PropertyRun{}, err
+	}
+
+	run.Status = ingestiondomain.PropertyRunStatus(status)
+	if startedAt.Valid {
+		parsedStartedAt, err := parseTime(startedAt.String)
+		if err != nil {
+			return ingestiondomain.PropertyRun{}, err
+		}
+		run.StartedAt = &parsedStartedAt
+	}
+	if finishedAt.Valid {
+		parsedFinishedAt, err := parseTime(finishedAt.String)
+		if err != nil {
+			return ingestiondomain.PropertyRun{}, err
+		}
+		run.FinishedAt = &parsedFinishedAt
+	}
+	if errorMessage.Valid {
+		run.ErrorMessage = errorMessage.String
+	}
+	if snapshotID.Valid {
+		run.SnapshotID = snapshotID.String
+	}
+	run.CreatedAt, err = parseTime(createdAt)
+	if err != nil {
+		return ingestiondomain.PropertyRun{}, err
+	}
+
+	return run, nil
+}

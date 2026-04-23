@@ -294,3 +294,32 @@ type PropertyPreviewFieldResult struct {
 	Message         string           `json:"message,omitempty"`
 	ErrorCode       PreviewErrorCode `json:"error_code,omitempty"`
 }
+
+// PropertyRunStatus describes the state of a property run.
+type PropertyRunStatus string
+
+const (
+	// PropertyRunStatusPending means the run has been queued but not started.
+	PropertyRunStatusPending PropertyRunStatus = "pending"
+	// PropertyRunStatusRunning means the run is currently executing.
+	PropertyRunStatusRunning PropertyRunStatus = "running"
+	// PropertyRunStatusSuccess means the run completed successfully.
+	PropertyRunStatusSuccess PropertyRunStatus = "success"
+	// PropertyRunStatusFailed means the run failed.
+	PropertyRunStatusFailed PropertyRunStatus = "failed"
+)
+
+// PropertyRun tracks a single property ingestion execution with retry support.
+type PropertyRun struct {
+	ID           string            `json:"id"`
+	PropertyID   string            `json:"property_id"`
+	Status       PropertyRunStatus `json:"status"`
+	TriggerKind  string            `json:"trigger_kind"`
+	AttemptCount int               `json:"attempt_count"`
+	MaxAttempts  int               `json:"max_attempts"`
+	StartedAt    *time.Time        `json:"started_at,omitempty"`
+	FinishedAt   *time.Time        `json:"finished_at,omitempty"`
+	ErrorMessage string            `json:"error_message,omitempty"`
+	SnapshotID   string            `json:"snapshot_id,omitempty"`
+	CreatedAt    time.Time         `json:"created_at"`
+}
