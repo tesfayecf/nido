@@ -33,8 +33,6 @@ export const ConfirmDialog = ({
             onOpenChange={onOpenChange}
             open={open}
             title={title}
-        >
-            <p className={"muted-copy"}>{description}</p>
-        </Dialog>
+        />
     );
 };

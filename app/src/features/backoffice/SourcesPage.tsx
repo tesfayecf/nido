@@ -6,56 +6,25 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { DataTable } from "@/components/ui/DataTable";
-import { Dialog } from "@/components/ui/Dialog";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
-import { Field } from "@/components/ui/Field";
-import { FormGrid } from "@/components/ui/FormGrid";
-import { Input } from "@/components/ui/Input";
+import { Icon } from "@/components/ui/Icon";
 import { PageCard } from "@/components/ui/PageCard";
+import { RowActions } from "@/components/ui/RowActions";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useToast } from "@/components/ui/ToastProvider";
 import { formatDateTime } from "@/lib/format/date";
 import { sourceKeys } from "@/services/backoffice-sources/sources.keys";
-import { deleteSource, listSources, upsertSource } from "@/services/backoffice-sources/sources.service";
+import { deleteSource, listSources } from "@/services/backoffice-sources/sources.service";
 import type { Source } from "@/services/backoffice-sources/sources.types";
-
-interface SourceDraft {
-    readonly id: string;
-    readonly name: string;
-}
-
-const defaultDraft = (): SourceDraft => ({
-    id: "",
-    name: "",
-});
 
 export const SourcesPage = (): JSX.Element => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const { pushToast } = useToast();
-    const [createOpen, setCreateOpen] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState<Source | null>(null);
-    const [draft, setDraft] = useState<SourceDraft>(defaultDraft);
     const sourcesQuery = useQuery({
         queryFn: listSources,
         queryKey: sourceKeys.list(),
-    });
-    const createMutation = useMutation({
-        mutationFn: () => upsertSource({
-            config_json: "[]",
-            id: draft.id.trim(),
-            name: draft.name.trim(),
-        }),
-        onError() {
-            pushToast("Could not create source.", "error");
-        },
-        onSuccess(source) {
-            void queryClient.invalidateQueries({ queryKey: sourceKeys.list() });
-            setCreateOpen(false);
-            setDraft(defaultDraft());
-            pushToast("Source created.", "success");
-            void navigate(`/sources/${source.id}`);
-        },
     });
     const deleteMutation = useMutation({
         mutationFn: deleteSource,
@@ -80,8 +49,11 @@ export const SourcesPage = (): JSX.Element => {
     return (
         <>
             <PageCard
-                action={<Button onClick={() => { setCreateOpen(true); }}>{"Create source"}</Button>}
-                description={"Reusable source templates stay compact, searchable, and explicitly manageable from the table."}
+                action={(
+                    <Button iconBefore={<Icon name={"plus"} />} onClick={() => { void navigate("/sources/new"); }}>
+                        {"New source"}
+                    </Button>
+                )}
                 title={"Sources"}
             >
                 <div className={"toolbar"}>
@@ -89,119 +61,97 @@ export const SourcesPage = (): JSX.Element => {
                 </div>
             </PageCard>
 
-            <PageCard description={"Select a row to open the template detail view."} title={"Source Templates"}>
-                {sourcesQuery.isLoading ? <p className={"state-message state-message--loading"}>{"Loading sources..."}</p> : null}
-                {sourcesQuery.isError ? <ErrorBanner>{"Could not load sources."}</ErrorBanner> : null}
-                {!sourcesQuery.isLoading && !sourcesQuery.isError ? (
-                    <DataTable
-                        caption={"Source templates"}
-                        columns={[
-                            {
-                                cell: (item) => (
-                                    <div>
-                                        <strong>{item.name}</strong>
-                                        <p className={"table-subcopy"}>{item.id}</p>
-                                    </div>
-                                ),
-                                header: "Template",
-                                id: "name",
-                                sortValue: (item) => item.name,
-                            },
-                            {
-                                cell: (item) => <StatusBadge tone={item.active === false ? "danger" : "success"} value={item.active === false ? "inactive" : "active"} />,
-                                header: "Status",
-                                id: "status",
-                                sortValue: (item) => item.active === false ? "inactive" : "active",
-                            },
-                            {
-                                align: "right",
-                                cell: (item) => `${item.fieldCount}`,
-                                header: "Fields",
-                                id: "fields",
-                                sortValue: (item) => item.fieldCount,
-                            },
-                            {
-                                cell: (item) => item.updated_at === undefined ? "—" : formatDateTime(item.updated_at),
-                                header: "Updated",
-                                id: "updated",
-                                sortValue: (item) => item.updated_at ?? "",
-                            },
-                            {
-                                cell: (item) => item.created_at === undefined ? "—" : formatDateTime(item.created_at),
-                                header: "Created",
-                                id: "created",
-                                sortValue: (item) => item.created_at ?? "",
-                            },
-                            {
-                                cell: (item) => (
-                                    <div className={"action-group"} onClick={(event) => { event.stopPropagation(); }}>
-                                        <Button
-                                            onClick={() => {
-                                                void navigate(`/sources/${item.id}`);
-                                            }}
-                                            size={"small"}
-                                            variant={"secondary"}
-                                        >
-                                            {"Open"}
-                                        </Button>
-                                        <Button onClick={() => { setDeleteTarget(item); }} size={"small"} variant={"secondary"}>{"Delete"}</Button>
-                                    </div>
-                                ),
-                                header: "Actions",
-                                id: "actions",
-                            },
-                        ]}
-                        compact
-                        emptyMessage={"No sources are configured yet."}
-                        getRowId={(item) => item.id}
-                        items={rows}
-                        onRowClick={(item) => { void navigate(`/sources/${item.id}`); }}
-                        pageSize={12}
-                        rowLabel={(item) => `Open source ${item.name}`}
-                    />
-                ) : null}
-            </PageCard>
-
-            <Dialog
-                onOpenChange={(open) => {
-                    setCreateOpen(open);
-                    if (!open) {
-                        setDraft(defaultDraft());
-                    }
-                }}
-                open={createOpen}
-                title={"Create source"}
-            >
-                <FormGrid
-                    onSubmit={(event) => {
-                        event.preventDefault();
-                        createMutation.mutate();
-                    }}
-                >
-                    <Field label={"Template id"}>
-                        <Input
-                            onChange={(event) => {
-                                setDraft((current) => ({ ...current, id: event.target.value }));
-                            }}
-                            value={draft.id}
-                        />
-                    </Field>
-                    <Field label={"Template name"}>
-                        <Input
-                            onChange={(event) => {
-                                setDraft((current) => ({ ...current, name: event.target.value }));
-                            }}
-                            value={draft.name}
-                        />
-                    </Field>
-                    <div className={"action-group"}>
-                        <Button onClick={() => { setCreateOpen(false); }} variant={"secondary"}>{"Cancel"}</Button>
-                        <Button disabled={draft.id.trim() === "" || draft.name.trim() === ""} isLoading={createMutation.isPending} type={"submit"}>
-                            {"Create source"}
-                        </Button>
-                    </div>
-                </FormGrid>
-            </Dialog>
+            {sourcesQuery.isLoading ? <p className={"state-message state-message--loading"}>{"Loading sources..."}</p> : null}
+            {sourcesQuery.isError ? <ErrorBanner>{"Could not load sources."}</ErrorBanner> : null}
+            {!sourcesQuery.isLoading && !sourcesQuery.isError ? (
+                <DataTable
+                    caption={"Source templates"}
+                    columns={[
+                        {
+                            cell: (item) => (
+                                <div className={"data-table__primary"}>
+                                    <strong>{item.name}</strong>
+                                    <span className={"table-subcopy"}>{item.id}</span>
+                                </div>
+                            ),
+                            header: "Template",
+                            id: "name",
+                            sortValue: (item) => item.name,
+                        },
+                        {
+                            cell: (item) => <StatusBadge tone={item.active === false ? "danger" : "success"} value={item.active === false ? "inactive" : "active"} />,
+                            header: "Status",
+                            id: "status",
+                            sortValue: (item) => item.active === false ? "inactive" : "active",
+                            width: "8rem",
+                        },
+                        {
+                            align: "right",
+                            cell: (item) => `${item.fieldCount}`,
+                            header: "Fields",
+                            id: "fields",
+                            sortValue: (item) => item.fieldCount,
+                            width: "6rem",
+                        },
+                        {
+                            cell: (item) => item.updated_at === undefined ? "—" : formatDateTime(item.updated_at),
+                            header: "Updated",
+                            id: "updated",
+                            sortValue: (item) => item.updated_at ?? "",
+                            width: "11rem",
+                        },
+                        {
+                            cell: (item) => item.created_at === undefined ? "—" : formatDateTime(item.created_at),
+                            header: "Created",
+                            id: "created",
+                            sortValue: (item) => item.created_at ?? "",
+                            width: "11rem",
+                        },
+                        {
+                            align: "right",
+                            cell: (item) => (
+                                <RowActions
+                                    menuItems={[
+                                        {
+                                            label: "Open",
+                                            onSelect: () => { void navigate(`/sources/${item.id}`); },
+                                        },
+                                    ]}
+                                >
+                                    <button
+                                        aria-label={"Edit source"}
+                                        className={"icon-button"}
+                                        onClick={() => { void navigate(`/sources/${item.id}`); }}
+                                        title={"Edit"}
+                                        type={"button"}
+                                    >
+                                        <Icon name={"edit"} />
+                                    </button>
+                                    <button
+                                        aria-label={"Delete source"}
+                                        className={"icon-button icon-button--danger"}
+                                        onClick={() => { setDeleteTarget(item); }}
+                                        title={"Delete"}
+                                        type={"button"}
+                                    >
+                                        <Icon name={"trash"} />
+                                    </button>
+                                </RowActions>
+                            ),
+                            header: "Actions",
+                            id: "actions",
+                            width: "9rem",
+                        },
+                    ]}
+                    compact
+                    emptyMessage={"No sources are configured yet."}
+                    getRowId={(item) => item.id}
+                    items={rows}
+                    onRowClick={(item) => { void navigate(`/sources/${item.id}`); }}
+                    pageSize={20}
+                    rowLabel={(item) => `Open source ${item.name}`}
+                />
+            ) : null}
 
             <ConfirmDialog
                 confirmLabel={"Delete source"}

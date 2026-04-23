@@ -15,6 +15,7 @@ import { useShellStore } from "@/stores/shell.store";
 export const AppShell = (): JSX.Element => {
     const location = useLocation();
     const navOpen = useShellStore((state) => state.navOpen);
+    const navCollapsed = useShellStore((state) => state.navCollapsed);
     const setNavOpen = useShellStore((state) => state.setNavOpen);
 
     useEffect(() => {
@@ -23,10 +24,16 @@ export const AppShell = (): JSX.Element => {
         }
     }, [location.pathname, setNavOpen]);
 
+    const shellClassName = [
+        "app-shell",
+        navOpen ? "app-shell--nav-open" : null,
+        navCollapsed ? "app-shell--nav-collapsed" : null,
+    ].filter(Boolean).join(" ");
+
     return (
         <>
             <a className={"skip-link"} href={"#main-content"}>{"Skip to main content"}</a>
-            <div className={navOpen ? "app-shell app-shell--nav-open" : "app-shell"}>
+            <div className={shellClassName}>
                 <button
                     aria-hidden={!navOpen}
                     className={"app-shell__backdrop"}

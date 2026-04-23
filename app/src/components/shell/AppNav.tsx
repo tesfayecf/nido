@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { NavLink, useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/Button";
+import { Icon } from "@/components/ui/Icon";
 import { ThemeToggle } from "@/components/shell/ThemeToggle";
 import { clearAuthenticatedState, hasActiveSession } from "@/lib/auth/session";
 import { authKeys } from "@/services/auth/auth.keys";
@@ -9,26 +10,41 @@ import { getCurrentUser, logout } from "@/services/auth/auth.service";
 import { useSessionStore } from "@/stores/session.store";
 import { useShellStore } from "@/stores/shell.store";
 
+type IconName =
+    | "bell"
+    | "bookmark"
+    | "clock"
+    | "history"
+    | "play"
+    | "search"
+    | "sources";
+
+interface NavItem {
+    readonly icon: IconName;
+    readonly label: string;
+    readonly to: string;
+}
+
 interface NavSection {
-    readonly items: readonly { label: string; to: string; }[];
+    readonly items: readonly NavItem[];
     readonly title: string;
 }
 
 const authenticatedSections: readonly NavSection[] = [
     {
         items: [
-            { label: "Properties", to: "/properties" },
-            { label: "Events", to: "/events" },
-            { label: "Sources", to: "/sources" },
-            { label: "Runs", to: "/runs" },
+            { icon: "search", label: "Properties", to: "/properties" },
+            { icon: "clock", label: "Events", to: "/events" },
+            { icon: "sources", label: "Sources", to: "/sources" },
+            { icon: "history", label: "Runs", to: "/runs" },
         ],
         title: "Workspace",
     },
     {
         items: [
-            { label: "Bookmarks", to: "/bookmarks" },
-            { label: "Alerts", to: "/alerts" },
-            { label: "Notifications", to: "/notifications" },
+            { icon: "bookmark", label: "Bookmarks", to: "/bookmarks" },
+            { icon: "play", label: "Alerts", to: "/alerts" },
+            { icon: "bell", label: "Notifications", to: "/notifications" },
         ],
         title: "Engagement",
     },
@@ -37,7 +53,7 @@ const authenticatedSections: readonly NavSection[] = [
 export const AppNav = (): JSX.Element => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
-    const setNavOpen = useShellStore((state) => state.setNavOpen);
+    const navCollapsed = useShellStore((state) => state.navCollapsed);
     const expiresAt = useSessionStore((state) => state.expiresAt);
     const token = useSessionStore((state) => state.token);
     const isAuthenticated = hasActiveSession({ expiresAt, token });
@@ -56,22 +72,13 @@ export const AppNav = (): JSX.Element => {
     });
 
     return (
-        <aside className={"app-nav"}>
+        <aside className={navCollapsed ? "app-nav app-nav--collapsed" : "app-nav"}>
             <div className={"app-nav__brand"}>
-                <div>
+                <span aria-hidden className={"app-nav__brand-mark"}>{"H"}</span>
+                <div className={"app-nav__brand-copy"}>
                     <span className={"app-nav__eyebrow"}>{"Property Tracker"}</span>
                     <h2>{"Home Searcher"}</h2>
                 </div>
-                <Button
-                    aria-label={"Close navigation"}
-                    className={"app-nav__close"}
-                    onClick={() => {
-                        setNavOpen(false);
-                    }}
-                    variant={"secondary"}
-                >
-                    {"Close"}
-                </Button>
             </div>
 
             <nav aria-label={"Primary"} className={"app-nav__sections"}>
@@ -83,7 +90,7 @@ export const AppNav = (): JSX.Element => {
                                 {section.items.map((item) => {
                                     return (
                                         <li key={item.to}>
-                                            <NavItem to={item.to}>{item.label}</NavItem>
+                                            <NavItemLink icon={item.icon} label={item.label} to={item.to} />
                                         </li>
                                     );
                                 })}
@@ -96,13 +103,16 @@ export const AppNav = (): JSX.Element => {
             <div className={"app-nav__footer"}>
                 {isAuthenticated ? (
                     <>
-                        <div className={"app-nav__identity"}>
-                            <span className={"app-nav__section-label"}>{"Signed in"}</span>
-                            <strong>{meQuery.data?.display_name ?? "Authenticated user"}</strong>
-                            <span className={"muted-copy"}>{meQuery.data?.email ?? "Loading profile..."}</span>
+                        <div className={"app-nav__identity"} title={meQuery.data?.email ?? ""}>
+                            <span aria-hidden className={"app-nav__avatar"}>
+                                {(meQuery.data?.display_name ?? "?").trim().charAt(0).toUpperCase()}
+                            </span>
+                            <div className={"app-nav__identity-copy"}>
+                                <strong>{meQuery.data?.display_name ?? "Authenticated user"}</strong>
+                                <span className={"muted-copy"}>{meQuery.data?.email ?? "Loading profile..."}</span>
+                            </div>
                         </div>
                         <div className={"app-nav__user-controls"}>
-                            <span className={"app-nav__section-label"}>{"Theme"}</span>
                             <ThemeToggle />
                         </div>
                         <Button
@@ -126,20 +136,23 @@ export const AppNav = (): JSX.Element => {
     );
 };
 
-interface NavItemProps {
-    readonly children: string;
+interface NavItemLinkProps {
+    readonly icon: IconName;
+    readonly label: string;
     readonly to: string;
 }
 
-const NavItem = ({ children, to }: NavItemProps): JSX.Element => {
+const NavItemLink = ({ icon, label, to }: NavItemLinkProps): JSX.Element => {
     return (
         <NavLink
             className={({ isActive }) => {
                 return isActive ? "app-nav__link app-nav__link--active" : "app-nav__link";
             }}
+            title={label}
             to={to}
         >
-            {children}
+            <Icon className={"app-nav__link-icon"} name={icon} />
+            <span className={"app-nav__link-label"}>{label}</span>
         </NavLink>
     );
 };
