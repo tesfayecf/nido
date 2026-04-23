@@ -14,7 +14,13 @@ import (
 // RegisterProperties binds property tracking HTTP routes to the supplied mux.
 func RegisterProperties(mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, service *app.PropertyService) {
 	mux.Handle("GET /api/v1/backoffice/properties", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		properties, err := service.ListProperties(r.Context())
+		// Parse tag filtering parameters
+		tagIDs := r.URL.Query()["tag_id"]
+		tagMatch := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("tag_match")))
+		matchAll := tagMatch == "all"
+		status := strings.TrimSpace(r.URL.Query().Get("status"))
+
+		properties, err := service.ListPropertiesFiltered(r.Context(), tagIDs, matchAll, status)
 		if err != nil {
 			platformhttp.WriteError(w, http.StatusInternalServerError, err.Error())
 			return
@@ -227,6 +233,30 @@ func RegisterProperties(mux *http.ServeMux, requireAuth func(http.Handler) http.
 		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{
 			"items": snapshots,
 			"count": len(snapshots),
+		})
+	})))
+
+	// List property runs (new property_runs table)
+	mux.Handle("GET /api/v1/backoffice/properties/{propertyID}/runs", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		propertyID := strings.TrimSpace(r.PathValue("propertyID"))
+		if propertyID == "" {
+			platformhttp.WriteError(w, http.StatusBadRequest, "property id is required")
+			return
+		}
+
+		runs, err := service.ListPropertyRuns(
+			r.Context(),
+			propertyID,
+			platformhttp.ParseLimit(r.URL.Query().Get("limit")),
+		)
+		if err != nil {
+			platformhttp.WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{
+			"items": runs,
+			"count": len(runs),
 		})
 	})))
 }

@@ -24,11 +24,12 @@ import (
 
 // Runtime owns the backend process dependencies and HTTP handler.
 type Runtime struct {
-	Handler         http.Handler
-	db              *sql.DB
-	cancel          context.CancelFunc
-	scheduler       *ingestionapp.Scheduler
-	shutdownTimeout time.Duration
+	Handler           http.Handler
+	db                *sql.DB
+	cancel            context.CancelFunc
+	scheduler         *ingestionapp.Scheduler
+	propertyScheduler *ingestionapp.PropertyScheduler
+	shutdownTimeout   time.Duration
 }
 
 // New builds the operational backend runtime.
@@ -73,6 +74,22 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Runtime,
 		return nil, err
 	}
 	propertyService := ingestionapp.NewPropertyService(logger, store, propertyFetcher, nil, engagementService, eventBroker)
+	tagService := ingestionapp.NewTagService(logger, store, nil, eventBroker)
+	
+	// Create property scheduler
+	propertyScheduler := ingestionapp.NewPropertyScheduler(
+		logger,
+		store,
+		propertyService,
+		nil,
+		eventBroker,
+		ingestionapp.PropertySchedulerConfig{
+			TickInterval:         cfg.Scheduler.TickInterval,
+			GlobalConcurrency:    4,
+			PerDomainConcurrency: 1,
+		},
+	)
+	propertyScheduler.Start()
 
 	mux := http.NewServeMux()
 	registerHealthEndpoints(mux, db)
@@ -82,13 +99,15 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Runtime,
 	ingestionhttp.Register(mux, authMiddleware, sourceService, eventBroker)
 	ingestionhttp.RegisterRuns(mux, authMiddleware, propertyService)
 	ingestionhttp.RegisterProperties(mux, authMiddleware, propertyService)
+	ingestionhttp.RegisterTags(mux, authMiddleware, tagService, propertyService)
 
 	return &Runtime{
-		Handler:         platformhttp.LoggingMiddleware(logger, mux),
-		db:              db,
-		cancel:          cancel,
-		scheduler:       nil,
-		shutdownTimeout: cfg.Scheduler.ShutdownTimeout,
+		Handler:           platformhttp.LoggingMiddleware(logger, mux),
+		db:                db,
+		cancel:            cancel,
+		scheduler:         nil,
+		propertyScheduler: propertyScheduler,
+		shutdownTimeout:   cfg.Scheduler.ShutdownTimeout,
 	}, nil
 }
 
@@ -96,6 +115,9 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Runtime,
 func (r *Runtime) Close() error {
 	if r.cancel != nil {
 		r.cancel()
+	}
+	if r.propertyScheduler != nil {
+		r.propertyScheduler.Stop()
 	}
 	if r.scheduler != nil {
 		waitCtx, cancel := context.WithTimeout(context.Background(), r.shutdownTimeout)

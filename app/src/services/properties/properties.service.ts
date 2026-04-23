@@ -4,21 +4,43 @@ import type {
     FieldSelector,
     Property,
     PropertyExtractionConfig,
+    PropertyListFilter,
     PropertyPreviewRequest,
     PropertyPreviewResult,
+    PropertyRun,
     PropertySnapshot,
     PropertyUpsertRequest,
 } from "@/services/properties/properties.types";
 
 /**
- * Loads all tracked properties.
+ * Loads all tracked properties with optional filtering.
  *
+ * @param filter Optional filter criteria.
  * @returns The property collection.
  */
-export const listProperties = async (): Promise<Property[]> => {
+export const listProperties = async (filter?: PropertyListFilter): Promise<Property[]> => {
+    const params = new URLSearchParams();
+    
+    if (filter?.tagIds !== undefined && filter.tagIds.length > 0) {
+        filter.tagIds.forEach((tagId) => {
+            params.append("tag_id", tagId);
+        });
+    }
+    
+    if (filter?.tagMatch !== undefined) {
+        params.append("tag_match", filter.tagMatch);
+    }
+    
+    if (filter?.status !== undefined) {
+        params.append("status", filter.status);
+    }
+    
+    const queryString = params.toString();
+    const path = queryString !== "" ? `/api/v1/backoffice/properties?${queryString}` : "/api/v1/backoffice/properties";
+    
     const response = await apiRequest<ListEnvelope<Property>>({
         auth: true,
-        path: "/api/v1/backoffice/properties",
+        path,
     });
 
     return response.items;
@@ -171,4 +193,21 @@ export const ingestProperty = async (propertyId: string): Promise<PropertySnapsh
     });
 
     return response.item;
+};
+
+/**
+ * Lists property automation runs.
+ *
+ * @param propertyId The property identifier.
+ * @param limit Optional result cap.
+ * @returns The property run collection.
+ */
+export const listPropertyRuns = async (propertyId: string, limit?: number): Promise<PropertyRun[]> => {
+    const params = limit !== undefined ? `?limit=${limit}` : "";
+    const response = await apiRequest<ListEnvelope<PropertyRun>>({
+        auth: true,
+        path: `/api/v1/backoffice/properties/${propertyId}/runs${params}`,
+    });
+
+    return response.items;
 };
