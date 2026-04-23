@@ -141,11 +141,6 @@ func (s *Service) AuthenticateToken(ctx context.Context, token string) (authdoma
 	return user, session, nil
 }
 
-// GetUser returns one user by identifier.
-func (s *Service) GetUser(ctx context.Context, userID string) (authdomain.User, error) {
-	return s.store.GetUserByID(ctx, userID)
-}
-
 // Logout revokes a session.
 func (s *Service) Logout(ctx context.Context, sessionID string) error {
 	return s.store.RevokeSession(ctx, sessionID, time.Now().UTC())
