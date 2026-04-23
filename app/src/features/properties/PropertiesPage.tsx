@@ -25,6 +25,8 @@ import type { Property, PropertyStatus } from "@/services/properties/properties.
 import { tagKeys } from "@/services/tags/tags.keys";
 import { listPropertyTags, listTags } from "@/services/tags/tags.service";
 
+const DEFAULT_TAG_MATCH = "any" as const;
+
 const statusTone = (status: PropertyStatus): "danger" | "neutral" | "success" | "warning" => {
     switch (status) {
         case "active":
@@ -48,7 +50,7 @@ export const PropertiesPage = (): JSX.Element => {
     const [deleteTarget, setDeleteTarget] = useState<Property | null>(null);
     
     const tagIdsFromUrl = searchParams.getAll("tag");
-    const tagMatchFromUrl = (searchParams.get("match") ?? "any") as "any" | "all";
+    const tagMatchFromUrl = (searchParams.get("match") ?? DEFAULT_TAG_MATCH) as "any" | "all";
     
     const propertiesQuery = useQuery({
         queryFn: () => listProperties({
@@ -86,7 +88,7 @@ export const PropertiesPage = (): JSX.Element => {
         tagIds.forEach((id) => {
             params.append("tag", id);
         });
-        if (tagIds.length > 0 && tagMatch !== "any") {
+        if (tagIds.length > 0 && tagMatch !== DEFAULT_TAG_MATCH) {
             params.set("match", tagMatch);
         }
 
