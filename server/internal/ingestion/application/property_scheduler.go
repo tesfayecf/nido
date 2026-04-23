@@ -87,7 +87,7 @@ func NewPropertyScheduler(
 		store:             store,
 		runner:            runner,
 		pool:              engine.NewWorkerPool(engine.WorkerPoolConfig{Workers: config.GlobalConcurrency, Logger: logger}),
-		clock:             clock,
+		clock:             resolvedClock,
 		events:            events,
 		config:            config,
 		runningProperties: make(map[string]bool),
