@@ -25,7 +25,7 @@ export const AlertsPage = (): JSX.Element => {
     const [ruleType, setRuleType] = useState("price_drop");
     const [thresholdAmount, setThresholdAmount] = useState("");
     const propertiesQuery = useQuery({
-        queryFn: listProperties,
+        queryFn: () => listProperties(),
         queryKey: propertyKeys.list(),
     });
     const alertRulesQuery = useQuery({

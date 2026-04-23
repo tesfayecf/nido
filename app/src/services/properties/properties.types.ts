@@ -96,3 +96,25 @@ export interface PropertyUpsertRequest {
     readonly retry_max_attempts?: number;
     readonly retry_backoff_millis?: number;
 }
+
+export type PropertyRunStatus = "pending" | "running" | "success" | "failed";
+
+export interface PropertyRun {
+    readonly id: string;
+    readonly property_id: string;
+    readonly status: PropertyRunStatus;
+    readonly trigger_kind: string;
+    readonly attempt_count: number;
+    readonly max_attempts: number;
+    readonly started_at?: string;
+    readonly finished_at?: string;
+    readonly error_message?: string;
+    readonly snapshot_id?: string;
+    readonly created_at: string;
+}
+
+export interface PropertyListFilter {
+    readonly tagIds?: string[];
+    readonly tagMatch?: "any" | "all";
+    readonly status?: string;
+}

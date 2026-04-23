@@ -16,6 +16,7 @@ import { PropertiesPage } from "@/features/properties/PropertiesPage";
 import { PropertyDetailPage } from "@/features/properties/PropertyDetailPage";
 import { FieldAnalysisPage } from "@/features/properties/FieldAnalysisPage";
 import { SettingsPage } from "@/features/settings/SettingsPage";
+import { TagsPage } from "@/features/tags/TagsPage";
 
 export const router = createBrowserRouter([
     {
@@ -74,6 +75,10 @@ export const router = createBrowserRouter([
                     {
                         path: "runs/:runId",
                         element: <RunDetailPage />,
+                    },
+                    {
+                        path: "tags",
+                        element: <TagsPage />,
                     },
                     {
                         path: "bookmarks",

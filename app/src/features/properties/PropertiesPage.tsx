@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -13,6 +13,8 @@ import { PageCard } from "@/components/ui/PageCard";
 import { RowActions } from "@/components/ui/RowActions";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useToast } from "@/components/ui/ToastProvider";
+import { TagBadge } from "@/components/tags/TagBadge";
+import { TagFilter } from "@/components/tags/TagFilter";
 import { formatDateTime } from "@/lib/format/date";
 import { runKeys } from "@/services/backoffice-runs/runs.keys";
 import { bookmarkKeys } from "@/services/bookmarks/bookmarks.keys";
@@ -20,6 +22,8 @@ import { createBookmark, deleteBookmark, listBookmarks } from "@/services/bookma
 import { propertyKeys } from "@/services/properties/properties.keys";
 import { deleteProperty, ingestProperty, listProperties } from "@/services/properties/properties.service";
 import type { Property, PropertyStatus } from "@/services/properties/properties.types";
+import { tagKeys } from "@/services/tags/tags.keys";
+import { listPropertyTags, listTags } from "@/services/tags/tags.service";
 
 const statusTone = (status: PropertyStatus): "danger" | "neutral" | "success" | "warning" => {
     switch (status) {
@@ -39,12 +43,56 @@ export const PropertiesPage = (): JSX.Element => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const { pushToast } = useToast();
+    const [searchParams, setSearchParams] = useSearchParams();
     const [bookmarkedOnly, setBookmarkedOnly] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState<Property | null>(null);
+    
+    const tagIdsFromUrl = searchParams.getAll("tag");
+    const tagMatchFromUrl = (searchParams.get("match") ?? "any") as "any" | "all";
+    
     const propertiesQuery = useQuery({
-        queryFn: listProperties,
-        queryKey: propertyKeys.list(),
+        queryFn: () => listProperties({
+            tagIds: tagIdsFromUrl.length > 0 ? tagIdsFromUrl : undefined,
+            tagMatch: tagIdsFromUrl.length > 0 ? tagMatchFromUrl : undefined,
+        }),
+        queryKey: [...propertyKeys.list(), { tagIds: tagIdsFromUrl, tagMatch: tagMatchFromUrl }],
     });
+    
+    const allTagsQuery = useQuery({
+        queryFn: listTags,
+        queryKey: tagKeys.list(),
+    });
+    
+    const propertyTagQueries = useQueries({
+        queries: (propertiesQuery.data ?? []).map((property) => ({
+            queryFn: () => listPropertyTags(property.id),
+            queryKey: tagKeys.propertyTags(property.id),
+        })),
+    });
+    
+    const propertyTagsMap = useMemo(() => {
+        const map = new Map<string, string[]>();
+        (propertiesQuery.data ?? []).forEach((property, index) => {
+            const tags = propertyTagQueries[index]?.data ?? [];
+            map.set(property.id, tags.map((tag) => tag.id));
+        });
+        return map;
+    }, [propertiesQuery.data, propertyTagQueries]);
+    
+    const allTags = useMemo(() => allTagsQuery.data ?? [], [allTagsQuery.data]);
+    
+    const handleTagFilterChange = (tagIds: string[], tagMatch: "any" | "all"): void => {
+        const params = new URLSearchParams();
+        tagIds.forEach((id) => {
+            params.append("tag", id);
+        });
+        if (tagIds.length > 0 && tagMatch !== "any") {
+            params.set("match", tagMatch);
+        }
+
+        setSearchParams(params);
+    };
+
     const bookmarksQuery = useQuery({
         queryFn: listBookmarks,
         queryKey: bookmarkKeys.all(),
@@ -104,17 +152,25 @@ export const PropertiesPage = (): JSX.Element => {
                 )}
                 title={"Properties"}
             >
-                <div className={"toolbar"}>
-                    <Field className={"field--checkbox-compact"} label={"Bookmarked only"} variant={"checkbox"}>
-                        <input
-                            checked={bookmarkedOnly}
-                            onChange={(event) => {
-                                setBookmarkedOnly(event.target.checked);
-                            }}
-                            type={"checkbox"}
-                        />
-                    </Field>
-                    <span className={"muted-copy"}>{`${properties.length} tracked`}</span>
+                <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                    <TagFilter
+                        onChange={handleTagFilterChange}
+                        selectedTagIds={tagIdsFromUrl}
+                        tagMatch={tagMatchFromUrl}
+                    />
+                    
+                    <div className={"toolbar"}>
+                        <Field className={"field--checkbox-compact"} label={"Bookmarked only"} variant={"checkbox"}>
+                            <input
+                                checked={bookmarkedOnly}
+                                onChange={(event) => {
+                                    setBookmarkedOnly(event.target.checked);
+                                }}
+                                type={"checkbox"}
+                            />
+                        </Field>
+                        <span className={"muted-copy"}>{`${properties.length} tracked`}</span>
+                    </div>
                 </div>
             </PageCard>
 
@@ -141,6 +197,24 @@ export const PropertiesPage = (): JSX.Element => {
                             id: "status",
                             sortValue: (item) => item.status,
                             width: "8rem",
+                        },
+                        {
+                            cell: (item) => {
+                                const tagIds = propertyTagsMap.get(item.id) ?? [];
+                                const propertyTags = allTags.filter((tag) => tagIds.includes(tag.id));
+                                if (propertyTags.length === 0) {
+                                    return <span className={"muted-copy"}>{"—"}</span>;
+                                }
+
+                                return (
+                                    <div style={{ display: "flex", flexWrap: "wrap", gap: "0.25rem" }}>
+                                        {propertyTags.map((tag) => <TagBadge key={tag.id} tag={tag} />)}
+                                    </div>
+                                );
+                            },
+                            header: "Tags",
+                            id: "tags",
+                            width: "12rem",
                         },
                         {
                             cell: (item) => trackingState(item),

@@ -43,7 +43,7 @@ export const RunsPage = (): JSX.Element => {
         queryKey: runKeys.list(filters),
     });
     const propertiesQuery = useQuery({
-        queryFn: listProperties,
+        queryFn: () => listProperties(),
         queryKey: propertyKeys.list(),
     });
     const triggerMutation = useMutation({

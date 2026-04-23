@@ -25,6 +25,8 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { useToast } from "@/components/ui/ToastProvider";
+import { TagBadge } from "@/components/tags/TagBadge";
+import { TagPicker } from "@/components/tags/TagPicker";
 import { PropertyAlertCreateDialog } from "@/features/engagement/PropertyAlertCreateDialog";
 import { getRuleTypeLabel, getRuleTypeLogic } from "@/services/alert-rules/alert-rules.constants";
 import { alertRuleKeys } from "@/services/alert-rules/alert-rules.keys";
@@ -53,12 +55,29 @@ import {
     getProperty,
     getPropertyConfig,
     ingestProperty,
+    listPropertyRuns,
     listPropertySnapshots,
     previewExtraction,
     updateProperty,
     upsertPropertyConfig,
 } from "@/services/properties/properties.service";
-import type { PropertyPreviewFieldResult } from "@/services/properties/properties.types";
+import type { PropertyPreviewFieldResult, PropertyRunStatus } from "@/services/properties/properties.types";
+import { tagKeys } from "@/services/tags/tags.keys";
+import { listPropertyTags, setPropertyTags } from "@/services/tags/tags.service";
+
+const runStatusTone = (status: PropertyRunStatus): "danger" | "neutral" | "success" | "warning" => {
+    switch (status) {
+        case "success":
+            return "success";
+        case "failed":
+            return "danger";
+        case "running":
+            return "warning";
+        case "pending":
+        default:
+            return "neutral";
+    }
+};
 
 export const PropertyDetailPage = (): JSX.Element => {
     const navigate = useNavigate();
@@ -81,6 +100,7 @@ export const PropertyDetailPage = (): JSX.Element => {
     const [editOpen, setEditOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [createAlertOpen, setCreateAlertOpen] = useState(false);
+    const [tagsOpen, setTagsOpen] = useState(false);
 
     const propertyQuery = useQuery({
         enabled: !isCreateMode,
@@ -96,6 +116,17 @@ export const PropertyDetailPage = (): JSX.Element => {
         enabled: !isCreateMode,
         queryFn: () => listPropertySnapshots(resolvedId, 20),
         queryKey: propertyKeys.snapshots(resolvedId),
+    });
+    const propertyTagsQuery = useQuery({
+        enabled: !isCreateMode,
+        queryFn: () => listPropertyTags(resolvedId),
+        queryKey: tagKeys.propertyTags(resolvedId),
+    });
+    const propertyRunsQuery = useQuery({
+        enabled: !isCreateMode,
+        queryFn: () => listPropertyRuns(resolvedId, 10),
+        queryKey: propertyKeys.runs(resolvedId),
+        refetchInterval: 5000,
     });
     const sourcesQuery = useQuery({
         queryFn: listSources,
@@ -225,6 +256,18 @@ export const PropertyDetailPage = (): JSX.Element => {
             void queryClient.invalidateQueries({ queryKey: bookmarkKeys.all() });
             pushToast("Property deleted.", "success");
             void navigate("/properties");
+        },
+    });
+    const updateTagsMutation = useMutation({
+        mutationFn: (tagIds: string[]) => setPropertyTags(resolvedId, tagIds),
+        onError() {
+            pushToast("Could not update tags.", "error");
+        },
+        onSuccess() {
+            void queryClient.invalidateQueries({ queryKey: tagKeys.propertyTags(resolvedId) });
+            void queryClient.invalidateQueries({ queryKey: propertyKeys.list() });
+            setTagsOpen(false);
+            pushToast("Tags updated.", "success");
         },
     });
 
@@ -410,11 +453,63 @@ export const PropertyDetailPage = (): JSX.Element => {
                     )}
                 </PageCard>
 
-                <PageCard description={"Recent runs stay directly attached to the property for fast scanning."} title={"Recent Runs"}>
+                <PageCard
+                    action={(
+                        <Button onClick={() => { setTagsOpen(true); }} variant={"secondary"}>{"Edit tags"}</Button>
+                    )}
+                    description={"Organize properties with tags for filtering and categorization."}
+                    title={"Tags"}
+                >
+                    {propertyTagsQuery.isLoading ? <p className={"muted-copy"}>{"Loading tags..."}</p> : null}
+                    {(propertyTagsQuery.data ?? []).length === 0 && !propertyTagsQuery.isLoading ? 
+                        <EmptyState message={"No tags assigned. Click 'Edit tags' to add tags."} />
+                        : (
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+                                {(propertyTagsQuery.data ?? []).map((tag) => <TagBadge key={tag.id} tag={tag} />)}
+                            </div>
+                        )}
+                </PageCard>
+
+                <PageCard description={"Recent automation runs with auto-refresh every 5 seconds."} title={"Automation Runs"}>
                     <DataTable
-                        caption={"Recent property runs"}
+                        caption={"Property automation runs"}
                         columns={[
-                            { cell: (item) => item.id, header: "Run", id: "id", sortValue: (item) => item.id },
+                            { cell: (item) => <StatusBadge tone={runStatusTone(item.status)} value={item.status} />, header: "Status", id: "status", width: "8rem" },
+                            { cell: (item) => item.trigger_kind, header: "Trigger", id: "trigger", width: "8rem" },
+                            { cell: (item) => `${item.attempt_count} / ${item.max_attempts}`, header: "Attempts", id: "attempts", width: "8rem" },
+                            { cell: (item) => item.started_at !== undefined ? formatDateTime(item.started_at) : "—", header: "Started", id: "started_at", sortValue: (item) => item.started_at ?? "", width: "11rem" },
+                            { cell: (item) => item.finished_at !== undefined ? formatDateTime(item.finished_at) : "—", header: "Finished", id: "finished_at", width: "11rem" },
+                            {
+                                cell: (item) => {
+                                    if (item.error_message === undefined || item.error_message === "") {
+                                        return "—";
+                                    }
+
+                                    const truncated = item.error_message.length > 50 ? `${item.error_message.slice(0, 50)}...` : item.error_message;
+                                    return (
+                                        <Tooltip content={item.error_message}>
+                                            <span style={{ color: "#dc2626" }}>{truncated}</span>
+                                        </Tooltip>
+                                    );
+                                },
+                                header: "Error",
+                                id: "error",
+                            },
+                        ]}
+                        compact
+                        emptyMessage={"No automation runs recorded yet."}
+                        getRowId={(item) => item.id}
+                        items={propertyRunsQuery.data ?? []}
+                        pageSize={10}
+                        rowLabel={(item) => `Run ${item.id}`}
+                    />
+                </PageCard>
+
+                <PageCard description={"Recent runs stay directly attached to the property for fast scanning."} title={"Recent Snapshots"}>
+                    <DataTable
+                        caption={"Recent property snapshots"}
+                        columns={[
+                            { cell: (item) => item.id, header: "Snapshot", id: "id", sortValue: (item) => item.id },
                             { cell: (item) => formatDateTime(item.observed_at), header: "Observed", id: "observed_at", sortValue: (item) => item.observed_at },
                             { cell: (item) => <StatusBadge tone={item.is_valid ? "success" : "warning"} value={item.is_valid ? "valid" : "invalid"} />, header: "Status", id: "status" },
                             { align: "right", cell: (item) => `${Object.keys(item.values).length}`, header: "Fields", id: "fields", sortValue: (item) => Object.keys(item.values).length },
@@ -475,6 +570,12 @@ export const PropertyDetailPage = (): JSX.Element => {
                 open={createAlertOpen}
                 propertyId={resolvedId}
                 propertyLabel={propertyQuery.data?.label !== undefined && propertyQuery.data.label !== "" ? propertyQuery.data.label : propertyQuery.data?.url ?? "this property"}
+            />
+            <TagPicker
+                onChange={(tagIds) => { updateTagsMutation.mutate(tagIds); }}
+                onOpenChange={setTagsOpen}
+                open={tagsOpen}
+                selectedTagIds={(propertyTagsQuery.data ?? []).map((tag) => tag.id)}
             />
         </>
     );

@@ -37,6 +37,7 @@ const authenticatedSections: readonly NavSection[] = [
             { icon: "clock", label: "Events", to: "/events" },
             { icon: "sources", label: "Sources", to: "/sources" },
             { icon: "history", label: "Runs", to: "/runs" },
+            { icon: "bookmark", label: "Tags", to: "/tags" },
         ],
         title: "Workspace",
     },

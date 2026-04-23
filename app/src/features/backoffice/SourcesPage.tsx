@@ -32,7 +32,7 @@ export const SourcesPage = (): JSX.Element => {
         queryKey: sourceKeys.list(),
     });
     const propertiesQuery = useQuery({
-        queryFn: listProperties,
+        queryFn: () => listProperties(),
         queryKey: propertyKeys.list(),
     });
     const deleteMutation = useMutation({
