@@ -76,30 +76,3 @@ export const setPropertyTags = async (propertyId: string, tagIds: string[]): Pro
     });
 };
 
-/**
- * Adds a single tag to a property.
- *
- * @param propertyId The property identifier.
- * @param tagId The tag identifier.
- */
-export const addPropertyTag = async (propertyId: string, tagId: string): Promise<void> => {
-    await apiRequest<StatusEnvelope>({
-        auth: true,
-        method: "POST",
-        path: `/api/v1/backoffice/properties/${propertyId}/tags/${tagId}`,
-    });
-};
-
-/**
- * Removes a single tag from a property.
- *
- * @param propertyId The property identifier.
- * @param tagId The tag identifier.
- */
-export const removePropertyTag = async (propertyId: string, tagId: string): Promise<void> => {
-    await apiRequest<StatusEnvelope>({
-        auth: true,
-        method: "DELETE",
-        path: `/api/v1/backoffice/properties/${propertyId}/tags/${tagId}`,
-    });
-};
