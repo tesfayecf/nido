@@ -7,9 +7,11 @@ type IconName =
     | "bell"
     | "bookmark"
     | "bookmark-filled"
+    | "check"
     | "chevron-down"
     | "clock"
     | "close"
+    | "copy"
     | "edit"
     | "external"
     | "history"
@@ -34,9 +36,11 @@ const paths: Record<IconName, JSX.Element> = {
     bell: <path d={"M6 8a6 6 0 1 1 12 0v3.5l1.5 3H4.5L6 11.5V8Zm3.5 9.5a2.5 2.5 0 0 0 5 0"} fill={"none"} stroke={"currentColor"} strokeLinecap={"round"} strokeLinejoin={"round"} strokeWidth={1.75} />,
     bookmark: <path d={"M6 4h12v17l-6-4-6 4V4Z"} fill={"none"} stroke={"currentColor"} strokeLinecap={"round"} strokeLinejoin={"round"} strokeWidth={1.75} />,
     "bookmark-filled": <path d={"M6 4h12v17l-6-4-6 4V4Z"} fill={"currentColor"} stroke={"currentColor"} strokeLinecap={"round"} strokeLinejoin={"round"} strokeWidth={1.75} />,
+    check: <path d={"M5 12l4.5 4.5L19 7"} fill={"none"} stroke={"currentColor"} strokeLinecap={"round"} strokeLinejoin={"round"} strokeWidth={1.75} />,
     "chevron-down": <path d={"M6 9l6 6 6-6"} fill={"none"} stroke={"currentColor"} strokeLinecap={"round"} strokeLinejoin={"round"} strokeWidth={1.75} />,
     clock: <path d={"M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"} fill={"none"} stroke={"currentColor"} strokeLinecap={"round"} strokeLinejoin={"round"} strokeWidth={1.75} />,
     close: <path d={"M6 6l12 12M18 6 6 18"} fill={"none"} stroke={"currentColor"} strokeLinecap={"round"} strokeLinejoin={"round"} strokeWidth={1.75} />,
+    copy: <path d={"M9 3h9a2 2 0 0 1 2 2v11M7 7h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z"} fill={"none"} stroke={"currentColor"} strokeLinecap={"round"} strokeLinejoin={"round"} strokeWidth={1.75} />,
     edit: <path d={"M4 20h4l11-11-4-4L4 16v4Zm10-14 4 4"} fill={"none"} stroke={"currentColor"} strokeLinecap={"round"} strokeLinejoin={"round"} strokeWidth={1.75} />,
     external: <path d={"M14 4h6v6M20 4 10 14M18 14v6H4V6h6"} fill={"none"} stroke={"currentColor"} strokeLinecap={"round"} strokeLinejoin={"round"} strokeWidth={1.75} />,
     history: <path d={"M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 2"} fill={"none"} stroke={"currentColor"} strokeLinecap={"round"} strokeLinejoin={"round"} strokeWidth={1.75} />,
