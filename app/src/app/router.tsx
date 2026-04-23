@@ -14,6 +14,7 @@ import { BookmarksPage } from "@/features/engagement/BookmarksPage";
 import { NotificationsPage } from "@/features/engagement/NotificationsPage";
 import { PropertiesPage } from "@/features/properties/PropertiesPage";
 import { PropertyDetailPage } from "@/features/properties/PropertyDetailPage";
+import { SettingsPage } from "@/features/settings/SettingsPage";
 
 export const router = createBrowserRouter([
     {
@@ -80,6 +81,10 @@ export const router = createBrowserRouter([
                     {
                         path: "notifications",
                         element: <NotificationsPage />,
+                    },
+                    {
+                        path: "settings",
+                        element: <SettingsPage />,
                     },
                 ],
             },

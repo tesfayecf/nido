@@ -534,6 +534,54 @@ func (s *Store) UpsertUser(ctx context.Context, user authdomain.User, passwordHa
 	return nil
 }
 
+// UpdateUserProfile updates mutable profile fields for a user.
+func (s *Store) UpdateUserProfile(ctx context.Context, userID, displayName string, updatedAt time.Time) error {
+	result, err := s.db.ExecContext(
+		ctx,
+		`UPDATE users SET display_name = ?, updated_at = ? WHERE id = ?`,
+		displayName,
+		formatTime(updatedAt),
+		userID,
+	)
+	if err != nil {
+		return fmt.Errorf("update user profile: %w", err)
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("update user profile rows: %w", err)
+	}
+	if rows == 0 {
+		return sql.ErrNoRows
+	}
+
+	return nil
+}
+
+// UpdateUserPassword stores a new password hash for a user.
+func (s *Store) UpdateUserPassword(ctx context.Context, userID, passwordHash string, updatedAt time.Time) error {
+	result, err := s.db.ExecContext(
+		ctx,
+		`UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?`,
+		passwordHash,
+		formatTime(updatedAt),
+		userID,
+	)
+	if err != nil {
+		return fmt.Errorf("update user password: %w", err)
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("update user password rows: %w", err)
+	}
+	if rows == 0 {
+		return sql.ErrNoRows
+	}
+
+	return nil
+}
+
 // GetUserByEmail loads one user and its password hash.
 func (s *Store) GetUserByEmail(ctx context.Context, email string) (authdomain.User, string, error) {
 	var passwordHash string
@@ -549,6 +597,17 @@ func (s *Store) GetUserByEmail(ctx context.Context, email string) (authdomain.Us
 // GetUserByID loads one user by identifier.
 func (s *Store) GetUserByID(ctx context.Context, userID string) (authdomain.User, error) {
 	return scanUser(s.db.QueryRowContext(ctx, `SELECT id, email, display_name, NULL, created_at, updated_at FROM users WHERE id = ?`, userID), nil)
+}
+
+// GetUserCredentials returns the password hash for a user by id.
+func (s *Store) GetUserCredentials(ctx context.Context, userID string) (string, error) {
+	var passwordHash string
+	row := s.db.QueryRowContext(ctx, `SELECT password_hash FROM users WHERE id = ?`, userID)
+	if err := row.Scan(&passwordHash); err != nil {
+		return "", err
+	}
+
+	return passwordHash, nil
 }
 
 // CreateSession persists a login session.

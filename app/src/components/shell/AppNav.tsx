@@ -3,7 +3,6 @@ import { NavLink, useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
-import { ThemeToggle } from "@/components/shell/ThemeToggle";
 import { clearAuthenticatedState, hasActiveSession } from "@/lib/auth/session";
 import { authKeys } from "@/services/auth/auth.keys";
 import { getCurrentUser, logout } from "@/services/auth/auth.service";
@@ -17,6 +16,7 @@ type IconName =
     | "history"
     | "play"
     | "search"
+    | "settings"
     | "sources";
 
 interface NavItem {
@@ -48,6 +48,12 @@ const authenticatedSections: readonly NavSection[] = [
         ],
         title: "Engagement",
     },
+    {
+        items: [
+            { icon: "settings", label: "Settings", to: "/settings" },
+        ],
+        title: "Account",
+    },
 ];
 
 export const AppNav = (): JSX.Element => {
@@ -77,7 +83,6 @@ export const AppNav = (): JSX.Element => {
                 <span aria-hidden className={"app-nav__brand-mark"}>{"H"}</span>
                 <div className={"app-nav__brand-copy"}>
                     <span className={"app-nav__eyebrow"}>{"Property Tracker"}</span>
-                    <h2>{"Home Searcher"}</h2>
                 </div>
             </div>
 
@@ -113,7 +118,7 @@ export const AppNav = (): JSX.Element => {
                             </div>
                         </div>
                         <div className={"app-nav__user-controls"}>
-                            <ThemeToggle />
+                            <Button as={NavLink} to={"/settings"} variant={"secondary"}>{"Settings"}</Button>
                         </div>
                         <Button
                             disabled={logoutMutation.isPending}

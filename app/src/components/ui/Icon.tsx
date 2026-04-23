@@ -18,6 +18,7 @@ type IconName =
     | "play"
     | "plus"
     | "search"
+    | "settings"
     | "sidebar"
     | "sources"
     | "sun"
@@ -44,6 +45,7 @@ const paths: Record<IconName, JSX.Element> = {
     play: <path d={"M7 5v14l11-7L7 5Z"} fill={"none"} stroke={"currentColor"} strokeLinecap={"round"} strokeLinejoin={"round"} strokeWidth={1.75} />,
     plus: <path d={"M12 5v14M5 12h14"} fill={"none"} stroke={"currentColor"} strokeLinecap={"round"} strokeLinejoin={"round"} strokeWidth={1.75} />,
     search: <path d={"m17 17 3.5 3.5M19 10.5a8.5 8.5 0 1 1-17 0 8.5 8.5 0 0 1 17 0Z"} fill={"none"} stroke={"currentColor"} strokeLinecap={"round"} strokeLinejoin={"round"} strokeWidth={1.75} />,
+    settings: <path d={"M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm7.4-3a7.5 7.5 0 0 0-.1-1.3l2.1-1.6-2-3.4-2.5 1a7.5 7.5 0 0 0-2.2-1.3L14.3 2h-4l-.4 2.4a7.5 7.5 0 0 0-2.2 1.3l-2.5-1-2 3.4 2.1 1.6c-.1.4-.1.9-.1 1.3s0 .9.1 1.3L3.2 14l2 3.4 2.5-1c.7.5 1.4 1 2.2 1.3l.4 2.3h4l.4-2.3a7.5 7.5 0 0 0 2.2-1.3l2.5 1 2-3.4-2.1-1.6c.1-.4.1-.9.1-1.4Z"} fill={"none"} stroke={"currentColor"} strokeLinecap={"round"} strokeLinejoin={"round"} strokeWidth={1.5} />,
     sidebar: <path d={"M4 5h16v14H4V5Zm5 0v14"} fill={"none"} stroke={"currentColor"} strokeLinecap={"round"} strokeLinejoin={"round"} strokeWidth={1.75} />,
     sources: <path d={"M4 6h16M4 12h16M4 18h10"} fill={"none"} stroke={"currentColor"} strokeLinecap={"round"} strokeLinejoin={"round"} strokeWidth={1.75} />,
     sun: <path d={"M12 2v2.5M12 19.5V22M4.93 4.93l1.77 1.77M17.3 17.3l1.77 1.77M2 12h2.5M19.5 12H22M4.93 19.07l1.77-1.77M17.3 6.7l1.77-1.77M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z"} fill={"none"} stroke={"currentColor"} strokeLinecap={"round"} strokeLinejoin={"round"} strokeWidth={1.75} />,

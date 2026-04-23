@@ -94,6 +94,65 @@ func Register(mux *http.ServeMux, service *app.Service) {
 
 		platformhttp.WriteJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})))
+
+	mux.Handle("PUT /api/v1/auth/me", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		principal, ok := CurrentPrincipal(r.Context())
+		if !ok {
+			platformhttp.WriteError(w, http.StatusUnauthorized, "authentication required")
+			return
+		}
+
+		var request struct {
+			DisplayName string `json:"display_name"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			platformhttp.WriteError(w, http.StatusBadRequest, "invalid request body")
+			return
+		}
+
+		updated, err := service.UpdateProfile(r.Context(), principal.User.ID, request.DisplayName)
+		if err != nil {
+			if err == app.ErrInvalidProfile {
+				platformhttp.WriteError(w, http.StatusBadRequest, err.Error())
+				return
+			}
+			platformhttp.WriteError(w, http.StatusInternalServerError, "could not update profile")
+			return
+		}
+
+		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{"item": updated})
+	})))
+
+	mux.Handle("POST /api/v1/auth/me/password", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		principal, ok := CurrentPrincipal(r.Context())
+		if !ok {
+			platformhttp.WriteError(w, http.StatusUnauthorized, "authentication required")
+			return
+		}
+
+		var request struct {
+			CurrentPassword string `json:"current_password"`
+			NewPassword     string `json:"new_password"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			platformhttp.WriteError(w, http.StatusBadRequest, "invalid request body")
+			return
+		}
+
+		if err := service.ChangePassword(r.Context(), principal.User.ID, request.CurrentPassword, request.NewPassword); err != nil {
+			switch err {
+			case app.ErrInvalidPassword:
+				platformhttp.WriteError(w, http.StatusUnauthorized, err.Error())
+			case app.ErrPasswordTooWeak:
+				platformhttp.WriteError(w, http.StatusBadRequest, err.Error())
+			default:
+				platformhttp.WriteError(w, http.StatusInternalServerError, "could not change password")
+			}
+			return
+		}
+
+		platformhttp.WriteJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	})))
 }
 
 func extractBearerToken(header string) string {

@@ -23,6 +23,12 @@ var (
 	ErrInvalidCredentials = errors.New("invalid credentials")
 	// ErrUnauthorized indicates that the bearer token is not valid.
 	ErrUnauthorized = errors.New("unauthorized")
+	// ErrInvalidPassword indicates the supplied current password did not match.
+	ErrInvalidPassword = errors.New("invalid current password")
+	// ErrPasswordTooWeak indicates the new password failed minimum policy.
+	ErrPasswordTooWeak = errors.New("new password must be at least 8 characters")
+	// ErrInvalidProfile indicates the profile payload contained invalid values.
+	ErrInvalidProfile = errors.New("invalid profile fields")
 )
 
 // Store defines the persistence contract required by the auth service.
@@ -30,6 +36,9 @@ type Store interface {
 	UpsertUser(ctx context.Context, user authdomain.User, passwordHash string) error
 	GetUserByEmail(ctx context.Context, email string) (authdomain.User, string, error)
 	GetUserByID(ctx context.Context, userID string) (authdomain.User, error)
+	GetUserCredentials(ctx context.Context, userID string) (string, error)
+	UpdateUserProfile(ctx context.Context, userID, displayName string, updatedAt time.Time) error
+	UpdateUserPassword(ctx context.Context, userID, passwordHash string, updatedAt time.Time) error
 	CreateSession(ctx context.Context, session authdomain.Session, tokenHash string) error
 	GetSessionByTokenHash(ctx context.Context, tokenHash string) (authdomain.Session, authdomain.User, error)
 	RevokeSession(ctx context.Context, sessionID string, revokedAt time.Time) error
@@ -140,6 +149,44 @@ func (s *Service) GetUser(ctx context.Context, userID string) (authdomain.User, 
 // Logout revokes a session.
 func (s *Service) Logout(ctx context.Context, sessionID string) error {
 	return s.store.RevokeSession(ctx, sessionID, time.Now().UTC())
+}
+
+// UpdateProfile updates the mutable profile fields of a user and returns the refreshed record.
+func (s *Service) UpdateProfile(ctx context.Context, userID, displayName string) (authdomain.User, error) {
+	trimmed := strings.TrimSpace(displayName)
+	if trimmed == "" {
+		return authdomain.User{}, ErrInvalidProfile
+	}
+
+	now := time.Now().UTC()
+	if err := s.store.UpdateUserProfile(ctx, userID, trimmed, now); err != nil {
+		return authdomain.User{}, err
+	}
+
+	return s.store.GetUserByID(ctx, userID)
+}
+
+// ChangePassword verifies the current password and stores a new bcrypt hash.
+func (s *Service) ChangePassword(ctx context.Context, userID, currentPassword, newPassword string) error {
+	if len(strings.TrimSpace(newPassword)) < 8 {
+		return ErrPasswordTooWeak
+	}
+
+	currentHash, err := s.store.GetUserCredentials(ctx, userID)
+	if err != nil {
+		return ErrInvalidPassword
+	}
+
+	if bcrypt.CompareHashAndPassword([]byte(currentHash), []byte(currentPassword)) != nil {
+		return ErrInvalidPassword
+	}
+
+	newHash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("hash password: %w", err)
+	}
+
+	return s.store.UpdateUserPassword(ctx, userID, string(newHash), time.Now().UTC())
 }
 
 func newToken() (string, string, error) {
