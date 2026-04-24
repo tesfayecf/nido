@@ -84,7 +84,7 @@ export const DashboardPage = (): JSX.Element => {
         const filteredRuns = (runsQuery.data?.items ?? []).filter((run) => filteredPropertyIds.has(run.property_id) && new Date(run.observed_at).getTime() >= cutoff);
         const filteredNotifications = (notificationsQuery.data?.items ?? []).filter((notification) => notification.property_id === undefined || filteredPropertyIds.has(notification.property_id));
 
-        const priceHistory = new Map<string, number[]>();
+        const priceHistory = new Map<string, { readonly observedAt: number; readonly price: number; }[]>();
         filteredRuns.forEach((run) => {
             const raw = run.values.price;
             if (raw === undefined) {
@@ -97,16 +97,21 @@ export const DashboardPage = (): JSX.Element => {
             }
 
             const current = priceHistory.get(run.property_id) ?? [];
-            current.push(price);
+            current.push({ observedAt: new Date(run.observed_at).getTime(), price });
             priceHistory.set(run.property_id, current);
         });
 
         const topMovers = [...priceHistory.entries()]
-            .map(([propertyId, prices]) => {
-                const latest = prices[0] ?? 0;
-                const oldest = prices[prices.length - 1] ?? latest;
+            .map(([propertyId, entries]) => {
+                const prices = [...entries].sort((left, right) => right.observedAt - left.observedAt);
+                const latest = prices[0]?.price ?? 0;
+                const oldest = prices[prices.length - 1]?.price ?? latest;
                 const delta = latest - oldest;
-                return { delta, propertyId, volatility: Math.max(...prices) - Math.min(...prices) };
+                return {
+                    delta,
+                    propertyId,
+                    volatility: Math.max(...prices.map((item) => item.price)) - Math.min(...prices.map((item) => item.price)),
+                };
             })
             .sort((left, right) => Math.abs(right.delta) - Math.abs(left.delta))
             .slice(0, 5);
@@ -271,7 +276,7 @@ export const DashboardPage = (): JSX.Element => {
                                 items={analytics.topMovers.map((item) => ({
                                     description: `${item.delta >= 0 ? "+" : ""}${item.delta.toFixed(0)} change`,
                                     href: `/properties/${item.propertyId}`,
-                                    label: propertiesQuery.data?.find((property) => property.id === item.propertyId)?.label || item.propertyId,
+                                    label: propertiesQuery.data?.find((property) => property.id === item.propertyId)?.label ?? item.propertyId,
                                 }))}
                             />
                         </PageCard>
@@ -281,7 +286,7 @@ export const DashboardPage = (): JSX.Element => {
                                 items={analytics.volatility.map((item) => ({
                                     description: `${item.volatility.toFixed(0)} range`,
                                     href: `/properties/${item.propertyId}`,
-                                    label: propertiesQuery.data?.find((property) => property.id === item.propertyId)?.label || item.propertyId,
+                                    label: propertiesQuery.data?.find((property) => property.id === item.propertyId)?.label ?? item.propertyId,
                                 }))}
                             />
                         </PageCard>

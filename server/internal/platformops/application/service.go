@@ -31,11 +31,12 @@ type Store interface {
 }
 
 type Service struct {
-	logger    *slog.Logger
-	store     Store
-	events    *platformevents.Broker
-	scheduler *ingestionapp.PropertyScheduler
-	cfg       platformconfig.NotificationsConfig
+	logger     *slog.Logger
+	store      Store
+	events     *platformevents.Broker
+	scheduler  *ingestionapp.PropertyScheduler
+	cfg        platformconfig.NotificationsConfig
+	httpClient *http.Client
 
 	digestCtx    context.Context
 	digestCancel context.CancelFunc
@@ -49,6 +50,7 @@ func NewService(logger *slog.Logger, store Store, events *platformevents.Broker,
 		events:       events,
 		scheduler:    scheduler,
 		cfg:          cfg,
+		httpClient:   &http.Client{Timeout: 10 * time.Second},
 		digestCtx:    digestCtx,
 		digestCancel: digestCancel,
 	}
@@ -233,7 +235,15 @@ func (s *Service) maybeSendDigest(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	body := fmt.Sprintf("Home Searcher daily digest\n\nTracked properties: %d\nPaused properties: %d\nQueue depth: %d\nRuns last 24h: %d\nFailures last 24h: %d\nSuccess rate: %.1f%%\n", summary.TrackedProperties, summary.PausedProperties, summary.QueueDepth, summary.RunsLast24Hours, summary.FailuresLast24Hours, summary.SuccessRate)
+	body := fmt.Sprintf(
+		"Home Searcher daily digest\n\nTracked properties: %d\nPaused properties: %d\nQueue depth: %d\nRuns last 24h: %d\nFailures last 24h: %d\nSuccess rate: %.1f%%\n",
+		summary.TrackedProperties,
+		summary.PausedProperties,
+		summary.QueueDepth,
+		summary.RunsLast24Hours,
+		summary.FailuresLast24Hours,
+		summary.SuccessRate,
+	)
 	if err := s.sendEmailDigest(settings.EmailDigest.Recipient, "Home Searcher digest", body); err != nil {
 		return s.persistLog(ctx, platformopsdomain.IntegrationDeliveryLog{
 			ID:           id.New("idel"),
@@ -318,7 +328,6 @@ func (s *Service) deliver(ctx context.Context, channel string, eventType string,
 		Payload:      requestBody,
 		CreatedAt:    time.Now().UTC(),
 	}
-	httpClient := &http.Client{Timeout: 10 * time.Second}
 	var lastErr error
 	var responseStatus int
 	for attempt := 1; attempt <= 3; attempt++ {
@@ -329,7 +338,7 @@ func (s *Service) deliver(ctx context.Context, channel string, eventType string,
 			continue
 		}
 		request.Header.Set("Content-Type", "application/json")
-		response, err := httpClient.Do(request)
+		response, err := s.httpClient.Do(request)
 		if err == nil {
 			responseStatus = response.StatusCode
 			response.Body.Close()
@@ -343,7 +352,7 @@ func (s *Service) deliver(ctx context.Context, channel string, eventType string,
 			err = fmt.Errorf("%s returned %d", channel, response.StatusCode)
 		}
 		lastErr = err
-		time.Sleep(time.Duration(attempt) * 250 * time.Millisecond)
+		time.Sleep(time.Duration(1<<(attempt-1)) * 250 * time.Millisecond)
 	}
 	delivery.Status = "failed"
 	delivery.ResponseStatus = responseStatus

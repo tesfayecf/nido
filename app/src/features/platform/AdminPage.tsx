@@ -193,6 +193,7 @@ export const AdminPage = (): JSX.Element => {
 
     const importMutation = useMutation({
         mutationFn: async () => {
+            const propertiesByURL = new Map((propertiesQuery.data ?? []).map((property) => [property.url, property.id]));
             if (importMode === "properties-csv") {
                 const rows = parsePropertyCSV(importText);
                 for (const row of rows) {
@@ -214,7 +215,7 @@ export const AdminPage = (): JSX.Element => {
             if (importMode === "alerts-json") {
                 const rows = JSON.parse(importText) as { readonly property_url?: string; readonly property_id?: string; readonly rule_type: string; readonly threshold_amount?: number; }[];
                 for (const row of rows) {
-                    const propertyId = row.property_id ?? (propertiesQuery.data ?? []).find((property) => property.url === row.property_url)?.id;
+                    const propertyId = row.property_id ?? (row.property_url !== undefined ? propertiesByURL.get(row.property_url) : undefined);
                     if (propertyId === undefined) {
                         continue;
                     }
@@ -254,7 +255,7 @@ export const AdminPage = (): JSX.Element => {
             }
 
             for (const alert of payload.alerts) {
-                const propertyId = (propertiesQuery.data ?? []).find((property) => property.url === alert.property_url)?.id;
+                const propertyId = propertiesByURL.get(alert.property_url);
                 if (propertyId !== undefined) {
                     await createAlertRule({ property_id: propertyId, rule_type: alert.rule_type, threshold_amount: alert.threshold_amount });
                 }

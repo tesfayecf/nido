@@ -2571,6 +2571,9 @@ func (s *Store) ListIntegrationDeliveryLogs(ctx context.Context, limit int) ([]p
 	if limit <= 0 {
 		limit = 50
 	}
+	if limit > 200 {
+		limit = 200
+	}
 	rows, err := s.db.QueryContext(
 		ctx,
 		`SELECT id, channel, event_type, target, status, attempt_count, payload_json, response_status, error_message, delivered_at, created_at
