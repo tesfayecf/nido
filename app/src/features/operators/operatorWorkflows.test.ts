@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Run } from "@/services/backoffice-runs/runs.types";
 import type { Notification } from "@/services/notifications/notifications.types";
 import type { Property } from "@/services/properties/properties.types";
-import { applySavedView, buildDashboardSummary, buildPropertyRunSummary, buildTriageItems, eventSeverity, summarizeEventData } from "@/features/operators/operatorWorkflows";
+import { applySavedView, buildDashboardSummary, buildPropertyRunSummary, buildTriageItems, eventSeverity, mergeBulkTagIds, retainVisibleSelection, summarizeEventData } from "@/features/operators/operatorWorkflows";
 
 const properties: Property[] = [
     {
@@ -108,6 +108,14 @@ describe("operatorWorkflows", () => {
         expect(dashboard.unreadNotifications).toBe(1);
         expect(dashboard.topProblemSources[0]?.sourceId).toBe("source-2");
         expect(triageItems[0]?.kind).toBe("run");
+    });
+
+    it("merges bulk tags without duplicating existing tags", () => {
+        expect(mergeBulkTagIds(["alpha", "beta"], ["beta", "gamma"])).toEqual(["alpha", "beta", "gamma"]);
+    });
+
+    it("clears selected rows that disappear from the filtered set", () => {
+        expect(retainVisibleSelection(["property-1", "property-2"], ["property-2"])).toEqual(["property-2"]);
     });
 
     it("creates richer live event summaries", () => {

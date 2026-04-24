@@ -27,7 +27,7 @@ import { deleteProperty, ingestProperty, listProperties, updateProperty } from "
 import type { Property, PropertyStatus } from "@/services/properties/properties.types";
 import { tagKeys } from "@/services/tags/tags.keys";
 import { listPropertyTags, listTags, setPropertyTags } from "@/services/tags/tags.service";
-import { SAVED_VIEW_OPTIONS, applySavedView, buildPropertyRunSummary, type SavedViewId } from "@/features/operators/operatorWorkflows";
+import { SAVED_VIEW_OPTIONS, applySavedView, buildPropertyRunSummary, mergeBulkTagIds, retainVisibleSelection, type SavedViewId } from "@/features/operators/operatorWorkflows";
 
 const DEFAULT_TAG_MATCH = "any" as const;
 const RUN_FILTERS = { limit: 150, property_id: "" };
@@ -39,7 +39,7 @@ const statusTone = (status: PropertyStatus): "danger" | "neutral" | "success" | 
         case "degraded":
             return "warning";
         case "inactive":
-            return "danger";
+            return "neutral";
         case "pending":
         default:
             return "neutral";
@@ -136,7 +136,7 @@ export const PropertiesPage = (): JSX.Element => {
 
             for (const propertyId of selectedPropertyIds) {
                 const currentTagIds = propertyTagIds.get(propertyId) ?? [];
-                const nextTagIds = Array.from(new Set([...currentTagIds, ...bulkTagIds]));
+                const nextTagIds = mergeBulkTagIds(currentTagIds, bulkTagIds);
                 await setPropertyTags(propertyId, nextTagIds);
             }
         },
@@ -231,8 +231,7 @@ export const PropertiesPage = (): JSX.Element => {
     }, [bookmarkedIds, bookmarkedOnly, propertiesQuery.data, propertyRunSummary, propertyTagNamesById, savedViewId]);
 
     useEffect(() => {
-        const visibleIds = new Set(filteredProperties.map((property) => property.id));
-        setSelectedPropertyIds((current) => current.filter((propertyId) => visibleIds.has(propertyId)));
+        setSelectedPropertyIds((current) => retainVisibleSelection(current, filteredProperties.map((property) => property.id)));
     }, [filteredProperties]);
 
     const selectedProperties = filteredProperties.filter((property) => selectedPropertyIds.includes(property.id));

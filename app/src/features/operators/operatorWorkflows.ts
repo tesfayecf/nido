@@ -109,6 +109,15 @@ export const buildPropertyRunSummary = (runs: readonly Run[]): Map<string, Prope
     return summary;
 };
 
+export const mergeBulkTagIds = (currentTagIds: readonly string[], bulkTagIds: readonly string[]): string[] => {
+    return Array.from(new Set([...currentTagIds, ...bulkTagIds]));
+};
+
+export const retainVisibleSelection = (selectedPropertyIds: readonly string[], visiblePropertyIds: readonly string[]): string[] => {
+    const visibleIds = new Set(visiblePropertyIds);
+    return selectedPropertyIds.filter((propertyId) => visibleIds.has(propertyId));
+};
+
 interface ApplySavedViewOptions {
     readonly bookmarkedIds: ReadonlySet<string>;
     readonly now?: Date;
