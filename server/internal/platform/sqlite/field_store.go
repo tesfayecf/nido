@@ -206,7 +206,19 @@ func (s *Store) DeleteFieldDefinition(ctx context.Context, fieldID string) error
 	if usageCount > 0 {
 		return fmt.Errorf("field is in use")
 	}
-	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM property_extraction_configs WHERE fields_json LIKE ?`, fmt.Sprintf(`%%"field_name":"%s"%%`, field.Name)).Scan(&usageCount); err != nil {
+	if err := s.db.QueryRowContext(
+		ctx,
+		`SELECT COUNT(*)
+		 FROM property_extraction_configs AS config,
+		      json_each(
+		          CASE
+		              WHEN json_type(config.fields_json) = 'array' THEN config.fields_json
+		              ELSE json_extract(config.fields_json, '$.fields')
+		          END
+		      ) AS field
+		 WHERE json_extract(field.value, '$.field_name') = ?`,
+		field.Name,
+	).Scan(&usageCount); err != nil {
 		return fmt.Errorf("count field config usage: %w", err)
 	}
 	if usageCount > 0 {
