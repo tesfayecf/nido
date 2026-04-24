@@ -1,123 +1,205 @@
 # Frontend Architecture
 
-## Intent
+## Purpose
 
-The frontend under `/app` is a thin, typed React client over the backend APIs already implemented under `/server`. The goal is not to duplicate backend logic in the browser. The goal is to provide a dense, reliable working surface for market exploration, personal tracking, and operational ingestion control.
+The frontend under `/app` is an authenticated React operations console for tracked property monitoring and maintenance. It is optimized for backoffice workflows rather than public browsing. The browser owns presentation, local interaction state, and session persistence. The backend remains the source of truth for properties, extraction configs, snapshots, scheduler history, tags, alerts, notifications, and live events.
 
-For startup and verification commands, see [app/docs/local-development.md](/home/tesfa/Finance/tools/home-searcher/app/docs/local-development.md).
+Use this document for the system shape. Use [local-development.md](./local-development.md) for startup, [backend-contract.md](./backend-contract.md) for wire details, and [maintenance.md](./maintenance.md) for day-2 changes.
 
-This frontend intentionally separates server state from client state:
+## Runtime Overview
 
-- TanStack Query owns remote reads, mutations, invalidation, and refetch policy.
-- Zustand owns durable client concerns such as the bearer token snapshot, shell layout state, and the in-memory live-event stream.
-- React Router owns navigation, route boundaries, and URL-backed search/filter state.
+```mermaid
+flowchart LR
+	Browser[Browser] --> Main[src/main.tsx]
+	Main --> ThemeInit[applyThemePreference]
+	Main --> Providers[AppProviders]
+	Providers --> Query[TanStack Query client]
+	Providers --> ThemeProvider[ThemeProvider]
+	Providers --> ToastProvider[ToastProvider]
+	Providers --> Router[React Router]
+	Router --> Login[/login]
+	Router --> Shell[AppShell]
+	Shell --> Guard[RequireAuth]
+	Guard --> Pages[Feature pages]
+	Pages --> Services[src/services/*]
+	Services --> Api[lib/api/client.ts]
+	Api --> Backend[/api/v1/*]
+	Pages --> Events[EventsPage]
+	Events --> SSE[lib/api/sse.ts]
+	SSE --> Stream[GET /api/v1/backoffice/events]
+```
 
-## Module Layout
+### Composition rules
 
-### `app`
+- `src/main.tsx` applies the persisted theme preference before React renders so the shell does not flash the wrong theme.
+- `src/app/AppProviders.tsx` creates exactly one `QueryClient` at module scope and composes `ThemeProvider`, `ToastProvider`, and `RouterProvider`.
+- `src/app/router.tsx` uses element routes only. There are no route loaders or actions in the current app; pages fetch with TanStack Query inside components.
+- `src/app/AppShell.tsx` owns the shared authenticated layout, responsive navigation behavior, skip link, and page outlet.
+- `src/app/RequireAuth.tsx` reads the persisted session snapshot, redirects to `/login` when expired or missing, and clears protected client state on auth loss.
+- `src/app/AppRouteError.tsx` provides route-level recovery instead of allowing shell-level white screens.
 
-Owns runtime composition.
+## Route Map
 
-- Query client and providers
-- Router composition
-- Global shell layout
-- Route guards and error boundaries
+The router is intentionally flat and feature-owned. The index route redirects to `/properties`.
 
-### `services`
+| Path | Owner | Responsibility |
+| --- | --- | --- |
+| `/login` | `features/auth` | Login flow and redirect handoff |
+| `/properties` | `features/properties` | Tracked property list, URL-driven filters, bookmark and ingest actions |
+| `/properties/new` | `features/properties` | Property creation |
+| `/properties/:propertyId` | `features/properties` | Property detail, extraction config, snapshots, property-run history |
+| `/properties/:propertyId/fields/:fieldName/analysis` | `features/properties` | Field-level analysis for selector tuning |
+| `/sources`, `/sources/new`, `/sources/:sourceId` | `features/backoffice` | Source CRUD and source-to-property coordination |
+| `/runs`, `/runs/:runId` | `features/backoffice` | Global snapshot history and snapshot inspection |
+| `/events` | `features/backoffice` | In-session live SSE event feed |
+| `/tags` | `features/tags` | Tag CRUD |
+| `/bookmarks`, `/alerts`, `/notifications` | `features/engagement` | User-specific tracking workflows |
+| `/settings` | `features/settings` | Account profile and password maintenance |
 
-Owns the typed backend contract per capability.
+## Module Boundaries
+
+| Area | Responsibility | Notes |
+| --- | --- | --- |
+| `src/app` | Runtime composition | Providers, router, auth guard, shell, route error boundary |
+| `src/features` | Route-level workflows | Pages assemble queries, mutations, forms, and feature-specific UI |
+| `src/services` | Typed backend contract by capability | DTOs, query key factories, and request functions stay close together |
+| `src/lib` | Shared technical primitives | API client, SSE transport, auth helpers, formatters, search-param helpers |
+| `src/stores` | Cross-route client state only | Session, shell layout, and live event buffer |
+| `src/components` | Reusable presentational building blocks | Shell chrome, tables, dialogs, form controls, tags, selectors |
+| `src/styles` | Global tokens and base styles | CSS variables, typography, layout, and component primitives |
+| `src/test` | Shared test setup | Test environment wiring for Vitest and Testing Library |
+
+### Service modules currently in use
 
 - `auth`
-- `listings`
-- `bookmarks`
-- `watchlists`
 - `alert-rules`
-- `notifications`
-- `backoffice-sources`
-- `backoffice-runs`
 - `backoffice-events`
+- `backoffice-runs`
+- `backoffice-sources`
+- `bookmarks`
+- `notifications`
+- `properties`
+- `tags`
 
-Each service module owns wire DTOs, query key factories, and API functions. The frontend keeps the backend JSON shape instead of inventing a second client-side data vocabulary.
+Each service module preserves backend JSON vocabulary instead of inventing a separate client-side schema. That keeps contract drift obvious and reduces mapping code.
 
-### `features`
+## State Ownership
 
-Owns the actual user-facing workflows.
+```mermaid
+flowchart TD
+	State[New frontend state] --> Remote{Authoritative on the server?}
+	Remote -- yes --> Query[TanStack Query + service module]
+	Remote -- no --> Shareable{Must survive reload or be linkable?}
+	Shareable -- yes --> Url[React Router search params]
+	Shareable -- no --> CrossPage{Needed across unrelated routes?}
+	CrossPage -- yes --> Store[Zustand store]
+	CrossPage -- no --> Local[Component state]
+```
 
-- `auth`: login and logout flow
-- `listings`: explorer, detail, price history, bookmark action
-- `engagement`: bookmarks, watchlists, alert rules, notifications
-- `backoffice`: sources, runs, manual ingest, live events
-- `map`: adapter boundary only in iteration 1
+### Current ownership model
 
-### `lib`
+- TanStack Query owns remote reads, mutations, retries, refetching, and cache invalidation.
+- URL search params own shareable filters. `PropertiesPage` already uses this for repeated `tag` params and the `match` strategy.
+- Zustand owns only cross-route client concerns: persisted bearer session, shell navigation state, and the in-memory live event stream.
+- Component state owns dialogs, drafts, row selection, and temporary view controls.
+- Theme preference is persisted separately from business state and applied before boot.
 
-Owns small reusable technical primitives.
+This separation is deliberate. Do not move server state into Zustand unless the data is truly client-authored and not canonical on the backend.
 
-- API client and error parsing
-- Authenticated SSE client
-- Formatters for money and timestamps
-- URL search-param helpers
+## Request And Mutation Flow
 
-### `stores`
+```mermaid
+sequenceDiagram
+	participant User
+	participant Page as Feature page
+	participant Service as Service module
+	participant Api as apiRequest()
+	participant Session as session.store
+	participant Server as Backend API
+	participant Cache as Query cache
 
-Owns client state only.
+	User->>Page: Click or navigate
+	Page->>Service: Call queryFn or mutationFn
+	Service->>Api: path + method + typed body
+	Api->>Session: Read token when auth=true
+	Api->>Server: fetch()
+	Server-->>Api: JSON payload
+	Api-->>Service: typed response
+	Service-->>Cache: resolved data
+	Cache-->>Page: rerender with new state
 
-- Session token and expiry
-- Shell UI preferences
-- Recent live events
+	alt 401 response
+		Api->>Session: clear authenticated client state
+		Page->>Page: auth-dependent UI unmounts
+		Page->>User: redirect through RequireAuth
+	end
+```
 
-### `components`
+### Transport conventions
 
-Owns reusable visual primitives.
+- `lib/api/client.ts` is the only place that should attach bearer headers, parse error payloads, or resolve `VITE_API_ORIGIN`.
+- Service modules should return domain-shaped values, not raw `Response` objects.
+- The app relies on three common backend envelope styles:
+  - list responses: `{ items, count }`
+  - single-item responses: `{ item }`
+  - status responses: `{ status }`
+- Login is the main exception: it returns `{ token, user, expires_at }` directly.
 
-- Dense cards, panels, buttons, fields
-- App navigation and shell chrome
-- Empty, loading, and error states
+## Live Event Flow
 
-## Runtime Boundaries
+```mermaid
+sequenceDiagram
+	participant EventsPage
+	participant EventsService as backoffice-events service
+	participant Stream as connectAuthenticatedStream()
+	participant Server as /api/v1/backoffice/events
+	participant Store as live-events.store
 
-### Public capabilities in iteration 1
+	EventsPage->>EventsService: connectBackofficeEvents()
+	EventsService->>Stream: connectAuthenticatedStream()
+	Stream->>Server: GET with Authorization header
+	Server-->>Stream: SSE frames (id, event, data)
+	Stream-->>EventsService: EventSourceMessage
+	EventsService->>Store: addEvent(decoded message)
+	Store-->>EventsPage: rerender table and detail dialog
+```
 
-- Listing search
-- Listing detail
-- Price history view
+Why this matters:
 
-### Authenticated capabilities in iteration 1
+- Native `EventSource` cannot send bearer headers, so the app uses `@microsoft/fetch-event-source`.
+- The stream is session-scoped and stored in memory only. Refreshing the page clears the buffer.
+- `BackofficeEvent.type` is intentionally typed as `known union | string` because the server emits a broader set of event names than the UI currently enumerates.
 
-- Bookmarks
-- Watchlists
-- Alert rules
-- Notifications
-- Backoffice source and run visibility
-- Manual ingest
-- Live ingest event stream
+## Feature Boundaries Worth Preserving
 
-### Explicitly deferred capabilities
+### Properties
 
-- True map exploration with markers and area selection
-- Region and category comparison views
-- Trend dashboards and anomaly analytics
+`features/properties` is the operational center of the app. It owns property CRUD, extraction config editing, stateless preview, manual ingest, snapshots, and property-run inspection. It also coordinates with bookmarks, tags, runs, and notifications.
 
-These features remain deferred because the current backend listing contract does not include coordinates, category taxonomy, region aggregation, or dedicated analytics endpoints.
+### Backoffice
 
-## Data Strategy
+`features/backoffice` owns cross-property operational views:
 
-TanStack Query is the system of record for all backend reads and writes because it directly solves the cache invalidation, background refresh, deduplication, retry, and stale-data concerns of server state.
+- source CRUD
+- global snapshot history under `/runs`
+- live event monitoring under `/events`
 
-Zustand is intentionally constrained to:
+One important detail: the global `/runs` pages work with stored property snapshots, while property detail pages use `/properties/:propertyId/runs` to show scheduler attempt history.
 
-- Auth token snapshot and expiry
-- Shell layout state
-- Live event rail state and latest event items
+### Engagement
 
-Filters that should survive refresh or deep-linking live in the URL, not in Zustand.
+`features/engagement` is user-centric rather than operational. Bookmarks, alerts, and notifications use the same auth/session infrastructure, but they should not absorb property-admin concerns.
 
-## Live Transport Strategy
+### Tags And Selectors
 
-The backend exposes a bearer-protected SSE stream at `/api/v1/backoffice/events`. Native `EventSource` cannot attach an `Authorization` header, so the frontend uses an authenticated fetch-based SSE client. The stream remains unidirectional and backoffice-scoped in iteration 1.
+- `features/tags` and `services/tags` own tag CRUD and property-tag assignment.
+- `features/selectors` and `components/selectors` should stay focused on selector-building UX, not transport code.
 
-The routed shell now includes a route-level error boundary so unexpected render or loader failures degrade into a stable recovery screen instead of a blank application state.
+## Testing And Change Hotspots
 
-## Styling Strategy
+- Query invalidation is the most common maintenance risk. Keep invalidation keys narrow and capability-specific.
+- `PropertiesPage` performs secondary tag queries per row. Be careful when expanding that page because it can increase query fanout quickly.
+- Auth expiry behavior crosses page boundaries. Any change to session storage or 401 handling should be tested through `RequireAuth` as well as the touched service.
+- Live events are append-only in-memory state. If you need persistence, design that intentionally instead of quietly extending the store.
 
-UI work is intentionally functional-first, but not throwaway. The app uses a small CSS token layer for color, spacing, typography, radius, and status states. The first iteration favors high information density, calm spacing, and clear visual hierarchy over decorative complexity.
+For change procedures, debugging notes, and a frontend checklist, continue in [maintenance.md](./maintenance.md).

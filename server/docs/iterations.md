@@ -1,50 +1,72 @@
 # Iteration Roadmap
 
-## Iteration 0: Bootstrap
+## Status Note
 
-Status: implemented in this slice
+This roadmap is now aligned to the currently mounted backend runtime. Some repo-level capabilities still exist in code or config without being fully wired into `internal/app/runtime.go`; those are called out as future or dormant work instead of being presented as active product surface.
 
-- Create the backend docs set.
-- Create a Go module under `/server`.
-- Add a composition root and a runnable HTTP server.
-- Add SQLite schema bootstrap.
-- Add a portable object-store abstraction.
-- Add the first backoffice and catalog endpoints.
+```mermaid
+flowchart LR
+	I0[Iteration 0\nRuntime foundation] --> I1[Iteration 1\nAuth + engagement]
+	I1 --> I2[Iteration 2\nProperty tracking]
+	I2 --> I3[Iteration 3\nScheduler + live ops]
+	I3 --> I4[Iteration 4\nConnector and catalog expansion]
+```
 
-## Iteration 1: Operational HTTP Ingestion
+## Iteration 0: Runtime Foundation
 
-Status: implemented in this slice
+Status: implemented
 
-- Register a bootstrap source from configuration.
-- Fetch source data on the server.
-- Parse a bootstrap HTTP JSON feed contract.
-- Persist listings, snapshots, runs, and price events.
-- Capture raw payload artifacts through the object-store abstraction.
+- Create the Go module and process entrypoint.
+- Add the composition root and runnable HTTP server.
+- Add SQLite bootstrap and migrations.
+- Add the HTTP transport helpers, logging middleware, and health endpoints.
+- Establish documentation and local development flows.
 
-This iteration intentionally uses a generic HTTP JSON feed connector because no real portal-specific source has been selected yet.
+## Iteration 1: Authentication And User Engagement
 
-## Iteration 2: Real Portal Connectors
+Status: implemented
 
-Status: implemented in this slice
+- Bootstrap admin provisioning
+- Bearer-session login, session validation, logout, profile update, and password change
+- Bookmarks, alert rules, and notifications
+- Notification event publication
 
-- Add an HTML JSON-LD portal connector alongside the bootstrap HTTP JSON feed connector.
-- Add resilient fetch policies, rate-limit windows, retry strategies, and source scheduling.
-- Add ingestion locking for manual and scheduled runs.
-- Add richer run diagnostics and failure artifacts.
-- Keep Garage-backed object storage available as the local S3-compatible runtime path.
+The current runtime mounts this surface end to end.
 
-## Iteration 3: Browser-Capable Scraping
+## Iteration 2: Property Tracking And Extraction
 
-Status: implemented in this slice
+Status: implemented
 
-- Add a server-side browser automation adapter for sources that require JavaScript execution.
-- Keep the browser dependency optional and isolated behind the ingestion connector boundary.
+- Source CRUD for reusable source metadata
+- Tracked property CRUD
+- Extraction config versioning
+- Stateless preview and property-scoped preview
+- Manual ingest for tracked properties
+- Snapshot persistence and retrieval
+- Property tagging and tag assignment APIs
 
-## Iteration 4: User Features
+This is the current operational center of the backend.
 
-Status: implemented in this slice
+## Iteration 3: Scheduler And Live Operations
 
-- Bootstrap-admin authentication with bearer sessions.
-- Bookmarks and watchlists.
-- Alert rules and notifications.
-- Live backoffice progress transport through SSE.
+Status: implemented and under hardening
+
+- Property scheduler with global worker pool and per-domain concurrency limits
+- Retry-aware property-run records
+- Live SSE event stream through the in-process broker
+- Request logging that preserves streaming behavior
+- Fetcher/browser integration for anti-bot-aware property retrieval
+
+This is the iteration that makes the backend behave like an operations system rather than a request-only CRUD service.
+
+## Iteration 4: Dormant Or Future Expansion
+
+Present in repo or config, but not fully wired in the current runtime
+
+- Public catalog/listings routes
+- Object-store-backed artifact persistence in the active runtime
+- Bootstrap source auto-registration from config
+- Config-driven scheduler enable/disable behavior
+- Broader source-ingestion orchestration beyond tracked-property workflows
+
+These are valid future directions, but they should not be documented or discussed as active runtime guarantees until `internal/app/runtime.go` composes them.

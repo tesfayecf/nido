@@ -6,7 +6,7 @@
 - pnpm `10.6.1`
 - a running backend on `http://127.0.0.1:8080`
 
-The frontend depends on the backend for auth, listings, engagement flows, and backoffice data. Start the backend first by following [server/docs/local-development.md](/home/tesfa/Finance/tools/home-searcher/server/docs/local-development.md).
+The frontend depends on the backend for auth, tracked-property workflows, tags, engagement flows, and backoffice data. Start the backend first by following [server/docs/local-development.md](/home/tesfa/Finance/tools/home-searcher/server/docs/local-development.md).
 
 ## Install Dependencies
 
@@ -69,3 +69,9 @@ pnpm lint
 - The frontend uses TanStack Query for all backend reads and mutations.
 - Authenticated routes are expiry-aware and clear protected client state when the session is no longer valid.
 - Backoffice live events use an authenticated fetch-based SSE client because native `EventSource` cannot send bearer headers.
+
+## Recommended Reading
+
+- [app/docs/architecture.md](/home/tesfa/Finance/tools/home-searcher/app/docs/architecture.md)
+- [app/docs/backend-contract.md](/home/tesfa/Finance/tools/home-searcher/app/docs/backend-contract.md)
+- [app/docs/maintenance.md](/home/tesfa/Finance/tools/home-searcher/app/docs/maintenance.md)

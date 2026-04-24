@@ -4,9 +4,11 @@ Home Searcher is a monorepo for a housing-market workspace with a Go backend und
 
 The current implementation focuses on:
 
-- public listing exploration
-- authenticated personal tracking with bookmarks, watchlists, alerts, and notifications
-- authenticated backoffice operations for sources, ingestion runs, manual ingest, and live events
+- authenticated tracked-property operations, including extraction config, snapshots, and scheduler history
+- authenticated personal tracking with bookmarks, alerts, and notifications
+- authenticated backoffice operations for sources, tags, runs, and live events
+
+The repository still contains some legacy or future-facing packages, including catalog/listing and object-store code. The active runtime documentation below calls out which surfaces are mounted today.
 
 ## Workspace Layout
 
@@ -72,8 +74,12 @@ GOTOOLCHAIN=local ../third-party/go/bin/go test ./...
 
 ## Key Docs
 
+- [app/docs/README.md](/home/tesfa/Finance/tools/home-searcher/app/docs/README.md)
 - [server/docs/architecture.md](/home/tesfa/Finance/tools/home-searcher/server/docs/architecture.md)
+- [server/docs/README.md](/home/tesfa/Finance/tools/home-searcher/server/docs/README.md)
+- [server/docs/maintenance.md](/home/tesfa/Finance/tools/home-searcher/server/docs/maintenance.md)
 - [server/docs/local-development.md](/home/tesfa/Finance/tools/home-searcher/server/docs/local-development.md)
 - [app/docs/architecture.md](/home/tesfa/Finance/tools/home-searcher/app/docs/architecture.md)
+- [app/docs/maintenance.md](/home/tesfa/Finance/tools/home-searcher/app/docs/maintenance.md)
 - [app/docs/backend-contract.md](/home/tesfa/Finance/tools/home-searcher/app/docs/backend-contract.md)
 - [app/docs/local-development.md](/home/tesfa/Finance/tools/home-searcher/app/docs/local-development.md)

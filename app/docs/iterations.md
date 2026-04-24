@@ -1,44 +1,69 @@
 # Frontend Iterations
 
-## Iteration 0: Docs And Runtime Foundation
+## Status Note
 
-Status: implemented in this slice
+This roadmap reflects the current mounted application rather than the earlier listing-explorer concept. The frontend is now primarily an authenticated property-operations workspace.
 
-- Document the frontend architecture under `/app/docs`.
-- Establish package scripts for dev, build, typecheck, lint, and test.
-- Add the base React runtime, routing, styling tokens, and provider composition.
-- Define the typed API and state boundaries before feature work expands.
+```mermaid
+flowchart LR
+	I0[Iteration 0\nFoundation] --> I1[Iteration 1\nAuthenticated shell]
+	I1 --> I2[Iteration 2\nProperty operations]
+	I2 --> I3[Iteration 3\nOperational hardening]
+	I3 --> I4[Iteration 4\nFuture catalog work]
+```
 
-## Iteration 1: Balanced App Shell
+## Iteration 0: Runtime Foundation
+
+Status: implemented
+
+- Establish Vite, React, TypeScript, Vitest, and ESLint foundations.
+- Create the provider tree, route shell, design tokens, and test setup.
+- Define the typed service-layer pattern and API client conventions.
+- Document architecture, local development, and backend contract boundaries.
+
+## Iteration 1: Authenticated Operations Shell
+
+Status: implemented
+
+- Login flow and redirect preservation
+- Shared shell with app navigation and route-level error handling
+- Persisted session handling and auth guard behavior
+- Core route scaffolding for properties, sources, runs, events, tags, engagement, and settings
+
+This is the iteration that turned the app into a coherent internal tool rather than a collection of disconnected screens.
+
+## Iteration 2: Tracked Property Workflows
 
 Status: implemented and under hardening
 
-- Login and logout flow
-- Public listing explorer and detail pages
-- Bookmark, watchlist, alert-rule, and notification views
-- Backoffice source and run pages
-- Manual ingest trigger
-- Live ingest events rail
+- Property creation, editing, deletion, and status display
+- Extraction config authoring and version save flow
+- Stateless preview workflow
+- Manual ingest trigger and snapshot inspection
+- Property-run history and global run history
+- Tag assignment and tag-based property filtering
+- Bookmarks, alerts, and notifications tied to tracked properties
 
-This is the first fully operable frontend slice and should work against the backend exactly as it exists today.
+This is the current center of gravity for the frontend.
 
-## Iteration 2: Market Intelligence Main View
+## Iteration 3: Operational Hardening
 
-Status: implemented for dense list, session viewport, compare, and price-history workflows
+Status: active hardening path
 
-- Virtualized main result list for high-density browsing
-- URL-backed filters for query, source, price range, and best-value mode
-- Zustand-backed viewport/search-session state and side-by-side compare
-- Modal price-history workflow without leaving the explorer
-- Keep literal marker rendering gated until backend geospatial data exists
+- Clarify UX copy around preview, save, snapshot, and run distinctions
+- Reduce query fanout on property-heavy screens where needed
+- Improve diagnostics around scheduler failures and live events
+- Expand focused test coverage for auth loss, query invalidation, and destructive flows
+- Keep documentation aligned with mounted backend behavior
 
-## Iteration 3: Market Intelligence Views
+This work should favor maintenance quality and operational clarity over broad new feature surface.
+
+## Iteration 4: Future Expansion
 
 Planned later
 
-- Regional comparisons
-- Category comparisons
-- Trend views
-- Anomaly surfacing
+- Denormalized summaries or aggregate endpoints to reduce multi-query list rendering
+- Richer event handling or filtering once backend event semantics stabilize
+- Any return of public catalog, listings, map, or market-intelligence views
 
-This iteration depends on backend aggregate endpoints and richer listing metadata. It should not be approximated from the current flat listing contract.
+If catalog-style browsing returns, it should be treated as a new product slice with a fresh contract review. The earlier listing-view roadmap should not be assumed to still apply.
