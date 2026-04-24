@@ -300,9 +300,14 @@ export const AnalyticsPage = (): JSX.Element => {
                                                                         <option value={""}>{"Choose value"}</option>
                                                                         {valueOptions.map((value) => <option key={value} value={value}>{value}</option>)}
                                                                     </Select>
-                                                                ) : 
-                                                                    <Input onChange={(event) => { updateFilter(setFilters, filter.id, { value: event.target.value }); }} placeholder={"Exact value"} type={field?.data_type === "date" ? "date" : field?.data_type === "number" ? "number" : "text"} value={filter.value} />
-                                                                }
+                                                                ) : (
+                                                                    <Input
+                                                                        onChange={(event) => { updateFilter(setFilters, filter.id, { value: event.target.value }); }}
+                                                                        placeholder={"Exact value"}
+                                                                        type={field?.data_type === "date" ? "date" : field?.data_type === "number" ? "number" : "text"}
+                                                                        value={filter.value}
+                                                                    />
+                                                                )}
                                                             </Field>
                                                         )}
                                                         <div style={{ display: "flex", justifyContent: "flex-end" }}>
@@ -333,15 +338,21 @@ export const AnalyticsPage = (): JSX.Element => {
                                 ) : null}
                                 {selectedRecords.length === 0 ? <EmptyState message={"No properties match the current chart selection."} /> : (
                                     <div style={{ display: "grid", gap: "0.75rem" }}>
-                                        {selectedRecords.map((record) => (
-                                            <Link key={record.property_id} style={{ border: "1px solid var(--color-border)", borderRadius: "var(--radius-md)", color: "inherit", padding: "0.875rem", textDecoration: "none" }} to={`/properties/${record.property_id}`}>
-                                                <strong style={{ display: "block" }}>{record.property_label?.trim() !== "" ? record.property_label : record.property_id}</strong>
-                                                <span className={"muted-copy"} style={{ display: "block", marginTop: "0.25rem" }}>
-                                                    {`${resolvedMeasureField?.label ?? "Measure"}: ${formatRecordField(record, resolvedMeasureFieldName, resolvedMeasureField?.unit)} · ${lookupFieldLabel(fieldOptions, resolvedParameterFieldName)}: ${formatRecordField(record, resolvedParameterFieldName)}`}
-                                                </span>
-                                                <span className={"muted-copy"} style={{ display: "block", marginTop: "0.25rem" }}>{`Observed ${formatDateTime(record.observed_at)}`}</span>
-                                            </Link>
-                                        ))}
+                                        {selectedRecords.map((record) => {
+                                            const propertyLabel = record.property_label?.trim() !== "" ? record.property_label : record.property_id;
+                                            const measureValue = formatRecordField(record, resolvedMeasureFieldName, resolvedMeasureField?.unit);
+                                            const parameterLabel = lookupFieldLabel(fieldOptions, resolvedParameterFieldName);
+                                            const parameterValue = formatRecordField(record, resolvedParameterFieldName);
+                                            return (
+                                                <Link key={record.property_id} style={{ border: "1px solid var(--color-border)", borderRadius: "var(--radius-md)", color: "inherit", padding: "0.875rem", textDecoration: "none" }} to={`/properties/${record.property_id}`}>
+                                                    <strong style={{ display: "block" }}>{propertyLabel}</strong>
+                                                    <span className={"muted-copy"} style={{ display: "block", marginTop: "0.25rem" }}>
+                                                        {`${resolvedMeasureField?.label ?? "Measure"}: ${measureValue} · ${parameterLabel}: ${parameterValue}`}
+                                                    </span>
+                                                    <span className={"muted-copy"} style={{ display: "block", marginTop: "0.25rem" }}>{`Observed ${formatDateTime(record.observed_at)}`}</span>
+                                                </Link>
+                                            );
+                                        })}
                                     </div>
                                 )}
                             </PageCard>

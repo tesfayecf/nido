@@ -72,8 +72,8 @@ export const parseNumeric = (raw: string): number | undefined => {
         return undefined;
     }
 
-    const direct = trimmed.replace(/,(?=\d{3}(?!\d))/gu, "").replace(",", ".");
-    if (NUMERIC_PATTERN.test(direct.replace(/,/gu, "."))) {
+    const direct = trimmed.replace(/,(?=\d{3}(?!\d))/gu, "").replace(/,/gu, ".");
+    if (NUMERIC_PATTERN.test(direct)) {
         const parsed = Number.parseFloat(direct);
         if (Number.isFinite(parsed)) {
             return parsed;
