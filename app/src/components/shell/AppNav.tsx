@@ -3,66 +3,12 @@ import { NavLink, useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
+import { authenticatedSections } from "@/components/shell/navigation";
 import { clearAuthenticatedState, hasActiveSession } from "@/lib/auth/session";
 import { authKeys } from "@/services/auth/auth.keys";
 import { getCurrentUser, logout } from "@/services/auth/auth.service";
 import { useSessionStore } from "@/stores/session.store";
 import { useShellStore } from "@/stores/shell.store";
-
-type IconName =
-    | "bell"
-    | "bookmark"
-    | "clock"
-    | "home"
-    | "history"
-    | "inbox"
-    | "play"
-    | "search"
-    | "settings"
-    | "sources";
-
-interface NavItem {
-    readonly icon: IconName;
-    readonly label: string;
-    readonly to: string;
-}
-
-interface NavSection {
-    readonly items: readonly NavItem[];
-    readonly title: string;
-}
-
-const authenticatedSections: readonly NavSection[] = [
-    {
-        items: [
-            { icon: "home", label: "Dashboard", to: "/dashboard" },
-            { icon: "history", label: "Analytics", to: "/analytics" },
-            { icon: "inbox", label: "Triage", to: "/triage" },
-            { icon: "search", label: "Properties", to: "/properties" },
-            { icon: "bookmark", label: "Fields", to: "/fields" },
-            { icon: "clock", label: "Events", to: "/events" },
-            { icon: "sources", label: "Sources", to: "/sources" },
-            { icon: "history", label: "Runs", to: "/runs" },
-            { icon: "bookmark", label: "Tags", to: "/tags" },
-        ],
-        title: "Workspace",
-    },
-    {
-        items: [
-            { icon: "bookmark", label: "Bookmarks", to: "/bookmarks" },
-            { icon: "play", label: "Alerts", to: "/alerts" },
-            { icon: "bell", label: "Notifications", to: "/notifications" },
-            { icon: "settings", label: "Admin", to: "/admin" },
-        ],
-        title: "Engagement",
-    },
-    {
-        items: [
-            { icon: "settings", label: "Settings", to: "/settings" },
-        ],
-        title: "Account",
-    },
-];
 
 export const AppNav = (): JSX.Element => {
     const navigate = useNavigate();
@@ -90,7 +36,7 @@ export const AppNav = (): JSX.Element => {
             <div className={"app-nav__brand"}>
                 <span aria-hidden className={"app-nav__brand-mark"}>{"H"}</span>
                 <div className={"app-nav__brand-copy"}>
-                    <span className={"app-nav__eyebrow"}>{"Property Tracker"}</span>
+                    <span className={"app-nav__eyebrow"}>{"Acquisition workspace"}</span>
                 </div>
             </div>
 
@@ -125,9 +71,6 @@ export const AppNav = (): JSX.Element => {
                                 <span className={"muted-copy"}>{meQuery.data?.email ?? "Loading profile..."}</span>
                             </div>
                         </div>
-                        <div className={"app-nav__user-controls"}>
-                            <Button as={NavLink} to={"/settings"} variant={"secondary"}>{"Settings"}</Button>
-                        </div>
                         <Button
                             disabled={logoutMutation.isPending}
                             onClick={() => {
@@ -150,7 +93,7 @@ export const AppNav = (): JSX.Element => {
 };
 
 interface NavItemLinkProps {
-    readonly icon: IconName;
+    readonly icon: (typeof authenticatedSections)[number]["items"][number]["icon"];
     readonly label: string;
     readonly to: string;
 }

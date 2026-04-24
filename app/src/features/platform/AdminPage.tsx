@@ -327,7 +327,7 @@ export const AdminPage = (): JSX.Element => {
 
     return (
         <PageStack>
-            <PageCard description={"Control scheduler state, maintenance windows, integrations, and recovery workflows from one place."} title={"Admin Console"}>
+            <PageCard description={"Advanced controls live here so the daily property workflow stays focused on evaluation, shortlisting, and analysis."} title={"Admin / Advanced"}>
                 {summary === undefined ? <p className={"muted-copy"}>{"Loading platform summary..."}</p> : (
                     <KeyValueGrid compact>
                         <KeyValuePair label={"Scheduler"} value={<StatusBadge tone={summary.scheduler_enabled ? "success" : "neutral"} value={summary.scheduler_enabled ? "enabled" : "paused"} />} />
@@ -340,7 +340,7 @@ export const AdminPage = (): JSX.Element => {
                 )}
             </PageCard>
 
-            <PageCard description={"Persist integration and scheduler controls without restarting the server."} title={"Platform Settings"}>
+            <PageCard description={"Persist scheduler, maintenance-window, and integration behavior without exposing technical controls in the core workflow."} title={"Scheduling & Integrations"}>
                 <FormGrid as={"div"} variant={"two-column"}>
                     <Field hint={"Stop scheduling new work immediately while preserving the current queue."} label={"Scheduler enabled"} variant={"checkbox"}>
                         <input checked={settingsDraft.scheduler_enabled} onChange={(event) => { setSettingsDraft((current) => ({ ...current, scheduler_enabled: event.target.checked })); }} type={"checkbox"} />
@@ -366,7 +366,7 @@ export const AdminPage = (): JSX.Element => {
                 </ActionGroup>
             </PageCard>
 
-            <PageCard description={"Pause or resume slices of the portfolio by tag or source without editing every property individually."} title={"Operational Controls"}>
+            <PageCard description={"Pause or resume slices of the portfolio by tag or source without editing every property individually."} title={"Portfolio Operations"}>
                 <FormGrid as={"div"} variant={"two-column"}>
                     <Field label={"Source filter"}>
                         <Select onChange={(event) => { setSelectedSourceId(event.target.value); }} value={selectedSourceId}>
@@ -387,7 +387,7 @@ export const AdminPage = (): JSX.Element => {
                 </ActionGroup>
             </PageCard>
 
-            <PageCard description={"Move data in and out of the workspace with validation previews before persistence."} title={"Import, Export, and Backup"}>
+            <PageCard description={"Move data in and out of the workspace with validation previews before persistence."} title={"Recovery & Data Movement"}>
                 <ActionGroup>
                     <Button onClick={() => { void exportPropertiesCSV(); }} variant={"secondary"}>{"Export properties CSV"}</Button>
                     <Button onClick={() => { void exportJSON("templates"); }} variant={"secondary"}>{"Export templates"}</Button>
@@ -415,7 +415,7 @@ export const AdminPage = (): JSX.Element => {
                 </ActionGroup>
             </PageCard>
 
-            <PageCard description={"Every integration attempt is logged so delivery failures never hide behind the core workflow."} title={"Integration Activity"}>
+            <PageCard description={"Every integration attempt is logged so delivery failures never hide behind the core workflow."} title={"Delivery Log"}>
                 {deliveriesQuery.data === undefined || deliveriesQuery.data.length === 0 ? <EmptyState message={"No integration activity has been recorded yet."} /> : (
                     <DataTable
                         caption={"Recent integration deliveries"}

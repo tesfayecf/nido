@@ -1,3 +1,7 @@
+import { Bar, Line, Scatter } from "react-chartjs-2";
+import type { ActiveElement, ChartData, ChartDataset, ChartOptions } from "chart.js";
+
+import { createBaseChartOptions, useChartTheme } from "@/components/ui/chartTheme";
 import type { AnalyticsAggregateDatum, AnalyticsChartType, AnalyticsScatterDatum } from "@/features/analytics/analytics.utils";
 
 interface AnalyticsChartProps {
@@ -9,9 +13,20 @@ interface AnalyticsChartProps {
     readonly selectedId: string | null;
 }
 
-const CHART_HEIGHT = 320;
-const CHART_WIDTH = 760;
-const COLORS = ["#3b82f6", "#10b981", "#f97316", "#8b5cf6", "#ef4444", "#14b8a6"];
+interface CartesianLookup {
+    readonly datasets: ChartDataset<"bar" | "line", Array<number | null>>[];
+    readonly labels: string[];
+    readonly lookupByDataset: Array<Array<AnalyticsAggregateDatum | undefined>>;
+    readonly showLegend: boolean;
+}
+
+interface ScatterPoint {
+    readonly datumId: string;
+    readonly label: string;
+    readonly segment: string;
+    readonly x: number;
+    readonly y: number;
+}
 
 export const AnalyticsChart = ({
     chartType,
@@ -21,217 +36,260 @@ export const AnalyticsChart = ({
     scatterData,
     selectedId,
 }: AnalyticsChartProps): JSX.Element => {
+    const theme = useChartTheme();
+
     if (chartType === "scatter") {
-        return renderScatterChart({ onHover, onSelect, points: scatterData, selectedId });
+        const lookup = buildScatterLookup(scatterData, theme.series, selectedId, theme.surface);
+        const options = createScatterOptions(theme, lookup.showLegend, onHover, onSelect);
+
+        return (
+            <div className={"enterprise-chart"}>
+                <Scatter data={{ datasets: lookup.datasets }} options={options} />
+            </div>
+        );
     }
+
+    const lookup = buildCartesianLookup(data, chartType, theme.series, selectedId, theme.surface);
+    const sharedOptions = createCartesianOptions(theme, lookup.showLegend, lookup.lookupByDataset, onHover, onSelect);
 
     if (chartType === "line") {
-        return renderLineChart({ data, onHover, onSelect, selectedId });
+        const lineData: ChartData<"line", Array<number | null>, string> = {
+            datasets: lookup.datasets.map((dataset) => ({
+                ...dataset,
+                borderWidth: 2,
+                tension: 0.2,
+            })),
+            labels: lookup.labels,
+        };
+
+        return (
+            <div className={"enterprise-chart"}>
+                <Line data={lineData} options={sharedOptions as ChartOptions<"line">} />
+            </div>
+        );
     }
 
-    if (chartType === "bar-horizontal") {
-        return renderBarChart({ data, horizontal: true, onHover, onSelect, selectedId });
-    }
-
-    return renderBarChart({ data, horizontal: false, onHover, onSelect, selectedId });
-};
-
-const renderBarChart = ({
-    data,
-    horizontal,
-    onHover,
-    onSelect,
-    selectedId,
-}: {
-    readonly data: AnalyticsAggregateDatum[];
-    readonly horizontal: boolean;
-    readonly onHover: (datumId: string | null) => void;
-    readonly onSelect: (datumId: string | null) => void;
-    readonly selectedId: string | null;
-}): JSX.Element => {
-    const maximum = Math.max(...data.map((item) => item.value), 1);
-    const barThickness = Math.max(16, Math.floor((horizontal ? CHART_HEIGHT : CHART_WIDTH) / Math.max(data.length, 1)) - 8);
     return (
-        <svg preserveAspectRatio={"none"} style={{ background: "var(--color-surface-muted)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-md)", height: CHART_HEIGHT, width: "100%" }} viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}>
-            {data.map((item, index) => {
-                const color = COLORS[index % COLORS.length];
-                if (horizontal) {
-                    const y = 24 + (index * (barThickness + 8));
-                    const width = (item.value / maximum) * (CHART_WIDTH - 220);
-                    const isSelected = selectedId === item.id;
-                    return (
-                        <g key={item.id}>
-                            <text fill={"var(--color-text-muted)"} fontSize={12} x={16} y={y + (barThickness / 2) + 4}>{item.segment !== "All properties" ? `${item.segment} · ${item.label}` : item.label}</text>
-                            <rect
-                                aria-label={`${item.label}: ${item.value}`}
-                                fill={color}
-                                fillOpacity={isSelected ? 1 : 0.82}
-                                height={barThickness}
-                                onBlur={() => { onHover(null); }}
-                                onClick={() => { onSelect(item.id); }}
-                                onFocus={() => { onHover(item.id); }}
-                                onMouseEnter={() => { onHover(item.id); }}
-                                onMouseLeave={() => { onHover(null); }}
-                                rx={8}
-                                tabIndex={0}
-                                width={Math.max(width, 4)}
-                                x={200}
-                                y={y}
-                            />
-                        </g>
-                    );
-                }
-
-                const barWidth = Math.max(18, Math.floor((CHART_WIDTH - 48) / Math.max(data.length, 1)) - 8);
-                const x = 24 + (index * (barWidth + 8));
-                const height = (item.value / maximum) * (CHART_HEIGHT - 72);
-                const y = CHART_HEIGHT - height - 28;
-                const isSelected = selectedId === item.id;
-                const label = item.segment !== "All properties" ? `${item.segment} · ${item.label}` : item.label;
-                return (
-                    <g key={item.id}>
-                        <rect
-                            aria-label={`${label}: ${item.value}`}
-                            fill={color}
-                            fillOpacity={isSelected ? 1 : 0.82}
-                            height={Math.max(height, 4)}
-                            onBlur={() => { onHover(null); }}
-                            onClick={() => { onSelect(item.id); }}
-                            onFocus={() => { onHover(item.id); }}
-                            onMouseEnter={() => { onHover(item.id); }}
-                            onMouseLeave={() => { onHover(null); }}
-                            rx={8}
-                            tabIndex={0}
-                            width={barWidth}
-                            x={x}
-                            y={y}
-                        />
-                        <text fill={"var(--color-text-muted)"} fontSize={11} textAnchor={"middle"} x={x + (barWidth / 2)} y={CHART_HEIGHT - 10}>{truncateLabel(label, 16)}</text>
-                    </g>
-                );
-            })}
-        </svg>
+        <div className={"enterprise-chart"}>
+            <Bar
+                data={{ datasets: lookup.datasets, labels: lookup.labels }}
+                options={{
+                    ...(sharedOptions as ChartOptions<"bar">),
+                    indexAxis: chartType === "bar-horizontal" ? "y" : "x",
+                }}
+            />
+        </div>
     );
 };
 
-const renderLineChart = ({
-    data,
-    onHover,
-    onSelect,
-    selectedId,
-}: {
-    readonly data: AnalyticsAggregateDatum[];
-    readonly onHover: (datumId: string | null) => void;
-    readonly onSelect: (datumId: string | null) => void;
-    readonly selectedId: string | null;
-}): JSX.Element => {
-    const grouped = groupSeries(data);
-    const values = data.map((item) => item.value);
-    const minimumY = Math.min(...values, 0);
-    const maximumY = Math.max(...values, 1);
-    const rangeY = maximumY - minimumY || 1;
-    const xValues = data.map((item, index) => item.x_value ?? index);
-    const minimumX = Math.min(...xValues, 0);
-    const maximumX = Math.max(...xValues, 1);
-    const rangeX = maximumX - minimumX || 1;
+const buildCartesianLookup = (
+    data: AnalyticsAggregateDatum[],
+    chartType: AnalyticsChartType,
+    palette: readonly string[],
+    selectedId: string | null,
+    surfaceColor: string,
+): CartesianLookup => {
+    const labels = Array.from(new Set(data.map((item) => item.label)));
+    const labelIndex = new Map(labels.map((label, index) => [label, index]));
+    const segments = Array.from(new Set(data.map((item) => item.segment.trim() !== "" ? item.segment : "All properties")));
+    const showLegend = chartType === "line" || segments.length > 1;
+    const lookupByDataset = segments.map(() => Array<AnalyticsAggregateDatum | undefined>(labels.length).fill(undefined));
 
-    return (
-        <svg preserveAspectRatio={"none"} style={{ background: "var(--color-surface-muted)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-md)", height: CHART_HEIGHT, width: "100%" }} viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}>
-            {grouped.map((series, seriesIndex) => {
-                const color = COLORS[seriesIndex % COLORS.length];
-                const points = series.items.map((item, index) => {
-                    const xValue = item.x_value ?? index;
-                    const x = 32 + (((xValue - minimumX) / rangeX) * (CHART_WIDTH - 64));
-                    const y = CHART_HEIGHT - 32 - (((item.value - minimumY) / rangeY) * (CHART_HEIGHT - 64));
-                    return { ...item, x, y };
-                });
-                return (
-                    <g key={series.segment}>
-                        <polyline fill={"none"} points={points.map((point) => `${point.x},${point.y}`).join(" ")} stroke={color} strokeWidth={4} />
-                        {points.map((point) => (
-                            <circle
-                                aria-label={`${point.segment} ${point.label}: ${point.value}`}
-                                cx={point.x}
-                                cy={point.y}
-                                fill={selectedId === point.id ? color : "white"}
-                                key={point.id}
-                                onBlur={() => { onHover(null); }}
-                                onClick={() => { onSelect(point.id); }}
-                                onFocus={() => { onHover(point.id); }}
-                                onMouseEnter={() => { onHover(point.id); }}
-                                onMouseLeave={() => { onHover(null); }}
-                                r={selectedId === point.id ? 7 : 5}
-                                stroke={color}
-                                strokeWidth={3}
-                                tabIndex={0}
-                            />
-                        ))}
-                    </g>
-                );
-            })}
-        </svg>
-    );
+    const datasets = segments.map((segment, segmentIndex) => {
+        const color = palette[segmentIndex % palette.length] ?? palette[0] ?? "#2f6fed";
+        const values = Array<number | null>(labels.length).fill(null);
+        const backgroundColor = Array<string>(labels.length).fill(`${color}cc`);
+        const pointBackgroundColor = Array<string>(labels.length).fill(surfaceColor);
+        const pointRadius = Array<number>(labels.length).fill(3);
+
+        data.filter((item) => (item.segment.trim() !== "" ? item.segment : "All properties") === segment).forEach((item) => {
+            const index = labelIndex.get(item.label);
+            if (index === undefined) {
+                return;
+            }
+
+            const isSelected = selectedId === item.id;
+            values[index] = item.value;
+            lookupByDataset[segmentIndex]![index] = item;
+            backgroundColor[index] = isSelected ? color : `${color}cc`;
+            pointBackgroundColor[index] = isSelected ? color : surfaceColor;
+            pointRadius[index] = isSelected ? 5 : 3;
+        });
+
+        return {
+            backgroundColor,
+            borderColor: color,
+            borderWidth: 1.5,
+            data: values,
+            label: segment,
+            pointBackgroundColor,
+            pointBorderColor: color,
+            pointRadius,
+            pointHoverRadius: 5,
+        } satisfies ChartDataset<"bar" | "line", Array<number | null>>;
+    });
+
+    return { datasets, labels, lookupByDataset, showLegend };
 };
 
-const renderScatterChart = ({
-    onHover,
-    onSelect,
-    points,
-    selectedId,
-}: {
-    readonly onHover: (datumId: string | null) => void;
-    readonly onSelect: (datumId: string | null) => void;
-    readonly points: AnalyticsScatterDatum[];
-    readonly selectedId: string | null;
-}): JSX.Element => {
-    const minimumX = Math.min(...points.map((point) => point.x), 0);
-    const maximumX = Math.max(...points.map((point) => point.x), 1);
-    const minimumY = Math.min(...points.map((point) => point.y), 0);
-    const maximumY = Math.max(...points.map((point) => point.y), 1);
-    const rangeX = maximumX - minimumX || 1;
-    const rangeY = maximumY - minimumY || 1;
-    const segments = Array.from(new Set(points.map((point) => point.segment)));
+const createCartesianOptions = (
+    theme: ReturnType<typeof useChartTheme>,
+    showLegend: boolean,
+    lookupByDataset: CartesianLookup["lookupByDataset"],
+    onHover: (datumId: string | null) => void,
+    onSelect: (datumId: string | null) => void,
+): ChartOptions<"bar" | "line"> => {
+    const base = createBaseChartOptions<"bar" | "line">(theme, { hideLegend: !showLegend });
 
-    return (
-        <svg preserveAspectRatio={"none"} style={{ background: "var(--color-surface-muted)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-md)", height: CHART_HEIGHT, width: "100%" }} viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}>
-            {points.map((point) => {
-                const segmentIndex = Math.max(segments.indexOf(point.segment), 0);
-                const color = COLORS[segmentIndex % COLORS.length];
-                const x = 32 + (((point.x - minimumX) / rangeX) * (CHART_WIDTH - 64));
-                const y = CHART_HEIGHT - 32 - (((point.y - minimumY) / rangeY) * (CHART_HEIGHT - 64));
-                return (
-                    <circle
-                        aria-label={`${point.label}: ${point.x}, ${point.y}`}
-                        cx={x}
-                        cy={y}
-                        fill={selectedId === point.id ? color : "white"}
-                        key={point.id}
-                        onBlur={() => { onHover(null); }}
-                        onClick={() => { onSelect(point.id); }}
-                        onFocus={() => { onHover(point.id); }}
-                        onMouseEnter={() => { onHover(point.id); }}
-                        onMouseLeave={() => { onHover(null); }}
-                        r={selectedId === point.id ? 7 : 5}
-                        stroke={color}
-                        strokeWidth={3}
-                        tabIndex={0}
-                    />
-                );
-            })}
-        </svg>
-    );
+    return {
+        ...base,
+        interaction: {
+            intersect: false,
+            mode: "nearest",
+        },
+        onClick: (_event, elements) => {
+            onSelect(resolveAggregateId(elements, lookupByDataset));
+        },
+        onHover: (_event, elements) => {
+            onHover(resolveAggregateId(elements, lookupByDataset));
+        },
+        plugins: {
+            ...base.plugins,
+            tooltip: {
+                ...base.plugins?.tooltip,
+                callbacks: {
+                    label: (context) => {
+                        const datum = lookupByDataset[context.datasetIndex]?.[context.dataIndex];
+                        if (datum === undefined) {
+                            return context.formattedValue;
+                        }
+
+                        return `${datum.segment !== "" ? `${datum.segment} · ` : ""}${datum.value.toLocaleString("en")}`;
+                    },
+                    title: (items) => {
+                        const item = items[0];
+                        const datum = item === undefined ? undefined : lookupByDataset[item.datasetIndex]?.[item.dataIndex];
+                        return datum?.label ?? item?.label ?? "";
+                    },
+                },
+            },
+        },
+        scales: {
+            ...base.scales,
+            x: {
+                ...base.scales?.x,
+                ticks: {
+                    ...base.scales?.x?.ticks,
+                    callback: (_value, index) => {
+                        const label = lookupByDataset[0]?.[index]?.label ?? "";
+                        return label.length > 18 ? `${label.slice(0, 17)}…` : label;
+                    },
+                },
+            },
+        },
+    };
 };
 
-const groupSeries = (data: AnalyticsAggregateDatum[]): { readonly items: AnalyticsAggregateDatum[]; readonly segment: string; }[] => {
-    const grouped = new Map<string, AnalyticsAggregateDatum[]>();
-    for (const item of data) {
-        const current = grouped.get(item.segment) ?? [];
-        grouped.set(item.segment, [...current, item]);
+const resolveAggregateId = (
+    elements: readonly ActiveElement[],
+    lookupByDataset: CartesianLookup["lookupByDataset"],
+): string | null => {
+    const first = elements[0];
+    if (first === undefined) {
+        return null;
     }
 
-    return Array.from(grouped.entries()).map(([segment, items]) => ({ items, segment }));
+    return lookupByDataset[first.datasetIndex]?.[first.index]?.id ?? null;
 };
 
-const truncateLabel = (label: string, maxLength: number): string => {
-    return label.length > maxLength ? `${label.slice(0, Math.max(maxLength - 1, 0))}…` : label;
+const buildScatterLookup = (
+    data: AnalyticsScatterDatum[],
+    palette: readonly string[],
+    selectedId: string | null,
+    surfaceColor: string,
+): {
+    readonly datasets: ChartDataset<"scatter", ScatterPoint[]>[];
+    readonly showLegend: boolean;
+} => {
+    const segments = Array.from(new Set(data.map((item) => item.segment)));
+
+    return {
+        datasets: segments.map((segment, segmentIndex) => {
+            const color = palette[segmentIndex % palette.length] ?? palette[0] ?? "#2f6fed";
+            return {
+                backgroundColor: color,
+                borderColor: color,
+                data: data
+                    .filter((item) => item.segment === segment)
+                    .map((item) => ({
+                        datumId: item.id,
+                        label: item.label,
+                        segment: item.segment,
+                        x: item.x,
+                        y: item.y,
+                    })),
+                label: segment,
+                pointBackgroundColor: data
+                    .filter((item) => item.segment === segment)
+                    .map((item) => selectedId === item.id ? color : surfaceColor),
+                pointBorderColor: color,
+                pointHoverRadius: 6,
+                pointRadius: data
+                    .filter((item) => item.segment === segment)
+                    .map((item) => selectedId === item.id ? 6 : 4),
+            } satisfies ChartDataset<"scatter", ScatterPoint[]>;
+        }),
+        showLegend: segments.length > 1,
+    };
+};
+
+const createScatterOptions = (
+    theme: ReturnType<typeof useChartTheme>,
+    showLegend: boolean,
+    onHover: (datumId: string | null) => void,
+    onSelect: (datumId: string | null) => void,
+): ChartOptions<"scatter"> => {
+    const base = createBaseChartOptions<"scatter">(theme, { hideLegend: !showLegend });
+
+    return {
+        ...base,
+        interaction: {
+            intersect: false,
+            mode: "nearest",
+        },
+        onClick: (_event, elements, chart) => {
+            onSelect(resolveScatterId(elements, chart.data));
+        },
+        onHover: (_event, elements, chart) => {
+            onHover(resolveScatterId(elements, chart.data));
+        },
+        plugins: {
+            ...base.plugins,
+            tooltip: {
+                ...base.plugins?.tooltip,
+                callbacks: {
+                    label: (context) => {
+                        const point = context.raw as ScatterPoint;
+                        return `${point.x.toLocaleString("en")} × ${point.y.toLocaleString("en")}`;
+                    },
+                    title: (items) => {
+                        const point = items[0]?.raw as ScatterPoint | undefined;
+                        return point?.label ?? "";
+                    },
+                },
+            },
+        },
+    };
+};
+
+const resolveScatterId = (
+    elements: readonly ActiveElement[],
+    chartData: ChartData<"scatter", ScatterPoint[]>,
+): string | null => {
+    const first = elements[0];
+    if (first === undefined) {
+        return null;
+    }
+
+    return chartData.datasets[first.datasetIndex]?.data[first.index]?.datumId ?? null;
 };
