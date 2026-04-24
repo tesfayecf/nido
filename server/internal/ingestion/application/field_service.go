@@ -24,6 +24,7 @@ type FieldStore interface {
 	UpdateFieldDefinition(ctx context.Context, field ingestiondomain.FieldDefinition) error
 	DeleteFieldDefinition(ctx context.Context, fieldID string) error
 	ListUnmappedFieldGroups(ctx context.Context) ([]ingestiondomain.UnmappedFieldGroup, error)
+	ListAnalyticsRecords(ctx context.Context) ([]ingestiondomain.AnalyticsPropertyRecord, error)
 	RemapPropertyFieldValues(ctx context.Context, propertyID, selectorName, fieldName string) error
 	GetLatestPropertyConfig(ctx context.Context, propertyID string) (ingestiondomain.PropertyExtractionConfig, error)
 	GetProperty(ctx context.Context, propertyID string) (ingestiondomain.Property, error)
@@ -109,6 +110,10 @@ func (s *FieldService) DeleteFieldDefinition(ctx context.Context, fieldID string
 
 func (s *FieldService) ListUnmappedFieldGroups(ctx context.Context) ([]ingestiondomain.UnmappedFieldGroup, error) {
 	return s.store.ListUnmappedFieldGroups(ctx)
+}
+
+func (s *FieldService) ListAnalyticsRecords(ctx context.Context) ([]ingestiondomain.AnalyticsPropertyRecord, error) {
+	return s.store.ListAnalyticsRecords(ctx)
 }
 
 func (s *FieldService) AssignUnmappedField(ctx context.Context, propertyID, selectorName, fieldName string) error {

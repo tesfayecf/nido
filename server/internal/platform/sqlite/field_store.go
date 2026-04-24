@@ -337,6 +337,93 @@ func (s *Store) ListUnmappedFieldGroups(ctx context.Context) ([]ingestiondomain.
 	return items, rows.Err()
 }
 
+// ListAnalyticsRecords returns the latest normalized field values for each property.
+func (s *Store) ListAnalyticsRecords(ctx context.Context) ([]ingestiondomain.AnalyticsPropertyRecord, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		WITH ranked_snapshots AS (
+			SELECT
+				id,
+				property_id,
+				observed_at,
+				ROW_NUMBER() OVER (
+					PARTITION BY property_id
+					ORDER BY observed_at DESC, id DESC
+				) AS row_num
+			FROM property_snapshots
+		),
+		latest_snapshots AS (
+			SELECT id, property_id, observed_at
+			FROM ranked_snapshots
+			WHERE row_num = 1
+		)
+		SELECT
+			p.id,
+			p.label,
+			p.url,
+			p.source_id,
+			p.status,
+			ls.observed_at,
+			fd.name,
+			pfv.value_text
+		FROM latest_snapshots ls
+		INNER JOIN properties p ON p.id = ls.property_id
+		LEFT JOIN property_field_values pfv
+			ON pfv.snapshot_id = ls.id
+			AND pfv.field_definition_id IS NOT NULL
+			AND pfv.validation_status = ?
+		LEFT JOIN field_definitions fd ON fd.id = pfv.field_definition_id
+		ORDER BY p.label ASC, p.url ASC, fd.display_name ASC`,
+		ingestiondomain.FieldValidationStatusValid,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list analytics records: %w", err)
+	}
+	defer rows.Close()
+
+	records := make([]ingestiondomain.AnalyticsPropertyRecord, 0)
+	indexByPropertyID := make(map[string]int)
+	for rows.Next() {
+		var (
+			propertyID    string
+			propertyLabel string
+			propertyURL   string
+			sourceID      string
+			status        string
+			observedAtRaw string
+			fieldName     sql.NullString
+			valueText     sql.NullString
+		)
+		if err := rows.Scan(&propertyID, &propertyLabel, &propertyURL, &sourceID, &status, &observedAtRaw, &fieldName, &valueText); err != nil {
+			return nil, fmt.Errorf("scan analytics record: %w", err)
+		}
+
+		recordIndex, ok := indexByPropertyID[propertyID]
+		if !ok {
+			observedAt, err := parseTime(observedAtRaw)
+			if err != nil {
+				return nil, err
+			}
+			recordIndex = len(records)
+			indexByPropertyID[propertyID] = recordIndex
+			records = append(records, ingestiondomain.AnalyticsPropertyRecord{
+				ObservedAt:    observedAt,
+				PropertyID:    propertyID,
+				PropertyLabel: propertyLabel,
+				PropertyURL:   propertyURL,
+				SourceID:      sourceID,
+				Status:        status,
+				Values:        map[string]string{},
+			})
+		}
+
+		if fieldName.Valid && valueText.Valid {
+			records[recordIndex].Values[fieldName.String] = valueText.String
+		}
+	}
+
+	return records, rows.Err()
+}
+
 // RemapPropertyFieldValues updates normalized values for one property selector group.
 func (s *Store) RemapPropertyFieldValues(ctx context.Context, propertyID, selectorName, fieldName string) error {
 	definition, err := s.GetFieldDefinitionByName(ctx, fieldName)

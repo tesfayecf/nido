@@ -145,6 +145,78 @@ func TestRuntimeBookmarksAlertsAndNotificationsFlow(t *testing.T) {
 	}
 }
 
+func TestRuntimeAnalyticsDatasetUsesLatestNormalizedValues(t *testing.T) {
+	t.Parallel()
+
+	currentPrice := "250000"
+	propertyPageOne := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.WriteString(w, `<html><body>
+			<span data-field="price">`+currentPrice+`</span>
+			<span data-field="bedrooms">3</span>
+			<span data-field="location">Bilbao</span>
+		</body></html>`)
+	}))
+	defer propertyPageOne.Close()
+
+	propertyPageTwo := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.WriteString(w, `<html><body>
+			<span data-field="price">310000</span>
+			<span data-field="bedrooms">4</span>
+			<span data-field="location">Getxo</span>
+		</body></html>`)
+	}))
+	defer propertyPageTwo.Close()
+
+	server, token := newRuntimeServer(t)
+	defer server.Close()
+
+	createSource(t, server.URL, token, map[string]any{
+		"id":          "analytics-template",
+		"name":        "Analytics template",
+		"config_json": `[{"name":"price","selectors":["[data-field='price']"],"required":true,"field_name":"price"},{"name":"bedrooms","selectors":["[data-field='bedrooms']"],"required":false,"field_name":"bedrooms"},{"name":"location","selectors":["[data-field='location']"],"required":false,"field_name":"location"}]`,
+	})
+
+	propertyOne := createProperty(t, server.URL, token, map[string]any{
+		"label":     "Bilbao flat",
+		"source_id": "analytics-template",
+		"url":       propertyPageOne.URL,
+	})
+	propertyTwo := createProperty(t, server.URL, token, map[string]any{
+		"label":     "Getxo house",
+		"source_id": "analytics-template",
+		"url":       propertyPageTwo.URL,
+	})
+
+	mustJSONRequest(t, http.MethodPost, server.URL+"/api/v1/backoffice/properties/"+propertyOne.ID+"/ingest", token, nil, http.StatusOK, nil)
+	currentPrice = "245000"
+	mustJSONRequest(t, http.MethodPost, server.URL+"/api/v1/backoffice/properties/"+propertyOne.ID+"/ingest", token, nil, http.StatusOK, nil)
+	mustJSONRequest(t, http.MethodPost, server.URL+"/api/v1/backoffice/properties/"+propertyTwo.ID+"/ingest", token, nil, http.StatusOK, nil)
+
+	var dataset struct {
+		Count int `json:"count"`
+		Items []struct {
+			PropertyID    string            `json:"property_id"`
+			PropertyLabel string            `json:"property_label"`
+			Values        map[string]string `json:"values"`
+		} `json:"items"`
+	}
+	mustJSONRequest(t, http.MethodGet, server.URL+"/api/v1/backoffice/analytics/dataset", token, nil, http.StatusOK, &dataset)
+	if dataset.Count != 2 || len(dataset.Items) != 2 {
+		t.Fatalf("unexpected analytics payload: %+v", dataset)
+	}
+
+	records := make(map[string]map[string]string, len(dataset.Items))
+	for _, item := range dataset.Items {
+		records[item.PropertyLabel] = item.Values
+	}
+	if got := records["Bilbao flat"]["price"]; got != "245000" {
+		t.Fatalf("expected latest price for Bilbao flat, got %q", got)
+	}
+	if got := records["Getxo house"]["bedrooms"]; got != "4" {
+		t.Fatalf("expected normalized bedrooms for Getxo house, got %q", got)
+	}
+}
+
 type createdProperty struct {
 	ID string `json:"id"`
 }
