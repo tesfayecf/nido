@@ -12,6 +12,7 @@ import { LoginPage } from "@/features/auth/LoginPage";
 import { AlertsPage } from "@/features/engagement/AlertsPage";
 import { BookmarksPage } from "@/features/engagement/BookmarksPage";
 import { NotificationsPage } from "@/features/engagement/NotificationsPage";
+import { AnalyticsPage } from "@/features/analytics/AnalyticsPage";
 import { FieldsPage } from "@/features/fields/FieldsPage";
 import { DashboardPage } from "@/features/operators/DashboardPage";
 import { AdminPage } from "@/features/platform/AdminPage";
@@ -43,6 +44,10 @@ export const router = createBrowserRouter([
                     {
                         path: "dashboard",
                         element: <DashboardPage />,
+                    },
+                    {
+                        path: "analytics",
+                        element: <AnalyticsPage />,
                     },
                     {
                         path: "triage",
