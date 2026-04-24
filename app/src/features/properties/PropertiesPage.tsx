@@ -35,7 +35,7 @@ import type { Tag } from "@/services/tags/tags.types";
 
 const DEFAULT_TAG_MATCH = "any" as const;
 const RUN_FILTERS = { limit: 150, property_id: "" };
-const STATUS_FILTER_OPTIONS: readonly Array<{ readonly label: string; readonly value: PropertyStatus | "all"; }> = [
+const STATUS_FILTER_OPTIONS: readonly { readonly label: string; readonly value: PropertyStatus | "all"; }[] = [
     { label: "All statuses", value: "all" },
     { label: "Active", value: "active" },
     { label: "Degraded", value: "degraded" },
@@ -294,7 +294,7 @@ export const PropertiesPage = (): JSX.Element => {
                     row.facts.join(" "),
                     row.signals.map((signal) => signal.label).join(" "),
                     row.tags.map((tag) => tag.name).join(" "),
-                ].some((value) => value !== undefined && value.toLowerCase().includes(normalizedSearch));
+                ].some((value) => value?.toLowerCase().includes(normalizedSearch) === true);
             return matchesStatus && matchesLocation && matchesSearch;
         });
     }, [locationFilter, propertyRows, searchValue, statusFilter]);
@@ -704,15 +704,19 @@ const buildPropertyTableRow = (
             signals.push({ label: "Above target", tone: "warning" });
         }
     }
+
     if (latestRun?.change_flags?.price === true) {
         signals.push({ label: "Price updated", tone: "warning" });
     }
+
     if (property.status !== "active") {
         signals.push({ label: "Needs review", tone: statusTone(property.status) === "danger" ? "danger" : "warning" });
     }
+
     if (isBookmarked) {
         signals.push({ label: "Saved", tone: "neutral" });
     }
+
     if (signals.length === 0) {
         signals.push({ label: "Stable", tone: "success" });
     }

@@ -26,7 +26,7 @@ export interface NavSection {
     readonly title: string;
 }
 
-export const authenticatedSections: readonly NavSection[] = [
+export const AUTHENTICATED_SECTIONS: readonly NavSection[] = [
     {
         items: [
             { icon: "search", label: "Properties", to: "/properties" },

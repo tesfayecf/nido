@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
-import { authenticatedSections } from "@/components/shell/navigation";
+import { AUTHENTICATED_SECTIONS } from "@/components/shell/navigation";
 import { clearAuthenticatedState, hasActiveSession } from "@/lib/auth/session";
 import { authKeys } from "@/services/auth/auth.keys";
 import { getCurrentUser, logout } from "@/services/auth/auth.service";
@@ -41,7 +41,7 @@ export const AppNav = (): JSX.Element => {
             </div>
 
             <nav aria-label={"Primary"} className={"app-nav__sections"}>
-                {authenticatedSections.map((section) => {
+                {AUTHENTICATED_SECTIONS.map((section) => {
                     return (
                         <section className={"app-nav__section"} key={section.title}>
                             <p className={"app-nav__section-label"}>{section.title}</p>
@@ -93,7 +93,7 @@ export const AppNav = (): JSX.Element => {
 };
 
 interface NavItemLinkProps {
-    readonly icon: (typeof authenticatedSections)[number]["items"][number]["icon"];
+    readonly icon: (typeof AUTHENTICATED_SECTIONS)[number]["items"][number]["icon"];
     readonly label: string;
     readonly to: string;
 }

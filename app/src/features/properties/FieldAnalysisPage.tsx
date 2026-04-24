@@ -12,7 +12,7 @@ import { PageCard } from "@/components/ui/PageCard";
 import { PageStack } from "@/components/ui/PageStack";
 import { SparklineChart } from "@/components/ui/SparklineChart";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { createBaseChartOptions, useChartTheme } from "@/components/ui/chartTheme";
+import { createBaseChartOptions, isChartJsdom, useChartTheme } from "@/components/ui/chartTheme";
 import { formatDateTime } from "@/lib/format/date";
 import { propertyKeys } from "@/services/properties/properties.keys";
 import { getProperty, listPropertySnapshots } from "@/services/properties/properties.service";
@@ -198,6 +198,10 @@ interface FieldBarDatum {
 }
 
 const FieldBarChart = ({ data, horizontal = false, label }: { readonly data: readonly FieldBarDatum[]; readonly horizontal?: boolean; readonly label: string; }): JSX.Element => {
+    if (isChartJsdom()) {
+        return <div className={"field-analysis__bar-chart"} />;
+    }
+
     const theme = useChartTheme();
     const baseOptions = createBaseChartOptions<"bar">(theme, { hideLegend: true });
 

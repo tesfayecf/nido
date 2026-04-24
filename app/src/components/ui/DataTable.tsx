@@ -22,7 +22,7 @@ interface DataTableProps<TItem> {
     readonly compact?: boolean;
     readonly emptyMessage: string;
     readonly getRowId: (item: TItem) => string;
-    readonly initialSortColumnId?: string;
+    readonly initialSortColumnId?: string | null;
     readonly initialSortDirection?: "asc" | "desc";
     readonly items: TItem[];
     readonly onRowClick?: (item: TItem) => void;

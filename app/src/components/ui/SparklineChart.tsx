@@ -1,6 +1,6 @@
 import { Line } from "react-chartjs-2";
 
-import { createBaseChartOptions, useChartTheme } from "@/components/ui/chartTheme";
+import { createBaseChartOptions, isChartJsdom, useChartTheme } from "@/components/ui/chartTheme";
 import { classNames } from "@/lib/ui/classNames";
 
 interface SparklineChartProps {
@@ -10,6 +10,10 @@ interface SparklineChartProps {
 }
 
 export const SparklineChart = ({ className, hero = false, points }: SparklineChartProps): JSX.Element => {
+    if (isChartJsdom()) {
+        return <div className={classNames("sparkline", hero && "sparkline--hero", className)} />;
+    }
+
     const theme = useChartTheme();
 
     if (points.length === 0) {

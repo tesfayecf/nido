@@ -1,7 +1,7 @@
 import { Bar, Line, Scatter } from "react-chartjs-2";
-import type { ActiveElement, ChartData, ChartDataset, ChartOptions } from "chart.js";
+import type { ActiveElement, ChartDataset, ChartOptions } from "chart.js";
 
-import { createBaseChartOptions, useChartTheme } from "@/components/ui/chartTheme";
+import { createBaseChartOptions, isChartJsdom, useChartTheme } from "@/components/ui/chartTheme";
 import type { AnalyticsAggregateDatum, AnalyticsChartType, AnalyticsScatterDatum } from "@/features/analytics/analytics.utils";
 
 interface AnalyticsChartProps {
@@ -14,16 +14,15 @@ interface AnalyticsChartProps {
 }
 
 interface CartesianLookup {
-    readonly datasets: ChartDataset<"bar" | "line", Array<number | null>>[];
+    readonly datasets: ChartDataset<"bar" | "line", (number | null)[]>[];
     readonly labels: string[];
-    readonly lookupByDataset: Array<Array<AnalyticsAggregateDatum | undefined>>;
+    readonly lookupByDataset: (AnalyticsAggregateDatum | undefined)[][];
     readonly showLegend: boolean;
 }
 
 interface ScatterPoint {
     readonly datumId: string;
     readonly label: string;
-    readonly segment: string;
     readonly x: number;
     readonly y: number;
 }
@@ -36,6 +35,10 @@ export const AnalyticsChart = ({
     scatterData,
     selectedId,
 }: AnalyticsChartProps): JSX.Element => {
+    if (isChartJsdom()) {
+        return <div aria-label={`${chartType} chart`} className={"enterprise-chart"} />;
+    }
+
     const theme = useChartTheme();
 
     if (chartType === "scatter") {
@@ -53,18 +56,15 @@ export const AnalyticsChart = ({
     const sharedOptions = createCartesianOptions(theme, lookup.showLegend, lookup.lookupByDataset, onHover, onSelect);
 
     if (chartType === "line") {
-        const lineData: ChartData<"line", Array<number | null>, string> = {
-            datasets: lookup.datasets.map((dataset) => ({
-                ...dataset,
-                borderWidth: 2,
-                tension: 0.2,
-            })),
-            labels: lookup.labels,
-        };
-
         return (
             <div className={"enterprise-chart"}>
-                <Line data={lineData} options={sharedOptions as ChartOptions<"line">} />
+                <Line
+                    data={{
+                        datasets: lookup.datasets as unknown as ChartDataset<"line", (number | null)[]>[],
+                        labels: lookup.labels,
+                    }}
+                    options={sharedOptions as ChartOptions<"line">}
+                />
             </div>
         );
     }
@@ -72,7 +72,10 @@ export const AnalyticsChart = ({
     return (
         <div className={"enterprise-chart"}>
             <Bar
-                data={{ datasets: lookup.datasets, labels: lookup.labels }}
+                data={{
+                    datasets: lookup.datasets as unknown as ChartDataset<"bar", (number | null)[]>[],
+                    labels: lookup.labels,
+                }}
                 options={{
                     ...(sharedOptions as ChartOptions<"bar">),
                     indexAxis: chartType === "bar-horizontal" ? "y" : "x",
@@ -93,14 +96,14 @@ const buildCartesianLookup = (
     const labelIndex = new Map(labels.map((label, index) => [label, index]));
     const segments = Array.from(new Set(data.map((item) => item.segment.trim() !== "" ? item.segment : "All properties")));
     const showLegend = chartType === "line" || segments.length > 1;
-    const lookupByDataset = segments.map(() => Array<AnalyticsAggregateDatum | undefined>(labels.length).fill(undefined));
+    const lookupByDataset = segments.map(() => new Array<AnalyticsAggregateDatum | undefined>(labels.length).fill(undefined));
 
     const datasets = segments.map((segment, segmentIndex) => {
         const color = palette[segmentIndex % palette.length] ?? palette[0] ?? "#2f6fed";
-        const values = Array<number | null>(labels.length).fill(null);
-        const backgroundColor = Array<string>(labels.length).fill(`${color}cc`);
-        const pointBackgroundColor = Array<string>(labels.length).fill(surfaceColor);
-        const pointRadius = Array<number>(labels.length).fill(3);
+        const values = new Array<number | null>(labels.length).fill(null);
+        const backgroundColor = new Array<string>(labels.length).fill(`${color}cc`);
+        const pointBackgroundColor = new Array<string>(labels.length).fill(surfaceColor);
+        const pointRadius = new Array<number>(labels.length).fill(3);
 
         data.filter((item) => (item.segment.trim() !== "" ? item.segment : "All properties") === segment).forEach((item) => {
             const index = labelIndex.get(item.label);
@@ -108,9 +111,14 @@ const buildCartesianLookup = (
                 return;
             }
 
+            const currentLookup = lookupByDataset[segmentIndex];
+            if (currentLookup === undefined) {
+                return;
+            }
+
             const isSelected = selectedId === item.id;
             values[index] = item.value;
-            lookupByDataset[segmentIndex]![index] = item;
+            currentLookup[index] = item;
             backgroundColor[index] = isSelected ? color : `${color}cc`;
             pointBackgroundColor[index] = isSelected ? color : surfaceColor;
             pointRadius[index] = isSelected ? 5 : 3;
@@ -124,9 +132,9 @@ const buildCartesianLookup = (
             label: segment,
             pointBackgroundColor,
             pointBorderColor: color,
-            pointRadius,
             pointHoverRadius: 5,
-        } satisfies ChartDataset<"bar" | "line", Array<number | null>>;
+            pointRadius,
+        } satisfies ChartDataset<"bar" | "line", (number | null)[]>;
     });
 
     return { datasets, labels, lookupByDataset, showLegend };
@@ -215,28 +223,22 @@ const buildScatterLookup = (
 
     return {
         datasets: segments.map((segment, segmentIndex) => {
+            const segmentData = data.filter((item) => item.segment === segment);
             const color = palette[segmentIndex % palette.length] ?? palette[0] ?? "#2f6fed";
             return {
                 backgroundColor: color,
                 borderColor: color,
-                data: data
-                    .filter((item) => item.segment === segment)
-                    .map((item) => ({
-                        datumId: item.id,
-                        label: item.label,
-                        segment: item.segment,
-                        x: item.x,
-                        y: item.y,
-                    })),
+                data: segmentData.map((item) => ({
+                    datumId: item.id,
+                    label: item.label,
+                    x: item.x,
+                    y: item.y,
+                })),
                 label: segment,
-                pointBackgroundColor: data
-                    .filter((item) => item.segment === segment)
-                    .map((item) => selectedId === item.id ? color : surfaceColor),
+                pointBackgroundColor: segmentData.map((item) => selectedId === item.id ? color : surfaceColor),
                 pointBorderColor: color,
                 pointHoverRadius: 6,
-                pointRadius: data
-                    .filter((item) => item.segment === segment)
-                    .map((item) => selectedId === item.id ? 6 : 4),
+                pointRadius: segmentData.map((item) => selectedId === item.id ? 6 : 4),
             } satisfies ChartDataset<"scatter", ScatterPoint[]>;
         }),
         showLegend: segments.length > 1,
@@ -258,10 +260,10 @@ const createScatterOptions = (
             mode: "nearest",
         },
         onClick: (_event, elements, chart) => {
-            onSelect(resolveScatterId(elements, chart.data));
+            onSelect(resolveScatterId(elements, chart.data as unknown as { readonly datasets: { readonly data: ScatterPoint[]; }[]; }));
         },
         onHover: (_event, elements, chart) => {
-            onHover(resolveScatterId(elements, chart.data));
+            onHover(resolveScatterId(elements, chart.data as unknown as { readonly datasets: { readonly data: ScatterPoint[]; }[]; }));
         },
         plugins: {
             ...base.plugins,
@@ -284,7 +286,7 @@ const createScatterOptions = (
 
 const resolveScatterId = (
     elements: readonly ActiveElement[],
-    chartData: ChartData<"scatter", ScatterPoint[]>,
+    chartData: { readonly datasets: { readonly data: ScatterPoint[]; }[]; },
 ): string | null => {
     const first = elements[0];
     if (first === undefined) {

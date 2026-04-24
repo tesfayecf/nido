@@ -35,6 +35,14 @@ const FALLBACK_THEME: ChartTheme = {
     text: "#101828",
 };
 
+const isJsdom = (): boolean => {
+    return typeof navigator !== "undefined" && navigator.userAgent.toLowerCase().includes("jsdom");
+};
+
+export const isChartJsdom = (): boolean => {
+    return isJsdom();
+};
+
 const readCssVariable = (name: string, fallback: string): string => {
     if (typeof window === "undefined") {
         return fallback;
@@ -94,75 +102,79 @@ interface BaseChartOptions {
 export const createBaseChartOptions = <TType extends ChartType>(
     theme: ChartTheme,
     options: BaseChartOptions = {},
-): ChartOptions<TType> => ({
-    animation: false,
-    maintainAspectRatio: false,
-    normalized: true,
-    plugins: {
-        legend: {
-            display: options.hideLegend !== true,
-            labels: {
-                boxHeight: 8,
-                boxWidth: 8,
-                color: theme.muted,
-                font: {
-                    size: 11,
+): ChartOptions<TType> => {
+    const baseOptions = {
+        animation: false,
+        maintainAspectRatio: false,
+        normalized: true,
+        plugins: {
+            legend: {
+                display: options.hideLegend !== true,
+                labels: {
+                    boxHeight: 8,
+                    boxWidth: 8,
+                    color: theme.muted,
+                    font: {
+                        size: 11,
+                        weight: "600",
+                    },
+                    padding: 12,
+                    usePointStyle: true,
+                },
+                position: "bottom",
+            },
+            tooltip: {
+                backgroundColor: theme.surface,
+                bodyColor: theme.text,
+                borderColor: theme.border,
+                borderWidth: 1,
+                displayColors: false,
+                padding: 10,
+                titleColor: theme.text,
+                titleFont: {
+                    size: 12,
                     weight: "600",
                 },
-                padding: 12,
-                usePointStyle: true,
-            },
-            position: "bottom",
-        },
-        tooltip: {
-            backgroundColor: theme.surface,
-            bodyColor: theme.text,
-            borderColor: theme.border,
-            borderWidth: 1,
-            displayColors: false,
-            padding: 10,
-            titleColor: theme.text,
-            titleFont: {
-                size: 12,
-                weight: "600",
             },
         },
-    },
-    responsive: true,
-    scales: {
-        x: {
-            border: {
-                color: theme.grid,
-            },
-            display: options.hideXAxis !== true,
-            grid: {
-                color: theme.grid,
+        responsive: !isJsdom(),
+        scales: {
+            x: {
+                border: {
+                    color: theme.grid,
+                },
                 display: options.hideXAxis !== true,
-                drawTicks: false,
-            },
-            ticks: {
-                color: theme.muted,
-                font: {
-                    size: 11,
+                grid: {
+                    color: theme.grid,
+                    display: options.hideXAxis !== true,
+                    drawTicks: false,
                 },
-                maxRotation: 0,
-            },
-        },
-        y: {
-            border: {
-                color: theme.grid,
-            },
-            display: options.hideYAxis !== true,
-            grid: {
-                color: theme.grid,
-                drawTicks: false,
-            },
-            ticks: {
-                color: theme.muted,
-                font: {
-                    size: 11,
+                ticks: {
+                    color: theme.muted,
+                    font: {
+                        size: 11,
+                    },
+                    maxRotation: 0,
                 },
             },
+            y: {
+                border: {
+                    color: theme.grid,
+                },
+                display: options.hideYAxis !== true,
+                grid: {
+                    color: theme.grid,
+                    drawTicks: false,
+                },
+                ticks: {
+                    color: theme.muted,
+                    font: {
+                        size: 11,
+                    },
+                },
+            },
         },
-    },
-});
+    };
+
+    return baseOptions as unknown as ChartOptions<TType>;
+};
