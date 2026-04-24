@@ -5,11 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"mime/multipart"
 	"net/http"
-	"strconv"
 	"strings"
-	"time"
 
 	authapp "home-searcher/server/internal/auth/application"
 	authhttp "home-searcher/server/internal/auth/transport/httpapi"
@@ -470,17 +467,4 @@ func readCSVInput(r *http.Request) (io.Reader, error) {
 		return nil, err
 	}
 	return bytes.NewReader(data), nil
-}
-
-func _unusedMultipart(_ multipart.File) {}
-
-func parseOptionalTime(value string) *time.Time {
-	if strings.TrimSpace(value) == "" {
-		return nil
-	}
-	if unix, err := strconv.ParseInt(strings.TrimSpace(value), 10, 64); err == nil {
-		t := time.Unix(unix, 0).UTC()
-		return &t
-	}
-	return nil
 }

@@ -7,6 +7,7 @@ type IconName =
     | "bell"
     | "bookmark"
     | "bookmark-filled"
+    | "chart"
     | "check"
     | "chevron-down"
     | "clock"
@@ -38,6 +39,7 @@ const paths: Record<IconName, JSX.Element> = {
     bell: <path d={"M6 8a6 6 0 1 1 12 0v3.5l1.5 3H4.5L6 11.5V8Zm3.5 9.5a2.5 2.5 0 0 0 5 0"} fill={"none"} stroke={"currentColor"} strokeLinecap={"round"} strokeLinejoin={"round"} strokeWidth={1.75} />,
     bookmark: <path d={"M6 4h12v17l-6-4-6 4V4Z"} fill={"none"} stroke={"currentColor"} strokeLinecap={"round"} strokeLinejoin={"round"} strokeWidth={1.75} />,
     "bookmark-filled": <path d={"M6 4h12v17l-6-4-6 4V4Z"} fill={"currentColor"} stroke={"currentColor"} strokeLinecap={"round"} strokeLinejoin={"round"} strokeWidth={1.75} />,
+    chart: <path d={"M5 19V9m7 10V5m7 14v-7M3 19h18"} fill={"none"} stroke={"currentColor"} strokeLinecap={"round"} strokeLinejoin={"round"} strokeWidth={1.75} />,
     check: <path d={"M5 12l4.5 4.5L19 7"} fill={"none"} stroke={"currentColor"} strokeLinecap={"round"} strokeLinejoin={"round"} strokeWidth={1.75} />,
     "chevron-down": <path d={"M6 9l6 6 6-6"} fill={"none"} stroke={"currentColor"} strokeLinecap={"round"} strokeLinejoin={"round"} strokeWidth={1.75} />,
     clock: <path d={"M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"} fill={"none"} stroke={"currentColor"} strokeLinecap={"round"} strokeLinejoin={"round"} strokeWidth={1.75} />,

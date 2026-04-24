@@ -391,7 +391,7 @@ export const AdminConsolePage = (): JSX.Element => {
                     <Field label={"Scope value"}>
                         <Select onChange={(event) => { setPauseForm((current) => ({ ...current, scope_value: event.target.value })); }} value={pauseForm.scope_value}>
                             <option value={""}>{"Select a target"}</option>
-                            {pauseOptions.map((option: { label: string; value: string; }) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                            {pauseOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                         </Select>
                     </Field>
                     <Field label={"Reason"}>
