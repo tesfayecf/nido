@@ -1677,17 +1677,12 @@ func (s *Store) UpsertPropertyConfig(ctx context.Context, config ingestiondomain
 // GetLatestPropertyConfig returns the most recent config for a property.
 // Returns an empty config (not an error) when no config exists yet.
 func (s *Store) GetLatestPropertyConfig(ctx context.Context, propertyID string) (ingestiondomain.PropertyExtractionConfig, error) {
-	var (
-		config     ingestiondomain.PropertyExtractionConfig
-		fieldsJSON string
-		createdAt  string
-	)
-
-	err := s.db.QueryRowContext(
+	row := s.db.QueryRowContext(
 		ctx,
 		`SELECT id, property_id, fields_json, version, created_at, change_summary FROM property_extraction_configs WHERE property_id = ? ORDER BY version DESC LIMIT 1`,
 		propertyID,
-	).Scan(&config.ID, &config.PropertyID, &fieldsJSON, &config.Version, &createdAt, &config.ChangeSummary)
+	)
+	config, err := scanPropertyConfig(row)
 	if errors.Is(err, sql.ErrNoRows) {
 		return ingestiondomain.PropertyExtractionConfig{
 			PropertyID: propertyID,
@@ -1696,18 +1691,6 @@ func (s *Store) GetLatestPropertyConfig(ctx context.Context, propertyID string) 
 	}
 	if err != nil {
 		return ingestiondomain.PropertyExtractionConfig{}, fmt.Errorf("get latest property config: %w", err)
-	}
-
-	if err := json.Unmarshal([]byte(fieldsJSON), &config.Fields); err != nil {
-		return ingestiondomain.PropertyExtractionConfig{}, fmt.Errorf("unmarshal property fields: %w", err)
-	}
-	if config.Fields == nil {
-		config.Fields = []ingestiondomain.FieldSelector{}
-	}
-
-	config.CreatedAt, err = parseTime(createdAt)
-	if err != nil {
-		return ingestiondomain.PropertyExtractionConfig{}, err
 	}
 
 	return config, nil

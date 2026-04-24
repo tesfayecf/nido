@@ -351,15 +351,25 @@ func summarizeConfigChange(previous, current []ingestiondomain.FieldSelector) st
 }
 
 func selectorsEqual(left, right ingestiondomain.FieldSelector) bool {
-	leftJSON, err := json.Marshal(left)
-	if err != nil {
+	if left.Name != right.Name ||
+		left.SelectorType != right.SelectorType ||
+		left.SelectorValue != right.SelectorValue ||
+		left.ExtractionMode != right.ExtractionMode ||
+		left.TextMode != right.TextMode ||
+		left.Attribute != right.Attribute ||
+		left.Transform != right.Transform ||
+		left.Required != right.Required ||
+		len(left.FallbackSelectors) != len(right.FallbackSelectors) {
 		return false
 	}
-	rightJSON, err := json.Marshal(right)
-	if err != nil {
-		return false
+
+	for index, selector := range left.FallbackSelectors {
+		if right.FallbackSelectors[index] != selector {
+			return false
+		}
 	}
-	return bytes.Equal(leftJSON, rightJSON)
+
+	return true
 }
 
 // ListPropertySnapshots returns recent runs for a property.

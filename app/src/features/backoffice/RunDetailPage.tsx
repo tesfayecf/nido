@@ -21,6 +21,7 @@ import { runKeys } from "@/services/backoffice-runs/runs.keys";
 import { deleteRun, getRun } from "@/services/backoffice-runs/runs.service";
 import { propertyKeys } from "@/services/properties/properties.keys";
 import { listPropertySnapshots } from "@/services/properties/properties.service";
+import type { PropertySnapshot } from "@/services/properties/properties.types";
 
 export const RunDetailPage = (): JSX.Element => {
     const navigate = useNavigate();
@@ -82,7 +83,16 @@ export const RunDetailPage = (): JSX.Element => {
     }
 
     const run = runQuery.data;
-    const currentSnapshot = runHistoryQuery.data?.find((snapshot) => snapshot.id === run.id) ?? run;
+    const currentSnapshot: PropertySnapshot = runHistoryQuery.data?.find((snapshot) => snapshot.id === run.id) ?? {
+        change_flags: run.change_flags,
+        config_version: run.config_version,
+        error_message: run.error_message,
+        id: run.id,
+        is_valid: run.is_valid,
+        observed_at: run.observed_at,
+        property_id: run.property_id,
+        values: run.values,
+    };
     const currentIndex = runHistoryQuery.data?.findIndex((snapshot) => snapshot.id === run.id) ?? -1;
     const previousSnapshot = currentIndex >= 0 ? runHistoryQuery.data?.[currentIndex + 1] : runHistoryQuery.data?.find((snapshot) => snapshot.id !== run.id);
     const fieldChanges = buildRunFieldChanges(currentSnapshot, previousSnapshot);

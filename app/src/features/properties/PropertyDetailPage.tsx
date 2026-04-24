@@ -236,7 +236,11 @@ export const PropertyDetailPage = (): JSX.Element => {
                     .filter((row) => row.name.trim() !== "")
                     .map(draftToSelector);
                 if (configuredFields.length > 0) {
-                    await upsertPropertyConfig(data.id, configuredFields);
+                    try {
+                        await upsertPropertyConfig(data.id, configuredFields);
+                    } catch {
+                        pushToast("Property created, but the initial config could not be saved. Open the property to review the selectors.", "error");
+                    }
                 }
             }
 
@@ -368,11 +372,12 @@ export const PropertyDetailPage = (): JSX.Element => {
         return snapshots.filter((snapshot) => snapshot.config_version === snapshotConfigFilter);
     }, [snapshotConfigFilter, snapshotsQuery.data]);
     const configVersions = configVersionsQuery.data ?? [];
+    const oldestConfig = configVersions[configVersions.length - 1] ?? configVersions[0];
+    const newestConfig = configVersions[0];
     const selectedLeftConfig = configVersions.find((config) => config.version === compareLeftVersion)
-        ?? configVersions[1]
-        ?? configVersions[0];
+        ?? oldestConfig;
     const selectedRightConfig = configVersions.find((config) => config.version === compareRightVersion)
-        ?? configVersions[0];
+        ?? newestConfig;
     const configDiff = diffPropertyConfigs(selectedLeftConfig, selectedRightConfig);
     const persistedScheduleSummary = useMemo(() => {
         if (propertyQuery.data?.schedule_interval_seconds === undefined || propertyQuery.data.schedule_interval_seconds <= 0) {

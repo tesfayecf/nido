@@ -13,12 +13,12 @@ export interface RunFieldChange {
 const IMPORTANT_FIELDS = ["price", "availability", "status", "title", "location"];
 
 const parseComparableNumber = (value: string): number | undefined => {
-    const digits = value.replace(/[^0-9.-]/g, "");
-    if (digits.trim() === "" || digits === "-" || digits === "." || digits === "-.") {
+    const match = value.match(/-?\d+(?:\.\d+)?/);
+    if (match === null) {
         return undefined;
     }
 
-    const parsed = Number(digits);
+    const parsed = Number(match[0]);
     return Number.isFinite(parsed) ? parsed : undefined;
 };
 
