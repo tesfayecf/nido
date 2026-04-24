@@ -4,14 +4,19 @@ import { Button } from "@/components/ui/Button";
 import { DataTable } from "@/components/ui/DataTable";
 import { Dialog } from "@/components/ui/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { Field } from "@/components/ui/Field";
+import { Input } from "@/components/ui/Input";
 import { PageCard } from "@/components/ui/PageCard";
 import { Preformatted } from "@/components/ui/Preformatted";
+import { Select } from "@/components/ui/Select";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { Toolbar } from "@/components/ui/Toolbar";
 import { connectBackofficeEvents } from "@/services/backoffice-events/events.service";
 import type { BackofficeEvent } from "@/services/backoffice-events/events.types";
 import { formatDateTime } from "@/lib/format/date";
 import { useLiveEventsStore } from "@/stores/live-events.store";
 import { useSessionStore } from "@/stores/session.store";
+import { eventSeverity, eventTone, readEntityId, summarizeEventData } from "@/features/operators/operatorWorkflows";
 
 export const EventsPage = (): JSX.Element => {
     const token = useSessionStore((state) => state.token);
@@ -22,6 +27,11 @@ export const EventsPage = (): JSX.Element => {
     const removeEvent = useLiveEventsStore((state) => state.removeEvent);
     const setConnectionState = useLiveEventsStore((state) => state.setConnectionState);
     const [selectedEvent, setSelectedEvent] = useState<BackofficeEvent | null>(null);
+    const [eventTypeFilter, setEventTypeFilter] = useState("");
+    const [propertyIdFilter, setPropertyIdFilter] = useState("");
+    const [sourceIdFilter, setSourceIdFilter] = useState("");
+    const [severityFilter, setSeverityFilter] = useState("");
+    const [pinnedEventIds, setPinnedEventIds] = useState<string[]>([]);
 
     useEffect(() => {
         if (token === null) {
@@ -53,74 +63,193 @@ export const EventsPage = (): JSX.Element => {
         };
     }, [addEvent, setConnectionState, token]);
 
-    const eventRows = useMemo(() => items.map((item) => ({
+    const eventTypeOptions = useMemo(() => {
+        return Array.from(new Set(items.map((item) => item.type))).sort((left, right) => left.localeCompare(right));
+    }, [items]);
+
+    const filteredItems = useMemo(() => {
+        const normalizedEventType = eventTypeFilter.trim().toLowerCase();
+        const normalizedPropertyId = propertyIdFilter.trim().toLowerCase();
+        const normalizedSourceId = sourceIdFilter.trim().toLowerCase();
+
+        return items.filter((item) => {
+            const propertyId = readEntityId(item.data, "property_id").toLowerCase();
+            const sourceId = readEntityId(item.data, "source_id").toLowerCase();
+            const severity = eventSeverity(item.type);
+
+            if (normalizedEventType !== "" && !item.type.toLowerCase().includes(normalizedEventType)) {
+                return false;
+            }
+
+            if (normalizedPropertyId !== "" && !propertyId.includes(normalizedPropertyId)) {
+                return false;
+            }
+
+            if (normalizedSourceId !== "" && !sourceId.includes(normalizedSourceId)) {
+                return false;
+            }
+
+            if (severityFilter !== "" && severity !== severityFilter) {
+                return false;
+            }
+
+            return true;
+        }).sort((left, right) => {
+            const leftPinned = pinnedEventIds.includes(left.id);
+            const rightPinned = pinnedEventIds.includes(right.id);
+            if (leftPinned !== rightPinned) {
+                return leftPinned ? -1 : 1;
+            }
+
+            return right.received_at.localeCompare(left.received_at);
+        });
+    }, [eventTypeFilter, items, pinnedEventIds, propertyIdFilter, severityFilter, sourceIdFilter]);
+
+    const eventRows = useMemo(() => filteredItems.map((item) => ({
         id: `${item.id}-${item.received_at}`,
         item,
-    })), [items]);
+    })), [filteredItems]);
+
+    const severityCounts = useMemo(() => {
+        return filteredItems.reduce<Record<string, number>>((counts, item) => {
+            const severity = eventSeverity(item.type);
+            counts[severity] = (counts[severity] ?? 0) + 1;
+            return counts;
+        }, {});
+    }, [filteredItems]);
 
     return (
         <>
             <PageCard
                 action={<Button onClick={clearEvents} variant={"secondary"}>{"Clear all"}</Button>}
-                description={"Live backoffice events are collected in-session for quick triage and review."}
+                description={"This page shows live in-session activity only. Use the filters to isolate event types, related properties, and sources while you triage active work."}
                 title={"Events"}
             >
-                <div className={"toolbar"}>
-                    <div className={"entity-page__summary-copy"}>
-                        <span className={"muted-copy"}>{`${items.length} events in the current session`}</span>
+                <Toolbar stacked>
+                    <div className={"toolbar"}>
+                        <div className={"entity-page__summary-copy"}>
+                            <span className={"muted-copy"}>{`${items.length} events in the current session`}</span>
+                        </div>
+                        <StatusBadge tone={connectionTone(connectionState)} value={connectionState} />
                     </div>
-                    <StatusBadge tone={connectionTone(connectionState)} value={connectionState} />
-                </div>
+                    <div className={"toolbar"}>
+                        <StatusBadge tone={"danger"} value={`critical ${severityCounts.critical ?? 0}`} />
+                        <StatusBadge tone={"warning"} value={`high ${severityCounts.high ?? 0}`} />
+                        <StatusBadge tone={"warning"} value={`medium ${severityCounts.medium ?? 0}`} />
+                        <StatusBadge tone={"neutral"} value={`low ${severityCounts.low ?? 0}`} />
+                    </div>
+                </Toolbar>
             </PageCard>
 
-            <PageCard description={"Rows open the full event payload. Deletion removes the event from the current session view."} title={"Live Event Feed"}>
-                {items.length === 0 ? <EmptyState message={"No live events have been received in this session yet."} /> : (
-                    <DataTable
-                        caption={"Live backoffice events"}
-                        columns={[
-                            {
-                                cell: ({ item }) => item.type,
-                                header: "Event",
-                                id: "type",
-                                sortValue: ({ item }) => item.type,
-                            },
-                            {
-                                cell: ({ item }) => formatDateTime(item.received_at),
-                                header: "Received",
-                                id: "received_at",
-                                sortValue: ({ item }) => item.received_at,
-                            },
-                            {
-                                cell: ({ item }) => summarizeEventData(item.data),
-                                header: "Summary",
-                                id: "summary",
-                            },
-                            {
-                                cell: ({ item }) => (
-                                    <div className={"action-group"} onClick={(event) => { event.stopPropagation(); }}>
-                                        <Button onClick={() => { setSelectedEvent(item); }} size={"small"} variant={"secondary"}>{"View"}</Button>
-                                        <Button
-                                            onClick={() => { removeEvent(item.id, item.received_at); }}
-                                            size={"small"}
-                                            variant={"secondary"}
-                                        >
-                                            {"Delete"}
-                                        </Button>
-                                    </div>
-                                ),
-                                header: "Actions",
-                                id: "actions",
-                            },
-                        ]}
-                        compact
-                        emptyMessage={"No live events have been received in this session yet."}
-                        getRowId={(row) => row.id}
-                        items={eventRows}
-                        onRowClick={(row) => { setSelectedEvent(row.item); }}
-                        pageSize={12}
-                        rowLabel={(row) => `Open event ${row.item.type}`}
-                    />
-                )}
+            <PageCard description={"Filter by event type first, then narrow further when property_id or source_id is available in the event payload."} title={"Live event feed"}>
+                <div style={{ display: "grid", gap: "1rem" }}>
+                    <div style={{ display: "grid", gap: "1rem", gridTemplateColumns: "repeat(auto-fit, minmax(12rem, 1fr))" }}>
+                        <Field label={"Event type"}>
+                            <Select onChange={(event) => { setEventTypeFilter(event.target.value); }} value={eventTypeFilter}>
+                                <option value={""}>{"All event types"}</option>
+                                {eventTypeOptions.map((type) => <option key={type} value={type}>{type}</option>)}
+                            </Select>
+                        </Field>
+                        <Field label={"Severity"}>
+                            <Select onChange={(event) => { setSeverityFilter(event.target.value); }} value={severityFilter}>
+                                <option value={""}>{"All severities"}</option>
+                                <option value={"critical"}>{"Critical"}</option>
+                                <option value={"high"}>{"High"}</option>
+                                <option value={"medium"}>{"Medium"}</option>
+                                <option value={"low"}>{"Low"}</option>
+                            </Select>
+                        </Field>
+                        <Field label={"Property id"}>
+                            <Input onChange={(event) => { setPropertyIdFilter(event.target.value); }} placeholder={"Filter by property"} value={propertyIdFilter} />
+                        </Field>
+                        <Field label={"Source id"}>
+                            <Input onChange={(event) => { setSourceIdFilter(event.target.value); }} placeholder={"Filter by source"} value={sourceIdFilter} />
+                        </Field>
+                    </div>
+
+                    {filteredItems.length === 0 ? <EmptyState message={"No live events matched the current filters."} /> : (
+                        <DataTable
+                            caption={"Live backoffice events"}
+                            columns={[
+                                {
+                                    cell: ({ item }) => item.type,
+                                    header: "Event",
+                                    id: "type",
+                                    sortValue: ({ item }) => item.type,
+                                },
+                                {
+                                    cell: ({ item }) => <StatusBadge tone={eventTone(item.type)} value={eventSeverity(item.type)} />,
+                                    header: "Severity",
+                                    id: "severity",
+                                    sortValue: ({ item }) => eventSeverity(item.type),
+                                    width: "8rem",
+                                },
+                                {
+                                    cell: ({ item }) => readEntityId(item.data, "property_id") || "—",
+                                    header: "Property",
+                                    id: "property_id",
+                                    sortValue: ({ item }) => readEntityId(item.data, "property_id"),
+                                    width: "10rem",
+                                },
+                                {
+                                    cell: ({ item }) => readEntityId(item.data, "source_id") || "—",
+                                    header: "Source",
+                                    id: "source_id",
+                                    sortValue: ({ item }) => readEntityId(item.data, "source_id"),
+                                    width: "10rem",
+                                },
+                                {
+                                    cell: ({ item }) => formatDateTime(item.received_at),
+                                    header: "Received",
+                                    id: "received_at",
+                                    sortValue: ({ item }) => item.received_at,
+                                    width: "11rem",
+                                },
+                                {
+                                    cell: ({ item }) => summarizeEventData(item.data),
+                                    header: "Summary",
+                                    id: "summary",
+                                    wrap: true,
+                                },
+                                {
+                                    cell: ({ item }) => (
+                                        <div className={"action-group"} onClick={(event) => { event.stopPropagation(); }}>
+                                            <Button onClick={() => { setSelectedEvent(item); }} size={"small"} variant={"secondary"}>{"View"}</Button>
+                                            <Button
+                                                onClick={() => {
+                                                    setPinnedEventIds((current) => {
+                                                        return current.includes(item.id) ? current.filter((eventId) => eventId !== item.id) : [item.id, ...current];
+                                                    });
+                                                }}
+                                                size={"small"}
+                                                variant={"secondary"}
+                                            >
+                                                {pinnedEventIds.includes(item.id) ? "Unpin" : "Pin"}
+                                            </Button>
+                                            <Button
+                                                onClick={() => { removeEvent(item.id, item.received_at); }}
+                                                size={"small"}
+                                                variant={"secondary"}
+                                            >
+                                                {"Delete"}
+                                            </Button>
+                                        </div>
+                                    ),
+                                    header: "Actions",
+                                    id: "actions",
+                                    width: "14rem",
+                                },
+                            ]}
+                            compact
+                            emptyMessage={"No live events matched the current filters."}
+                            getRowId={(row) => row.id}
+                            items={eventRows}
+                            onRowClick={(row) => { setSelectedEvent(row.item); }}
+                            pageSize={12}
+                            rowLabel={(row) => `Open event ${row.item.type}`}
+                        />
+                    )}
+                </div>
             </PageCard>
 
             <Dialog
@@ -136,15 +265,6 @@ export const EventsPage = (): JSX.Element => {
             </Dialog>
         </>
     );
-};
-
-const summarizeEventData = (payload: Record<string, unknown>): string => {
-    const entries = Object.entries(payload).slice(0, 3);
-    if (entries.length === 0) {
-        return "No payload fields";
-    }
-
-    return entries.map(([key, value]) => `${key}: ${String(value)}`).join(" · ");
 };
 
 const connectionTone = (state: "closed" | "connecting" | "error" | "open"): "danger" | "neutral" | "success" | "warning" => {

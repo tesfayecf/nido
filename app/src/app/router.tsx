@@ -12,6 +12,8 @@ import { LoginPage } from "@/features/auth/LoginPage";
 import { AlertsPage } from "@/features/engagement/AlertsPage";
 import { BookmarksPage } from "@/features/engagement/BookmarksPage";
 import { NotificationsPage } from "@/features/engagement/NotificationsPage";
+import { DashboardPage } from "@/features/operators/DashboardPage";
+import { TriageInboxPage } from "@/features/operators/TriageInboxPage";
 import { PropertiesPage } from "@/features/properties/PropertiesPage";
 import { PropertyDetailPage } from "@/features/properties/PropertyDetailPage";
 import { FieldAnalysisPage } from "@/features/properties/FieldAnalysisPage";
@@ -31,11 +33,19 @@ export const router = createBrowserRouter([
         children: [
             {
                 index: true,
-                element: <Navigate replace to={"/properties"} />,
+                element: <Navigate replace to={"/dashboard"} />,
             },
             {
                 element: <RequireAuth />,
                 children: [
+                    {
+                        path: "dashboard",
+                        element: <DashboardPage />,
+                    },
+                    {
+                        path: "triage",
+                        element: <TriageInboxPage />,
+                    },
                     {
                         path: "properties",
                         element: <PropertiesPage />,

@@ -1,5 +1,6 @@
 import { useLocation } from "react-router-dom";
 
+import { CommandPalette } from "@/features/operators/CommandPalette";
 import { Icon } from "@/components/ui/Icon";
 import { useShellStore } from "@/stores/shell.store";
 
@@ -9,6 +10,8 @@ interface RouteMeta {
 }
 
 const routeMeta: readonly [RegExp, RouteMeta][] = [
+    [/^\/dashboard$/, { section: "Workspace", title: "Dashboard" }],
+    [/^\/triage$/, { section: "Workspace", title: "Triage inbox" }],
     [/^\/properties\/new$/, { section: "Properties", title: "New property" }],
     [/^\/properties\/[^/]+$/, { section: "Properties", title: "Property" }],
     [/^\/properties$/, { section: "Properties", title: "Properties" }],
@@ -70,6 +73,9 @@ export const AppHeader = (): JSX.Element => {
                     <span className={"app-shell__breadcrumb"}>{meta.section}</span>
                     <span aria-hidden className={"app-shell__breadcrumb-sep"}>{"/"}</span>
                     <h1 className={"app-shell__page-title"}>{meta.title}</h1>
+                </div>
+                <div className={"app-shell__header-actions"}>
+                    <CommandPalette />
                 </div>
             </div>
         </header>
