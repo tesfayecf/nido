@@ -23,7 +23,7 @@ import (
 	"home-searcher/server/internal/platform/id"
 )
 
-var mentionPattern = regexp.MustCompile(`@([A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,})`)
+var mentionPattern = regexp.MustCompile(`@([A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+)`)
 
 // ErrForbidden indicates the principal lacks permission.
 var ErrForbidden = errors.New("forbidden")

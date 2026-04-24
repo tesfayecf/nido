@@ -6,6 +6,7 @@ export interface AuthUser {
     readonly display_name: string;
     readonly email: string;
     readonly id: string;
+    readonly role: "admin" | "operator" | "viewer";
     readonly updated_at: string;
 }
 
@@ -31,6 +32,18 @@ export interface LoginResponse {
  */
 export interface MeResponse {
     readonly user: AuthUser;
+}
+
+export interface UsersResponse {
+    readonly count: number;
+    readonly items: AuthUser[];
+}
+
+export interface CreateUserRequest {
+    readonly display_name: string;
+    readonly email: string;
+    readonly password: string;
+    readonly role: AuthUser["role"];
 }
 
 /**

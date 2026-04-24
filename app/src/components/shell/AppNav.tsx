@@ -38,6 +38,7 @@ const authenticatedSections: readonly NavSection[] = [
             { icon: "home", label: "Dashboard", to: "/dashboard" },
             { icon: "inbox", label: "Triage", to: "/triage" },
             { icon: "search", label: "Properties", to: "/properties" },
+            { icon: "history", label: "Analytics", to: "/analytics" },
             { icon: "clock", label: "Events", to: "/events" },
             { icon: "sources", label: "Sources", to: "/sources" },
             { icon: "history", label: "Runs", to: "/runs" },
@@ -56,6 +57,7 @@ const authenticatedSections: readonly NavSection[] = [
     {
         items: [
             { icon: "settings", label: "Settings", to: "/settings" },
+            { icon: "settings", label: "Admin", to: "/admin" },
         ],
         title: "Account",
     },

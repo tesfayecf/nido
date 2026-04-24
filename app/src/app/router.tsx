@@ -19,6 +19,8 @@ import { PropertyDetailPage } from "@/features/properties/PropertyDetailPage";
 import { FieldAnalysisPage } from "@/features/properties/FieldAnalysisPage";
 import { SettingsPage } from "@/features/settings/SettingsPage";
 import { TagsPage } from "@/features/tags/TagsPage";
+import { AdminConsolePage } from "@/features/workspace/AdminConsolePage";
+import { PortfolioAnalyticsPage } from "@/features/workspace/PortfolioAnalyticsPage";
 
 export const router = createBrowserRouter([
     {
@@ -105,6 +107,14 @@ export const router = createBrowserRouter([
                     {
                         path: "settings",
                         element: <SettingsPage />,
+                    },
+                    {
+                        path: "analytics",
+                        element: <PortfolioAnalyticsPage />,
+                    },
+                    {
+                        path: "admin",
+                        element: <AdminConsolePage />,
                     },
                 ],
             },

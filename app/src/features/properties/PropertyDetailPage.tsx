@@ -29,6 +29,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { TagBadge } from "@/components/tags/TagBadge";
 import { TagPicker } from "@/components/tags/TagPicker";
 import { PropertyAlertCreateDialog } from "@/features/engagement/PropertyAlertCreateDialog";
+import { PropertyWorkspacePanel } from "@/features/properties/PropertyWorkspacePanel";
 import {
     SCHEDULE_PRESETS,
     durationDraftFromSeconds,
@@ -654,6 +655,8 @@ export const PropertyDetailPage = (): JSX.Element => {
                             </div>
                         )}
                 </PageCard>
+
+                {!isCreateMode ? <PropertyWorkspacePanel propertyId={resolvedId} /> : null}
 
                 <PageCard description={"Recent automation runs with auto-refresh every 5 seconds."} title={"Automation Runs"}>
                     <DataTable
