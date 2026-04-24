@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 
 import { useQuery } from "@tanstack/react-query";
+import { Bar } from "react-chartjs-2";
 import { Link, useParams } from "react-router-dom";
 
 import { Button } from "@/components/ui/Button";
@@ -11,6 +12,7 @@ import { PageCard } from "@/components/ui/PageCard";
 import { PageStack } from "@/components/ui/PageStack";
 import { SparklineChart } from "@/components/ui/SparklineChart";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { createBaseChartOptions, isChartJsdom, useChartTheme } from "@/components/ui/chartTheme";
 import { formatDateTime } from "@/lib/format/date";
 import { propertyKeys } from "@/services/properties/properties.keys";
 import { getProperty, listPropertySnapshots } from "@/services/properties/properties.service";
@@ -22,8 +24,8 @@ interface Entry {
 }
 
 interface NumericEntry extends Entry {
-    readonly value: number;
     readonly isInteger: boolean;
+    readonly value: number;
 }
 
 type FieldKind = "empty" | "mixed" | "numeric" | "text";
@@ -189,6 +191,66 @@ const analyzeField = (fieldName: string, snapshots: PropertySnapshot[]): FieldAn
 const LOW_DATA_THRESHOLD = 5;
 const HIGH_DATA_THRESHOLD = 50;
 
+interface FieldBarDatum {
+    readonly detail?: string;
+    readonly label: string;
+    readonly value: number;
+}
+
+const FieldBarChart = ({ data, horizontal = false, label }: { readonly data: readonly FieldBarDatum[]; readonly horizontal?: boolean; readonly label: string; }): JSX.Element => {
+    if (isChartJsdom()) {
+        return <div className={"field-analysis__bar-chart"} />;
+    }
+
+    const theme = useChartTheme();
+    const baseOptions = createBaseChartOptions<"bar">(theme, { hideLegend: true });
+
+    return (
+        <div className={"field-analysis__bar-chart"}>
+            <Bar
+                data={{
+                    datasets: [{
+                        backgroundColor: `${theme.accent}cc`,
+                        borderColor: theme.accent,
+                        borderWidth: 1,
+                        data: data.map((item) => item.value),
+                        label,
+                    }],
+                    labels: data.map((item) => item.label),
+                }}
+                options={{
+                    ...baseOptions,
+                    indexAxis: horizontal ? "y" : "x",
+                    plugins: {
+                        ...baseOptions.plugins,
+                        legend: { display: false },
+                        tooltip: {
+                            ...baseOptions.plugins?.tooltip,
+                            callbacks: {
+                                label: (context) => data[context.dataIndex]?.detail ?? `${context.formattedValue}`,
+                                title: (items) => data[items[0]?.dataIndex ?? 0]?.label ?? "",
+                            },
+                        },
+                    },
+                    scales: horizontal ? {
+                        ...baseOptions.scales,
+                        y: {
+                            ...baseOptions.scales?.y,
+                            ticks: {
+                                ...baseOptions.scales?.y?.ticks,
+                                callback: (_value, index) => {
+                                    const current = data[index]?.label ?? "";
+                                    return current.length > 28 ? `${current.slice(0, 27)}…` : current;
+                                },
+                            },
+                        },
+                    } : baseOptions.scales,
+                }}
+            />
+        </div>
+    );
+};
+
 const NumericSection = ({ analysis }: { analysis: FieldAnalysis; }): JSX.Element => {
     const { numericEntries } = analysis;
     const values = numericEntries.map((entry) => entry.value);
@@ -203,7 +265,6 @@ const NumericSection = ({ analysis }: { analysis: FieldAnalysis; }): JSX.Element
     const decimals = hasDecimals ? 2 : 0;
     const stdDev = count >= LOW_DATA_THRESHOLD ? standardDeviation(values, mean) : undefined;
     const bins = count >= LOW_DATA_THRESHOLD ? buildHistogram(values, Math.min(10, Math.max(3, Math.round(Math.sqrt(count))))) : [];
-    const maxBin = bins.reduce((acc, bin) => Math.max(acc, bin.count), 0);
     const isHighVolume = count >= HIGH_DATA_THRESHOLD;
     const trendPoints = numericEntries.map((entry) => entry.value);
 
@@ -228,21 +289,14 @@ const NumericSection = ({ analysis }: { analysis: FieldAnalysis; }): JSX.Element
                         <SparklineChart hero points={trendPoints} />
                     </div>
                     {bins.length > 0 ? (
-                        <div className={"field-analysis__histogram"} role={"list"}>
-                            {bins.map((bin) => {
-                                const widthPercent = maxBin > 0 ? (bin.count / maxBin) * 100 : 0;
-                                const label = `${formatNumber(bin.start, decimals)} – ${formatNumber(bin.end, decimals)}`;
-                                return (
-                                    <div className={"field-analysis__histogram-row"} key={label} role={"listitem"}>
-                                        <span className={"field-analysis__histogram-range"}>{label}</span>
-                                        <span className={"field-analysis__histogram-bar"} aria-hidden>
-                                            <span className={"field-analysis__histogram-fill"} style={{ width: `${widthPercent}%` }} />
-                                        </span>
-                                        <span className={"field-analysis__histogram-count"}>{bin.count}</span>
-                                    </div>
-                                );
-                            })}
-                        </div>
+                        <FieldBarChart
+                            data={bins.map((bin) => ({
+                                detail: `${bin.count} observations`,
+                                label: `${formatNumber(bin.start, decimals)} – ${formatNumber(bin.end, decimals)}`,
+                                value: bin.count,
+                            }))}
+                            label={"Observations"}
+                        />
                     ) : null}
                 </PageCard>
             ) : null}
@@ -258,7 +312,6 @@ const TextSection = ({ analysis }: { analysis: FieldAnalysis; }): JSX.Element =>
     const isHighVolume = total >= HIGH_DATA_THRESHOLD;
     const topCount = isHighVolume ? 10 : 5;
     const top = frequency.slice(0, topCount);
-    const maxFreq = top.reduce((acc, entry) => Math.max(acc, entry.count), 0);
     const dominantShare = total > 0 && top.length > 0 ? ((top[0]?.count ?? 0) / total) : 0;
 
     return (
@@ -274,21 +327,15 @@ const TextSection = ({ analysis }: { analysis: FieldAnalysis; }): JSX.Element =>
             </PageCard>
             {top.length > 0 ? (
                 <PageCard description={`Top ${top.length} most frequent value${top.length === 1 ? "" : "s"}.`} title={"Frequency Distribution"}>
-                    <div className={"field-analysis__frequency"} role={"list"}>
-                        {top.map((entry) => {
-                            const widthPercent = maxFreq > 0 ? (entry.count / maxFreq) * 100 : 0;
-                            const share = total > 0 ? Math.round((entry.count / total) * 100) : 0;
-                            return (
-                                <div className={"field-analysis__frequency-row"} key={entry.value} role={"listitem"}>
-                                    <span className={"field-analysis__frequency-label"} title={entry.value}>{entry.value}</span>
-                                    <span className={"field-analysis__frequency-bar"} aria-hidden>
-                                        <span className={"field-analysis__frequency-fill"} style={{ width: `${widthPercent}%` }} />
-                                    </span>
-                                    <span className={"field-analysis__frequency-count"}>{`${entry.count} · ${share}%`}</span>
-                                </div>
-                            );
-                        })}
-                    </div>
+                    <FieldBarChart
+                        data={top.map((entry) => ({
+                            detail: `${entry.count} entries · ${total > 0 ? Math.round((entry.count / total) * 100) : 0}%`,
+                            label: entry.value,
+                            value: entry.count,
+                        }))}
+                        horizontal
+                        label={"Entries"}
+                    />
                 </PageCard>
             ) : null}
         </>

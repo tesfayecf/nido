@@ -2,47 +2,8 @@ import { useLocation } from "react-router-dom";
 
 import { CommandPalette } from "@/features/operators/CommandPalette";
 import { Icon } from "@/components/ui/Icon";
+import { getRouteMeta } from "@/components/shell/navigation";
 import { useShellStore } from "@/stores/shell.store";
-
-interface RouteMeta {
-    readonly section: string;
-    readonly title: string;
-}
-
-const routeMeta: readonly [RegExp, RouteMeta][] = [
-    [/^\/dashboard$/, { section: "Workspace", title: "Dashboard" }],
-    [/^\/triage$/, { section: "Workspace", title: "Triage inbox" }],
-    [/^\/properties\/new$/, { section: "Properties", title: "New property" }],
-    [/^\/properties\/[^/]+$/, { section: "Properties", title: "Property" }],
-    [/^\/properties$/, { section: "Properties", title: "Properties" }],
-    [/^\/events$/, { section: "Events", title: "Events" }],
-    [/^\/sources\/new$/, { section: "Sources", title: "New source" }],
-    [/^\/sources\/[^/]+$/, { section: "Sources", title: "Source" }],
-    [/^\/sources$/, { section: "Sources", title: "Sources" }],
-    [/^\/runs\/[^/]+$/, { section: "Runs", title: "Run" }],
-    [/^\/runs$/, { section: "Runs", title: "Runs" }],
-    [/^\/bookmarks$/, { section: "Bookmarks", title: "Bookmarks" }],
-    [/^\/alerts$/, { section: "Alerts", title: "Alerts" }],
-    [/^\/notifications$/, { section: "Notifications", title: "Notifications" }],
-    [/^\/login$/, { section: "Access", title: "Sign In" }],
-    [/^\/settings$/, { section: "Account", title: "Settings" }],
-    [/^\/admin$/, { section: "Platform", title: "Admin Console" }],
-];
-
-const defaultMeta: RouteMeta = {
-    section: "Workspace",
-    title: "Property Tracker",
-};
-
-const getRouteMeta = (pathname: string): RouteMeta => {
-    for (const [matcher, meta] of routeMeta) {
-        if (matcher.test(pathname)) {
-            return meta;
-        }
-    }
-
-    return defaultMeta;
-};
 
 export const AppHeader = (): JSX.Element => {
     const { pathname } = useLocation();

@@ -22,6 +22,8 @@ interface DataTableProps<TItem> {
     readonly compact?: boolean;
     readonly emptyMessage: string;
     readonly getRowId: (item: TItem) => string;
+    readonly initialSortColumnId?: string | null;
+    readonly initialSortDirection?: "asc" | "desc";
     readonly items: TItem[];
     readonly onRowClick?: (item: TItem) => void;
     readonly pageSize?: number;
@@ -35,14 +37,16 @@ export const DataTable = <TItem,>({
     compact = false,
     emptyMessage,
     getRowId,
+    initialSortColumnId = null,
+    initialSortDirection = "asc",
     items,
     onRowClick,
     pageSize = 10,
     rowLabel,
 }: DataTableProps<TItem>): JSX.Element => {
     const [page, setPage] = useState(0);
-    const [sortColumnId, setSortColumnId] = useState<string | null>(null);
-    const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+    const [sortColumnId, setSortColumnId] = useState<string | null>(initialSortColumnId);
+    const [sortDirection, setSortDirection] = useState<"asc" | "desc">(initialSortDirection);
 
     const sortedItems = useMemo(() => {
         if (sortColumnId === null) {
@@ -119,7 +123,11 @@ export const DataTable = <TItem,>({
                                 aria-label={rowLabel?.(item)}
                                 className={interactive ? "data-table__row data-table__row--interactive" : "data-table__row"}
                                 key={getRowId(item)}
-                                onClick={() => {
+                                onClick={(event) => {
+                                    if (isEventFromInteractiveElement(event.target)) {
+                                        return;
+                                    }
+
                                     onRowClick?.(item);
                                 }}
                                 onKeyDown={(event) => {
@@ -163,4 +171,22 @@ export const DataTable = <TItem,>({
             ) : null}
         </div>
     );
+};
+
+const INTERACTIVE_SELECTOR = [
+    "button",
+    "a",
+    "input",
+    "select",
+    "textarea",
+    "[role='button']",
+    "[role='checkbox']",
+    "[role='link']",
+    "[role='menuitem']",
+    "[role='radio']",
+    "[role='switch']",
+].join(", ");
+
+const isEventFromInteractiveElement = (target: EventTarget | null): boolean => {
+    return target instanceof HTMLElement && target.closest(INTERACTIVE_SELECTOR) !== null;
 };
