@@ -107,4 +107,13 @@ func RegisterFields(mux *http.ServeMux, requireAuth func(http.Handler) http.Hand
 		}
 		platformhttp.WriteJSON(w, http.StatusOK, map[string]string{"status": "updated"})
 	})))
+
+	mux.Handle("GET /api/v1/backoffice/analytics/dataset", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		items, err := service.ListAnalyticsRecords(r.Context())
+		if err != nil {
+			platformhttp.WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{"items": items, "count": len(items)})
+	})))
 }

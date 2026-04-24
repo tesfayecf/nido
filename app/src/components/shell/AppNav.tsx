@@ -36,6 +36,7 @@ const authenticatedSections: readonly NavSection[] = [
     {
         items: [
             { icon: "home", label: "Dashboard", to: "/dashboard" },
+            { icon: "history", label: "Analytics", to: "/analytics" },
             { icon: "inbox", label: "Triage", to: "/triage" },
             { icon: "search", label: "Properties", to: "/properties" },
             { icon: "bookmark", label: "Fields", to: "/fields" },

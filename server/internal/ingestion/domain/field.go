@@ -61,3 +61,14 @@ type UnmappedFieldGroup struct {
 	AssignedField   string    `json:"assigned_field,omitempty"`
 	AssignedFieldID string    `json:"assigned_field_id,omitempty"`
 }
+
+// AnalyticsPropertyRecord stores the latest normalized values for one property.
+type AnalyticsPropertyRecord struct {
+	PropertyID    string            `json:"property_id"`
+	PropertyLabel string            `json:"property_label,omitempty"`
+	PropertyURL   string            `json:"property_url"`
+	SourceID      string            `json:"source_id,omitempty"`
+	Status        string            `json:"status"`
+	ObservedAt    time.Time         `json:"observed_at"`
+	Values        map[string]string `json:"values"`
+}

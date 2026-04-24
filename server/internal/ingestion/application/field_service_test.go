@@ -52,6 +52,10 @@ func (s *fieldServiceStoreStub) ListUnmappedFieldGroups(context.Context) ([]inge
 	return nil, nil
 }
 
+func (s *fieldServiceStoreStub) ListAnalyticsRecords(context.Context) ([]ingestiondomain.AnalyticsPropertyRecord, error) {
+	return nil, nil
+}
+
 func (s *fieldServiceStoreStub) RemapPropertyFieldValues(_ context.Context, propertyID, selectorName, fieldName string) error {
 	s.remapCalls = append(s.remapCalls, struct{ propertyID, selectorName, fieldName string }{propertyID: propertyID, selectorName: selectorName, fieldName: fieldName})
 	return nil
