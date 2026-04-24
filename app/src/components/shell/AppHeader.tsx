@@ -26,6 +26,7 @@ const routeMeta: readonly [RegExp, RouteMeta][] = [
     [/^\/notifications$/, { section: "Notifications", title: "Notifications" }],
     [/^\/login$/, { section: "Access", title: "Sign In" }],
     [/^\/settings$/, { section: "Account", title: "Settings" }],
+    [/^\/admin$/, { section: "Platform", title: "Admin Console" }],
 ];
 
 const defaultMeta: RouteMeta = {

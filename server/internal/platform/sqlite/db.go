@@ -232,6 +232,9 @@ CREATE TABLE IF NOT EXISTS properties (
     schedule_interval_seconds INTEGER NOT NULL DEFAULT 0,
     retry_max_attempts INTEGER NOT NULL DEFAULT 1,
     retry_backoff_millis INTEGER NOT NULL DEFAULT 500,
+    paused INTEGER NOT NULL DEFAULT 0,
+    pause_reason TEXT NOT NULL DEFAULT '',
+    metadata_json TEXT NOT NULL DEFAULT '{}',
     last_run_at TEXT,
     next_run_at TEXT,
     created_at TEXT NOT NULL,
@@ -300,6 +303,44 @@ CREATE TABLE IF NOT EXISTS property_runs (
 
 CREATE INDEX IF NOT EXISTS idx_property_runs_property_started ON property_runs(property_id, started_at DESC);
 CREATE INDEX IF NOT EXISTS idx_property_runs_status ON property_runs(status);
+
+CREATE TABLE IF NOT EXISTS platform_settings (
+    id TEXT PRIMARY KEY,
+    scheduler_enabled INTEGER NOT NULL DEFAULT 1,
+    maintenance_window_enabled INTEGER NOT NULL DEFAULT 0,
+    maintenance_window_start TEXT NOT NULL DEFAULT '',
+    maintenance_window_end TEXT NOT NULL DEFAULT '',
+    webhook_url TEXT NOT NULL DEFAULT '',
+    webhook_events_json TEXT NOT NULL DEFAULT '[]',
+    slack_webhook_url TEXT NOT NULL DEFAULT '',
+    slack_events_json TEXT NOT NULL DEFAULT '[]',
+    spreadsheet_webhook_url TEXT NOT NULL DEFAULT '',
+    spreadsheet_events_json TEXT NOT NULL DEFAULT '[]',
+    task_webhook_url TEXT NOT NULL DEFAULT '',
+    task_events_json TEXT NOT NULL DEFAULT '[]',
+    email_digest_enabled INTEGER NOT NULL DEFAULT 0,
+    email_digest_recipient TEXT NOT NULL DEFAULT '',
+    email_digest_schedule TEXT NOT NULL DEFAULT '09:00',
+    email_digest_events_json TEXT NOT NULL DEFAULT '[]',
+    last_digest_sent_at TEXT,
+    updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS integration_delivery_logs (
+    id TEXT PRIMARY KEY,
+    channel TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    target TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL,
+    attempt_count INTEGER NOT NULL DEFAULT 1,
+    payload_json TEXT NOT NULL DEFAULT '{}',
+    response_status INTEGER,
+    error_message TEXT,
+    delivered_at TEXT,
+    created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_integration_delivery_logs_created_at ON integration_delivery_logs(created_at DESC);
 `
 
 var columnMigrations = []columnMigration{
@@ -324,6 +365,9 @@ var columnMigrations = []columnMigration{
 	{table: "properties", column: "schedule_interval_seconds", definition: "INTEGER NOT NULL DEFAULT 0"},
 	{table: "properties", column: "retry_max_attempts", definition: "INTEGER NOT NULL DEFAULT 1"},
 	{table: "properties", column: "retry_backoff_millis", definition: "INTEGER NOT NULL DEFAULT 500"},
+	{table: "properties", column: "paused", definition: "INTEGER NOT NULL DEFAULT 0"},
+	{table: "properties", column: "pause_reason", definition: "TEXT NOT NULL DEFAULT ''"},
+	{table: "properties", column: "metadata_json", definition: "TEXT NOT NULL DEFAULT '{}'"},
 	{table: "properties", column: "last_run_at", definition: "TEXT"},
 	{table: "properties", column: "next_run_at", definition: "TEXT"},
 	{table: "property_extraction_configs", column: "change_summary", definition: "TEXT NOT NULL DEFAULT ''"},

@@ -50,6 +50,7 @@ const authenticatedSections: readonly NavSection[] = [
             { icon: "bookmark", label: "Bookmarks", to: "/bookmarks" },
             { icon: "play", label: "Alerts", to: "/alerts" },
             { icon: "bell", label: "Notifications", to: "/notifications" },
+            { icon: "settings", label: "Admin", to: "/admin" },
         ],
         title: "Engagement",
     },

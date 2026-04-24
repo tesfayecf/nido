@@ -13,12 +13,15 @@ import (
 )
 
 type propertyUpsertRequest struct {
-	Label                   string  `json:"label"`
-	RetryBackoffMillis      *int    `json:"retry_backoff_millis,omitempty"`
-	RetryMaxAttempts        *int    `json:"retry_max_attempts,omitempty"`
-	ScheduleIntervalSeconds *int    `json:"schedule_interval_seconds,omitempty"`
-	SourceID                *string `json:"source_id,omitempty"`
-	URL                     string  `json:"url"`
+	Label                   string                            `json:"label"`
+	RetryBackoffMillis      *int                              `json:"retry_backoff_millis,omitempty"`
+	RetryMaxAttempts        *int                              `json:"retry_max_attempts,omitempty"`
+	ScheduleIntervalSeconds *int                              `json:"schedule_interval_seconds,omitempty"`
+	SourceID                *string                           `json:"source_id,omitempty"`
+	URL                     string                            `json:"url"`
+	Paused                  *bool                             `json:"paused,omitempty"`
+	PauseReason             *string                           `json:"pause_reason,omitempty"`
+	Metadata                *ingestiondomain.PropertyMetadata `json:"metadata,omitempty"`
 }
 
 // RegisterProperties binds property tracking HTTP routes to the supplied mux.
@@ -29,8 +32,10 @@ func RegisterProperties(mux *http.ServeMux, requireAuth func(http.Handler) http.
 		tagMatch := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("tag_match")))
 		matchAll := tagMatch == "all"
 		status := strings.TrimSpace(r.URL.Query().Get("status"))
+		priorityLevel := strings.TrimSpace(r.URL.Query().Get("priority_level"))
+		businessStage := strings.TrimSpace(r.URL.Query().Get("business_stage"))
 
-		properties, err := service.ListPropertiesFiltered(r.Context(), tagIDs, matchAll, status)
+		properties, err := service.ListPropertiesFiltered(r.Context(), tagIDs, matchAll, status, priorityLevel, businessStage)
 		if err != nil {
 			platformhttp.WriteError(w, http.StatusInternalServerError, err.Error())
 			return
@@ -358,6 +363,15 @@ func propertyFromUpsertRequest(request propertyUpsertRequest) ingestiondomain.Pr
 	if request.RetryBackoffMillis != nil {
 		property.RetryBackoffMillis = *request.RetryBackoffMillis
 	}
+	if request.Paused != nil {
+		property.Paused = *request.Paused
+	}
+	if request.PauseReason != nil {
+		property.PauseReason = strings.TrimSpace(*request.PauseReason)
+	}
+	if request.Metadata != nil {
+		property.Metadata = *request.Metadata
+	}
 	return property
 }
 
@@ -376,6 +390,15 @@ func mergePropertyUpsertRequest(existing ingestiondomain.Property, request prope
 	}
 	if request.RetryBackoffMillis != nil {
 		property.RetryBackoffMillis = *request.RetryBackoffMillis
+	}
+	if request.Paused != nil {
+		property.Paused = *request.Paused
+	}
+	if request.PauseReason != nil {
+		property.PauseReason = strings.TrimSpace(*request.PauseReason)
+	}
+	if request.Metadata != nil {
+		property.Metadata = *request.Metadata
 	}
 	return property
 }

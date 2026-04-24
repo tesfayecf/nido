@@ -50,6 +50,7 @@ type PropertyScheduler struct {
 	mu                sync.Mutex
 	runningProperties map[string]bool
 	domainSemaphores  map[string]chan struct{}
+	enabled           bool
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -90,6 +91,7 @@ func NewPropertyScheduler(
 		clock:             resolvedClock,
 		events:            events,
 		config:            config,
+		enabled:           true,
 		runningProperties: make(map[string]bool),
 		domainSemaphores:  make(map[string]chan struct{}),
 		ctx:               ctx,
@@ -124,6 +126,9 @@ func (s *PropertyScheduler) Stop() {
 }
 
 func (s *PropertyScheduler) tick() {
+	if !s.Enabled() {
+		return
+	}
 	now := s.clock.Now().UTC()
 	properties, err := s.store.ListDueProperties(s.ctx, now, 100)
 	if err != nil {
@@ -158,6 +163,27 @@ func (s *PropertyScheduler) tick() {
 		// Schedule the run
 		s.schedulePropertyRun(property)
 	}
+}
+
+// SetEnabled toggles whether the scheduler should enqueue new work.
+func (s *PropertyScheduler) SetEnabled(enabled bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.enabled = enabled
+}
+
+// Enabled reports whether the scheduler may enqueue new work.
+func (s *PropertyScheduler) Enabled() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.enabled
+}
+
+// RunningCount returns the number of properties currently in-flight.
+func (s *PropertyScheduler) RunningCount() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return len(s.runningProperties)
 }
 
 func (s *PropertyScheduler) isRunning(propertyID string) bool {

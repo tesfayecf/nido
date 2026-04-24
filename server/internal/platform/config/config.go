@@ -81,6 +81,11 @@ type AuthConfig struct {
 // NotificationsConfig controls optional delivery adapters.
 type NotificationsConfig struct {
 	WebhookURL string
+	SMTPHost   string
+	SMTPPort   int
+	SMTPUser   string
+	SMTPPass   string
+	SMTPFrom   string
 }
 
 // BootstrapSourceConfig describes the single source that powers the first
@@ -160,6 +165,11 @@ func Load() (Config, error) {
 		},
 		Notifications: NotificationsConfig{
 			WebhookURL: envFromAliases("HS_NOTIFICATION_WEBHOOK_URL", "HS_NOTIFICATIONS_WEBHOOK_URL"),
+			SMTPHost:   strings.TrimSpace(os.Getenv("HS_SMTP_HOST")),
+			SMTPPort:   intEnvOrDefault("HS_SMTP_PORT", 25),
+			SMTPUser:   strings.TrimSpace(os.Getenv("HS_SMTP_USER")),
+			SMTPPass:   strings.TrimSpace(os.Getenv("HS_SMTP_PASS")),
+			SMTPFrom:   strings.TrimSpace(os.Getenv("HS_SMTP_FROM")),
 		},
 	}
 

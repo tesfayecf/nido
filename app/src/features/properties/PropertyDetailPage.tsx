@@ -23,6 +23,7 @@ import { RowActions } from "@/components/ui/RowActions";
 import { Select } from "@/components/ui/Select";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Tabs } from "@/components/ui/Tabs";
+import { Textarea } from "@/components/ui/Textarea";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -72,12 +73,41 @@ import {
     updateProperty,
     upsertPropertyConfig,
 } from "@/services/properties/properties.service";
-import type { PropertyPreviewFieldResult, PropertyRunStatus } from "@/services/properties/properties.types";
+import type { PropertyAttachment, PropertyMetadata, PropertyPreviewFieldResult, PropertyReference, PropertyRunStatus } from "@/services/properties/properties.types";
 import { tagKeys } from "@/services/tags/tags.keys";
 import { listPropertyTags, setPropertyTags } from "@/services/tags/tags.service";
 
 const PROPERTY_RUNS_REFETCH_INTERVAL_MS = 5000;
 const MIN_RETRY_BACKOFF_MS = 500;
+const BASIS_POINTS_PER_PERCENT = 100;
+
+interface PropertyMetadataDraft {
+    readonly acquisitionNotes: string;
+    readonly attachmentsText: string;
+    readonly businessStage: string;
+    readonly dealThesis: string;
+    readonly expectedRent: string;
+    readonly expectedYieldPercent: string;
+    readonly externalReferencesText: string;
+    readonly pauseReason: string;
+    readonly paused: boolean;
+    readonly priorityLevel: string;
+    readonly targetPrice: string;
+}
+
+const EMPTY_METADATA_DRAFT: PropertyMetadataDraft = {
+    acquisitionNotes: "",
+    attachmentsText: "",
+    businessStage: "",
+    dealThesis: "",
+    expectedRent: "",
+    expectedYieldPercent: "",
+    externalReferencesText: "",
+    pauseReason: "",
+    paused: false,
+    priorityLevel: "",
+    targetPrice: "",
+};
 
 const runStatusTone = (status: PropertyRunStatus): "danger" | "neutral" | "success" | "warning" => {
     switch (status) {
@@ -114,6 +144,60 @@ const scheduleStatusLabel = (
     return "Manual only";
 };
 
+const metadataToDraft = (property: { readonly metadata?: PropertyMetadata; readonly pause_reason?: string; readonly paused?: boolean; }): PropertyMetadataDraft => {
+    const metadata = property.metadata;
+    return {
+        acquisitionNotes: metadata?.acquisition_notes ?? "",
+        attachmentsText: formatReferenceLines(metadata?.attachments),
+        businessStage: metadata?.business_stage ?? "",
+        dealThesis: metadata?.deal_thesis ?? "",
+        expectedRent: metadata?.expected_rent !== undefined ? `${metadata.expected_rent}` : "",
+        expectedYieldPercent: metadata?.expected_yield_bps !== undefined ? `${metadata.expected_yield_bps / BASIS_POINTS_PER_PERCENT}` : "",
+        externalReferencesText: formatReferenceLines(metadata?.external_references),
+        pauseReason: property.pause_reason ?? "",
+        paused: property.paused ?? false,
+        priorityLevel: metadata?.priority_level ?? "",
+        targetPrice: metadata?.target_price !== undefined ? `${metadata.target_price}` : "",
+    };
+};
+
+const formatReferenceLines = (items: readonly (PropertyReference | PropertyAttachment)[] | undefined): string => {
+    return (items ?? []).map((item) => `${item.label}|${"value" in item ? item.value : item.url}`).join("\n");
+};
+
+const parseReferenceLines = (value: string): PropertyReference[] => {
+    return value
+        .split("\n")
+        .map((line) => line.trim())
+        .filter((line) => line !== "")
+        .map((line) => {
+            const [label = "", rawValue = ""] = line.split("|");
+            return { label: label.trim(), value: rawValue.trim() };
+        })
+        .filter((item) => item.label !== "" && item.value !== "");
+};
+
+const parseAttachmentLines = (value: string): PropertyAttachment[] => {
+    return value
+        .split("\n")
+        .map((line) => line.trim())
+        .filter((line) => line !== "")
+        .map((line) => {
+            const [label = "", rawURL = ""] = line.split("|");
+            return { label: label.trim(), url: rawURL.trim() };
+        })
+        .filter((item) => item.label !== "" && item.url !== "");
+};
+
+const parseOptionalNumber = (value: string): number | undefined => {
+    if (value.trim() === "") {
+        return undefined;
+    }
+
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+};
+
 export const PropertyDetailPage = (): JSX.Element => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
@@ -141,6 +225,7 @@ export const PropertyDetailPage = (): JSX.Element => {
     const [compareLeftVersion, setCompareLeftVersion] = useState<number>(0);
     const [compareRightVersion, setCompareRightVersion] = useState<number>(0);
     const [rollbackTargetVersion, setRollbackTargetVersion] = useState<number | null>(null);
+    const [metadataDraft, setMetadataDraft] = useState<PropertyMetadataDraft>(EMPTY_METADATA_DRAFT);
 
     const propertyQuery = useQuery({
         enabled: !isCreateMode,
@@ -197,6 +282,7 @@ export const PropertyDetailPage = (): JSX.Element => {
             setScheduleIntervalUnit(scheduleDraft.unit);
             setRetryMaxAttempts(propertyQuery.data.retry_max_attempts ?? 1);
             setRetryBackoffMillis(propertyQuery.data.retry_backoff_millis ?? 500);
+            setMetadataDraft(metadataToDraft(propertyQuery.data));
         }
     }, [propertyQuery.data]);
 
@@ -215,8 +301,22 @@ export const PropertyDetailPage = (): JSX.Element => {
 
     const savePropertyMutation = useMutation({
         mutationFn: async () => {
+            const expectedYield = parseOptionalNumber(metadataDraft.expectedYieldPercent);
             const payload = {
                 label,
+                metadata: {
+                    acquisition_notes: metadataDraft.acquisitionNotes.trim() !== "" ? metadataDraft.acquisitionNotes.trim() : undefined,
+                    attachments: parseAttachmentLines(metadataDraft.attachmentsText),
+                    business_stage: metadataDraft.businessStage.trim() !== "" ? metadataDraft.businessStage.trim() : undefined,
+                    deal_thesis: metadataDraft.dealThesis.trim() !== "" ? metadataDraft.dealThesis.trim() : undefined,
+                    expected_rent: parseOptionalNumber(metadataDraft.expectedRent),
+                    expected_yield_bps: expectedYield !== undefined ? Math.round(expectedYield * BASIS_POINTS_PER_PERCENT) : undefined,
+                    external_references: parseReferenceLines(metadataDraft.externalReferencesText),
+                    priority_level: metadataDraft.priorityLevel.trim() !== "" ? metadataDraft.priorityLevel.trim() : undefined,
+                    target_price: parseOptionalNumber(metadataDraft.targetPrice),
+                },
+                pause_reason: metadataDraft.pauseReason.trim() !== "" ? metadataDraft.pauseReason.trim() : undefined,
+                paused: metadataDraft.paused,
                 retry_backoff_millis: retryBackoffMillis,
                 retry_max_attempts: retryMaxAttempts,
                 schedule_interval_seconds: scheduleIntervalSeconds ?? 0,
@@ -490,6 +590,49 @@ export const PropertyDetailPage = (): JSX.Element => {
                             value={retryBackoffMillis}
                         />
                     </Field>
+                    <div style={{ display: "grid", gap: "0.25rem", gridColumn: "1 / -1" }}>
+                        <strong>{"Business context"}</strong>
+                        <p className={"muted-copy"}>{"Keep operator-authored metadata inside the property so automation never overwrites it."}</p>
+                    </div>
+                    <Field label={"Priority"}>
+                        <Select onChange={(event) => { setMetadataDraft((current) => ({ ...current, priorityLevel: event.target.value })); }} value={metadataDraft.priorityLevel}>
+                            <option value={""}>{"Not set"}</option>
+                            <option value={"low"}>{"Low"}</option>
+                            <option value={"medium"}>{"Medium"}</option>
+                            <option value={"high"}>{"High"}</option>
+                            <option value={"critical"}>{"Critical"}</option>
+                        </Select>
+                    </Field>
+                    <Field label={"Business stage"}>
+                        <Input onChange={(event) => { setMetadataDraft((current) => ({ ...current, businessStage: event.target.value })); }} placeholder={"Underwriting, offer, closed"} type={"text"} value={metadataDraft.businessStage} />
+                    </Field>
+                    <Field label={"Target price"}>
+                        <Input min={0} onChange={(event) => { setMetadataDraft((current) => ({ ...current, targetPrice: event.target.value })); }} type={"number"} value={metadataDraft.targetPrice} />
+                    </Field>
+                    <Field label={"Expected rent"}>
+                        <Input min={0} onChange={(event) => { setMetadataDraft((current) => ({ ...current, expectedRent: event.target.value })); }} type={"number"} value={metadataDraft.expectedRent} />
+                    </Field>
+                    <Field label={"Expected yield (%)"}>
+                        <Input min={0} onChange={(event) => { setMetadataDraft((current) => ({ ...current, expectedYieldPercent: event.target.value })); }} step={"0.1"} type={"number"} value={metadataDraft.expectedYieldPercent} />
+                    </Field>
+                    <Field hint={"Pause this property without changing its saved run cadence."} label={"Paused"} variant={"checkbox"}>
+                        <input checked={metadataDraft.paused} onChange={(event) => { setMetadataDraft((current) => ({ ...current, paused: event.target.checked })); }} type={"checkbox"} />
+                    </Field>
+                    <Field fullWidth label={"Pause reason"}>
+                        <Input onChange={(event) => { setMetadataDraft((current) => ({ ...current, pauseReason: event.target.value })); }} placeholder={"Optional reason for pausing automation"} type={"text"} value={metadataDraft.pauseReason} />
+                    </Field>
+                    <Field fullWidth label={"Acquisition notes"}>
+                        <Textarea onChange={(event) => { setMetadataDraft((current) => ({ ...current, acquisitionNotes: event.target.value })); }} rows={4} value={metadataDraft.acquisitionNotes} />
+                    </Field>
+                    <Field fullWidth label={"Deal thesis"}>
+                        <Textarea onChange={(event) => { setMetadataDraft((current) => ({ ...current, dealThesis: event.target.value })); }} rows={4} value={metadataDraft.dealThesis} />
+                    </Field>
+                    <Field fullWidth hint={"One per line: label|value"} label={"External references"}>
+                        <Textarea onChange={(event) => { setMetadataDraft((current) => ({ ...current, externalReferencesText: event.target.value })); }} rows={4} value={metadataDraft.externalReferencesText} />
+                    </Field>
+                    <Field fullWidth hint={"One per line: label|url"} label={"Attachments and linked documents"}>
+                        <Textarea onChange={(event) => { setMetadataDraft((current) => ({ ...current, attachmentsText: event.target.value })); }} rows={4} value={metadataDraft.attachmentsText} />
+                    </Field>
                 </FormGrid>
                 {!isCreateMode && propertyQuery.data !== undefined ? (
                     <KeyValueGrid compact>
@@ -584,6 +727,33 @@ export const PropertyDetailPage = (): JSX.Element => {
                             <KeyValuePair label={"Bookmark"} value={isBookmarked ? "Bookmarked" : "Not bookmarked"} />
                         </KeyValueGrid>
                     ) : null}
+                </PageCard>
+
+                <PageCard description={"Operator-authored portfolio context stays attached to the property and is never replaced by extraction runs."} title={"Business Metadata"}>
+                    {propertyQuery.data?.metadata === undefined ? <EmptyState message={"No metadata has been added yet. Use Edit to capture priority, pricing context, and deal notes."} /> : (
+                        <KeyValueGrid compact>
+                            <KeyValuePair label={"Priority"} value={propertyQuery.data.metadata.priority_level ?? "Not set"} />
+                            <KeyValuePair label={"Business stage"} value={propertyQuery.data.metadata.business_stage ?? "Not set"} />
+                            <KeyValuePair label={"Target price"} value={propertyQuery.data.metadata.target_price !== undefined ? `${propertyQuery.data.metadata.target_price}` : "Not set"} />
+                            <KeyValuePair label={"Expected rent"} value={propertyQuery.data.metadata.expected_rent !== undefined ? `${propertyQuery.data.metadata.expected_rent}` : "Not set"} />
+                            <KeyValuePair label={"Expected yield"} value={propertyQuery.data.metadata.expected_yield_bps !== undefined ? `${(propertyQuery.data.metadata.expected_yield_bps / BASIS_POINTS_PER_PERCENT).toFixed(1)}%` : "Not set"} />
+                            <KeyValuePair label={"Automation paused"} value={propertyQuery.data.paused ? `Yes${propertyQuery.data.pause_reason !== undefined && propertyQuery.data.pause_reason !== "" ? ` · ${propertyQuery.data.pause_reason}` : ""}` : "No"} />
+                            <KeyValuePair label={"Acquisition notes"} value={propertyQuery.data.metadata.acquisition_notes ?? "—"} />
+                            <KeyValuePair label={"Deal thesis"} value={propertyQuery.data.metadata.deal_thesis ?? "—"} />
+                            <KeyValuePair
+                                label={"External references"}
+                                value={(propertyQuery.data.metadata.external_references ?? []).length === 0
+                                    ? "—"
+                                    : (propertyQuery.data.metadata.external_references ?? []).map((item) => `${item.label}: ${item.value}`).join(", ")}
+                            />
+                            <KeyValuePair
+                                label={"Attachments"}
+                                value={(propertyQuery.data.metadata.attachments ?? []).length === 0
+                                    ? "—"
+                                    : (propertyQuery.data.metadata.attachments ?? []).map((item) => `${item.label}: ${item.url}`).join(", ")}
+                            />
+                        </KeyValueGrid>
+                    )}
                 </PageCard>
 
                 <PageCard

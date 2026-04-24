@@ -146,8 +146,8 @@ func (s *PropertyService) EnsureProperty(ctx context.Context, property ingestion
 }
 
 // ListPropertiesFiltered returns properties with optional tag and status filtering.
-func (s *PropertyService) ListPropertiesFiltered(ctx context.Context, tagIDs []string, matchAll bool, status string) ([]ingestiondomain.Property, error) {
-	if len(tagIDs) == 0 && status == "" {
+func (s *PropertyService) ListPropertiesFiltered(ctx context.Context, tagIDs []string, matchAll bool, status string, priorityLevel string, businessStage string) ([]ingestiondomain.Property, error) {
+	if len(tagIDs) == 0 && status == "" && priorityLevel == "" && businessStage == "" {
 		return s.store.ListProperties(ctx)
 	}
 
@@ -184,6 +184,12 @@ func (s *PropertyService) ListPropertiesFiltered(ctx context.Context, tagIDs []s
 		}
 		// Filter by status if applicable
 		if status != "" && string(property.Status) != status {
+			continue
+		}
+		if priorityLevel != "" && !strings.EqualFold(strings.TrimSpace(property.Metadata.PriorityLevel), priorityLevel) {
+			continue
+		}
+		if businessStage != "" && !strings.EqualFold(strings.TrimSpace(property.Metadata.BusinessStage), businessStage) {
 			continue
 		}
 		filtered = append(filtered, property)
@@ -690,6 +696,19 @@ func (s *PropertyService) normalizeAndValidateProperty(ctx context.Context, prop
 	}
 	property.RequestHeaders = normalizedHeaders
 	property.SourceID = strings.TrimSpace(property.SourceID)
+	property.PauseReason = strings.TrimSpace(property.PauseReason)
+	property.Metadata.PriorityLevel = strings.TrimSpace(property.Metadata.PriorityLevel)
+	property.Metadata.BusinessStage = strings.TrimSpace(property.Metadata.BusinessStage)
+	property.Metadata.AcquisitionNotes = strings.TrimSpace(property.Metadata.AcquisitionNotes)
+	property.Metadata.DealThesis = strings.TrimSpace(property.Metadata.DealThesis)
+	for index := range property.Metadata.ExternalReferences {
+		property.Metadata.ExternalReferences[index].Label = strings.TrimSpace(property.Metadata.ExternalReferences[index].Label)
+		property.Metadata.ExternalReferences[index].Value = strings.TrimSpace(property.Metadata.ExternalReferences[index].Value)
+	}
+	for index := range property.Metadata.Attachments {
+		property.Metadata.Attachments[index].Label = strings.TrimSpace(property.Metadata.Attachments[index].Label)
+		property.Metadata.Attachments[index].URL = strings.TrimSpace(property.Metadata.Attachments[index].URL)
+	}
 	if property.SourceID != "" {
 		if _, err := s.store.GetSource(ctx, property.SourceID); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
