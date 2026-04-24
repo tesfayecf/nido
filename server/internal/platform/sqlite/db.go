@@ -3,13 +3,16 @@ package sqlite
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	_ "modernc.org/sqlite"
 
+	ingestiondomain "home-searcher/server/internal/ingestion/domain"
 	"home-searcher/server/internal/platform/config"
 )
 
@@ -51,6 +54,13 @@ func Migrate(ctx context.Context, db *sql.DB) error {
 		if err := ensureColumn(ctx, db, migration); err != nil {
 			return err
 		}
+	}
+
+	if err := seedFieldDefinitions(ctx, db); err != nil {
+		return err
+	}
+	if err := backfillPropertyFieldValues(ctx, db); err != nil {
+		return err
 	}
 
 	return nil
@@ -304,6 +314,40 @@ CREATE TABLE IF NOT EXISTS property_runs (
 CREATE INDEX IF NOT EXISTS idx_property_runs_property_started ON property_runs(property_id, started_at DESC);
 CREATE INDEX IF NOT EXISTS idx_property_runs_status ON property_runs(status);
 
+CREATE TABLE IF NOT EXISTS field_definitions (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    display_name TEXT NOT NULL,
+    data_type TEXT NOT NULL,
+    unit TEXT NOT NULL DEFAULT '',
+    description TEXT NOT NULL DEFAULT '',
+    enum_values_json TEXT NOT NULL DEFAULT '[]',
+    system_defined INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_field_definitions_system_name ON field_definitions(system_defined, name);
+
+CREATE TABLE IF NOT EXISTS property_field_values (
+    id TEXT PRIMARY KEY,
+    property_id TEXT NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+    snapshot_id TEXT NOT NULL REFERENCES property_snapshots(id) ON DELETE CASCADE,
+    field_definition_id TEXT REFERENCES field_definitions(id) ON DELETE SET NULL,
+    field_name TEXT NOT NULL DEFAULT '',
+    selector_name TEXT NOT NULL,
+    config_version INTEGER NOT NULL DEFAULT 1,
+    value_text TEXT NOT NULL DEFAULT '',
+    observed_at TEXT NOT NULL,
+    validation_status TEXT NOT NULL DEFAULT 'unmapped',
+    validation_message TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_property_field_values_snapshot_selector ON property_field_values(snapshot_id, selector_name);
+CREATE INDEX IF NOT EXISTS idx_property_field_values_field_observed ON property_field_values(field_definition_id, observed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_property_field_values_property_selector ON property_field_values(property_id, selector_name, observed_at DESC);
+
 CREATE TABLE IF NOT EXISTS platform_settings (
     id TEXT PRIMARY KEY,
     scheduler_enabled INTEGER NOT NULL DEFAULT 1,
@@ -371,4 +415,206 @@ var columnMigrations = []columnMigration{
 	{table: "properties", column: "last_run_at", definition: "TEXT"},
 	{table: "properties", column: "next_run_at", definition: "TEXT"},
 	{table: "property_extraction_configs", column: "change_summary", definition: "TEXT NOT NULL DEFAULT ''"},
+}
+
+var defaultFieldDefinitions = []ingestiondomain.FieldDefinition{
+	{
+		ID:            "field-price",
+		Name:          "price",
+		DisplayName:   "Price",
+		DataType:      ingestiondomain.FieldDataTypeNumber,
+		Unit:          "€",
+		SystemDefined: true,
+	},
+	{
+		ID:            "field-bedrooms",
+		Name:          "bedrooms",
+		DisplayName:   "Bedrooms",
+		DataType:      ingestiondomain.FieldDataTypeNumber,
+		SystemDefined: true,
+	},
+	{
+		ID:            "field-bathrooms",
+		Name:          "bathrooms",
+		DisplayName:   "Bathrooms",
+		DataType:      ingestiondomain.FieldDataTypeNumber,
+		SystemDefined: true,
+	},
+	{
+		ID:            "field-area-m2",
+		Name:          "area_m2",
+		DisplayName:   "Area",
+		DataType:      ingestiondomain.FieldDataTypeNumber,
+		Unit:          "m²",
+		SystemDefined: true,
+	},
+	{
+		ID:            "field-title",
+		Name:          "title",
+		DisplayName:   "Title",
+		DataType:      ingestiondomain.FieldDataTypeString,
+		SystemDefined: true,
+	},
+	{
+		ID:            "field-location",
+		Name:          "location",
+		DisplayName:   "Location",
+		DataType:      ingestiondomain.FieldDataTypeString,
+		SystemDefined: true,
+	},
+}
+
+func seedFieldDefinitions(ctx context.Context, db *sql.DB) error {
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	for _, field := range defaultFieldDefinitions {
+		enumJSON, _ := json.Marshal(field.EnumValues)
+		if _, err := db.ExecContext(
+			ctx,
+			`INSERT INTO field_definitions (id, name, display_name, data_type, unit, description, enum_values_json, system_defined, created_at, updated_at)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			 ON CONFLICT(id) DO UPDATE SET
+			 	display_name = excluded.display_name,
+			 	data_type = excluded.data_type,
+			 	unit = excluded.unit,
+			 	description = excluded.description,
+			 	enum_values_json = excluded.enum_values_json,
+			 	system_defined = excluded.system_defined,
+			 	updated_at = excluded.updated_at`,
+			field.ID,
+			field.Name,
+			field.DisplayName,
+			string(field.DataType),
+			field.Unit,
+			field.Description,
+			string(enumJSON),
+			boolToInt(field.SystemDefined),
+			now,
+			now,
+		); err != nil {
+			return fmt.Errorf("seed field definitions: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func backfillPropertyFieldValues(ctx context.Context, db *sql.DB) error {
+	fieldDefinitions, err := loadFieldDefinitionMap(ctx, db)
+	if err != nil {
+		return err
+	}
+
+	type configKey struct {
+		propertyID string
+		version    int
+	}
+
+	configMappings := make(map[configKey]map[string]string)
+	configRows, err := db.QueryContext(ctx, `SELECT property_id, version, fields_json FROM property_extraction_configs`)
+	if err != nil {
+		return fmt.Errorf("query property configs for field backfill: %w", err)
+	}
+	defer configRows.Close()
+
+	for configRows.Next() {
+		var propertyID string
+		var version int
+		var fieldsJSON string
+		if err := configRows.Scan(&propertyID, &version, &fieldsJSON); err != nil {
+			return fmt.Errorf("scan property config for field backfill: %w", err)
+		}
+
+		var selectors []ingestiondomain.FieldSelector
+		if err := json.Unmarshal([]byte(fieldsJSON), &selectors); err != nil {
+			continue
+		}
+
+		mapping := make(map[string]string, len(selectors))
+		for _, selector := range selectors {
+			name := strings.TrimSpace(selector.Name)
+			if name == "" {
+				continue
+			}
+			mapping[name] = strings.TrimSpace(selector.FieldName)
+		}
+		configMappings[configKey{propertyID: propertyID, version: version}] = mapping
+	}
+	if err := configRows.Err(); err != nil {
+		return fmt.Errorf("iterate property configs for field backfill: %w", err)
+	}
+
+	rows, err := db.QueryContext(ctx, `SELECT id, property_id, config_version, observed_at, values_json FROM property_snapshots`)
+	if err != nil {
+		return fmt.Errorf("query property snapshots for field backfill: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var snapshotID string
+		var propertyID string
+		var configVersion int
+		var observedAt string
+		var valuesJSON string
+		if err := rows.Scan(&snapshotID, &propertyID, &configVersion, &observedAt, &valuesJSON); err != nil {
+			return fmt.Errorf("scan property snapshot for field backfill: %w", err)
+		}
+
+		values := map[string]string{}
+		if err := json.Unmarshal([]byte(normalizeJSONString(valuesJSON)), &values); err != nil {
+			continue
+		}
+
+		mapping := configMappings[configKey{propertyID: propertyID, version: configVersion}]
+		for selectorName, value := range values {
+			fieldName := strings.TrimSpace(mapping[selectorName])
+			fieldID := ""
+			validationStatus := ingestiondomain.FieldValidationStatusUnmapped
+			validationMessage := ""
+			if definition, ok := fieldDefinitions[strings.ToLower(fieldName)]; ok {
+				fieldID = definition.ID
+				validationStatus, validationMessage = ingestiondomain.ValidateFieldValue(definition, value)
+			}
+			if _, err := db.ExecContext(
+				ctx,
+				`INSERT OR IGNORE INTO property_field_values
+					(id, property_id, snapshot_id, field_definition_id, field_name, selector_name, config_version, value_text, observed_at, validation_status, validation_message, created_at)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				fmt.Sprintf("%s:%s", snapshotID, selectorName),
+				propertyID,
+				snapshotID,
+				nullableString(fieldID),
+				fieldName,
+				selectorName,
+				configVersion,
+				value,
+				observedAt,
+				validationStatus,
+				validationMessage,
+				observedAt,
+			); err != nil {
+				return fmt.Errorf("backfill property field value: %w", err)
+			}
+		}
+	}
+
+	return rows.Err()
+}
+
+func loadFieldDefinitionMap(ctx context.Context, db *sql.DB) (map[string]ingestiondomain.FieldDefinition, error) {
+	rows, err := db.QueryContext(ctx, `SELECT id, name, display_name, data_type, unit, description, enum_values_json, system_defined, created_at, updated_at FROM field_definitions`)
+	if err != nil {
+		return nil, fmt.Errorf("query field definitions: %w", err)
+	}
+	defer rows.Close()
+
+	items := make(map[string]ingestiondomain.FieldDefinition)
+	for rows.Next() {
+		field, err := scanFieldDefinition(rows)
+		if err != nil {
+			return nil, err
+		}
+		items[strings.ToLower(field.Name)] = field
+	}
+
+	return items, rows.Err()
 }
