@@ -184,6 +184,31 @@ type PropertyExtractionConfig struct {
 	ChangeSummary string          `json:"change_summary,omitempty"`
 }
 
+// PropertyReference captures one external business reference attached to a property.
+type PropertyReference struct {
+	Label string `json:"label"`
+	Value string `json:"value"`
+}
+
+// PropertyAttachment captures one linked document or attachment for a property.
+type PropertyAttachment struct {
+	Label string `json:"label"`
+	URL   string `json:"url"`
+}
+
+// PropertyMetadata captures operator-authored business context.
+type PropertyMetadata struct {
+	PriorityLevel      string               `json:"priority_level,omitempty"`
+	BusinessStage      string               `json:"business_stage,omitempty"`
+	TargetPrice        int64                `json:"target_price,omitempty"`
+	ExpectedRent       int64                `json:"expected_rent,omitempty"`
+	ExpectedYieldBps   int                  `json:"expected_yield_bps,omitempty"`
+	AcquisitionNotes   string               `json:"acquisition_notes,omitempty"`
+	DealThesis         string               `json:"deal_thesis,omitempty"`
+	ExternalReferences []PropertyReference  `json:"external_references,omitempty"`
+	Attachments        []PropertyAttachment `json:"attachments,omitempty"`
+}
+
 // Property represents a single tracked real estate listing URL.
 type Property struct {
 	ID                      string            `json:"id"`
@@ -196,6 +221,9 @@ type Property struct {
 	ScheduleIntervalSeconds int               `json:"schedule_interval_seconds,omitempty"`
 	RetryMaxAttempts        int               `json:"retry_max_attempts,omitempty"`
 	RetryBackoffMillis      int               `json:"retry_backoff_millis,omitempty"`
+	Paused                  bool              `json:"paused,omitempty"`
+	PauseReason             string            `json:"pause_reason,omitempty"`
+	Metadata                PropertyMetadata  `json:"metadata,omitempty"`
 	LastRunAt               *time.Time        `json:"last_run_at,omitempty"`
 	NextRunAt               *time.Time        `json:"next_run_at,omitempty"`
 	CreatedAt               time.Time         `json:"created_at"`

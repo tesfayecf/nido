@@ -27,6 +27,28 @@ export interface PropertyExtractionConfig {
     readonly change_summary?: string;
 }
 
+export interface PropertyReference {
+    readonly label: string;
+    readonly value: string;
+}
+
+export interface PropertyAttachment {
+    readonly label: string;
+    readonly url: string;
+}
+
+export interface PropertyMetadata {
+    readonly priority_level?: string;
+    readonly business_stage?: string;
+    readonly target_price?: number;
+    readonly expected_rent?: number;
+    readonly expected_yield_bps?: number;
+    readonly acquisition_notes?: string;
+    readonly deal_thesis?: string;
+    readonly external_references?: PropertyReference[];
+    readonly attachments?: PropertyAttachment[];
+}
+
 export interface Property {
     readonly id: string;
     readonly url: string;
@@ -36,6 +58,9 @@ export interface Property {
     readonly schedule_interval_seconds?: number;
     readonly retry_max_attempts?: number;
     readonly retry_backoff_millis?: number;
+    readonly paused?: boolean;
+    readonly pause_reason?: string;
+    readonly metadata?: PropertyMetadata;
     readonly last_run_at?: string;
     readonly next_run_at?: string;
     readonly created_at?: string;
@@ -96,6 +121,9 @@ export interface PropertyUpsertRequest {
     readonly schedule_interval_seconds?: number;
     readonly retry_max_attempts?: number;
     readonly retry_backoff_millis?: number;
+    readonly paused?: boolean;
+    readonly pause_reason?: string;
+    readonly metadata?: PropertyMetadata;
 }
 
 export type PropertyRunStatus = "pending" | "running" | "success" | "failed";
@@ -118,4 +146,6 @@ export interface PropertyListFilter {
     readonly tagIds?: string[];
     readonly tagMatch?: "any" | "all";
     readonly status?: string;
+    readonly priorityLevel?: string;
+    readonly businessStage?: string;
 }

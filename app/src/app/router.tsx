@@ -13,6 +13,7 @@ import { AlertsPage } from "@/features/engagement/AlertsPage";
 import { BookmarksPage } from "@/features/engagement/BookmarksPage";
 import { NotificationsPage } from "@/features/engagement/NotificationsPage";
 import { DashboardPage } from "@/features/operators/DashboardPage";
+import { AdminPage } from "@/features/platform/AdminPage";
 import { TriageInboxPage } from "@/features/operators/TriageInboxPage";
 import { PropertiesPage } from "@/features/properties/PropertiesPage";
 import { PropertyDetailPage } from "@/features/properties/PropertyDetailPage";
@@ -105,6 +106,10 @@ export const router = createBrowserRouter([
                     {
                         path: "settings",
                         element: <SettingsPage />,
+                    },
+                    {
+                        path: "admin",
+                        element: <AdminPage />,
                     },
                 ],
             },

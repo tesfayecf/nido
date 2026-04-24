@@ -15,6 +15,7 @@ import (
 	engagementdomain "home-searcher/server/internal/engagement/domain"
 	ingestiondomain "home-searcher/server/internal/ingestion/domain"
 	"home-searcher/server/internal/platform/id"
+	platformopsdomain "home-searcher/server/internal/platformops/domain"
 )
 
 // Store implements the repository contracts needed by the backend runtime.
@@ -1508,9 +1509,58 @@ func boolToInt(value bool) int {
 	return 0
 }
 
+func propertyMetadataIsZero(metadata ingestiondomain.PropertyMetadata) bool {
+	return strings.TrimSpace(metadata.PriorityLevel) == "" &&
+		strings.TrimSpace(metadata.BusinessStage) == "" &&
+		metadata.TargetPrice == 0 &&
+		metadata.ExpectedRent == 0 &&
+		metadata.ExpectedYieldBps == 0 &&
+		strings.TrimSpace(metadata.AcquisitionNotes) == "" &&
+		strings.TrimSpace(metadata.DealThesis) == "" &&
+		len(metadata.ExternalReferences) == 0 &&
+		len(metadata.Attachments) == 0
+}
+
+func mustMarshalJSON(value any, fallback string) string {
+	encoded, err := json.Marshal(value)
+	if err != nil {
+		return fallback
+	}
+	return string(encoded)
+}
+
+func decodeStringArrayJSON(raw string) []string {
+	normalized := strings.TrimSpace(raw)
+	if normalized == "" {
+		return nil
+	}
+	var items []string
+	if err := json.Unmarshal([]byte(normalizeJSONString(normalized)), &items); err != nil {
+		return nil
+	}
+	filtered := make([]string, 0, len(items))
+	for _, item := range items {
+		trimmed := strings.TrimSpace(item)
+		if trimmed != "" {
+			filtered = append(filtered, trimmed)
+		}
+	}
+	if len(filtered) == 0 {
+		return nil
+	}
+	return filtered
+}
+
+func nullableInt(value int) any {
+	if value <= 0 {
+		return nil
+	}
+	return value
+}
+
 // ── Property persistence ──────────────────────────────────────────────────────
 
-var propertySelect = `SELECT id, url, label, source_id, browser_enabled, request_headers_json, status, schedule_interval_seconds, retry_max_attempts, retry_backoff_millis, last_run_at, next_run_at, created_at, updated_at FROM properties`
+var propertySelect = `SELECT id, url, label, source_id, browser_enabled, request_headers_json, status, schedule_interval_seconds, retry_max_attempts, retry_backoff_millis, paused, pause_reason, metadata_json, last_run_at, next_run_at, created_at, updated_at FROM properties`
 
 // UpsertProperty creates or updates a property record.
 func (s *Store) UpsertProperty(ctx context.Context, property ingestiondomain.Property) error {
@@ -1522,11 +1572,19 @@ func (s *Store) UpsertProperty(ctx context.Context, property ingestiondomain.Pro
 		}
 		requestHeadersJSON = string(encodedRequestHeaders)
 	}
+	metadataJSON := "{}"
+	if !propertyMetadataIsZero(property.Metadata) {
+		encodedMetadata, err := json.Marshal(property.Metadata)
+		if err != nil {
+			return fmt.Errorf("marshal property metadata: %w", err)
+		}
+		metadataJSON = string(encodedMetadata)
+	}
 
 	_, err := s.db.ExecContext(
 		ctx,
-		`INSERT INTO properties (id, url, label, source_id, browser_enabled, request_headers_json, status, schedule_interval_seconds, retry_max_attempts, retry_backoff_millis, last_run_at, next_run_at, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`INSERT INTO properties (id, url, label, source_id, browser_enabled, request_headers_json, status, schedule_interval_seconds, retry_max_attempts, retry_backoff_millis, paused, pause_reason, metadata_json, last_run_at, next_run_at, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		 ON CONFLICT(id) DO UPDATE SET
 		 	url = excluded.url,
 		 	label = excluded.label,
@@ -1537,6 +1595,9 @@ func (s *Store) UpsertProperty(ctx context.Context, property ingestiondomain.Pro
 		 	schedule_interval_seconds = excluded.schedule_interval_seconds,
 		 	retry_max_attempts = excluded.retry_max_attempts,
 		 	retry_backoff_millis = excluded.retry_backoff_millis,
+		 	paused = excluded.paused,
+		 	pause_reason = excluded.pause_reason,
+		 	metadata_json = excluded.metadata_json,
 		 	last_run_at = excluded.last_run_at,
 		 	next_run_at = excluded.next_run_at,
 		 	updated_at = excluded.updated_at`,
@@ -1550,6 +1611,9 @@ func (s *Store) UpsertProperty(ctx context.Context, property ingestiondomain.Pro
 		property.ScheduleIntervalSeconds,
 		property.RetryMaxAttempts,
 		property.RetryBackoffMillis,
+		boolToInt(property.Paused),
+		strings.TrimSpace(property.PauseReason),
+		normalizeJSONString(metadataJSON),
 		nullableTimeString(property.LastRunAt),
 		nullableTimeString(property.NextRunAt),
 		formatTime(property.CreatedAt),
@@ -1586,7 +1650,7 @@ func (s *Store) ListProperties(ctx context.Context) ([]ingestiondomain.Property,
 func (s *Store) ListDueProperties(ctx context.Context, before time.Time, limit int) ([]ingestiondomain.Property, error) {
 	rows, err := s.db.QueryContext(
 		ctx,
-		propertySelect+` WHERE status != 'inactive' AND schedule_interval_seconds > 0 AND (next_run_at IS NULL OR next_run_at <= ?) ORDER BY COALESCE(next_run_at, created_at) ASC LIMIT ?`,
+		propertySelect+` WHERE status != 'inactive' AND paused = 0 AND schedule_interval_seconds > 0 AND (next_run_at IS NULL OR next_run_at <= ?) ORDER BY COALESCE(next_run_at, created_at) ASC LIMIT ?`,
 		formatTime(before),
 		limit,
 	)
@@ -1883,6 +1947,9 @@ func scanProperty(s scanner) (ingestiondomain.Property, error) {
 		browserEnabled       int
 		requestHeadersJSON   string
 		status               string
+		paused               int
+		pauseReason          string
+		metadataJSON         string
 		lastRunAt, nextRunAt sql.NullString
 		createdAt, updatedAt string
 	)
@@ -1898,6 +1965,9 @@ func scanProperty(s scanner) (ingestiondomain.Property, error) {
 		&property.ScheduleIntervalSeconds,
 		&property.RetryMaxAttempts,
 		&property.RetryBackoffMillis,
+		&paused,
+		&pauseReason,
+		&metadataJSON,
 		&lastRunAt,
 		&nextRunAt,
 		&createdAt,
@@ -1920,6 +1990,13 @@ func scanProperty(s scanner) (ingestiondomain.Property, error) {
 	}
 
 	property.Status = ingestiondomain.PropertyStatus(status)
+	property.Paused = paused == 1
+	property.PauseReason = pauseReason
+	if strings.TrimSpace(metadataJSON) != "" {
+		if err := json.Unmarshal([]byte(normalizeJSONString(metadataJSON)), &property.Metadata); err != nil {
+			return ingestiondomain.Property{}, fmt.Errorf("unmarshal property metadata: %w", err)
+		}
+	}
 	property.CreatedAt, err = parseTime(createdAt)
 	if err != nil {
 		return ingestiondomain.Property{}, err
@@ -2317,6 +2394,288 @@ func (s *Store) CountRecentPropertyRuns(ctx context.Context, propertyID string, 
 		return 0, fmt.Errorf("count recent property runs: %w", err)
 	}
 	return count, nil
+}
+
+// GetPlatformSettings returns the singleton platform settings row.
+func (s *Store) GetPlatformSettings(ctx context.Context) (platformopsdomain.PlatformSettings, error) {
+	row := s.db.QueryRowContext(
+		ctx,
+		`SELECT id, scheduler_enabled, maintenance_window_enabled, maintenance_window_start, maintenance_window_end,
+		        webhook_url, webhook_events_json, slack_webhook_url, slack_events_json,
+		        spreadsheet_webhook_url, spreadsheet_events_json, task_webhook_url, task_events_json,
+		        email_digest_enabled, email_digest_recipient, email_digest_schedule, email_digest_events_json,
+		        last_digest_sent_at, updated_at
+		   FROM platform_settings
+		  ORDER BY updated_at DESC
+		  LIMIT 1`,
+	)
+
+	var (
+		settings                                                       platformopsdomain.PlatformSettings
+		schedulerEnabled, maintenanceWindowEnabled, emailDigestEnabled int
+		webhookEventsJSON, slackEventsJSON, spreadsheetEventsJSON      string
+		taskEventsJSON, emailDigestEventsJSON                          string
+		lastDigestSentAt                                               sql.NullString
+		updatedAt                                                      string
+	)
+
+	err := row.Scan(
+		&settings.ID,
+		&schedulerEnabled,
+		&maintenanceWindowEnabled,
+		&settings.MaintenanceWindowStart,
+		&settings.MaintenanceWindowEnd,
+		&settings.Webhook.URL,
+		&webhookEventsJSON,
+		&settings.Slack.URL,
+		&slackEventsJSON,
+		&settings.Spreadsheet.URL,
+		&spreadsheetEventsJSON,
+		&settings.TaskSystem.URL,
+		&taskEventsJSON,
+		&emailDigestEnabled,
+		&settings.EmailDigest.Recipient,
+		&settings.EmailDigest.Schedule,
+		&emailDigestEventsJSON,
+		&lastDigestSentAt,
+		&updatedAt,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		now := time.Now().UTC()
+		return platformopsdomain.PlatformSettings{
+			ID:               "platform",
+			SchedulerEnabled: true,
+			EmailDigest: platformopsdomain.EmailDigestConfig{
+				Schedule: "09:00",
+			},
+			UpdatedAt: now,
+		}, nil
+	}
+	if err != nil {
+		return platformopsdomain.PlatformSettings{}, fmt.Errorf("get platform settings: %w", err)
+	}
+
+	settings.SchedulerEnabled = schedulerEnabled == 1
+	settings.MaintenanceWindowEnabled = maintenanceWindowEnabled == 1
+	settings.EmailDigest.Enabled = emailDigestEnabled == 1
+	settings.Webhook.Events = decodeStringArrayJSON(webhookEventsJSON)
+	settings.Slack.Events = decodeStringArrayJSON(slackEventsJSON)
+	settings.Spreadsheet.Events = decodeStringArrayJSON(spreadsheetEventsJSON)
+	settings.TaskSystem.Events = decodeStringArrayJSON(taskEventsJSON)
+	settings.EmailDigest.Events = decodeStringArrayJSON(emailDigestEventsJSON)
+	if lastDigestSentAt.Valid {
+		parsed, err := parseTime(lastDigestSentAt.String)
+		if err != nil {
+			return platformopsdomain.PlatformSettings{}, err
+		}
+		settings.EmailDigest.LastSentAt = &parsed
+	}
+	parsedUpdatedAt, err := parseTime(updatedAt)
+	if err != nil {
+		return platformopsdomain.PlatformSettings{}, err
+	}
+	settings.UpdatedAt = parsedUpdatedAt
+	return settings, nil
+}
+
+// SavePlatformSettings stores the singleton platform settings row.
+func (s *Store) SavePlatformSettings(ctx context.Context, settings platformopsdomain.PlatformSettings) error {
+	if strings.TrimSpace(settings.ID) == "" {
+		settings.ID = "platform"
+	}
+	if strings.TrimSpace(settings.EmailDigest.Schedule) == "" {
+		settings.EmailDigest.Schedule = "09:00"
+	}
+	settings.UpdatedAt = time.Now().UTC()
+
+	_, err := s.db.ExecContext(
+		ctx,
+		`INSERT INTO platform_settings (
+			id, scheduler_enabled, maintenance_window_enabled, maintenance_window_start, maintenance_window_end,
+			webhook_url, webhook_events_json, slack_webhook_url, slack_events_json,
+			spreadsheet_webhook_url, spreadsheet_events_json, task_webhook_url, task_events_json,
+			email_digest_enabled, email_digest_recipient, email_digest_schedule, email_digest_events_json,
+			last_digest_sent_at, updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET
+			scheduler_enabled = excluded.scheduler_enabled,
+			maintenance_window_enabled = excluded.maintenance_window_enabled,
+			maintenance_window_start = excluded.maintenance_window_start,
+			maintenance_window_end = excluded.maintenance_window_end,
+			webhook_url = excluded.webhook_url,
+			webhook_events_json = excluded.webhook_events_json,
+			slack_webhook_url = excluded.slack_webhook_url,
+			slack_events_json = excluded.slack_events_json,
+			spreadsheet_webhook_url = excluded.spreadsheet_webhook_url,
+			spreadsheet_events_json = excluded.spreadsheet_events_json,
+			task_webhook_url = excluded.task_webhook_url,
+			task_events_json = excluded.task_events_json,
+			email_digest_enabled = excluded.email_digest_enabled,
+			email_digest_recipient = excluded.email_digest_recipient,
+			email_digest_schedule = excluded.email_digest_schedule,
+			email_digest_events_json = excluded.email_digest_events_json,
+			last_digest_sent_at = excluded.last_digest_sent_at,
+			updated_at = excluded.updated_at`,
+		settings.ID,
+		boolToInt(settings.SchedulerEnabled),
+		boolToInt(settings.MaintenanceWindowEnabled),
+		strings.TrimSpace(settings.MaintenanceWindowStart),
+		strings.TrimSpace(settings.MaintenanceWindowEnd),
+		strings.TrimSpace(settings.Webhook.URL),
+		mustMarshalJSON(settings.Webhook.Events, "[]"),
+		strings.TrimSpace(settings.Slack.URL),
+		mustMarshalJSON(settings.Slack.Events, "[]"),
+		strings.TrimSpace(settings.Spreadsheet.URL),
+		mustMarshalJSON(settings.Spreadsheet.Events, "[]"),
+		strings.TrimSpace(settings.TaskSystem.URL),
+		mustMarshalJSON(settings.TaskSystem.Events, "[]"),
+		boolToInt(settings.EmailDigest.Enabled),
+		strings.TrimSpace(settings.EmailDigest.Recipient),
+		strings.TrimSpace(settings.EmailDigest.Schedule),
+		mustMarshalJSON(settings.EmailDigest.Events, "[]"),
+		nullableTimeString(settings.EmailDigest.LastSentAt),
+		formatTime(settings.UpdatedAt),
+	)
+	if err != nil {
+		return fmt.Errorf("save platform settings: %w", err)
+	}
+	return nil
+}
+
+// CreateIntegrationDeliveryLog records one delivery attempt.
+func (s *Store) CreateIntegrationDeliveryLog(ctx context.Context, log platformopsdomain.IntegrationDeliveryLog) error {
+	_, err := s.db.ExecContext(
+		ctx,
+		`INSERT INTO integration_delivery_logs (id, channel, event_type, target, status, attempt_count, payload_json, response_status, error_message, delivered_at, created_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		log.ID,
+		log.Channel,
+		log.EventType,
+		log.Target,
+		log.Status,
+		log.AttemptCount,
+		normalizeJSONString(string(log.Payload)),
+		nullableInt(log.ResponseStatus),
+		nullableString(log.ErrorMessage),
+		nullableTimeString(log.DeliveredAt),
+		formatTime(log.CreatedAt),
+	)
+	if err != nil {
+		return fmt.Errorf("create integration delivery log: %w", err)
+	}
+	return nil
+}
+
+// ListIntegrationDeliveryLogs returns recent integration activity.
+func (s *Store) ListIntegrationDeliveryLogs(ctx context.Context, limit int) ([]platformopsdomain.IntegrationDeliveryLog, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 200 {
+		limit = 200
+	}
+	rows, err := s.db.QueryContext(
+		ctx,
+		`SELECT id, channel, event_type, target, status, attempt_count, payload_json, response_status, error_message, delivered_at, created_at
+		   FROM integration_delivery_logs
+		  ORDER BY created_at DESC
+		  LIMIT ?`,
+		limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list integration delivery logs: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]platformopsdomain.IntegrationDeliveryLog, 0, limit)
+	for rows.Next() {
+		var (
+			item                      platformopsdomain.IntegrationDeliveryLog
+			payloadJSON, createdAt    string
+			responseStatus            sql.NullInt64
+			errorMessage, deliveredAt sql.NullString
+		)
+		if err := rows.Scan(
+			&item.ID,
+			&item.Channel,
+			&item.EventType,
+			&item.Target,
+			&item.Status,
+			&item.AttemptCount,
+			&payloadJSON,
+			&responseStatus,
+			&errorMessage,
+			&deliveredAt,
+			&createdAt,
+		); err != nil {
+			return nil, err
+		}
+		item.Payload = json.RawMessage(normalizeJSONString(payloadJSON))
+		if responseStatus.Valid {
+			item.ResponseStatus = int(responseStatus.Int64)
+		}
+		if errorMessage.Valid {
+			item.ErrorMessage = errorMessage.String
+		}
+		if deliveredAt.Valid {
+			parsed, err := parseTime(deliveredAt.String)
+			if err != nil {
+				return nil, err
+			}
+			item.DeliveredAt = &parsed
+		}
+		parsedCreatedAt, err := parseTime(createdAt)
+		if err != nil {
+			return nil, err
+		}
+		item.CreatedAt = parsedCreatedAt
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
+// CountProperties returns the total property count.
+func (s *Store) CountProperties(ctx context.Context) (int, error) {
+	var count int
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM properties`).Scan(&count); err != nil {
+		return 0, fmt.Errorf("count properties: %w", err)
+	}
+	return count, nil
+}
+
+// CountPausedProperties returns the total paused property count.
+func (s *Store) CountPausedProperties(ctx context.Context) (int, error) {
+	var count int
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM properties WHERE paused = 1`).Scan(&count); err != nil {
+		return 0, fmt.Errorf("count paused properties: %w", err)
+	}
+	return count, nil
+}
+
+// CountDueProperties returns properties that are currently runnable.
+func (s *Store) CountDueProperties(ctx context.Context, before time.Time) (int, error) {
+	var count int
+	if err := s.db.QueryRowContext(
+		ctx,
+		`SELECT COUNT(*) FROM properties WHERE status != 'inactive' AND paused = 0 AND schedule_interval_seconds > 0 AND (next_run_at IS NULL OR next_run_at <= ?)`,
+		formatTime(before),
+	).Scan(&count); err != nil {
+		return 0, fmt.Errorf("count due properties: %w", err)
+	}
+	return count, nil
+}
+
+// CountPropertyRunsSince returns total and failed run counts since the given time.
+func (s *Store) CountPropertyRunsSince(ctx context.Context, since time.Time) (int, int, error) {
+	var total, failed int
+	if err := s.db.QueryRowContext(
+		ctx,
+		`SELECT COUNT(*), COALESCE(SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END), 0) FROM property_runs WHERE created_at >= ?`,
+		formatTime(since),
+	).Scan(&total, &failed); err != nil {
+		return 0, 0, fmt.Errorf("count property runs since: %w", err)
+	}
+	return total, failed, nil
 }
 
 func scanTag(s scanner) (ingestiondomain.Tag, error) {

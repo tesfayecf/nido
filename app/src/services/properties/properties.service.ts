@@ -34,6 +34,14 @@ export const listProperties = async (filter?: PropertyListFilter): Promise<Prope
     if (filter?.status !== undefined) {
         params.append("status", filter.status);
     }
+
+    if (filter?.priorityLevel !== undefined && filter.priorityLevel.trim() !== "") {
+        params.append("priority_level", filter.priorityLevel);
+    }
+
+    if (filter?.businessStage !== undefined && filter.businessStage.trim() !== "") {
+        params.append("business_stage", filter.businessStage);
+    }
     
     const queryString = params.toString();
     const path = queryString !== "" ? `/api/v1/backoffice/properties?${queryString}` : "/api/v1/backoffice/properties";
