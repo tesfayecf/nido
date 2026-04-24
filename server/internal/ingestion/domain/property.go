@@ -181,6 +181,7 @@ type PropertyExtractionConfig struct {
 	Fields     []FieldSelector `json:"fields"`
 	Version    int             `json:"version"`
 	CreatedAt  time.Time       `json:"created_at"`
+	ChangeSummary string       `json:"change_summary,omitempty"`
 }
 
 // Property represents a single tracked real estate listing URL.

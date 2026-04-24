@@ -75,6 +75,14 @@ func (s *propertyServiceStoreStub) GetLatestPropertyConfig(context.Context, stri
 	return s.config, nil
 }
 
+func (s *propertyServiceStoreStub) ListPropertyConfigs(context.Context, string) ([]ingestiondomain.PropertyExtractionConfig, error) {
+	return []ingestiondomain.PropertyExtractionConfig{s.config}, nil
+}
+
+func (s *propertyServiceStoreStub) GetPropertyConfigVersion(context.Context, string, int) (ingestiondomain.PropertyExtractionConfig, error) {
+	return s.config, nil
+}
+
 func (s *propertyServiceStoreStub) CreatePropertySnapshot(_ context.Context, snapshot ingestiondomain.PropertySnapshot) error {
 	s.snapshots = append(s.snapshots, snapshot)
 	return nil

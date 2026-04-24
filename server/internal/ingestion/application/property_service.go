@@ -62,6 +62,8 @@ type PropertyStore interface {
 	UpdatePropertyRunState(ctx context.Context, propertyID string, status ingestiondomain.PropertyStatus, lastRunAt, nextRunAt *time.Time) error
 	UpsertPropertyConfig(ctx context.Context, config ingestiondomain.PropertyExtractionConfig) error
 	GetLatestPropertyConfig(ctx context.Context, propertyID string) (ingestiondomain.PropertyExtractionConfig, error)
+	ListPropertyConfigs(ctx context.Context, propertyID string) ([]ingestiondomain.PropertyExtractionConfig, error)
+	GetPropertyConfigVersion(ctx context.Context, propertyID string, version int) (ingestiondomain.PropertyExtractionConfig, error)
 	CreatePropertySnapshot(ctx context.Context, snapshot ingestiondomain.PropertySnapshot) error
 	ListPropertySnapshots(ctx context.Context, propertyID string, limit int) ([]ingestiondomain.PropertySnapshot, error)
 	ListAllPropertySnapshots(ctx context.Context, propertyID string, limit int) ([]ingestiondomain.PropertySnapshot, error)
@@ -230,11 +232,12 @@ func (s *PropertyService) UpsertPropertyConfig(ctx context.Context, propertyID s
 	now := s.clock.Now().UTC()
 
 	config := ingestiondomain.PropertyExtractionConfig{
-		ID:         id.New("pconf"),
-		PropertyID: propertyID,
-		Fields:     normalizedFields,
-		Version:    nextVersion,
-		CreatedAt:  now,
+		ID:            id.New("pconf"),
+		PropertyID:    propertyID,
+		Fields:        normalizedFields,
+		Version:       nextVersion,
+		CreatedAt:     now,
+		ChangeSummary: summarizeConfigChange(existing.Fields, normalizedFields),
 	}
 
 	if err := s.store.UpsertPropertyConfig(ctx, config); err != nil {
@@ -242,6 +245,43 @@ func (s *PropertyService) UpsertPropertyConfig(ctx context.Context, propertyID s
 	}
 
 	return config, nil
+}
+
+// ListPropertyConfigs returns the saved config history for a property.
+func (s *PropertyService) ListPropertyConfigs(ctx context.Context, propertyID string) ([]ingestiondomain.PropertyExtractionConfig, error) {
+	return s.store.ListPropertyConfigs(ctx, propertyID)
+}
+
+// GetPropertyConfigVersion returns one config version for a property.
+func (s *PropertyService) GetPropertyConfigVersion(ctx context.Context, propertyID string, version int) (ingestiondomain.PropertyExtractionConfig, error) {
+	return s.store.GetPropertyConfigVersion(ctx, propertyID, version)
+}
+
+// RollbackPropertyConfig saves a new version using the selected prior config.
+func (s *PropertyService) RollbackPropertyConfig(ctx context.Context, propertyID string, version int) (ingestiondomain.PropertyExtractionConfig, error) {
+	target, err := s.store.GetPropertyConfigVersion(ctx, propertyID, version)
+	if err != nil {
+		return ingestiondomain.PropertyExtractionConfig{}, err
+	}
+
+	existing, err := s.store.GetLatestPropertyConfig(ctx, propertyID)
+	if err != nil {
+		return ingestiondomain.PropertyExtractionConfig{}, err
+	}
+
+	next := ingestiondomain.PropertyExtractionConfig{
+		ID:            id.New("pconf"),
+		PropertyID:    propertyID,
+		Fields:        target.Fields,
+		Version:       existing.Version + 1,
+		CreatedAt:     s.clock.Now().UTC(),
+		ChangeSummary: fmt.Sprintf("Rollback to version %d. %s", version, summarizeConfigChange(existing.Fields, target.Fields)),
+	}
+	if err := s.store.UpsertPropertyConfig(ctx, next); err != nil {
+		return ingestiondomain.PropertyExtractionConfig{}, err
+	}
+
+	return next, nil
 }
 
 // GetLatestPropertyConfig returns the effective extraction config for a property.
@@ -262,6 +302,64 @@ func (s *PropertyService) GetLatestPropertyConfig(ctx context.Context, propertyI
 		return ingestiondomain.PropertyExtractionConfig{}, err
 	}
 	return config, nil
+}
+
+func summarizeConfigChange(previous, current []ingestiondomain.FieldSelector) string {
+	previousByName := make(map[string]ingestiondomain.FieldSelector, len(previous))
+	currentByName := make(map[string]ingestiondomain.FieldSelector, len(current))
+	for _, field := range previous {
+		previousByName[field.Name] = field
+	}
+	for _, field := range current {
+		currentByName[field.Name] = field
+	}
+
+	added := 0
+	removed := 0
+	modified := 0
+	for name, field := range currentByName {
+		previousField, exists := previousByName[name]
+		if !exists {
+			added++
+			continue
+		}
+		if !selectorsEqual(previousField, field) {
+			modified++
+		}
+	}
+	for name := range previousByName {
+		if _, exists := currentByName[name]; !exists {
+			removed++
+		}
+	}
+
+	parts := make([]string, 0, 3)
+	if added > 0 {
+		parts = append(parts, fmt.Sprintf("%d added", added))
+	}
+	if modified > 0 {
+		parts = append(parts, fmt.Sprintf("%d changed", modified))
+	}
+	if removed > 0 {
+		parts = append(parts, fmt.Sprintf("%d removed", removed))
+	}
+	if len(parts) == 0 {
+		return "No selector changes."
+	}
+
+	return fmt.Sprintf("Fields: %s.", strings.Join(parts, ", "))
+}
+
+func selectorsEqual(left, right ingestiondomain.FieldSelector) bool {
+	leftJSON, err := json.Marshal(left)
+	if err != nil {
+		return false
+	}
+	rightJSON, err := json.Marshal(right)
+	if err != nil {
+		return false
+	}
+	return bytes.Equal(leftJSON, rightJSON)
 }
 
 // ListPropertySnapshots returns recent runs for a property.

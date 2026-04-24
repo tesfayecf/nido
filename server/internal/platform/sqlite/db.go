@@ -247,7 +247,8 @@ CREATE TABLE IF NOT EXISTS property_extraction_configs (
     property_id TEXT NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
     fields_json TEXT NOT NULL DEFAULT '[]',
     version INTEGER NOT NULL DEFAULT 1,
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL,
+    change_summary TEXT NOT NULL DEFAULT ''
 );
 
 CREATE INDEX IF NOT EXISTS idx_property_configs_property_version ON property_extraction_configs(property_id, version DESC);
@@ -325,4 +326,5 @@ var columnMigrations = []columnMigration{
 	{table: "properties", column: "retry_backoff_millis", definition: "INTEGER NOT NULL DEFAULT 500"},
 	{table: "properties", column: "last_run_at", definition: "TEXT"},
 	{table: "properties", column: "next_run_at", definition: "TEXT"},
+	{table: "property_extraction_configs", column: "change_summary", definition: "TEXT NOT NULL DEFAULT ''"},
 }

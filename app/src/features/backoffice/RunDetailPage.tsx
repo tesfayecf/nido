@@ -13,10 +13,14 @@ import { KeyValueGrid, KeyValuePair } from "@/components/ui/KeyValueGrid";
 import { PageCard } from "@/components/ui/PageCard";
 import { PageStack } from "@/components/ui/PageStack";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { Toggle } from "@/components/ui/Toggle";
 import { useToast } from "@/components/ui/ToastProvider";
+import { summarizeRunChanges, buildRunFieldChanges } from "@/features/backoffice/runChangeSummary";
 import { formatDateTime } from "@/lib/format/date";
 import { runKeys } from "@/services/backoffice-runs/runs.keys";
 import { deleteRun, getRun } from "@/services/backoffice-runs/runs.service";
+import { propertyKeys } from "@/services/properties/properties.keys";
+import { listPropertySnapshots } from "@/services/properties/properties.service";
 
 export const RunDetailPage = (): JSX.Element => {
     const navigate = useNavigate();
@@ -24,10 +28,16 @@ export const RunDetailPage = (): JSX.Element => {
     const { pushToast } = useToast();
     const { runId = "" } = useParams();
     const [deleteOpen, setDeleteOpen] = useState(false);
+    const [showUnchangedFields, setShowUnchangedFields] = useState(false);
     const runQuery = useQuery({
         enabled: runId !== "",
         queryFn: () => getRun(runId),
         queryKey: runKeys.detail(runId),
+    });
+    const runHistoryQuery = useQuery({
+        enabled: runQuery.data?.property_id !== undefined,
+        queryFn: () => listPropertySnapshots(runQuery.data?.property_id ?? "", 20),
+        queryKey: propertyKeys.snapshots(runQuery.data?.property_id ?? ""),
     });
     const deleteMutation = useMutation({
         mutationFn: deleteRun,
@@ -40,16 +50,6 @@ export const RunDetailPage = (): JSX.Element => {
             void navigate("/runs");
         },
     });
-
-    const valueRows = useMemo(() => {
-        return Object.entries(runQuery.data?.values ?? {}).map(([field, value]) => ({ field, value }));
-    }, [runQuery.data?.values]);
-    const changeRows = useMemo(() => {
-        return Object.entries(runQuery.data?.change_flags ?? {}).map(([field, changed]) => ({
-            changed: changed ? "Yes" : "No",
-            field,
-        }));
-    }, [runQuery.data?.change_flags]);
 
     if (runId === "") {
         return (
@@ -82,6 +82,13 @@ export const RunDetailPage = (): JSX.Element => {
     }
 
     const run = runQuery.data;
+    const currentSnapshot = runHistoryQuery.data?.find((snapshot) => snapshot.id === run.id) ?? run;
+    const currentIndex = runHistoryQuery.data?.findIndex((snapshot) => snapshot.id === run.id) ?? -1;
+    const previousSnapshot = currentIndex >= 0 ? runHistoryQuery.data?.[currentIndex + 1] : runHistoryQuery.data?.find((snapshot) => snapshot.id !== run.id);
+    const fieldChanges = buildRunFieldChanges(currentSnapshot, previousSnapshot);
+    const changedFields = fieldChanges.filter((item) => item.previousValue !== item.currentValue);
+    const visibleFieldChanges = showUnchangedFields ? fieldChanges : changedFields;
+    const summaryLines = summarizeRunChanges(fieldChanges);
 
     return (
         <>
@@ -93,7 +100,7 @@ export const RunDetailPage = (): JSX.Element => {
                             <Button onClick={() => { setDeleteOpen(true); }} variant={"secondary"}>{"Delete"}</Button>
                         </ActionGroup>
                     )}
-                    description={"Runs are read-only snapshots. Use the table sections below to scan values and changes quickly."}
+                    description={"Runs are read-only snapshots. The comparison view explains what changed, how large the delta was, and which config version produced the result."}
                     title={`Run ${run.id}`}
                 >
                     <KeyValueGrid compact>
@@ -105,38 +112,66 @@ export const RunDetailPage = (): JSX.Element => {
                     {run.error_message !== undefined && run.error_message !== "" ? <ErrorBanner>{run.error_message}</ErrorBanner> : null}
                 </PageCard>
 
-                <PageCard description={"Current extracted values are shown as a read-only field table."} title={"Extracted Values"}>
-                    {valueRows.length === 0 ? <EmptyState message={"This run did not store any extracted values."} /> : (
+                <PageCard
+                    description={"Changed fields appear first with plain-language interpretation, numeric deltas, and a side-by-side before/after view."}
+                    title={"What Changed In This Run"}
+                >
+                    {summaryLines.length === 0 ? <EmptyState message={"This run did not introduce field-level changes compared with the previous snapshot."} /> : (
+                        <div style={{ display: "grid", gap: "0.75rem" }}>
+                            {summaryLines.map((line) => (
+                                <article className={"selector-builder__result-card"} key={line}>
+                                    <span className={"selector-builder__result-label"}>{"Change summary"}</span>
+                                    <strong className={"selector-builder__result-value"}>{line}</strong>
+                                </article>
+                            ))}
+                        </div>
+                    )}
+                </PageCard>
+
+                <PageCard
+                    action={<Toggle checked={showUnchangedFields} label={"Show unchanged fields"} onCheckedChange={setShowUnchangedFields} />}
+                    description={"Use the table to compare previous and current values, absolute deltas, percentage movement, and significance."}
+                    title={"Field Comparison"}
+                >
+                    {visibleFieldChanges.length === 0 ? <EmptyState message={"No field values are available for comparison."} /> : (
                         <DataTable
-                            caption={"Run extracted values"}
+                            caption={"Run field comparison"}
                             columns={[
                                 { cell: (item) => item.field, header: "Field", id: "field", sortValue: (item) => item.field },
-                                { cell: (item) => item.value, header: "Value", id: "value" },
+                                { cell: (item) => item.previousValue, header: "Previous", id: "previous" },
+                                { cell: (item) => item.currentValue, header: "Current", id: "current" },
+                                {
+                                    cell: (item) => item.absoluteDelta === undefined ? "—" : `${item.absoluteDelta > 0 ? "+" : ""}${item.absoluteDelta}`,
+                                    header: "Absolute delta",
+                                    id: "absolute",
+                                },
+                                {
+                                    cell: (item) => item.percentageDelta === undefined ? "—" : `${item.percentageDelta > 0 ? "+" : ""}${item.percentageDelta.toFixed(1)}%`,
+                                    header: "Percent",
+                                    id: "percent",
+                                },
+                                {
+                                    cell: (item) => <StatusBadge tone={item.significant ? "warning" : "neutral"} value={item.significant ? "attention" : "minor"} />,
+                                    header: "Impact",
+                                    id: "impact",
+                                },
                             ]}
                             compact
                             emptyMessage={"This run did not store any extracted values."}
                             getRowId={(item) => item.field}
-                            items={valueRows}
+                            items={visibleFieldChanges}
                             pageSize={12}
                         />
                     )}
                 </PageCard>
 
-                <PageCard description={"Change flags indicate what changed compared with the previous valid run."} title={"Change Flags"}>
-                    {changeRows.length === 0 ? <EmptyState message={"No field-level changes were recorded for this run."} /> : (
-                        <DataTable
-                            caption={"Run change flags"}
-                            columns={[
-                                { cell: (item) => item.field, header: "Field", id: "field", sortValue: (item) => item.field },
-                                { cell: (item) => item.changed, header: "Changed", id: "changed", sortValue: (item) => item.changed },
-                            ]}
-                            compact
-                            emptyMessage={"No field-level changes were recorded for this run."}
-                            getRowId={(item) => item.field}
-                            items={changeRows}
-                            pageSize={12}
-                        />
-                    )}
+                <PageCard description={"The comparison is anchored to the immediately previous snapshot for this property."} title={"Comparison Context"}>
+                    <KeyValueGrid compact>
+                        <KeyValuePair label={"Changed fields"} value={`${changedFields.length}`} />
+                        <KeyValuePair label={"Compared against"} value={previousSnapshot === undefined ? "No previous snapshot" : formatDateTime(previousSnapshot.observed_at)} />
+                        <KeyValuePair label={"Previous config"} value={previousSnapshot?.config_version ?? "—"} />
+                        <KeyValuePair label={"Current config"} value={currentSnapshot.config_version} />
+                    </KeyValueGrid>
                 </PageCard>
             </PageStack>
 
