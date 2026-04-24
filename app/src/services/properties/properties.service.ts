@@ -146,6 +146,64 @@ export const getPropertyConfig = async (propertyId: string): Promise<PropertyExt
 };
 
 /**
+ * Lists all config versions for a property.
+ *
+ * @param propertyId The property identifier.
+ * @returns The config history.
+ */
+export const listPropertyConfigVersions = async (propertyId: string): Promise<PropertyExtractionConfig[]> => {
+    const response = await apiRequest<ListEnvelope<PropertyExtractionConfig>>({
+        auth: true,
+        path: `/api/v1/backoffice/properties/${propertyId}/config/versions`,
+    });
+
+    return response.items.map((item) => ({
+        ...item,
+        fields: item.fields ?? [],
+    }));
+};
+
+/**
+ * Loads one saved config version for a property.
+ *
+ * @param propertyId The property identifier.
+ * @param version The config version.
+ * @returns The config version.
+ */
+export const getPropertyConfigVersion = async (propertyId: string, version: number): Promise<PropertyExtractionConfig> => {
+    const response = await apiRequest<ItemEnvelope<PropertyExtractionConfig>>({
+        auth: true,
+        path: `/api/v1/backoffice/properties/${propertyId}/config/versions/${version}`,
+    });
+
+    return {
+        ...response.item,
+        fields: response.item.fields ?? [],
+    };
+};
+
+/**
+ * Rolls the property config back to a previous version by creating a new version.
+ *
+ * @param propertyId The property identifier.
+ * @param version The source version to restore.
+ * @returns The new config version.
+ */
+export const rollbackPropertyConfig = async (propertyId: string, version: number): Promise<PropertyExtractionConfig> => {
+    const response = await apiRequest<ItemEnvelope<PropertyExtractionConfig>, { version: number; }>({
+        auth: true,
+        body: { version },
+        method: "POST",
+        path: `/api/v1/backoffice/properties/${propertyId}/config/rollback`,
+    });
+
+    return {
+        ...response.item,
+        fields: response.item.fields ?? [],
+    };
+};
+
+/**
  * Lists recent snapshots for a property.
  *
  * @param propertyId The property identifier.

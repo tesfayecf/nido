@@ -247,7 +247,8 @@ CREATE TABLE IF NOT EXISTS property_extraction_configs (
     property_id TEXT NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
     fields_json TEXT NOT NULL DEFAULT '[]',
     version INTEGER NOT NULL DEFAULT 1,
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL,
+    change_summary TEXT NOT NULL DEFAULT ''
 );
 
 CREATE INDEX IF NOT EXISTS idx_property_configs_property_version ON property_extraction_configs(property_id, version DESC);
@@ -318,11 +319,12 @@ var columnMigrations = []columnMigration{
 	{table: "ingestion_runs", column: "failure_artifact_key", definition: "TEXT"},
 	{table: "ingestion_runs", column: "diagnostics_json", definition: "TEXT NOT NULL DEFAULT '{}'"},
 	{table: "properties", column: "source_id", definition: "TEXT"},
-    {table: "properties", column: "browser_enabled", definition: "INTEGER NOT NULL DEFAULT 0"},
-    {table: "properties", column: "request_headers_json", definition: "TEXT NOT NULL DEFAULT '{}'"},
+	{table: "properties", column: "browser_enabled", definition: "INTEGER NOT NULL DEFAULT 0"},
+	{table: "properties", column: "request_headers_json", definition: "TEXT NOT NULL DEFAULT '{}'"},
 	{table: "properties", column: "schedule_interval_seconds", definition: "INTEGER NOT NULL DEFAULT 0"},
 	{table: "properties", column: "retry_max_attempts", definition: "INTEGER NOT NULL DEFAULT 1"},
 	{table: "properties", column: "retry_backoff_millis", definition: "INTEGER NOT NULL DEFAULT 500"},
 	{table: "properties", column: "last_run_at", definition: "TEXT"},
 	{table: "properties", column: "next_run_at", definition: "TEXT"},
+	{table: "property_extraction_configs", column: "change_summary", definition: "TEXT NOT NULL DEFAULT ''"},
 }

@@ -8,11 +8,19 @@ import { SourceDetailPage } from "@/features/backoffice/SourceDetailPage";
 import type { Source } from "@/services/backoffice-sources/sources.types";
 
 const getSourceMock = vi.fn<(sourceId: string) => Promise<Source>>();
+const listPropertiesMock = vi.fn();
+const listPropertySnapshotsMock = vi.fn();
 
 vi.mock("@/services/backoffice-sources/sources.service", () => ({
     deleteSource: vi.fn(),
     getSource: (sourceId: string) => getSourceMock(sourceId),
     upsertSource: vi.fn(),
+}));
+
+vi.mock("@/services/properties/properties.service", () => ({
+    listProperties: () => listPropertiesMock(),
+    listPropertySnapshots: () => listPropertySnapshotsMock(),
+    previewExtraction: vi.fn(),
 }));
 
 const EXISTING_SOURCE: Source = {
@@ -48,7 +56,11 @@ const renderSourceDetailPage = (initialEntries: string[]): ReturnType<typeof ren
 describe("SourceDetailPage", () => {
     beforeEach(() => {
         getSourceMock.mockReset();
+        listPropertiesMock.mockReset();
+        listPropertySnapshotsMock.mockReset();
         getSourceMock.mockResolvedValue(EXISTING_SOURCE);
+        listPropertiesMock.mockResolvedValue([]);
+        listPropertySnapshotsMock.mockResolvedValue([]);
     });
 
     it("resets the form when navigating from an existing source to create mode", async () => {

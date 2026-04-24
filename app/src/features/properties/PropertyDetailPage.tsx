@@ -22,6 +22,7 @@ import { PageStack } from "@/components/ui/PageStack";
 import { RowActions } from "@/components/ui/RowActions";
 import { Select } from "@/components/ui/Select";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { Tabs } from "@/components/ui/Tabs";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -35,6 +36,7 @@ import {
     formatDurationFromSeconds,
     type DurationUnit,
 } from "@/features/properties/propertySchedule";
+import { diffPropertyConfigs } from "@/features/properties/configDiff";
 import { getRuleTypeLabel, getRuleTypeLogic } from "@/services/alert-rules/alert-rules.constants";
 import { alertRuleKeys } from "@/services/alert-rules/alert-rules.keys";
 import { listAlertRules } from "@/services/alert-rules/alert-rules.service";
@@ -61,10 +63,12 @@ import {
     deleteProperty,
     getProperty,
     getPropertyConfig,
+    listPropertyConfigVersions,
     ingestProperty,
     listPropertyRuns,
     listPropertySnapshots,
     previewExtraction,
+    rollbackPropertyConfig,
     updateProperty,
     upsertPropertyConfig,
 } from "@/services/properties/properties.service";
@@ -133,6 +137,10 @@ export const PropertyDetailPage = (): JSX.Element => {
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [createAlertOpen, setCreateAlertOpen] = useState(false);
     const [tagsOpen, setTagsOpen] = useState(false);
+    const [snapshotConfigFilter, setSnapshotConfigFilter] = useState<number>(0);
+    const [compareLeftVersion, setCompareLeftVersion] = useState<number>(0);
+    const [compareRightVersion, setCompareRightVersion] = useState<number>(0);
+    const [rollbackTargetVersion, setRollbackTargetVersion] = useState<number | null>(null);
 
     const propertyQuery = useQuery({
         enabled: !isCreateMode,
@@ -143,6 +151,11 @@ export const PropertyDetailPage = (): JSX.Element => {
         enabled: !isCreateMode,
         queryFn: () => getPropertyConfig(resolvedId),
         queryKey: propertyKeys.config(resolvedId),
+    });
+    const configVersionsQuery = useQuery({
+        enabled: !isCreateMode,
+        queryFn: () => listPropertyConfigVersions(resolvedId),
+        queryKey: propertyKeys.configVersions(resolvedId),
     });
     const snapshotsQuery = useQuery({
         enabled: !isCreateMode,
@@ -217,9 +230,23 @@ export const PropertyDetailPage = (): JSX.Element => {
 
             return updateProperty(resolvedId, payload);
         },
-        onSuccess(data) {
+        async onSuccess(data) {
+            if (isCreateMode) {
+                const configuredFields = fieldRows
+                    .filter((row) => row.name.trim() !== "")
+                    .map(draftToSelector);
+                if (configuredFields.length > 0) {
+                    try {
+                        await upsertPropertyConfig(data.id, configuredFields);
+                    } catch {
+                        pushToast("Property created, but the initial config could not be saved. Open the property to review the selectors.", "error");
+                    }
+                }
+            }
+
             queryClient.setQueryData(propertyKeys.detail(data.id), data);
             void queryClient.invalidateQueries({ queryKey: propertyKeys.list() });
+            void queryClient.invalidateQueries({ queryKey: propertyKeys.configVersions(data.id) });
             pushToast(isCreateMode ? "Property created." : "Property updated.", "success");
             if (isCreateMode) {
                 void navigate(`/properties/${data.id}`, { replace: true });
@@ -240,6 +267,19 @@ export const PropertyDetailPage = (): JSX.Element => {
         onSuccess() {
             void queryClient.invalidateQueries({ queryKey: propertyKeys.config(resolvedId) });
             pushToast("Configuration saved.", "success");
+        },
+    });
+    const rollbackConfigMutation = useMutation({
+        mutationFn: (version: number) => rollbackPropertyConfig(resolvedId, version),
+        onError() {
+            pushToast("Could not roll back configuration.", "error");
+        },
+        onSuccess() {
+            void queryClient.invalidateQueries({ queryKey: propertyKeys.config(resolvedId) });
+            void queryClient.invalidateQueries({ queryKey: propertyKeys.configVersions(resolvedId) });
+            void queryClient.invalidateQueries({ queryKey: propertyKeys.snapshots(resolvedId) });
+            setRollbackTargetVersion(null);
+            pushToast("Configuration rolled back.", "success");
         },
     });
     const previewMutation = useMutation({
@@ -323,7 +363,22 @@ export const PropertyDetailPage = (): JSX.Element => {
     const extractedValueRows = useMemo(() => {
         return Object.entries(latestSnapshot?.values ?? {}).map(([field, value]) => ({ field, value }));
     }, [latestSnapshot?.values]);
-    const recentRuns = snapshotsQuery.data ?? [];
+    const recentRuns = useMemo(() => {
+        const snapshots = snapshotsQuery.data ?? [];
+        if (snapshotConfigFilter <= 0) {
+            return snapshots;
+        }
+
+        return snapshots.filter((snapshot) => snapshot.config_version === snapshotConfigFilter);
+    }, [snapshotConfigFilter, snapshotsQuery.data]);
+    const configVersions = configVersionsQuery.data ?? [];
+    const oldestConfig = configVersions[configVersions.length - 1] ?? configVersions[0];
+    const newestConfig = configVersions[0];
+    const selectedLeftConfig = configVersions.find((config) => config.version === compareLeftVersion)
+        ?? oldestConfig;
+    const selectedRightConfig = configVersions.find((config) => config.version === compareRightVersion)
+        ?? newestConfig;
+    const configDiff = diffPropertyConfigs(selectedLeftConfig, selectedRightConfig);
     const persistedScheduleSummary = useMemo(() => {
         if (propertyQuery.data?.schedule_interval_seconds === undefined || propertyQuery.data.schedule_interval_seconds <= 0) {
             return "Manual only";
@@ -351,7 +406,7 @@ export const PropertyDetailPage = (): JSX.Element => {
         <PageStack>
             <PageCard
                 action={!isCreateMode ? <Button as={Link} to={"/properties"} variant={"secondary"}>{"Back to properties"}</Button> : undefined}
-                description={isCreateMode ? "Add a property URL and define exactly how often automated runs should happen." : "Update the property URL, template assignment, schedule, and retry behavior."}
+                description={isCreateMode ? "Guided setup: 1) enter the URL, 2) define fields, 3) preview extraction, 4) review validation, 5) save the property and config together." : "Update the property URL, template assignment, schedule, and retry behavior."}
                 title={isCreateMode ? "Add Property" : "Edit Property"}
             >
                 {propertyQuery.isError ? <ErrorBanner>{"Could not load property."}</ErrorBanner> : null}
@@ -457,38 +512,36 @@ export const PropertyDetailPage = (): JSX.Element => {
                 </ActionGroup>
             </PageCard>
 
-            {!isCreateMode ? (
-                <PageCard description={"Edit the selectors that this property should use after inheriting from its source template."} title={"Extraction Configuration"}>
-                    <SelectorBuilder fields={fieldRows} onChange={setFieldRows} previewByFieldName={previewMap} />
-                    {fieldRows.length === 0 ? <EmptyState message={"No fields defined yet. Add a field to start extracting data."} /> : null}
-                    <ActionGroup>
-                        <Button onClick={() => { setFieldRows((rows) => [...rows, createEmptySelectorDraft()]); }} variant={"secondary"}>{"Add field"}</Button>
-                        <Button disabled={previewMutation.isPending || url.trim() === "" || validationMessages.length > 0} onClick={() => { previewMutation.mutate(); }} variant={"secondary"}>{previewMutation.isPending ? "Previewing..." : "Preview extraction"}</Button>
-                        <Button disabled={saveConfigMutation.isPending || validationMessages.length > 0} onClick={() => { saveConfigMutation.mutate(); }}>{saveConfigMutation.isPending ? "Saving..." : "Save configuration"}</Button>
-                    </ActionGroup>
-                    {validationMessages.length > 0 ? (
-                        <div className={"selector-builder__validation-list"}>
-                            {validationMessages.map((message) => <ErrorBanner key={message}>{message}</ErrorBanner>)}
-                        </div>
-                    ) : null}
-                    {saveConfigMutation.isError ? <ErrorBanner>{"Could not save configuration."}</ErrorBanner> : null}
-                    {previewFailures.length > 0 ? (
-                        <div className={"selector-builder__validation-list"}>
-                            {previewFailures.map((failure) => <ErrorBanner key={failure}>{failure}</ErrorBanner>)}
-                        </div>
-                    ) : null}
-                    {Object.keys(previewValues).length > 0 ? (
-                        <div className={"selector-builder__results"}>
-                            {Object.entries(previewValues).map(([fieldName, value]) => (
-                                <article className={"selector-builder__result-card"} key={fieldName}>
-                                    <span className={"selector-builder__result-label"}>{fieldName}</span>
-                                    <strong className={"selector-builder__result-value"}>{value}</strong>
-                                </article>
-                            ))}
-                        </div>
-                    ) : null}
-                </PageCard>
-            ) : null}
+            <PageCard description={isCreateMode ? "Build the initial field set, preview extraction on the target page, and validate the selectors before saving." : "Edit the selectors that this property should use after inheriting from its source template."} title={isCreateMode ? "Guided Field Setup" : "Extraction Configuration"}>
+                <SelectorBuilder fields={fieldRows} onChange={setFieldRows} previewByFieldName={previewMap} />
+                {fieldRows.length === 0 ? <EmptyState message={"No fields defined yet. Add a field to start extracting data."} /> : null}
+                <ActionGroup>
+                    <Button onClick={() => { setFieldRows((rows) => [...rows, createEmptySelectorDraft()]); }} variant={"secondary"}>{"Add field"}</Button>
+                    <Button disabled={previewMutation.isPending || url.trim() === "" || validationMessages.length > 0} onClick={() => { previewMutation.mutate(); }} variant={"secondary"}>{previewMutation.isPending ? "Previewing..." : "Preview extraction"}</Button>
+                    <Button disabled={saveConfigMutation.isPending || validationMessages.length > 0} onClick={() => { saveConfigMutation.mutate(); }}>{saveConfigMutation.isPending ? "Saving..." : "Save configuration"}</Button>
+                </ActionGroup>
+                {validationMessages.length > 0 ? (
+                    <div className={"selector-builder__validation-list"}>
+                        {validationMessages.map((message) => <ErrorBanner key={message}>{message}</ErrorBanner>)}
+                    </div>
+                ) : null}
+                {saveConfigMutation.isError ? <ErrorBanner>{"Could not save configuration."}</ErrorBanner> : null}
+                {previewFailures.length > 0 ? (
+                    <div className={"selector-builder__validation-list"}>
+                        {previewFailures.map((failure) => <ErrorBanner key={failure}>{failure}</ErrorBanner>)}
+                    </div>
+                ) : null}
+                {Object.keys(previewValues).length > 0 ? (
+                    <div className={"selector-builder__results"}>
+                        {Object.entries(previewValues).map(([fieldName, value]) => (
+                            <article className={"selector-builder__result-card"} key={fieldName}>
+                                <span className={"selector-builder__result-label"}>{fieldName}</span>
+                                <strong className={"selector-builder__result-value"}>{value}</strong>
+                            </article>
+                        ))}
+                    </div>
+                ) : null}
+            </PageCard>
         </PageStack>
     );
 
@@ -638,6 +691,16 @@ export const PropertyDetailPage = (): JSX.Element => {
                 </PageCard>
 
                 <PageCard description={"Recent runs stay directly attached to the property for fast scanning."} title={"Recent Snapshots"}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: "0.75rem", marginBottom: "0.75rem" }}>
+                        <div>
+                            <strong>{"Config filter"}</strong>
+                            <p className={"muted-copy"}>{"Filter snapshots by the config version that produced them."}</p>
+                        </div>
+                        <Select onChange={(event) => { setSnapshotConfigFilter(Number(event.target.value)); }} value={`${snapshotConfigFilter}`}>
+                            <option value={"0"}>{"All versions"}</option>
+                            {configVersions.map((config) => <option key={config.id} value={`${config.version}`}>{`Version ${config.version}`}</option>)}
+                        </Select>
+                    </div>
                     <DataTable
                         caption={"Recent property snapshots"}
                         columns={[
@@ -654,6 +717,91 @@ export const PropertyDetailPage = (): JSX.Element => {
                         pageSize={8}
                         rowLabel={(item) => `Open run ${item.id}`}
                     />
+                </PageCard>
+
+                <PageCard
+                    description={"Compare any two saved configs, review the selector diff, and restore a previous version without losing history."}
+                    title={"Config History"}
+                >
+                    {configVersions.length === 0 ? <EmptyState message={"No config versions have been saved yet."} /> : (
+                        <Tabs
+                            defaultTabId={"history"}
+                            items={[
+                                {
+                                    id: "history",
+                                    label: "Versions",
+                                    panel: (
+                                        <DataTable
+                                            caption={"Property config versions"}
+                                            columns={[
+                                                { cell: (item) => `v${item.version}`, header: "Version", id: "version", sortValue: (item) => item.version },
+                                                { cell: (item) => formatDateTime(item.created_at), header: "Created", id: "created_at", sortValue: (item) => item.created_at },
+                                                { cell: (item) => item.change_summary ?? "Saved configuration.", header: "Summary", id: "summary" },
+                                                {
+                                                    align: "right",
+                                                    cell: (item) => (
+                                                        <ActionGroup>
+                                                            <Button onClick={() => { setCompareLeftVersion(item.version); }} size={"small"} variant={"secondary"}>{"Compare from"}</Button>
+                                                            <Button onClick={() => { setCompareRightVersion(item.version); }} size={"small"} variant={"secondary"}>{"Compare to"}</Button>
+                                                            <Button onClick={() => { setRollbackTargetVersion(item.version); }} size={"small"} variant={"ghost"}>{"Rollback"}</Button>
+                                                        </ActionGroup>
+                                                    ),
+                                                    header: "Actions",
+                                                    id: "actions",
+                                                },
+                                            ]}
+                                            compact
+                                            emptyMessage={"No config versions have been saved yet."}
+                                            getRowId={(item) => item.id}
+                                            items={configVersions}
+                                            pageSize={6}
+                                        />
+                                    ),
+                                },
+                                {
+                                    id: "diff",
+                                    label: "Structured diff",
+                                    panel: (
+                                        <div style={{ display: "grid", gap: "1rem" }}>
+                                            <div style={{ display: "grid", gap: "0.75rem", gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+                                                <Field label={"Compare from"}>
+                                                    <Select onChange={(event) => { setCompareLeftVersion(Number(event.target.value)); }} value={`${selectedLeftConfig?.version ?? 0}`}>
+                                                        {configVersions.map((config) => <option key={`left-${config.id}`} value={`${config.version}`}>{`Version ${config.version}`}</option>)}
+                                                    </Select>
+                                                </Field>
+                                                <Field label={"Compare to"}>
+                                                    <Select onChange={(event) => { setCompareRightVersion(Number(event.target.value)); }} value={`${selectedRightConfig?.version ?? 0}`}>
+                                                        {configVersions.map((config) => <option key={`right-${config.id}`} value={`${config.version}`}>{`Version ${config.version}`}</option>)}
+                                                    </Select>
+                                                </Field>
+                                            </div>
+                                            <KeyValueGrid compact>
+                                                <KeyValuePair label={"Changed fields"} value={`${configDiff.changedCount}`} />
+                                                <KeyValuePair label={"From summary"} value={selectedLeftConfig?.change_summary ?? "Saved configuration."} />
+                                                <KeyValuePair label={"To summary"} value={selectedRightConfig?.change_summary ?? "Saved configuration."} />
+                                            </KeyValueGrid>
+                                            {configDiff.changes.length === 0 ? <EmptyState message={"The selected versions use the same selector definitions."} /> : (
+                                                <DataTable
+                                                    caption={"Config diff"}
+                                                    columns={[
+                                                        { cell: (item) => item.field, header: "Field", id: "field", sortValue: (item) => item.field },
+                                                        { cell: (item) => item.type, header: "Change", id: "type", sortValue: (item) => item.type },
+                                                        { cell: (item) => item.previous?.selector_value ?? "—", header: "Previous selector", id: "previous" },
+                                                        { cell: (item) => item.next?.selector_value ?? "—", header: "Current selector", id: "current" },
+                                                    ]}
+                                                    compact
+                                                    emptyMessage={"No selector-level changes found."}
+                                                    getRowId={(item) => `${item.type}-${item.field}`}
+                                                    items={configDiff.changes}
+                                                    pageSize={8}
+                                                />
+                                            )}
+                                        </div>
+                                    ),
+                                },
+                            ]}
+                        />
+                    )}
                 </PageCard>
 
                 <PageCard
@@ -708,6 +856,19 @@ export const PropertyDetailPage = (): JSX.Element => {
                 onOpenChange={setTagsOpen}
                 open={tagsOpen}
                 selectedTagIds={(propertyTagsQuery.data ?? []).map((tag) => tag.id)}
+            />
+            <ConfirmDialog
+                confirmLabel={"Roll back config"}
+                description={rollbackTargetVersion === null ? "" : `Restore config version ${rollbackTargetVersion} by creating a new version? This preserves history and keeps the rollback auditable.`}
+                isPending={rollbackConfigMutation.isPending}
+                onConfirm={() => {
+                    if (rollbackTargetVersion !== null) {
+                        rollbackConfigMutation.mutate(rollbackTargetVersion);
+                    }
+                }}
+                onOpenChange={(open) => { if (!open) { setRollbackTargetVersion(null); } }}
+                open={rollbackTargetVersion !== null}
+                title={"Confirm rollback"}
             />
         </>
     );

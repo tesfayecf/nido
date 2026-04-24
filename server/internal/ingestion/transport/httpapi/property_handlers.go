@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 
 	app "home-searcher/server/internal/ingestion/application"
@@ -186,6 +187,67 @@ func RegisterProperties(mux *http.ServeMux, requireAuth func(http.Handler) http.
 		}
 
 		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{"item": config})
+	})))
+
+	mux.Handle("GET /api/v1/backoffice/properties/{propertyID}/config/versions", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		propertyID := strings.TrimSpace(r.PathValue("propertyID"))
+		if propertyID == "" {
+			platformhttp.WriteError(w, http.StatusBadRequest, "property id is required")
+			return
+		}
+
+		configs, err := service.ListPropertyConfigs(r.Context(), propertyID)
+		if err != nil {
+			platformhttp.WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{"items": configs, "count": len(configs)})
+	})))
+
+	mux.Handle("GET /api/v1/backoffice/properties/{propertyID}/config/versions/{version}", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		propertyID := strings.TrimSpace(r.PathValue("propertyID"))
+		version, err := strconv.Atoi(strings.TrimSpace(r.PathValue("version")))
+		if propertyID == "" || err != nil || version <= 0 {
+			platformhttp.WriteError(w, http.StatusBadRequest, "valid property id and config version are required")
+			return
+		}
+
+		config, err := service.GetPropertyConfigVersion(r.Context(), propertyID, version)
+		if err != nil {
+			platformhttp.WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{"item": config})
+	})))
+
+	mux.Handle("POST /api/v1/backoffice/properties/{propertyID}/config/rollback", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		propertyID := strings.TrimSpace(r.PathValue("propertyID"))
+		if propertyID == "" {
+			platformhttp.WriteError(w, http.StatusBadRequest, "property id is required")
+			return
+		}
+
+		var body struct {
+			Version int `json:"version"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			platformhttp.WriteError(w, http.StatusBadRequest, "invalid request body")
+			return
+		}
+		if body.Version <= 0 {
+			platformhttp.WriteError(w, http.StatusBadRequest, "config version is required")
+			return
+		}
+
+		config, err := service.RollbackPropertyConfig(r.Context(), propertyID, body.Version)
+		if err != nil {
+			platformhttp.WriteError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		platformhttp.WriteJSON(w, http.StatusCreated, map[string]any{"item": config})
 	})))
 
 	mux.Handle("POST /api/v1/backoffice/properties/{propertyID}/preview", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

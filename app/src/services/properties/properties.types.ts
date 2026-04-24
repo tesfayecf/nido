@@ -24,6 +24,7 @@ export interface PropertyExtractionConfig {
     readonly fields: FieldSelector[];
     readonly version: number;
     readonly created_at: string;
+    readonly change_summary?: string;
 }
 
 export interface Property {

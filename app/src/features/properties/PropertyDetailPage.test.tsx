@@ -18,12 +18,14 @@ const getPropertyMock = vi.fn<(propertyId: string) => Promise<Property>>();
 const getPropertyConfigMock = vi.fn<() => Promise<PropertyExtractionConfig>>();
 const ingestPropertyMock = vi.fn();
 const listAlertRulesMock = vi.fn();
+const listPropertyConfigVersionsMock = vi.fn<() => Promise<PropertyExtractionConfig[]>>();
 const listBookmarksMock = vi.fn();
 const listPropertyRunsMock = vi.fn<() => Promise<PropertyRun[]>>();
 const listPropertySnapshotsMock = vi.fn<() => Promise<PropertySnapshot[]>>();
 const listPropertyTagsMock = vi.fn();
 const listSourcesMock = vi.fn();
 const previewExtractionMock = vi.fn();
+const rollbackPropertyConfigMock = vi.fn();
 const setPropertyTagsMock = vi.fn();
 const updatePropertyMock = vi.fn<(propertyId: string, payload: Record<string, unknown>) => Promise<Property>>();
 const upsertPropertyConfigMock = vi.fn();
@@ -72,8 +74,10 @@ vi.mock("@/services/properties/properties.service", () => ({
     getPropertyConfig: () => getPropertyConfigMock(),
     ingestProperty: (propertyId: string) => ingestPropertyMock(propertyId),
     listPropertyRuns: () => listPropertyRunsMock(),
+    listPropertyConfigVersions: () => listPropertyConfigVersionsMock(),
     listPropertySnapshots: () => listPropertySnapshotsMock(),
     previewExtraction: (payload: Record<string, unknown>) => previewExtractionMock(payload),
+    rollbackPropertyConfig: (propertyId: string, version: number) => rollbackPropertyConfigMock(propertyId, version),
     updateProperty: (propertyId: string, payload: Record<string, unknown>) => updatePropertyMock(propertyId, payload),
     upsertPropertyConfig: (propertyId: string, fields: unknown[]) => upsertPropertyConfigMock(propertyId, fields),
 }));
@@ -144,12 +148,14 @@ describe("PropertyDetailPage", () => {
         getPropertyConfigMock.mockReset();
         ingestPropertyMock.mockReset();
         listAlertRulesMock.mockReset();
+        listPropertyConfigVersionsMock.mockReset();
         listBookmarksMock.mockReset();
         listPropertyRunsMock.mockReset();
         listPropertySnapshotsMock.mockReset();
         listPropertyTagsMock.mockReset();
         listSourcesMock.mockReset();
         previewExtractionMock.mockReset();
+        rollbackPropertyConfigMock.mockReset();
         setPropertyTagsMock.mockReset();
         updatePropertyMock.mockReset();
         upsertPropertyConfigMock.mockReset();
@@ -158,6 +164,7 @@ describe("PropertyDetailPage", () => {
         getPropertyConfigMock.mockResolvedValue(CONFIG);
         listAlertRulesMock.mockResolvedValue([]);
         listBookmarksMock.mockResolvedValue([]);
+        listPropertyConfigVersionsMock.mockResolvedValue([CONFIG]);
         listPropertyRunsMock.mockResolvedValue(RUNS);
         listPropertySnapshotsMock.mockResolvedValue([]);
         listPropertyTagsMock.mockResolvedValue([]);

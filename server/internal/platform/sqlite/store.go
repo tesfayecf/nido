@@ -1289,6 +1289,30 @@ func scanAlertRule(scanner scanner) (engagementdomain.AlertRule, error) {
 	return rule, nil
 }
 
+func scanPropertyConfig(scanner scanner) (ingestiondomain.PropertyExtractionConfig, error) {
+	var (
+		config     ingestiondomain.PropertyExtractionConfig
+		fieldsJSON string
+		createdAt  string
+	)
+
+	if err := scanner.Scan(&config.ID, &config.PropertyID, &fieldsJSON, &config.Version, &createdAt, &config.ChangeSummary); err != nil {
+		return ingestiondomain.PropertyExtractionConfig{}, err
+	}
+	if err := json.Unmarshal([]byte(fieldsJSON), &config.Fields); err != nil {
+		return ingestiondomain.PropertyExtractionConfig{}, fmt.Errorf("unmarshal property fields: %w", err)
+	}
+	if config.Fields == nil {
+		config.Fields = []ingestiondomain.FieldSelector{}
+	}
+	parsedCreatedAt, err := parseTime(createdAt)
+	if err != nil {
+		return ingestiondomain.PropertyExtractionConfig{}, err
+	}
+	config.CreatedAt = parsedCreatedAt
+	return config, nil
+}
+
 func scanNotification(scanner scanner) (engagementdomain.Notification, error) {
 	var (
 		notification engagementdomain.Notification
@@ -1633,14 +1657,15 @@ func (s *Store) UpsertPropertyConfig(ctx context.Context, config ingestiondomain
 
 	_, err = s.db.ExecContext(
 		ctx,
-		`INSERT INTO property_extraction_configs (id, property_id, fields_json, version, created_at)
-		 VALUES (?, ?, ?, ?, ?)
-		 ON CONFLICT(id) DO UPDATE SET fields_json = excluded.fields_json, version = excluded.version`,
+		`INSERT INTO property_extraction_configs (id, property_id, fields_json, version, created_at, change_summary)
+		 VALUES (?, ?, ?, ?, ?, ?)
+		 ON CONFLICT(id) DO UPDATE SET fields_json = excluded.fields_json, version = excluded.version, change_summary = excluded.change_summary`,
 		config.ID,
 		config.PropertyID,
 		string(fieldsJSON),
 		config.Version,
 		formatTime(config.CreatedAt),
+		config.ChangeSummary,
 	)
 	if err != nil {
 		return fmt.Errorf("upsert property config: %w", err)
@@ -1652,17 +1677,12 @@ func (s *Store) UpsertPropertyConfig(ctx context.Context, config ingestiondomain
 // GetLatestPropertyConfig returns the most recent config for a property.
 // Returns an empty config (not an error) when no config exists yet.
 func (s *Store) GetLatestPropertyConfig(ctx context.Context, propertyID string) (ingestiondomain.PropertyExtractionConfig, error) {
-	var (
-		config     ingestiondomain.PropertyExtractionConfig
-		fieldsJSON string
-		createdAt  string
-	)
-
-	err := s.db.QueryRowContext(
+	row := s.db.QueryRowContext(
 		ctx,
-		`SELECT id, property_id, fields_json, version, created_at FROM property_extraction_configs WHERE property_id = ? ORDER BY version DESC LIMIT 1`,
+		`SELECT id, property_id, fields_json, version, created_at, change_summary FROM property_extraction_configs WHERE property_id = ? ORDER BY version DESC LIMIT 1`,
 		propertyID,
-	).Scan(&config.ID, &config.PropertyID, &fieldsJSON, &config.Version, &createdAt)
+	)
+	config, err := scanPropertyConfig(row)
 	if errors.Is(err, sql.ErrNoRows) {
 		return ingestiondomain.PropertyExtractionConfig{
 			PropertyID: propertyID,
@@ -1673,19 +1693,48 @@ func (s *Store) GetLatestPropertyConfig(ctx context.Context, propertyID string) 
 		return ingestiondomain.PropertyExtractionConfig{}, fmt.Errorf("get latest property config: %w", err)
 	}
 
-	if err := json.Unmarshal([]byte(fieldsJSON), &config.Fields); err != nil {
-		return ingestiondomain.PropertyExtractionConfig{}, fmt.Errorf("unmarshal property fields: %w", err)
-	}
-	if config.Fields == nil {
-		config.Fields = []ingestiondomain.FieldSelector{}
-	}
-
-	config.CreatedAt, err = parseTime(createdAt)
-	if err != nil {
-		return ingestiondomain.PropertyExtractionConfig{}, err
-	}
-
 	return config, nil
+}
+
+// ListPropertyConfigs returns all config versions for a property.
+func (s *Store) ListPropertyConfigs(ctx context.Context, propertyID string) ([]ingestiondomain.PropertyExtractionConfig, error) {
+	rows, err := s.db.QueryContext(
+		ctx,
+		`SELECT id, property_id, fields_json, version, created_at, change_summary
+		 FROM property_extraction_configs
+		 WHERE property_id = ?
+		 ORDER BY version DESC`,
+		propertyID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list property configs: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]ingestiondomain.PropertyExtractionConfig, 0)
+	for rows.Next() {
+		config, err := scanPropertyConfig(rows)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, config)
+	}
+
+	return items, rows.Err()
+}
+
+// GetPropertyConfigVersion returns one config version for a property.
+func (s *Store) GetPropertyConfigVersion(ctx context.Context, propertyID string, version int) (ingestiondomain.PropertyExtractionConfig, error) {
+	row := s.db.QueryRowContext(
+		ctx,
+		`SELECT id, property_id, fields_json, version, created_at, change_summary
+		 FROM property_extraction_configs
+		 WHERE property_id = ? AND version = ?
+		 LIMIT 1`,
+		propertyID,
+		version,
+	)
+	return scanPropertyConfig(row)
 }
 
 // CreatePropertySnapshot records one extraction snapshot for a property.
@@ -2301,11 +2350,11 @@ func scanTag(s scanner) (ingestiondomain.Tag, error) {
 
 func scanPropertyRun(s scanner) (ingestiondomain.PropertyRun, error) {
 	var (
-		run                             ingestiondomain.PropertyRun
-		status                          string
-		startedAt, finishedAt           sql.NullString
-		errorMessage, snapshotID        sql.NullString
-		createdAt                       string
+		run                      ingestiondomain.PropertyRun
+		status                   string
+		startedAt, finishedAt    sql.NullString
+		errorMessage, snapshotID sql.NullString
+		createdAt                string
 	)
 
 	err := s.Scan(
