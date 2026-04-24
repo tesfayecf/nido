@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { SelectorBuilder } from "@/components/selectors/SelectorBuilder";
+import type { FieldDefinitionUsage } from "@/services/fields/fields.types";
 import {
     createEmptySelectorDraft,
     draftToSelector,
@@ -13,6 +14,7 @@ import {
 } from "@/features/selectors/selectorSchema";
 
 interface FieldEditorDialogProps {
+    readonly fieldDefinitions?: FieldDefinitionUsage[];
     readonly initialField?: SelectorFieldDraft;
     readonly isSaving?: boolean;
     readonly onClose: () => void;
@@ -27,6 +29,7 @@ interface FieldEditorDialogProps {
  * at a time without opening the full template editor.
  */
 export const FieldEditorDialog = ({
+    fieldDefinitions,
     initialField,
     isSaving = false,
     onClose,
@@ -72,7 +75,7 @@ export const FieldEditorDialog = ({
             open={open}
             title={title}
         >
-            <SelectorBuilder fields={[draft]} onChange={(updater) => {
+            <SelectorBuilder fieldDefinitions={fieldDefinitions} fields={[draft]} onChange={(updater) => {
                 setDraft((current) => {
                     const next = typeof updater === "function" ? updater([current])[0] : updater[0];
                     return next ?? current;

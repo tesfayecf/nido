@@ -12,6 +12,7 @@ import { LoginPage } from "@/features/auth/LoginPage";
 import { AlertsPage } from "@/features/engagement/AlertsPage";
 import { BookmarksPage } from "@/features/engagement/BookmarksPage";
 import { NotificationsPage } from "@/features/engagement/NotificationsPage";
+import { FieldsPage } from "@/features/fields/FieldsPage";
 import { DashboardPage } from "@/features/operators/DashboardPage";
 import { AdminPage } from "@/features/platform/AdminPage";
 import { TriageInboxPage } from "@/features/operators/TriageInboxPage";
@@ -62,6 +63,10 @@ export const router = createBrowserRouter([
                     {
                         path: "properties/:propertyId/fields/:fieldName/analysis",
                         element: <FieldAnalysisPage />,
+                    },
+                    {
+                        path: "fields",
+                        element: <FieldsPage />,
                     },
                     {
                         path: "events",

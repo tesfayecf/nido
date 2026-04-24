@@ -29,6 +29,8 @@ import { CopyButton } from "@/components/ui/CopyButton";
 import { useToast } from "@/components/ui/ToastProvider";
 import { TagBadge } from "@/components/tags/TagBadge";
 import { TagPicker } from "@/components/tags/TagPicker";
+import { fieldKeys } from "@/services/fields/fields.keys";
+import { listFields } from "@/services/fields/fields.service";
 import { PropertyAlertCreateDialog } from "@/features/engagement/PropertyAlertCreateDialog";
 import {
     SCHEDULE_PRESETS,
@@ -257,6 +259,10 @@ export const PropertyDetailPage = (): JSX.Element => {
         queryFn: () => listPropertyRuns(resolvedId, 10),
         queryKey: propertyKeys.runs(resolvedId),
         refetchInterval: PROPERTY_RUNS_REFETCH_INTERVAL_MS,
+    });
+    const fieldDefinitionsQuery = useQuery({
+        queryFn: listFields,
+        queryKey: fieldKeys.list(),
     });
     const sourcesQuery = useQuery({
         queryFn: listSources,
@@ -656,7 +662,7 @@ export const PropertyDetailPage = (): JSX.Element => {
             </PageCard>
 
             <PageCard description={isCreateMode ? "Build the initial field set, preview extraction on the target page, and validate the selectors before saving." : "Edit the selectors that this property should use after inheriting from its source template."} title={isCreateMode ? "Guided Field Setup" : "Extraction Configuration"}>
-                <SelectorBuilder fields={fieldRows} onChange={setFieldRows} previewByFieldName={previewMap} />
+                <SelectorBuilder fieldDefinitions={fieldDefinitionsQuery.data} fields={fieldRows} onChange={setFieldRows} previewByFieldName={previewMap} />
                 {fieldRows.length === 0 ? <EmptyState message={"No fields defined yet. Add a field to start extracting data."} /> : null}
                 <ActionGroup>
                     <Button onClick={() => { setFieldRows((rows) => [...rows, createEmptySelectorDraft()]); }} variant={"secondary"}>{"Add field"}</Button>
