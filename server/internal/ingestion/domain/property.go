@@ -176,30 +176,30 @@ func NormalizeSelectorList(selectors []string) []string {
 
 // PropertyExtractionConfig holds the user-defined extraction rules for a property.
 type PropertyExtractionConfig struct {
-	ID         string          `json:"id"`
-	PropertyID string          `json:"property_id"`
-	Fields     []FieldSelector `json:"fields"`
-	Version    int             `json:"version"`
-	CreatedAt  time.Time       `json:"created_at"`
-	ChangeSummary string       `json:"change_summary,omitempty"`
+	ID            string          `json:"id"`
+	PropertyID    string          `json:"property_id"`
+	Fields        []FieldSelector `json:"fields"`
+	Version       int             `json:"version"`
+	CreatedAt     time.Time       `json:"created_at"`
+	ChangeSummary string          `json:"change_summary,omitempty"`
 }
 
 // Property represents a single tracked real estate listing URL.
 type Property struct {
-	ID                      string         `json:"id"`
-	URL                     string         `json:"url"`
-	Label                   string         `json:"label"`
-	SourceID                string         `json:"source_id,omitempty"`
-	BrowserEnabled          bool           `json:"browser_enabled,omitempty"`
+	ID                      string            `json:"id"`
+	URL                     string            `json:"url"`
+	Label                   string            `json:"label"`
+	SourceID                string            `json:"source_id,omitempty"`
+	BrowserEnabled          bool              `json:"browser_enabled,omitempty"`
 	RequestHeaders          map[string]string `json:"request_headers,omitempty"`
-	Status                  PropertyStatus `json:"status"`
-	ScheduleIntervalSeconds int            `json:"schedule_interval_seconds,omitempty"`
-	RetryMaxAttempts        int            `json:"retry_max_attempts,omitempty"`
-	RetryBackoffMillis      int            `json:"retry_backoff_millis,omitempty"`
-	LastRunAt               *time.Time     `json:"last_run_at,omitempty"`
-	NextRunAt               *time.Time     `json:"next_run_at,omitempty"`
-	CreatedAt               time.Time      `json:"created_at"`
-	UpdatedAt               time.Time      `json:"updated_at"`
+	Status                  PropertyStatus    `json:"status"`
+	ScheduleIntervalSeconds int               `json:"schedule_interval_seconds,omitempty"`
+	RetryMaxAttempts        int               `json:"retry_max_attempts,omitempty"`
+	RetryBackoffMillis      int               `json:"retry_backoff_millis,omitempty"`
+	LastRunAt               *time.Time        `json:"last_run_at,omitempty"`
+	NextRunAt               *time.Time        `json:"next_run_at,omitempty"`
+	CreatedAt               time.Time         `json:"created_at"`
+	UpdatedAt               time.Time         `json:"updated_at"`
 }
 
 // RetryAttempts returns the effective retry count for the property.

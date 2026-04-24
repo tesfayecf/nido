@@ -34,10 +34,12 @@ export const diffPropertyConfigs = (
                 changes.push({ field: name, next: nextField, type: "added" });
                 return;
             }
+
             if (previousField !== undefined && nextField === undefined) {
                 changes.push({ field: name, previous: previousField, type: "removed" });
                 return;
             }
+
             if (previousField !== undefined && nextField !== undefined && serializeField(previousField) !== serializeField(nextField)) {
                 changes.push({ field: name, next: nextField, previous: previousField, type: "modified" });
             }

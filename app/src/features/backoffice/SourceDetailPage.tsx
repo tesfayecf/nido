@@ -25,8 +25,8 @@ import { formatDateTime } from "@/lib/format/date";
 import { sourceKeys } from "@/services/backoffice-sources/sources.keys";
 import { deleteSource, getSource, upsertSource } from "@/services/backoffice-sources/sources.service";
 import type { Source } from "@/services/backoffice-sources/sources.types";
-import { previewExtraction } from "@/services/properties/properties.service";
-import type { PropertyPreviewFieldResult } from "@/services/properties/properties.types";
+import { listProperties, listPropertySnapshots, previewExtraction } from "@/services/properties/properties.service";
+import type { PropertyPreviewFieldResult, PropertySnapshot } from "@/services/properties/properties.types";
 import {
     buildPreviewFieldMap,
     createDefaultSelectorDrafts,
@@ -100,6 +100,19 @@ export const SourceDetailPage = (): JSX.Element => {
             setPreviewMap(new Map());
             setPreviewFailures(["Preview could not be loaded. Check the page URL and selectors, then try again."]);
         },
+    });
+    const sourceHealthQuery = useQuery({
+        enabled: !isCreateMode && sourceId !== undefined,
+        queryFn: async () => {
+            const properties = (await listProperties()).filter((property) => property.source_id === sourceId);
+            const snapshotSets = await Promise.all(properties.map(async (property) => ({
+                property,
+                snapshots: await listPropertySnapshots(property.id, 8),
+            })));
+
+            return buildSourceHealthSnapshot(snapshotSets);
+        },
+        queryKey: ["source-health", sourceId ?? "new"],
     });
 
     useEffect(() => {
@@ -268,6 +281,34 @@ export const SourceDetailPage = (): JSX.Element => {
                     </KeyValueGrid>
                 </PageCard>
 
+                <PageCard description={"Track which properties depend on this template, how often their runs succeed, and which fields are drifting toward empty values."} title={"Source Health"}>
+                    {sourceHealthQuery.isLoading ? <p className={"muted-copy"}>{"Loading source health..."}</p> : null}
+                    {sourceHealthQuery.isError ? <ErrorBanner>{"Could not load source health."}</ErrorBanner> : null}
+                    {sourceHealthQuery.data !== undefined ? (
+                        <>
+                            <KeyValueGrid compact>
+                                <KeyValuePair label={"Affected properties"} value={`${sourceHealthQuery.data.affectedProperties}`} />
+                                <KeyValuePair label={"Success rate"} value={`${sourceHealthQuery.data.successRate}%`} />
+                                <KeyValuePair label={"Failure rate"} value={`${sourceHealthQuery.data.failureRate}%`} />
+                                <KeyValuePair label={"Average completeness"} value={`${sourceHealthQuery.data.fieldCompleteness}%`} />
+                            </KeyValueGrid>
+                            <DataTable
+                                caption={"Field completeness by template field"}
+                                columns={[
+                                    { cell: (item) => item.field, header: "Field", id: "field", sortValue: (item) => item.field },
+                                    { cell: (item) => `${item.completeness}%`, header: "Completeness", id: "completeness", sortValue: (item) => item.completeness },
+                                    { cell: (item) => `${item.emptyCount}`, header: "Empty results", id: "emptyCount", sortValue: (item) => item.emptyCount },
+                                ]}
+                                compact
+                                emptyMessage={"No source health metrics are available yet."}
+                                getRowId={(item) => item.field}
+                                items={sourceHealthQuery.data.fields}
+                                pageSize={6}
+                            />
+                        </>
+                    ) : null}
+                </PageCard>
+
                 <PageCard
                     action={(
                         <Button iconBefore={<Icon name={"plus"} />} onClick={() => { setFieldEditor({ initial: createEmptySelectorDraft(), mode: "add" }); }} variant={"secondary"}>
@@ -355,4 +396,46 @@ export const SourceDetailPage = (): JSX.Element => {
             />
         </>
     );
+};
+
+const buildSourceHealthSnapshot = (items: { property: { id: string; }; snapshots: PropertySnapshot[]; }[]): {
+    readonly affectedProperties: number;
+    readonly failureRate: number;
+    readonly fieldCompleteness: number;
+    readonly fields: { completeness: number; emptyCount: number; field: string; }[];
+    readonly successRate: number;
+} => {
+    const totalSnapshots = items.flatMap((item) => item.snapshots);
+    const successCount = totalSnapshots.filter((snapshot) => snapshot.is_valid).length;
+    const failureCount = totalSnapshots.length - successCount;
+    const fieldStats = new Map<string, { emptyCount: number; seenCount: number; }>();
+
+    totalSnapshots.forEach((snapshot) => {
+        Object.entries(snapshot.values).forEach(([field, value]) => {
+            const current = fieldStats.get(field) ?? { emptyCount: 0, seenCount: 0 };
+            current.seenCount += 1;
+            if (value.trim() === "") {
+                current.emptyCount += 1;
+            }
+
+            fieldStats.set(field, current);
+        });
+    });
+
+    const fields = [...fieldStats.entries()].map(([field, stat]) => ({
+        completeness: stat.seenCount === 0 ? 0 : Math.round(((stat.seenCount - stat.emptyCount) / stat.seenCount) * 100),
+        emptyCount: stat.emptyCount,
+        field,
+    }));
+    const averageCompleteness = fields.length === 0
+        ? 0
+        : Math.round(fields.reduce((sum, item) => sum + item.completeness, 0) / fields.length);
+
+    return {
+        affectedProperties: items.length,
+        failureRate: totalSnapshots.length === 0 ? 0 : Math.round((failureCount / totalSnapshots.length) * 100),
+        fieldCompleteness: averageCompleteness,
+        fields,
+        successRate: totalSnapshots.length === 0 ? 0 : Math.round((successCount / totalSnapshots.length) * 100),
+    };
 };

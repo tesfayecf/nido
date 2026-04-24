@@ -2367,11 +2367,11 @@ func scanTag(s scanner) (ingestiondomain.Tag, error) {
 
 func scanPropertyRun(s scanner) (ingestiondomain.PropertyRun, error) {
 	var (
-		run                             ingestiondomain.PropertyRun
-		status                          string
-		startedAt, finishedAt           sql.NullString
-		errorMessage, snapshotID        sql.NullString
-		createdAt                       string
+		run                      ingestiondomain.PropertyRun
+		status                   string
+		startedAt, finishedAt    sql.NullString
+		errorMessage, snapshotID sql.NullString
+		createdAt                string
 	)
 
 	err := s.Scan(

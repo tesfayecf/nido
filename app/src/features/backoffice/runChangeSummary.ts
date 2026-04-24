@@ -17,6 +17,7 @@ const parseComparableNumber = (value: string): number | undefined => {
     if (digits.trim() === "" || digits === "-" || digits === "." || digits === "-.") {
         return undefined;
     }
+
     const parsed = Number(digits);
     return Number.isFinite(parsed) ? parsed : undefined;
 };
@@ -35,22 +36,23 @@ export const buildRunFieldChanges = (
         const previousNumber = parseComparableNumber(previousValue);
         const currentNumber = parseComparableNumber(currentValue);
         const absoluteDelta = previousNumber !== undefined && currentNumber !== undefined ? currentNumber - previousNumber : undefined;
-        const percentageDelta = absoluteDelta !== undefined && previousNumber !== 0
+        const percentageDelta = absoluteDelta !== undefined && previousNumber !== undefined && previousNumber !== 0
             ? (absoluteDelta / previousNumber) * 100
             : undefined;
         const changed = previousValue !== currentValue;
         const significant = percentageDelta !== undefined ? Math.abs(percentageDelta) >= 5 : changed;
+        const direction: RunFieldChange["direction"] = absoluteDelta === undefined
+            ? changed ? "text" : "none"
+            : absoluteDelta > 0
+                ? "up"
+                : absoluteDelta < 0
+                    ? "down"
+                    : "none";
 
         return {
             absoluteDelta,
             currentValue,
-            direction: absoluteDelta === undefined
-                ? changed ? "text" : "none"
-                : absoluteDelta > 0
-                    ? "up"
-                    : absoluteDelta < 0
-                        ? "down"
-                        : "none",
+            direction,
             field,
             percentageDelta,
             previousValue,
@@ -62,9 +64,11 @@ export const buildRunFieldChanges = (
         if ((left.previousValue !== left.currentValue) !== (right.previousValue !== right.currentValue)) {
             return left.previousValue !== left.currentValue ? -1 : 1;
         }
+
         if (leftPriority !== rightPriority) {
             return leftPriority - rightPriority;
         }
+
         return left.field.localeCompare(right.field);
     });
 };
@@ -77,6 +81,7 @@ export const summarizeRunChanges = (changes: RunFieldChange[]): string[] => {
             if (change.percentageDelta !== undefined) {
                 return `${humanizeField(change.field)} ${change.direction === "up" ? "increased" : "decreased"} by ${Math.abs(change.percentageDelta).toFixed(1)}%.`;
             }
+
             return `${humanizeField(change.field)} changed from ${change.previousValue} to ${change.currentValue}.`;
         });
 };

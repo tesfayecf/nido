@@ -230,9 +230,19 @@ export const PropertyDetailPage = (): JSX.Element => {
 
             return updateProperty(resolvedId, payload);
         },
-        onSuccess(data) {
+        async onSuccess(data) {
+            if (isCreateMode) {
+                const configuredFields = fieldRows
+                    .filter((row) => row.name.trim() !== "")
+                    .map(draftToSelector);
+                if (configuredFields.length > 0) {
+                    await upsertPropertyConfig(data.id, configuredFields);
+                }
+            }
+
             queryClient.setQueryData(propertyKeys.detail(data.id), data);
             void queryClient.invalidateQueries({ queryKey: propertyKeys.list() });
+            void queryClient.invalidateQueries({ queryKey: propertyKeys.configVersions(data.id) });
             pushToast(isCreateMode ? "Property created." : "Property updated.", "success");
             if (isCreateMode) {
                 void navigate(`/properties/${data.id}`, { replace: true });
@@ -354,6 +364,7 @@ export const PropertyDetailPage = (): JSX.Element => {
         if (snapshotConfigFilter <= 0) {
             return snapshots;
         }
+
         return snapshots.filter((snapshot) => snapshot.config_version === snapshotConfigFilter);
     }, [snapshotConfigFilter, snapshotsQuery.data]);
     const configVersions = configVersionsQuery.data ?? [];
@@ -390,7 +401,7 @@ export const PropertyDetailPage = (): JSX.Element => {
         <PageStack>
             <PageCard
                 action={!isCreateMode ? <Button as={Link} to={"/properties"} variant={"secondary"}>{"Back to properties"}</Button> : undefined}
-                description={isCreateMode ? "Add a property URL and define exactly how often automated runs should happen." : "Update the property URL, template assignment, schedule, and retry behavior."}
+                description={isCreateMode ? "Guided setup: 1) enter the URL, 2) define fields, 3) preview extraction, 4) review validation, 5) save the property and config together." : "Update the property URL, template assignment, schedule, and retry behavior."}
                 title={isCreateMode ? "Add Property" : "Edit Property"}
             >
                 {propertyQuery.isError ? <ErrorBanner>{"Could not load property."}</ErrorBanner> : null}
@@ -496,38 +507,36 @@ export const PropertyDetailPage = (): JSX.Element => {
                 </ActionGroup>
             </PageCard>
 
-            {!isCreateMode ? (
-                <PageCard description={"Edit the selectors that this property should use after inheriting from its source template."} title={"Extraction Configuration"}>
-                    <SelectorBuilder fields={fieldRows} onChange={setFieldRows} previewByFieldName={previewMap} />
-                    {fieldRows.length === 0 ? <EmptyState message={"No fields defined yet. Add a field to start extracting data."} /> : null}
-                    <ActionGroup>
-                        <Button onClick={() => { setFieldRows((rows) => [...rows, createEmptySelectorDraft()]); }} variant={"secondary"}>{"Add field"}</Button>
-                        <Button disabled={previewMutation.isPending || url.trim() === "" || validationMessages.length > 0} onClick={() => { previewMutation.mutate(); }} variant={"secondary"}>{previewMutation.isPending ? "Previewing..." : "Preview extraction"}</Button>
-                        <Button disabled={saveConfigMutation.isPending || validationMessages.length > 0} onClick={() => { saveConfigMutation.mutate(); }}>{saveConfigMutation.isPending ? "Saving..." : "Save configuration"}</Button>
-                    </ActionGroup>
-                    {validationMessages.length > 0 ? (
-                        <div className={"selector-builder__validation-list"}>
-                            {validationMessages.map((message) => <ErrorBanner key={message}>{message}</ErrorBanner>)}
-                        </div>
-                    ) : null}
-                    {saveConfigMutation.isError ? <ErrorBanner>{"Could not save configuration."}</ErrorBanner> : null}
-                    {previewFailures.length > 0 ? (
-                        <div className={"selector-builder__validation-list"}>
-                            {previewFailures.map((failure) => <ErrorBanner key={failure}>{failure}</ErrorBanner>)}
-                        </div>
-                    ) : null}
-                    {Object.keys(previewValues).length > 0 ? (
-                        <div className={"selector-builder__results"}>
-                            {Object.entries(previewValues).map(([fieldName, value]) => (
-                                <article className={"selector-builder__result-card"} key={fieldName}>
-                                    <span className={"selector-builder__result-label"}>{fieldName}</span>
-                                    <strong className={"selector-builder__result-value"}>{value}</strong>
-                                </article>
-                            ))}
-                        </div>
-                    ) : null}
-                </PageCard>
-            ) : null}
+            <PageCard description={isCreateMode ? "Build the initial field set, preview extraction on the target page, and validate the selectors before saving." : "Edit the selectors that this property should use after inheriting from its source template."} title={isCreateMode ? "Guided Field Setup" : "Extraction Configuration"}>
+                <SelectorBuilder fields={fieldRows} onChange={setFieldRows} previewByFieldName={previewMap} />
+                {fieldRows.length === 0 ? <EmptyState message={"No fields defined yet. Add a field to start extracting data."} /> : null}
+                <ActionGroup>
+                    <Button onClick={() => { setFieldRows((rows) => [...rows, createEmptySelectorDraft()]); }} variant={"secondary"}>{"Add field"}</Button>
+                    <Button disabled={previewMutation.isPending || url.trim() === "" || validationMessages.length > 0} onClick={() => { previewMutation.mutate(); }} variant={"secondary"}>{previewMutation.isPending ? "Previewing..." : "Preview extraction"}</Button>
+                    <Button disabled={saveConfigMutation.isPending || validationMessages.length > 0} onClick={() => { saveConfigMutation.mutate(); }}>{saveConfigMutation.isPending ? "Saving..." : "Save configuration"}</Button>
+                </ActionGroup>
+                {validationMessages.length > 0 ? (
+                    <div className={"selector-builder__validation-list"}>
+                        {validationMessages.map((message) => <ErrorBanner key={message}>{message}</ErrorBanner>)}
+                    </div>
+                ) : null}
+                {saveConfigMutation.isError ? <ErrorBanner>{"Could not save configuration."}</ErrorBanner> : null}
+                {previewFailures.length > 0 ? (
+                    <div className={"selector-builder__validation-list"}>
+                        {previewFailures.map((failure) => <ErrorBanner key={failure}>{failure}</ErrorBanner>)}
+                    </div>
+                ) : null}
+                {Object.keys(previewValues).length > 0 ? (
+                    <div className={"selector-builder__results"}>
+                        {Object.entries(previewValues).map(([fieldName, value]) => (
+                            <article className={"selector-builder__result-card"} key={fieldName}>
+                                <span className={"selector-builder__result-label"}>{fieldName}</span>
+                                <strong className={"selector-builder__result-value"}>{value}</strong>
+                            </article>
+                        ))}
+                    </div>
+                ) : null}
+            </PageCard>
         </PageStack>
     );
 
