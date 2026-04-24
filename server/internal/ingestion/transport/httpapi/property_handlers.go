@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	authhttp "home-searcher/server/internal/auth/transport/httpapi"
 	app "home-searcher/server/internal/ingestion/application"
 	ingestiondomain "home-searcher/server/internal/ingestion/domain"
 	platformhttp "home-searcher/server/internal/platform/httpapi"
@@ -22,7 +23,7 @@ type propertyUpsertRequest struct {
 }
 
 // RegisterProperties binds property tracking HTTP routes to the supplied mux.
-func RegisterProperties(mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, service *app.PropertyService) {
+func RegisterProperties(mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, service *app.PropertyService, workspace *app.WorkspaceService) {
 	mux.Handle("GET /api/v1/backoffice/properties", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Parse tag filtering parameters
 		tagIDs := r.URL.Query()["tag_id"]
@@ -56,6 +57,11 @@ func RegisterProperties(mux *http.ServeMux, requireAuth func(http.Handler) http.
 		}
 
 		platformhttp.WriteJSON(w, http.StatusCreated, map[string]any{"item": property})
+		if workspace != nil {
+			if principal, ok := authhttp.CurrentPrincipal(r.Context()); ok {
+				workspace.RecordAudit(r.Context(), principal.User, "property", property.ID, "Property created")
+			}
+		}
 	})))
 
 	// Stateless preview — no property ID required.  Must be registered BEFORE
@@ -95,6 +101,11 @@ func RegisterProperties(mux *http.ServeMux, requireAuth func(http.Handler) http.
 		}
 
 		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{"item": property})
+		if workspace != nil {
+			if principal, ok := authhttp.CurrentPrincipal(r.Context()); ok {
+				workspace.RecordAudit(r.Context(), principal.User, "property", property.ID, "Property updated")
+			}
+		}
 	})))
 
 	mux.Handle("PUT /api/v1/backoffice/properties/{propertyID}", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -147,6 +158,11 @@ func RegisterProperties(mux *http.ServeMux, requireAuth func(http.Handler) http.
 		}
 
 		platformhttp.WriteJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
+		if workspace != nil {
+			if principal, ok := authhttp.CurrentPrincipal(r.Context()); ok {
+				workspace.RecordAudit(r.Context(), principal.User, "property", propertyID, "Property deleted")
+			}
+		}
 	})))
 
 	mux.Handle("POST /api/v1/backoffice/properties/{propertyID}/config", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -171,6 +187,11 @@ func RegisterProperties(mux *http.ServeMux, requireAuth func(http.Handler) http.
 		}
 
 		platformhttp.WriteJSON(w, http.StatusCreated, map[string]any{"item": config})
+		if workspace != nil {
+			if principal, ok := authhttp.CurrentPrincipal(r.Context()); ok {
+				workspace.RecordAudit(r.Context(), principal.User, "property", propertyID, "Extraction configuration updated")
+			}
+		}
 	})))
 
 	mux.Handle("GET /api/v1/backoffice/properties/{propertyID}/config", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -248,6 +269,11 @@ func RegisterProperties(mux *http.ServeMux, requireAuth func(http.Handler) http.
 		}
 
 		platformhttp.WriteJSON(w, http.StatusCreated, map[string]any{"item": config})
+		if workspace != nil {
+			if principal, ok := authhttp.CurrentPrincipal(r.Context()); ok {
+				workspace.RecordAudit(r.Context(), principal.User, "property", propertyID, "Extraction configuration rolled back")
+			}
+		}
 	})))
 
 	mux.Handle("POST /api/v1/backoffice/properties/{propertyID}/preview", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

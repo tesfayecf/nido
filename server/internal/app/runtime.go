@@ -74,8 +74,9 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Runtime,
 		return nil, err
 	}
 	propertyService := ingestionapp.NewPropertyService(logger, store, propertyFetcher, nil, engagementService, eventBroker)
+	workspaceService := ingestionapp.NewWorkspaceService(logger, store)
 	tagService := ingestionapp.NewTagService(logger, store, nil, eventBroker)
-	
+
 	// Create property scheduler
 	propertyScheduler := ingestionapp.NewPropertyScheduler(
 		logger,
@@ -98,8 +99,9 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Runtime,
 	engagementhttp.Register(mux, authMiddleware, engagementService)
 	ingestionhttp.Register(mux, authMiddleware, sourceService, eventBroker)
 	ingestionhttp.RegisterRuns(mux, authMiddleware, propertyService)
-	ingestionhttp.RegisterProperties(mux, authMiddleware, propertyService)
+	ingestionhttp.RegisterProperties(mux, authMiddleware, propertyService, workspaceService)
 	ingestionhttp.RegisterTags(mux, authMiddleware, tagService, propertyService)
+	ingestionhttp.RegisterWorkspace(mux, authMiddleware, workspaceService)
 
 	return &Runtime{
 		Handler:           platformhttp.LoggingMiddleware(logger, mux),
