@@ -5,30 +5,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ToastProvider } from "@/components/ui/ToastProvider";
 import { PropertyWorkspacePanel } from "@/features/properties/PropertyWorkspacePanel";
 
-const getCurrentUserMock = vi.fn();
-const listWorkspaceUsersMock = vi.fn();
-const createPropertyCommentMock = vi.fn();
 const getPropertyMetadataMock = vi.fn();
 const listPropertyAuditMock = vi.fn();
-const listPropertyCommentsMock = vi.fn();
-const listPropertyWatchersMock = vi.fn();
-const subscribePropertyMock = vi.fn();
-const unsubscribePropertyMock = vi.fn();
 const updatePropertyMetadataMock = vi.fn();
 
-vi.mock("@/services/auth/auth.service", () => ({
-    getCurrentUser: () => getCurrentUserMock(),
-    listWorkspaceUsers: () => listWorkspaceUsersMock(),
-}));
-
 vi.mock("@/services/workspace/workspace.service", () => ({
-    createPropertyComment: (propertyId: string, body: string) => createPropertyCommentMock(propertyId, body),
     getPropertyMetadata: (propertyId: string) => getPropertyMetadataMock(propertyId),
     listPropertyAudit: (propertyId: string) => listPropertyAuditMock(propertyId),
-    listPropertyComments: (propertyId: string) => listPropertyCommentsMock(propertyId),
-    listPropertyWatchers: (propertyId: string) => listPropertyWatchersMock(propertyId),
-    subscribeProperty: (propertyId: string) => subscribePropertyMock(propertyId),
-    unsubscribeProperty: (propertyId: string) => unsubscribePropertyMock(propertyId),
     updatePropertyMetadata: (propertyId: string, payload: unknown) => updatePropertyMetadataMock(propertyId, payload),
 }));
 
@@ -51,71 +34,53 @@ const renderPanel = (): ReturnType<typeof render> => {
 
 describe("PropertyWorkspacePanel", () => {
     beforeEach(() => {
-        getCurrentUserMock.mockReset();
-        listWorkspaceUsersMock.mockReset();
-        createPropertyCommentMock.mockReset();
         getPropertyMetadataMock.mockReset();
         listPropertyAuditMock.mockReset();
-        listPropertyCommentsMock.mockReset();
-        listPropertyWatchersMock.mockReset();
-        subscribePropertyMock.mockReset();
-        unsubscribePropertyMock.mockReset();
         updatePropertyMetadataMock.mockReset();
 
-        getCurrentUserMock.mockResolvedValue({
-            display_name: "Admin",
-            email: "admin@local",
-            id: "usr_admin",
-            role: "admin",
-        });
-        listWorkspaceUsersMock.mockResolvedValue([
-            { display_name: "Admin", email: "admin@local", id: "usr_admin", role: "admin" },
-            { display_name: "Operator", email: "operator@local", id: "usr_operator", role: "operator" },
-        ]);
         getPropertyMetadataMock.mockResolvedValue({
-            owner_id: "usr_operator",
+            acquisition_notes: "Call broker",
+            pipeline_stage: "underwriting",
             priority: "high",
             property_id: "prop_1",
             workflow_state: "investigating",
         });
-        listPropertyWatchersMock.mockResolvedValue([{ property_id: "prop_1", user_id: "usr_admin" }]);
-        listPropertyCommentsMock.mockResolvedValue([
-            { body: "Initial note", created_at: "2024-01-01T12:00:00.000Z", id: "comment_1", property_id: "prop_1", user_id: "usr_operator" },
-        ]);
         listPropertyAuditMock.mockResolvedValue([
-            { created_at: "2024-01-01T12:10:00.000Z", id: "audit_1", summary: "Workflow state changed", target_id: "prop_1", target_kind: "property" },
+            { created_at: "2024-01-01T12:10:00.000Z", id: "audit_1", summary: "Property context updated", target_id: "prop_1", target_kind: "property" },
         ]);
         updatePropertyMetadataMock.mockResolvedValue({
-            owner_id: "usr_operator",
-            priority: "high",
+            acquisition_notes: "Call broker",
+            pipeline_stage: "underwriting",
+            priority: "critical",
             property_id: "prop_1",
-            workflow_state: "investigating",
-        });
-        createPropertyCommentMock.mockResolvedValue({
-            body: "Ping @operator@local",
-            created_at: "2024-01-01T12:15:00.000Z",
-            id: "comment_2",
-            property_id: "prop_1",
-            user_id: "usr_admin",
+            workflow_state: "resolved",
         });
     });
 
-    it("renders workspace metadata and audit data", async () => {
+    it("renders property context and activity data", async () => {
         renderPanel();
 
-        expect(await screen.findByText("Operator")).toBeInTheDocument();
-        expect(screen.getByDisplayValue("investigating")).toBeInTheDocument();
-        expect(screen.getByText("Workflow state changed")).toBeInTheDocument();
+        expect(await screen.findByDisplayValue("investigating")).toBeInTheDocument();
+        expect(screen.getByDisplayValue("underwriting")).toBeInTheDocument();
+        expect(screen.getByText("Property context updated")).toBeInTheDocument();
     });
 
-    it("submits a new comment", async () => {
+    it("saves updated property context", async () => {
         renderPanel();
 
-        fireEvent.change(await screen.findByRole("textbox", { name: "New comment" }), { target: { value: "Ping @operator@local" } });
-        fireEvent.click(screen.getByRole("button", { name: "Post comment" }));
+        const selects = await screen.findAllByRole("combobox");
+        const workflowSelect = selects[0]!;
+        const prioritySelect = selects[1]!;
+        fireEvent.change(workflowSelect, { target: { value: "resolved" } });
+        fireEvent.change(prioritySelect, { target: { value: "critical" } });
+        await screen.findByText("resolved");
+        fireEvent.click(screen.getByRole("button", { name: "Save context" }));
 
         await waitFor(() => {
-            expect(createPropertyCommentMock).toHaveBeenCalledWith("prop_1", "Ping @operator@local");
+            expect(updatePropertyMetadataMock).toHaveBeenCalledWith("prop_1", expect.objectContaining({
+                priority: "critical",
+                property_id: "prop_1",
+            }));
         });
     });
 });

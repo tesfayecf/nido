@@ -61,7 +61,6 @@ const notifications: Notification[] = [
         kind: "price_change",
         property_id: "property-2",
         title: "Price alert",
-        user_id: "user-1",
     },
 ];
 

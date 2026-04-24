@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { MultiSelect } from "@/components/ui/MultiSelect";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
@@ -16,31 +15,6 @@ import { ThemeToggle } from "@/components/shell/ThemeToggle";
 import { useToast } from "@/components/ui/ToastProvider";
 import { authKeys } from "@/services/auth/auth.keys";
 import { changePassword, getCurrentUser, updateProfile } from "@/services/auth/auth.service";
-import { propertyKeys } from "@/services/properties/properties.keys";
-import { listProperties } from "@/services/properties/properties.service";
-import { tagKeys } from "@/services/tags/tags.keys";
-import { listTags } from "@/services/tags/tags.service";
-
-interface NotificationPreferencesDraft {
-    readonly channels: string[];
-    readonly digestMode: boolean;
-    readonly mutedPropertyIds: string[];
-    readonly mutedTagIds: string[];
-    readonly quietHoursEnd: string;
-    readonly quietHoursStart: string;
-    readonly severityFloor: string;
-}
-
-const PREFERENCE_STORAGE_KEY = "home-searcher.notification-preferences";
-const DEFAULT_PREFERENCES: NotificationPreferencesDraft = {
-    channels: ["in-app", "email"],
-    digestMode: true,
-    mutedPropertyIds: [],
-    mutedTagIds: [],
-    quietHoursEnd: "07:00",
-    quietHoursStart: "22:00",
-    severityFloor: "medium",
-};
 
 export const SettingsPage = (): JSX.Element => {
     const queryClient = useQueryClient();
@@ -49,42 +23,17 @@ export const SettingsPage = (): JSX.Element => {
         queryFn: getCurrentUser,
         queryKey: authKeys.me(),
     });
-    const propertiesQuery = useQuery({
-        queryFn: () => listProperties(),
-        queryKey: propertyKeys.list(),
-    });
-    const tagsQuery = useQuery({
-        queryFn: listTags,
-        queryKey: tagKeys.all(),
-    });
 
     const [displayName, setDisplayName] = useState("");
     const [currentPassword, setCurrentPassword] = useState("");
     const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
-    const [preferences, setPreferences] = useState<NotificationPreferencesDraft>(DEFAULT_PREFERENCES);
 
     useEffect(() => {
         if (meQuery.data !== undefined) {
             setDisplayName(meQuery.data.display_name);
         }
     }, [meQuery.data]);
-
-    useEffect(() => {
-        const rawPreferences = window.localStorage.getItem(PREFERENCE_STORAGE_KEY);
-        if (rawPreferences === null) {
-            return;
-        }
-
-        try {
-            setPreferences({
-                ...DEFAULT_PREFERENCES,
-                ...JSON.parse(rawPreferences) as Partial<NotificationPreferencesDraft>,
-            });
-        } catch {
-            setPreferences(DEFAULT_PREFERENCES);
-        }
-    }, []);
 
     const profileMutation = useMutation({
         mutationFn: () => updateProfile({ display_name: displayName.trim() }),
@@ -116,11 +65,6 @@ export const SettingsPage = (): JSX.Element => {
         newPassword.trim() !== "" &&
         !passwordMismatch &&
         newPassword.length >= 8;
-
-    const savePreferences = (): void => {
-        window.localStorage.setItem(PREFERENCE_STORAGE_KEY, JSON.stringify(preferences));
-        pushToast("Notification preferences saved on this device.", "success");
-    };
 
     return (
         <PageStack>
@@ -209,65 +153,13 @@ export const SettingsPage = (): JSX.Element => {
                 <ThemeToggle />
             </PageCard>
 
-            <PageCard description={"Set quiet hours, route only the severities you care about, and mute noisy property or tag groups without deleting alert rules."} title={"Notification Preferences"}>
-                <FormGrid
-                    onSubmit={(event) => {
-                        event.preventDefault();
-                        savePreferences();
-                    }}
-                >
-                    <Field label={"Quiet hours start"}>
-                        <Input onChange={(event) => { setPreferences((current) => ({ ...current, quietHoursStart: event.target.value })); }} type={"time"} value={preferences.quietHoursStart} />
-                    </Field>
-                    <Field label={"Quiet hours end"}>
-                        <Input onChange={(event) => { setPreferences((current) => ({ ...current, quietHoursEnd: event.target.value })); }} type={"time"} value={preferences.quietHoursEnd} />
-                    </Field>
-                    <Field hint={"Batch lower-priority notifications into a digest when enabled."} label={"Digest mode"} variant={"checkbox"}>
-                        <input checked={preferences.digestMode} onChange={(event) => { setPreferences((current) => ({ ...current, digestMode: event.target.checked })); }} type={"checkbox"} />
-                    </Field>
-                    <Field label={"Minimum severity"}>
-                        <select className={"field__control"} onChange={(event) => { setPreferences((current) => ({ ...current, severityFloor: event.target.value })); }} value={preferences.severityFloor}>
-                            <option value={"low"}>{"Low"}</option>
-                            <option value={"medium"}>{"Medium"}</option>
-                            <option value={"high"}>{"High"}</option>
-                            <option value={"critical"}>{"Critical"}</option>
-                        </select>
-                    </Field>
-                    <Field fullWidth label={"Delivery channels"}>
-                        <MultiSelect
-                            onChange={(values) => { setPreferences((current) => ({ ...current, channels: values })); }}
-                            options={[
-                                { label: "In-app", value: "in-app" },
-                                { label: "Email", value: "email" },
-                                { label: "Webhook", value: "webhook" },
-                                { label: "Chat integration", value: "chat" },
-                            ]}
-                            values={preferences.channels}
-                        />
-                    </Field>
-                    <Field fullWidth label={"Muted properties"}>
-                        <MultiSelect
-                            onChange={(values) => { setPreferences((current) => ({ ...current, mutedPropertyIds: values })); }}
-                            options={(propertiesQuery.data ?? []).map((property) => ({
-                                label: property.label !== "" ? property.label : property.url,
-                                value: property.id,
-                            }))}
-                            placeholder={"Mute selected properties"}
-                            values={preferences.mutedPropertyIds}
-                        />
-                    </Field>
-                    <Field fullWidth label={"Muted tags"}>
-                        <MultiSelect
-                            onChange={(values) => { setPreferences((current) => ({ ...current, mutedTagIds: values })); }}
-                            options={(tagsQuery.data ?? []).map((tag) => ({ label: tag.name, value: tag.id }))}
-                            placeholder={"Mute selected tags"}
-                            values={preferences.mutedTagIds}
-                        />
-                    </Field>
-                    <ActionGroup>
-                        <Button type={"submit"}>{"Save preferences"}</Button>
-                    </ActionGroup>
-                </FormGrid>
+            <PageCard description={"Notifications now stay scoped to this workspace user and any configured integration destinations."} title={"Alert Delivery"}>
+                <KeyValueGrid compact>
+                    <KeyValuePair label={"Scope"} value={"Single-user workspace"} />
+                    <KeyValuePair label={"In-app alerts"} value={"Enabled through alert rules"} />
+                    <KeyValuePair label={"Integrations"} value={"Single destination per configured integration"} />
+                    <KeyValuePair label={"Removed"} value={"Mentions, watchers, muted-user routing, shared preferences"} />
+                </KeyValueGrid>
             </PageCard>
         </PageStack>
     );

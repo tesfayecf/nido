@@ -23,9 +23,10 @@ const routeMeta: readonly [RegExp, RouteMeta][] = [
     [/^\/runs$/, { section: "Runs", title: "Runs" }],
     [/^\/bookmarks$/, { section: "Bookmarks", title: "Bookmarks" }],
     [/^\/alerts$/, { section: "Alerts", title: "Alerts" }],
-    [/^\/notifications$/, { section: "Notifications", title: "Notifications" }],
+    [/^\/notifications$/, { section: "Alerts", title: "Alerts Inbox" }],
     [/^\/login$/, { section: "Access", title: "Sign In" }],
     [/^\/settings$/, { section: "Account", title: "Settings" }],
+    [/^\/operations$/, { section: "Operations", title: "Operations Console" }],
 ];
 
 const defaultMeta: RouteMeta = {

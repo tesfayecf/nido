@@ -14,7 +14,6 @@ const (
 // PropertyMetadata stores collaboration and business context for a property.
 type PropertyMetadata struct {
 	PropertyID         string              `json:"property_id"`
-	OwnerID            string              `json:"owner_id,omitempty"`
 	WorkflowState      string              `json:"workflow_state"`
 	Priority           string              `json:"priority"`
 	PipelineStage      string              `json:"pipeline_stage"`
@@ -40,28 +39,9 @@ type Attachment struct {
 	URL   string `json:"url"`
 }
 
-// PropertyComment is one immutable collaboration entry.
-type PropertyComment struct {
-	ID         string    `json:"id"`
-	PropertyID string    `json:"property_id"`
-	UserID     string    `json:"user_id"`
-	Body       string    `json:"body"`
-	Mentions   []string  `json:"mentions,omitempty"`
-	CreatedAt  time.Time `json:"created_at"`
-}
-
-// PropertyWatcher stores one subscribed user.
-type PropertyWatcher struct {
-	PropertyID string    `json:"property_id"`
-	UserID     string    `json:"user_id"`
-	Channels   []string  `json:"channels,omitempty"`
-	CreatedAt  time.Time `json:"created_at"`
-}
-
 // AuditLog records one traceable operational change.
 type AuditLog struct {
 	ID          string    `json:"id"`
-	ActorUserID string    `json:"actor_user_id,omitempty"`
 	TargetKind  string    `json:"target_kind"`
 	TargetID    string    `json:"target_id"`
 	Summary     string    `json:"summary"`
@@ -102,7 +82,6 @@ type SchedulerPause struct {
 	ID          string    `json:"id"`
 	ScopeType   string    `json:"scope_type"`
 	ScopeValue  string    `json:"scope_value"`
-	ActorUserID string    `json:"actor_user_id,omitempty"`
 	Reason      string    `json:"reason,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
 }
@@ -110,7 +89,6 @@ type SchedulerPause struct {
 // MaintenanceWindow stores one maintenance interval.
 type MaintenanceWindow struct {
 	ID          string    `json:"id"`
-	ActorUserID string    `json:"actor_user_id,omitempty"`
 	Name        string    `json:"name"`
 	StartsAt    time.Time `json:"starts_at"`
 	EndsAt      time.Time `json:"ends_at"`

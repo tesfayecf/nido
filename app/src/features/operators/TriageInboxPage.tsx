@@ -85,7 +85,7 @@ export const TriageInboxPage = (): JSX.Element => {
     return (
         <PageStack>
             <PageCard
-                description={"This inbox consolidates degraded properties, failed runs, unread notifications, and missing setup so operators can move from overview to action quickly."}
+                description={"This inbox consolidates degraded properties, failed runs, unread alerts, and missing setup so you can move from overview to action quickly."}
                 title={"Triage inbox"}
             >
                 <div className={"toolbar"}>

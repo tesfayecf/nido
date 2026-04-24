@@ -5,7 +5,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { DataTable } from "@/components/ui/DataTable";
-import { EmptyState } from "@/components/ui/EmptyState";
 import { Field } from "@/components/ui/Field";
 import { FormGrid } from "@/components/ui/FormGrid";
 import { Input } from "@/components/ui/Input";
@@ -16,8 +15,6 @@ import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { useToast } from "@/components/ui/ToastProvider";
 import { formatDateTime } from "@/lib/format/date";
-import { authKeys } from "@/services/auth/auth.keys";
-import { createWorkspaceUser, getCurrentUser, listWorkspaceUsers } from "@/services/auth/auth.service";
 import { sourceKeys } from "@/services/backoffice-sources/sources.keys";
 import { listSources } from "@/services/backoffice-sources/sources.service";
 import { propertyKeys } from "@/services/properties/properties.keys";
@@ -57,15 +54,12 @@ const downloadBlob = (blob: Blob, fileName: string): void => {
 export const AdminConsolePage = (): JSX.Element => {
     const queryClient = useQueryClient();
     const { pushToast } = useToast();
-    const [userForm, setUserForm] = useState({ display_name: "", email: "", password: "", role: "viewer" as const });
     const [integrationForm, setIntegrationForm] = useState({ active: true, kind: "webhook" as const, name: "", target: "" });
     const [pauseForm, setPauseForm] = useState<{ reason: string; scope_type: "property" | "source" | "tag"; scope_value: string; }>({ reason: "", scope_type: "property", scope_value: "" });
     const [maintenanceForm, setMaintenanceForm] = useState({ ends_at: "", name: "", reason: "", starts_at: "" });
     const [selectedImportFile, setSelectedImportFile] = useState<File | null>(null);
     const [restoreJson, setRestoreJson] = useState("");
 
-    const meQuery = useQuery({ queryFn: getCurrentUser, queryKey: authKeys.me() });
-    const usersQuery = useQuery({ queryFn: listWorkspaceUsers, queryKey: authKeys.users() });
     const propertiesQuery = useQuery({ queryFn: () => listProperties(), queryKey: propertyKeys.list() });
     const sourcesQuery = useQuery({ queryFn: listSources, queryKey: sourceKeys.list() });
     const tagsQuery = useQuery({ queryFn: listTags, queryKey: tagKeys.list() });
@@ -74,20 +68,6 @@ export const AdminConsolePage = (): JSX.Element => {
     const deliveriesQuery = useQuery({ queryFn: listIntegrationDeliveries, queryKey: workspaceKeys.deliveries() });
     const pausesQuery = useQuery({ queryFn: listSchedulerPauses, queryKey: workspaceKeys.pauses() });
     const maintenanceQuery = useQuery({ queryFn: listMaintenanceWindows, queryKey: workspaceKeys.maintenance() });
-
-    const isAdmin = meQuery.data?.role === "admin";
-
-    const createUserMutation = useMutation({
-        mutationFn: () => createWorkspaceUser(userForm),
-        onSuccess() {
-            setUserForm({ display_name: "", email: "", password: "", role: "viewer" });
-            void queryClient.invalidateQueries({ queryKey: authKeys.users() });
-            pushToast("Workspace user created.", "success");
-        },
-        onError(error) {
-            pushToast(error instanceof Error ? error.message : "Could not create user.", "error");
-        },
-    });
 
     const saveIntegrationMutation = useMutation({
         mutationFn: () => saveIntegration(integrationForm),
@@ -261,12 +241,16 @@ export const AdminConsolePage = (): JSX.Element => {
         }
     }, [pauseForm.scope_type, propertiesQuery.data, sourcesQuery.data, tagsQuery.data]);
 
-    if (!isAdmin) {
-        return <EmptyState message={"Admin access is required to view platform controls."} />;
-    }
-
     return (
         <PageStack>
+            <PageCard description={"This workspace now runs in a deterministic single-user mode with shared responsibility removed."} title={"Workspace Mode"}>
+                <KeyValueGrid compact>
+                    <KeyValuePair label={"Access model"} value={"Single workspace user"} />
+                    <KeyValuePair label={"Removed"} value={"Roles, workspace user management, property ownership, watchers, comments"} />
+                    <KeyValuePair label={"Available here"} value={"System health, integrations, scheduler controls, portability"} />
+                </KeyValueGrid>
+            </PageCard>
+
             <PageCard description={"Live platform health keeps queue pressure and retries visible."} title={"System Health"}>
                 {healthQuery.data === undefined ? <p className={"muted-copy"}>{"Loading health metrics..."}</p> : (
                     <KeyValueGrid compact>
@@ -278,46 +262,7 @@ export const AdminConsolePage = (): JSX.Element => {
                 )}
             </PageCard>
 
-            <PageCard description={"Roles govern configuration, integrations, destructive actions, and admin access."} title={"Workspace Users"}>
-                <FormGrid>
-                    <Field label={"Display name"}>
-                        <Input onChange={(event) => { setUserForm((current) => ({ ...current, display_name: event.target.value })); }} value={userForm.display_name} />
-                    </Field>
-                    <Field label={"Email"}>
-                        <Input onChange={(event) => { setUserForm((current) => ({ ...current, email: event.target.value })); }} value={userForm.email} />
-                    </Field>
-                    <Field label={"Password"}>
-                        <Input onChange={(event) => { setUserForm((current) => ({ ...current, password: event.target.value })); }} type={"password"} value={userForm.password} />
-                    </Field>
-                    <Field label={"Role"}>
-                        <Select onChange={(event) => { setUserForm((current) => ({ ...current, role: event.target.value as typeof userForm.role })); }} value={userForm.role}>
-                            <option value={"viewer"}>{"viewer"}</option>
-                            <option value={"operator"}>{"operator"}</option>
-                            <option value={"admin"}>{"admin"}</option>
-                        </Select>
-                    </Field>
-                </FormGrid>
-                <ActionGroup>
-                    <Button disabled={createUserMutation.isPending} onClick={() => { createUserMutation.mutate(); }}>
-                        {createUserMutation.isPending ? "Creating..." : "Create user"}
-                    </Button>
-                </ActionGroup>
-                <DataTable
-                    caption={"Workspace users"}
-                    columns={[
-                        { cell: (item) => item.display_name, header: "Name", id: "display_name" },
-                        { cell: (item) => item.email, header: "Email", id: "email" },
-                        { cell: (item) => item.role, header: "Role", id: "role" },
-                    ]}
-                    compact
-                    emptyMessage={"No workspace users found."}
-                    getRowId={(item) => item.id}
-                    items={usersQuery.data ?? []}
-                    pageSize={5}
-                />
-            </PageCard>
-
-            <PageCard description={"Slack, email, and webhook integrations all log delivery attempts and support retries."} title={"Integrations"}>
+            <PageCard description={"Slack, email, and webhook integrations now target one configured destination per workspace."} title={"Integrations"}>
                 <FormGrid>
                     <Field label={"Kind"}>
                         <Select onChange={(event) => { setIntegrationForm((current) => ({ ...current, kind: event.target.value as typeof current.kind })); }} value={integrationForm.kind}>

@@ -158,7 +158,6 @@ CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     email TEXT NOT NULL UNIQUE,
     display_name TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'viewer',
     password_hash TEXT NOT NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
@@ -184,17 +183,15 @@ DROP TABLE IF EXISTS listing_snapshots;
 DROP TABLE IF EXISTS listings;
 
 CREATE TABLE IF NOT EXISTS bookmarks (
-    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     property_id TEXT NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
     created_at TEXT NOT NULL,
-    PRIMARY KEY(user_id, property_id)
+    PRIMARY KEY(property_id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_bookmarks_user_created_at ON bookmarks(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_bookmarks_created_at ON bookmarks(created_at DESC);
 
 CREATE TABLE IF NOT EXISTS alert_rules (
     id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     property_id TEXT NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
     rule_type TEXT NOT NULL,
     threshold_amount INTEGER,
@@ -203,12 +200,10 @@ CREATE TABLE IF NOT EXISTS alert_rules (
     updated_at TEXT NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_alert_rules_user_id ON alert_rules(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_alert_rules_enabled ON alert_rules(enabled, rule_type);
 
 CREATE TABLE IF NOT EXISTS notifications (
     id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     alert_id TEXT REFERENCES alert_rules(id) ON DELETE SET NULL,
     property_id TEXT REFERENCES properties(id) ON DELETE SET NULL,
     kind TEXT NOT NULL,
@@ -220,7 +215,7 @@ CREATE TABLE IF NOT EXISTS notifications (
     read_at TEXT
 );
 
-CREATE INDEX IF NOT EXISTS idx_notifications_user_created_at ON notifications(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at DESC);
 
 CREATE TABLE IF NOT EXISTS properties (
     id TEXT PRIMARY KEY,
@@ -304,7 +299,6 @@ CREATE INDEX IF NOT EXISTS idx_property_runs_status ON property_runs(status);
 
 CREATE TABLE IF NOT EXISTS property_metadata (
     property_id TEXT PRIMARY KEY REFERENCES properties(id) ON DELETE CASCADE,
-    owner_id TEXT REFERENCES users(id) ON DELETE SET NULL,
     workflow_state TEXT NOT NULL DEFAULT 'unreviewed',
     priority TEXT NOT NULL DEFAULT 'medium',
     pipeline_stage TEXT NOT NULL DEFAULT '',
@@ -318,32 +312,14 @@ CREATE TABLE IF NOT EXISTS property_metadata (
     updated_at TEXT NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_property_metadata_owner_id ON property_metadata(owner_id);
 CREATE INDEX IF NOT EXISTS idx_property_metadata_priority ON property_metadata(priority);
 CREATE INDEX IF NOT EXISTS idx_property_metadata_workflow_state ON property_metadata(workflow_state);
 
-CREATE TABLE IF NOT EXISTS property_watchers (
-    property_id TEXT NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
-    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    channels_json TEXT NOT NULL DEFAULT '["in_app"]',
-    created_at TEXT NOT NULL,
-    PRIMARY KEY(property_id, user_id)
-);
-
-CREATE TABLE IF NOT EXISTS property_comments (
-    id TEXT PRIMARY KEY,
-    property_id TEXT NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
-    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    body TEXT NOT NULL,
-    mentions_json TEXT NOT NULL DEFAULT '[]',
-    created_at TEXT NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_property_comments_property_created ON property_comments(property_id, created_at DESC);
+DROP TABLE IF EXISTS property_watchers;
+DROP TABLE IF EXISTS property_comments;
 
 CREATE TABLE IF NOT EXISTS audit_logs (
     id TEXT PRIMARY KEY,
-    actor_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
     target_kind TEXT NOT NULL,
     target_id TEXT NOT NULL,
     summary TEXT NOT NULL,
@@ -385,7 +361,6 @@ CREATE TABLE IF NOT EXISTS scheduler_pauses (
     id TEXT PRIMARY KEY,
     scope_type TEXT NOT NULL,
     scope_value TEXT NOT NULL,
-    actor_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
     reason TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL
 );
@@ -394,7 +369,6 @@ CREATE INDEX IF NOT EXISTS idx_scheduler_pauses_scope ON scheduler_pauses(scope_
 
 CREATE TABLE IF NOT EXISTS maintenance_windows (
     id TEXT PRIMARY KEY,
-    actor_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
     name TEXT NOT NULL,
     starts_at TEXT NOT NULL,
     ends_at TEXT NOT NULL,
@@ -421,7 +395,6 @@ var columnMigrations = []columnMigration{
 	{table: "ingestion_runs", column: "attempt_count", definition: "INTEGER NOT NULL DEFAULT 1"},
 	{table: "ingestion_runs", column: "failure_artifact_key", definition: "TEXT"},
 	{table: "ingestion_runs", column: "diagnostics_json", definition: "TEXT NOT NULL DEFAULT '{}'"},
-	{table: "users", column: "role", definition: "TEXT NOT NULL DEFAULT 'viewer'"},
 	{table: "properties", column: "source_id", definition: "TEXT"},
 	{table: "properties", column: "browser_enabled", definition: "INTEGER NOT NULL DEFAULT 0"},
 	{table: "properties", column: "request_headers_json", definition: "TEXT NOT NULL DEFAULT '{}'"},

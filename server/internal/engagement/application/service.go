@@ -22,17 +22,17 @@ var (
 
 // Store defines the persistence contract required by the engagement service.
 type Store interface {
-	AddBookmark(ctx context.Context, userID, propertyID string, createdAt time.Time) error
-	ListBookmarks(ctx context.Context, userID string) ([]engagementdomain.BookmarkedProperty, error)
-	RemoveBookmark(ctx context.Context, userID, propertyID string) error
+	AddBookmark(ctx context.Context, propertyID string, createdAt time.Time) error
+	ListBookmarks(ctx context.Context) ([]engagementdomain.BookmarkedProperty, error)
+	RemoveBookmark(ctx context.Context, propertyID string) error
 	CreateAlertRule(ctx context.Context, rule engagementdomain.AlertRule) error
-	ListAlertRules(ctx context.Context, userID string) ([]engagementdomain.AlertRule, error)
+	ListAlertRules(ctx context.Context) ([]engagementdomain.AlertRule, error)
 	ListAlertRulesForEvaluation(ctx context.Context) ([]engagementdomain.AlertRule, error)
-	DeleteAlertRule(ctx context.Context, userID, ruleID string) error
+	DeleteAlertRule(ctx context.Context, ruleID string) error
 	CreateNotification(ctx context.Context, notification engagementdomain.Notification) error
 	UpdateNotificationDeliveryStatus(ctx context.Context, notificationID, status string) error
-	ListNotifications(ctx context.Context, userID string, unreadOnly bool, limit int) ([]engagementdomain.Notification, error)
-	SetNotificationReadState(ctx context.Context, userID, notificationID string, readAt *time.Time) error
+	ListNotifications(ctx context.Context, unreadOnly bool, limit int) ([]engagementdomain.Notification, error)
+	SetNotificationReadState(ctx context.Context, notificationID string, readAt *time.Time) error
 }
 
 // Publisher emits live transport events.
@@ -53,23 +53,23 @@ func NewService(logger *slog.Logger, store Store, notifier Notifier, events Publ
 	return &Service{logger: logger, store: store, notifier: notifier, events: events}
 }
 
-// CreateBookmark saves one property for the user.
-func (s *Service) CreateBookmark(ctx context.Context, userID, propertyID string) error {
+// CreateBookmark saves one property bookmark.
+func (s *Service) CreateBookmark(ctx context.Context, propertyID string) error {
 	if strings.TrimSpace(propertyID) == "" {
 		return fmt.Errorf("property id is required")
 	}
 
-	return s.store.AddBookmark(ctx, userID, strings.TrimSpace(propertyID), time.Now().UTC())
+	return s.store.AddBookmark(ctx, strings.TrimSpace(propertyID), time.Now().UTC())
 }
 
-// ListBookmarks returns the user's saved properties.
-func (s *Service) ListBookmarks(ctx context.Context, userID string) ([]engagementdomain.BookmarkedProperty, error) {
-	return s.store.ListBookmarks(ctx, userID)
+// ListBookmarks returns saved properties.
+func (s *Service) ListBookmarks(ctx context.Context) ([]engagementdomain.BookmarkedProperty, error) {
+	return s.store.ListBookmarks(ctx)
 }
 
 // DeleteBookmark removes one saved property.
-func (s *Service) DeleteBookmark(ctx context.Context, userID, propertyID string) error {
-	return s.store.RemoveBookmark(ctx, userID, propertyID)
+func (s *Service) DeleteBookmark(ctx context.Context, propertyID string) error {
+	return s.store.RemoveBookmark(ctx, propertyID)
 }
 
 // CreateAlertRule persists a new alert rule.
@@ -103,18 +103,18 @@ func (s *Service) CreateAlertRule(ctx context.Context, input engagementdomain.Al
 	return input, nil
 }
 
-// ListAlertRules returns rules for one user.
-func (s *Service) ListAlertRules(ctx context.Context, userID string) ([]engagementdomain.AlertRule, error) {
-	return s.store.ListAlertRules(ctx, userID)
+// ListAlertRules returns configured rules.
+func (s *Service) ListAlertRules(ctx context.Context) ([]engagementdomain.AlertRule, error) {
+	return s.store.ListAlertRules(ctx)
 }
 
 // DeleteAlertRule removes one alert rule.
-func (s *Service) DeleteAlertRule(ctx context.Context, userID, ruleID string) error {
-	return s.store.DeleteAlertRule(ctx, userID, ruleID)
+func (s *Service) DeleteAlertRule(ctx context.Context, ruleID string) error {
+	return s.store.DeleteAlertRule(ctx, ruleID)
 }
 
-// ListNotifications returns notifications for the user.
-func (s *Service) ListNotifications(ctx context.Context, userID string, unreadOnly bool, limit int) ([]engagementdomain.Notification, error) {
+// ListNotifications returns notifications for the workspace user.
+func (s *Service) ListNotifications(ctx context.Context, unreadOnly bool, limit int) ([]engagementdomain.Notification, error) {
 	if limit <= 0 {
 		limit = 50
 	}
@@ -122,18 +122,18 @@ func (s *Service) ListNotifications(ctx context.Context, userID string, unreadOn
 		limit = 200
 	}
 
-	return s.store.ListNotifications(ctx, userID, unreadOnly, limit)
+	return s.store.ListNotifications(ctx, unreadOnly, limit)
 }
 
 // MarkNotificationRead records a read timestamp.
-func (s *Service) MarkNotificationRead(ctx context.Context, userID, notificationID string) error {
+func (s *Service) MarkNotificationRead(ctx context.Context, notificationID string) error {
 	now := time.Now().UTC()
-	return s.store.SetNotificationReadState(ctx, userID, notificationID, &now)
+	return s.store.SetNotificationReadState(ctx, notificationID, &now)
 }
 
 // MarkNotificationUnread clears the read timestamp.
-func (s *Service) MarkNotificationUnread(ctx context.Context, userID, notificationID string) error {
-	return s.store.SetNotificationReadState(ctx, userID, notificationID, nil)
+func (s *Service) MarkNotificationUnread(ctx context.Context, notificationID string) error {
+	return s.store.SetNotificationReadState(ctx, notificationID, nil)
 }
 
 // ProcessPropertyRun evaluates alert rules against a new property snapshot.
@@ -185,7 +185,6 @@ func (s *Service) ProcessPropertyRun(ctx context.Context, propertyID string, cur
 		if s.events != nil {
 			s.events.Publish("notification.created", map[string]any{
 				"notification_id": notification.ID,
-				"user_id":         notification.UserID,
 				"property_id":     notification.PropertyID,
 				"kind":            notification.Kind,
 			})
@@ -274,7 +273,6 @@ func buildNotification(rule engagementdomain.AlertRule, currentValues map[string
 
 	return engagementdomain.Notification{
 		ID:             id.New("notif"),
-		UserID:         rule.UserID,
 		AlertID:        rule.ID,
 		PropertyID:     rule.PropertyID,
 		Kind:           rule.RuleType,

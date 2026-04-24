@@ -51,7 +51,7 @@ type logNotifier struct {
 }
 
 func (n logNotifier) Deliver(_ context.Context, notification engagementdomain.Notification) error {
-	n.logger.Info("notification delivered", "notification_id", notification.ID, "user_id", notification.UserID, "kind", notification.Kind)
+	n.logger.Info("notification delivered", "notification_id", notification.ID, "kind", notification.Kind)
 	return nil
 }
 

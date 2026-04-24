@@ -9,7 +9,6 @@ export interface Notification {
     readonly property_id?: string;
     readonly read_at?: string;
     readonly title: string;
-    readonly user_id: string;
 }
 
 export interface NotificationFilters {

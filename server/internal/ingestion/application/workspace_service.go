@@ -5,13 +5,11 @@ import (
 	"context"
 	"encoding/csv"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"math"
 	"net/http"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -23,15 +21,8 @@ import (
 	"home-searcher/server/internal/platform/id"
 )
 
-var mentionPattern = regexp.MustCompile(`@([A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+)`)
-
-// ErrForbidden indicates the principal lacks permission.
-var ErrForbidden = errors.New("forbidden")
-
-// WorkspaceStore defines the persistence contract for collaboration/admin features.
+// WorkspaceStore defines the persistence contract for property context, analytics, and operations features.
 type WorkspaceStore interface {
-	ListUsers(ctx context.Context) ([]authdomain.User, error)
-	GetUserByID(ctx context.Context, userID string) (authdomain.User, error)
 	GetProperty(ctx context.Context, propertyID string) (ingestiondomain.Property, error)
 	ListProperties(ctx context.Context) ([]ingestiondomain.Property, error)
 	UpsertProperty(ctx context.Context, property ingestiondomain.Property) error
@@ -42,11 +33,6 @@ type WorkspaceStore interface {
 	ListAlertRulesForWorkspace(ctx context.Context) ([]engagementdomain.AlertRule, error)
 	GetPropertyMetadata(ctx context.Context, propertyID string) (ingestiondomain.PropertyMetadata, error)
 	UpsertPropertyMetadata(ctx context.Context, metadata ingestiondomain.PropertyMetadata) error
-	ListPropertyWatchers(ctx context.Context, propertyID string) ([]ingestiondomain.PropertyWatcher, error)
-	UpsertPropertyWatcher(ctx context.Context, watcher ingestiondomain.PropertyWatcher) error
-	DeletePropertyWatcher(ctx context.Context, propertyID, userID string) error
-	ListPropertyComments(ctx context.Context, propertyID string, limit int) ([]ingestiondomain.PropertyComment, error)
-	CreatePropertyComment(ctx context.Context, comment ingestiondomain.PropertyComment) error
 	CreateNotification(ctx context.Context, notification engagementdomain.Notification) error
 	CreateAuditLog(ctx context.Context, log ingestiondomain.AuditLog) error
 	ListAuditLogs(ctx context.Context, targetKind, targetID string, limit int) ([]ingestiondomain.AuditLog, error)
@@ -82,17 +68,15 @@ type WorkspaceExport struct {
 	Alerts             []engagementdomain.AlertRule        `json:"alerts"`
 	Analytics          ingestiondomain.PortfolioAnalytics  `json:"analytics"`
 	AuditLogs          []ingestiondomain.AuditLog          `json:"audit_logs"`
-	Comments           []ingestiondomain.PropertyComment   `json:"comments"`
 	GeneratedAt        time.Time                           `json:"generated_at"`
 	Integrations       []ingestiondomain.IntegrationConfig `json:"integrations"`
 	MaintenanceWindows []ingestiondomain.MaintenanceWindow `json:"maintenance_windows"`
 	Metadata           []ingestiondomain.PropertyMetadata  `json:"metadata"`
 	Pauses             []ingestiondomain.SchedulerPause    `json:"pauses"`
 	Properties         []ingestiondomain.Property          `json:"properties"`
-	Watchers           []ingestiondomain.PropertyWatcher   `json:"watchers"`
 }
 
-// WorkspaceService owns collaboration, analytics, portability, integrations, and admin features.
+// WorkspaceService owns property context, analytics, portability, integrations, and operations features.
 type WorkspaceService struct {
 	logger *slog.Logger
 	store  WorkspaceStore
@@ -106,11 +90,6 @@ func NewWorkspaceService(logger *slog.Logger, store WorkspaceStore) *WorkspaceSe
 		store:  store,
 		client: &http.Client{Timeout: 10 * time.Second},
 	}
-}
-
-// ListUsers returns workspace users.
-func (s *WorkspaceService) ListUsers(ctx context.Context) ([]authdomain.User, error) {
-	return s.store.ListUsers(ctx)
 }
 
 // GetPropertyMetadata returns metadata or a default shell when none exists.
@@ -131,9 +110,6 @@ func (s *WorkspaceService) GetPropertyMetadata(ctx context.Context, propertyID s
 
 // UpdatePropertyMetadata persists metadata and audit trails explicit state transitions.
 func (s *WorkspaceService) UpdatePropertyMetadata(ctx context.Context, actor authdomain.User, metadata ingestiondomain.PropertyMetadata) (ingestiondomain.PropertyMetadata, error) {
-	if !canEditWorkspace(actor) {
-		return ingestiondomain.PropertyMetadata{}, ErrForbidden
-	}
 	if strings.TrimSpace(metadata.PropertyID) == "" {
 		return ingestiondomain.PropertyMetadata{}, fmt.Errorf("property id is required")
 	}
@@ -157,106 +133,16 @@ func (s *WorkspaceService) UpdatePropertyMetadata(ctx context.Context, actor aut
 	if err := s.store.UpsertPropertyMetadata(ctx, metadata); err != nil {
 		return ingestiondomain.PropertyMetadata{}, err
 	}
-	if existing.OwnerID != metadata.OwnerID {
-		_ = s.store.CreateAuditLog(ctx, auditLog(actor.ID, "property", metadata.PropertyID, fmt.Sprintf("Primary owner changed to %s", emptyLabel(metadata.OwnerID, "unassigned"))))
-	}
 	if existing.WorkflowState != metadata.WorkflowState {
-		_ = s.store.CreateAuditLog(ctx, auditLog(actor.ID, "property", metadata.PropertyID, fmt.Sprintf("Workflow state changed from %s to %s", emptyLabel(existing.WorkflowState, ingestiondomain.WorkflowStateUnreviewed), metadata.WorkflowState)))
+		_ = s.store.CreateAuditLog(ctx, auditLog("property", metadata.PropertyID, fmt.Sprintf("Workflow state changed from %s to %s", emptyLabel(existing.WorkflowState, ingestiondomain.WorkflowStateUnreviewed), metadata.WorkflowState)))
 	}
-	_ = s.store.CreateAuditLog(ctx, auditLog(actor.ID, "property", metadata.PropertyID, "Property metadata updated"))
+	_ = s.store.CreateAuditLog(ctx, auditLog("property", metadata.PropertyID, "Property context updated"))
 	return metadata, nil
-}
-
-// ListPropertyComments returns recent comments.
-func (s *WorkspaceService) ListPropertyComments(ctx context.Context, propertyID string, limit int) ([]ingestiondomain.PropertyComment, error) {
-	if limit <= 0 {
-		limit = 50
-	}
-	return s.store.ListPropertyComments(ctx, propertyID, limit)
-}
-
-// AddPropertyComment creates an immutable property comment and mention notifications.
-func (s *WorkspaceService) AddPropertyComment(ctx context.Context, actor authdomain.User, propertyID, body string) (ingestiondomain.PropertyComment, error) {
-	if !canEditWorkspace(actor) {
-		return ingestiondomain.PropertyComment{}, ErrForbidden
-	}
-	trimmed := strings.TrimSpace(body)
-	if strings.TrimSpace(propertyID) == "" || trimmed == "" {
-		return ingestiondomain.PropertyComment{}, fmt.Errorf("property id and body are required")
-	}
-	users, err := s.store.ListUsers(ctx)
-	if err != nil {
-		return ingestiondomain.PropertyComment{}, err
-	}
-	mentions, err := resolveMentions(trimmed, users)
-	if err != nil {
-		return ingestiondomain.PropertyComment{}, err
-	}
-	comment := ingestiondomain.PropertyComment{
-		ID:         id.New("pcmt"),
-		PropertyID: propertyID,
-		UserID:     actor.ID,
-		Body:       trimmed,
-		Mentions:   mentions,
-		CreatedAt:  time.Now().UTC(),
-	}
-	if err := s.store.CreatePropertyComment(ctx, comment); err != nil {
-		return ingestiondomain.PropertyComment{}, err
-	}
-	for _, mentionUserID := range mentions {
-		if mentionUserID == actor.ID {
-			continue
-		}
-		payload, _ := json.Marshal(map[string]any{
-			"property_id": propertyID,
-			"comment_id":  comment.ID,
-		})
-		_ = s.store.CreateNotification(ctx, engagementdomain.Notification{
-			ID:             id.New("notif"),
-			UserID:         mentionUserID,
-			PropertyID:     propertyID,
-			Kind:           "mention",
-			Title:          "You were mentioned on a property",
-			Body:           trimmed,
-			Data:           payload,
-			DeliveryStatus: "pending",
-			CreatedAt:      time.Now().UTC(),
-		})
-	}
-	_ = s.store.CreateAuditLog(ctx, auditLog(actor.ID, "property", propertyID, "Property comment added"))
-	_ = s.dispatchPropertyEvent(ctx, propertyID, "property.comment.added", map[string]any{"comment_id": comment.ID, "body": trimmed})
-	return comment, nil
-}
-
-// ListPropertyWatchers returns current watchers.
-func (s *WorkspaceService) ListPropertyWatchers(ctx context.Context, propertyID string) ([]ingestiondomain.PropertyWatcher, error) {
-	return s.store.ListPropertyWatchers(ctx, propertyID)
-}
-
-// SubscribeProperty subscribes the actor to property updates.
-func (s *WorkspaceService) SubscribeProperty(ctx context.Context, actor authdomain.User, propertyID string, channels []string) error {
-	if strings.TrimSpace(propertyID) == "" {
-		return fmt.Errorf("property id is required")
-	}
-	if len(channels) == 0 {
-		channels = []string{"in_app"}
-	}
-	return s.store.UpsertPropertyWatcher(ctx, ingestiondomain.PropertyWatcher{
-		PropertyID: propertyID,
-		UserID:     actor.ID,
-		Channels:   channels,
-		CreatedAt:  time.Now().UTC(),
-	})
-}
-
-// UnsubscribeProperty removes the actor watcher subscription.
-func (s *WorkspaceService) UnsubscribeProperty(ctx context.Context, actor authdomain.User, propertyID string) error {
-	return s.store.DeletePropertyWatcher(ctx, propertyID, actor.ID)
 }
 
 // RecordAudit logs an explicit workspace action.
 func (s *WorkspaceService) RecordAudit(ctx context.Context, actor authdomain.User, targetKind, targetID, summary string) {
-	_ = s.store.CreateAuditLog(ctx, auditLog(actor.ID, targetKind, targetID, summary))
+	_ = s.store.CreateAuditLog(ctx, auditLog(targetKind, targetID, summary))
 }
 
 // ListAuditLogs returns recent audit logs for a target.
@@ -274,9 +160,6 @@ func (s *WorkspaceService) ListIntegrations(ctx context.Context) ([]ingestiondom
 
 // SaveIntegration upserts an integration.
 func (s *WorkspaceService) SaveIntegration(ctx context.Context, actor authdomain.User, config ingestiondomain.IntegrationConfig) (ingestiondomain.IntegrationConfig, error) {
-	if !canManageIntegrations(actor) {
-		return ingestiondomain.IntegrationConfig{}, ErrForbidden
-	}
 	config.Kind = strings.TrimSpace(config.Kind)
 	config.Name = strings.TrimSpace(config.Name)
 	config.Target = strings.TrimSpace(config.Target)
@@ -295,15 +178,12 @@ func (s *WorkspaceService) SaveIntegration(ctx context.Context, actor authdomain
 	if err := s.store.UpsertIntegrationConfig(ctx, config); err != nil {
 		return ingestiondomain.IntegrationConfig{}, err
 	}
-	_ = s.store.CreateAuditLog(ctx, auditLog(actor.ID, "integration", config.ID, "Integration configuration updated"))
+	_ = s.store.CreateAuditLog(ctx, auditLog("integration", config.ID, "Integration configuration updated"))
 	return config, nil
 }
 
 // TestIntegration performs a visible delivery attempt.
 func (s *WorkspaceService) TestIntegration(ctx context.Context, actor authdomain.User, integrationID string) (ingestiondomain.IntegrationDelivery, error) {
-	if !canManageIntegrations(actor) {
-		return ingestiondomain.IntegrationDelivery{}, ErrForbidden
-	}
 	integrations, err := s.store.ListIntegrationConfigs(ctx)
 	if err != nil {
 		return ingestiondomain.IntegrationDelivery{}, err
@@ -363,16 +243,12 @@ func (s *WorkspaceService) ListIntegrationDeliveries(ctx context.Context, limit 
 
 // CreateSchedulerPause persists a pause rule.
 func (s *WorkspaceService) CreateSchedulerPause(ctx context.Context, actor authdomain.User, pause ingestiondomain.SchedulerPause) (ingestiondomain.SchedulerPause, error) {
-	if !canAdmin(actor) {
-		return ingestiondomain.SchedulerPause{}, ErrForbidden
-	}
 	pause.ScopeType = strings.TrimSpace(pause.ScopeType)
 	pause.ScopeValue = strings.TrimSpace(pause.ScopeValue)
 	if pause.ScopeType == "" || pause.ScopeValue == "" {
 		return ingestiondomain.SchedulerPause{}, fmt.Errorf("scope type and scope value are required")
 	}
 	pause.ID = id.New("pause")
-	pause.ActorUserID = actor.ID
 	pause.CreatedAt = time.Now().UTC()
 	if err := s.store.CreateSchedulerPause(ctx, pause); err != nil {
 		return ingestiondomain.SchedulerPause{}, err
@@ -383,9 +259,6 @@ func (s *WorkspaceService) CreateSchedulerPause(ctx context.Context, actor authd
 
 // DeleteSchedulerPause removes a pause rule.
 func (s *WorkspaceService) DeleteSchedulerPause(ctx context.Context, actor authdomain.User, pauseID string) error {
-	if !canAdmin(actor) {
-		return ErrForbidden
-	}
 	if err := s.store.DeleteSchedulerPause(ctx, pauseID); err != nil {
 		return err
 	}
@@ -400,14 +273,10 @@ func (s *WorkspaceService) ListSchedulerPauses(ctx context.Context) ([]ingestion
 
 // CreateMaintenanceWindow stores a maintenance window.
 func (s *WorkspaceService) CreateMaintenanceWindow(ctx context.Context, actor authdomain.User, window ingestiondomain.MaintenanceWindow) (ingestiondomain.MaintenanceWindow, error) {
-	if !canAdmin(actor) {
-		return ingestiondomain.MaintenanceWindow{}, ErrForbidden
-	}
 	if strings.TrimSpace(window.Name) == "" || !window.StartsAt.Before(window.EndsAt) {
 		return ingestiondomain.MaintenanceWindow{}, fmt.Errorf("valid maintenance window is required")
 	}
 	window.ID = id.New("mw")
-	window.ActorUserID = actor.ID
 	window.CreatedAt = time.Now().UTC()
 	if err := s.store.CreateMaintenanceWindow(ctx, window); err != nil {
 		return ingestiondomain.MaintenanceWindow{}, err
@@ -418,9 +287,6 @@ func (s *WorkspaceService) CreateMaintenanceWindow(ctx context.Context, actor au
 
 // DeleteMaintenanceWindow removes a maintenance window.
 func (s *WorkspaceService) DeleteMaintenanceWindow(ctx context.Context, actor authdomain.User, windowID string) error {
-	if !canAdmin(actor) {
-		return ErrForbidden
-	}
 	if err := s.store.DeleteMaintenanceWindow(ctx, windowID); err != nil {
 		return err
 	}
@@ -486,7 +352,6 @@ func (s *WorkspaceService) BuildPortfolioAnalytics(ctx context.Context, filter m
 	}
 	tagFilter := strings.TrimSpace(filter["tag"])
 	sourceFilter := strings.TrimSpace(filter["source"])
-	ownerFilter := strings.TrimSpace(filter["owner"])
 	priorityFilter := strings.TrimSpace(filter["priority"])
 
 	priceChanges := make(map[string]float64)
@@ -522,9 +387,6 @@ func (s *WorkspaceService) BuildPortfolioAnalytics(ctx context.Context, filter m
 			}
 		}
 		metadata, _ := s.store.GetPropertyMetadata(ctx, property.ID)
-		if ownerFilter != "" && metadata.OwnerID != ownerFilter {
-			continue
-		}
 		if priorityFilter != "" && metadata.Priority != priorityFilter {
 			continue
 		}
@@ -623,9 +485,6 @@ func (s *WorkspaceService) PreviewCSVImport(reader io.Reader) (ImportPreview, er
 
 // ImportCSVProperties creates or updates properties from CSV rows after preview validation.
 func (s *WorkspaceService) ImportCSVProperties(ctx context.Context, actor authdomain.User, reader io.Reader) (ImportPreview, error) {
-	if !canEditWorkspace(actor) {
-		return ImportPreview{}, ErrForbidden
-	}
 	buffer, err := io.ReadAll(reader)
 	if err != nil {
 		return ImportPreview{}, err
@@ -664,7 +523,6 @@ func (s *WorkspaceService) ImportCSVProperties(ctx context.Context, actor authdo
 		expectedYield := parseFloatPointer(valueFromRecord(record, headers, "expected_yield"))
 		metadata := ingestiondomain.PropertyMetadata{
 			PropertyID:       property.ID,
-			OwnerID:          resolveUserIDFromEmail(ctx, s.store, valueFromRecord(record, headers, "owner_email")),
 			WorkflowState:    defaultString(valueFromRecord(record, headers, "workflow_state"), ingestiondomain.WorkflowStateUnreviewed),
 			Priority:         defaultString(valueFromRecord(record, headers, "priority"), "medium"),
 			PipelineStage:    valueFromRecord(record, headers, "pipeline_stage"),
@@ -689,7 +547,7 @@ func (s *WorkspaceService) ExportPropertiesCSV(ctx context.Context) ([]byte, err
 	}
 	var buffer bytes.Buffer
 	writer := csv.NewWriter(&buffer)
-	if err := writer.Write([]string{"id", "label", "url", "source_id", "status", "owner_id", "workflow_state", "priority", "pipeline_stage", "target_price", "expected_yield"}); err != nil {
+	if err := writer.Write([]string{"id", "label", "url", "source_id", "status", "workflow_state", "priority", "pipeline_stage", "target_price", "expected_yield"}); err != nil {
 		return nil, err
 	}
 	for _, property := range properties {
@@ -700,7 +558,6 @@ func (s *WorkspaceService) ExportPropertiesCSV(ctx context.Context) ([]byte, err
 			property.URL,
 			property.SourceID,
 			string(property.Status),
-			metadata.OwnerID,
 			metadata.WorkflowState,
 			metadata.Priority,
 			metadata.PipelineStage,
@@ -729,10 +586,6 @@ func (s *WorkspaceService) ExportWorkspace(ctx context.Context) (WorkspaceExport
 		if metadata, metadataErr := s.store.GetPropertyMetadata(ctx, property.ID); metadataErr == nil {
 			result.Metadata = append(result.Metadata, metadata)
 		}
-		comments, _ := s.store.ListPropertyComments(ctx, property.ID, 500)
-		result.Comments = append(result.Comments, comments...)
-		watchers, _ := s.store.ListPropertyWatchers(ctx, property.ID)
-		result.Watchers = append(result.Watchers, watchers...)
 	}
 	result.AuditLogs, _ = s.store.ListAuditLogs(ctx, "", "", 1000)
 	result.Integrations, _ = s.store.ListIntegrationConfigs(ctx)
@@ -745,9 +598,6 @@ func (s *WorkspaceService) ExportWorkspace(ctx context.Context) (WorkspaceExport
 
 // RestoreWorkspace validates or restores a workspace backup.
 func (s *WorkspaceService) RestoreWorkspace(ctx context.Context, actor authdomain.User, payload WorkspaceExport, dryRun bool) (ImportPreview, error) {
-	if !canAdmin(actor) {
-		return ImportPreview{}, ErrForbidden
-	}
 	rows := make([]ImportPreviewRow, 0, len(payload.Properties))
 	validCount := 0
 	for index, property := range payload.Properties {
@@ -796,21 +646,6 @@ func (s *WorkspaceService) dispatchPropertyEvent(ctx context.Context, propertyID
 	integrations, err := s.store.ListIntegrationConfigs(ctx)
 	if err != nil {
 		return err
-	}
-	watchers, _ := s.store.ListPropertyWatchers(ctx, propertyID)
-	for _, watcher := range watchers {
-		body, _ := json.Marshal(map[string]any{"property_id": propertyID, "trigger_kind": triggerKind})
-		_ = s.store.CreateNotification(ctx, engagementdomain.Notification{
-			ID:             id.New("notif"),
-			UserID:         watcher.UserID,
-			PropertyID:     propertyID,
-			Kind:           triggerKind,
-			Title:          "Property updated",
-			Body:           fmt.Sprintf("A watched property emitted %s.", triggerKind),
-			Data:           body,
-			DeliveryStatus: "pending",
-			CreatedAt:      time.Now().UTC(),
-		})
 	}
 	for _, integration := range integrations {
 		if !integration.Active || !integrationMatches(integration.Filters, propertyID, triggerKind) {
@@ -863,27 +698,14 @@ func (s *WorkspaceService) sendIntegration(ctx context.Context, integration inge
 	}
 }
 
-func auditLog(actorUserID, targetKind, targetID, summary string) ingestiondomain.AuditLog {
+func auditLog(targetKind, targetID, summary string) ingestiondomain.AuditLog {
 	return ingestiondomain.AuditLog{
-		ID:          id.New("audit"),
-		ActorUserID: actorUserID,
-		TargetKind:  targetKind,
-		TargetID:    targetID,
-		Summary:     summary,
-		CreatedAt:   time.Now().UTC(),
+		ID:        id.New("audit"),
+		TargetKind: targetKind,
+		TargetID:   targetID,
+		Summary:    summary,
+		CreatedAt:  time.Now().UTC(),
 	}
-}
-
-func canAdmin(user authdomain.User) bool {
-	return user.Role == authdomain.RoleAdmin
-}
-
-func canEditWorkspace(user authdomain.User) bool {
-	return user.Role == authdomain.RoleAdmin || user.Role == authdomain.RoleOperator
-}
-
-func canManageIntegrations(user authdomain.User) bool {
-	return canEditWorkspace(user)
 }
 
 func validWorkflowState(value string) bool {
@@ -893,31 +715,6 @@ func validWorkflowState(value string) bool {
 	default:
 		return false
 	}
-}
-
-func resolveMentions(body string, users []authdomain.User) ([]string, error) {
-	matches := mentionPattern.FindAllStringSubmatch(body, -1)
-	if len(matches) == 0 {
-		return nil, nil
-	}
-	userByEmail := make(map[string]string, len(users))
-	for _, user := range users {
-		userByEmail[strings.ToLower(strings.TrimSpace(user.Email))] = user.ID
-	}
-	mentions := make([]string, 0, len(matches))
-	seen := make(map[string]struct{})
-	for _, match := range matches {
-		userID, ok := userByEmail[strings.ToLower(match[1])]
-		if !ok {
-			return nil, fmt.Errorf("mention %s does not resolve to a workspace user", match[1])
-		}
-		if _, exists := seen[userID]; exists {
-			continue
-		}
-		seen[userID] = struct{}{}
-		mentions = append(mentions, userID)
-	}
-	return mentions, nil
 }
 
 func integrationMatches(filters map[string]any, propertyID, triggerKind string) bool {
@@ -985,22 +782,6 @@ func defaultString(value, fallback string) string {
 	return strings.TrimSpace(value)
 }
 
-func resolveUserIDFromEmail(ctx context.Context, store WorkspaceStore, email string) string {
-	email = strings.ToLower(strings.TrimSpace(email))
-	if email == "" {
-		return ""
-	}
-	users, err := store.ListUsers(ctx)
-	if err != nil {
-		return ""
-	}
-	for _, user := range users {
-		if strings.EqualFold(user.Email, email) {
-			return user.ID
-		}
-	}
-	return ""
-}
 
 func computePriceDeltas(snapshots []ingestiondomain.PropertySnapshot, since time.Time) (map[string]float64, float64) {
 	result := make(map[string]float64)

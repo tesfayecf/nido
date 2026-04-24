@@ -9,9 +9,7 @@ import type {
     IntegrationDelivery,
     MaintenanceWindow,
     PortfolioAnalytics,
-    PropertyComment,
     PropertyMetadata,
-    PropertyWatcher,
     SchedulerPause,
     SystemHealth,
     WorkspaceExport,
@@ -46,52 +44,6 @@ export const updatePropertyMetadata = async (propertyId: string, payload: Proper
     });
 
     return response.item;
-};
-
-export const listPropertyComments = async (propertyId: string): Promise<PropertyComment[]> => {
-    const response = await apiRequest<ListEnvelope<PropertyComment>>({
-        auth: true,
-        path: `/api/v1/backoffice/properties/${propertyId}/comments`,
-    });
-
-    return response.items;
-};
-
-export const createPropertyComment = async (propertyId: string, body: string): Promise<PropertyComment> => {
-    const response = await apiRequest<ItemEnvelope<PropertyComment>, { body: string; }>({
-        auth: true,
-        body: { body },
-        method: "POST",
-        path: `/api/v1/backoffice/properties/${propertyId}/comments`,
-    });
-
-    return response.item;
-};
-
-export const listPropertyWatchers = async (propertyId: string): Promise<PropertyWatcher[]> => {
-    const response = await apiRequest<ListEnvelope<PropertyWatcher>>({
-        auth: true,
-        path: `/api/v1/backoffice/properties/${propertyId}/watchers`,
-    });
-
-    return response.items;
-};
-
-export const subscribeProperty = async (propertyId: string, channels: string[] = ["in_app"]): Promise<void> => {
-    await apiRequest<StatusEnvelope, { channels: string[]; }>({
-        auth: true,
-        body: { channels },
-        method: "POST",
-        path: `/api/v1/backoffice/properties/${propertyId}/watchers`,
-    });
-};
-
-export const unsubscribeProperty = async (propertyId: string): Promise<void> => {
-    await apiRequest<StatusEnvelope>({
-        auth: true,
-        method: "DELETE",
-        path: `/api/v1/backoffice/properties/${propertyId}/watchers`,
-    });
 };
 
 export const listPropertyAudit = async (propertyId: string): Promise<AuditLogEntry[]> => {

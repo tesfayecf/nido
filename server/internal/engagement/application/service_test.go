@@ -13,15 +13,15 @@ type engagementStoreStub struct {
 	createAlertRuleFn func(ctx context.Context, rule engagementdomain.AlertRule) error
 }
 
-func (s engagementStoreStub) AddBookmark(context.Context, string, string, time.Time) error {
+func (s engagementStoreStub) AddBookmark(context.Context, string, time.Time) error {
 	return nil
 }
 
-func (s engagementStoreStub) ListBookmarks(context.Context, string) ([]engagementdomain.BookmarkedProperty, error) {
+func (s engagementStoreStub) ListBookmarks(context.Context) ([]engagementdomain.BookmarkedProperty, error) {
 	return nil, nil
 }
 
-func (s engagementStoreStub) RemoveBookmark(context.Context, string, string) error {
+func (s engagementStoreStub) RemoveBookmark(context.Context, string) error {
 	return nil
 }
 
@@ -33,7 +33,7 @@ func (s engagementStoreStub) CreateAlertRule(ctx context.Context, rule engagemen
 	return nil
 }
 
-func (s engagementStoreStub) ListAlertRules(context.Context, string) ([]engagementdomain.AlertRule, error) {
+func (s engagementStoreStub) ListAlertRules(context.Context) ([]engagementdomain.AlertRule, error) {
 	return nil, nil
 }
 
@@ -41,7 +41,7 @@ func (s engagementStoreStub) ListAlertRulesForEvaluation(context.Context) ([]eng
 	return nil, nil
 }
 
-func (s engagementStoreStub) DeleteAlertRule(context.Context, string, string) error {
+func (s engagementStoreStub) DeleteAlertRule(context.Context, string) error {
 	return nil
 }
 
@@ -53,11 +53,11 @@ func (s engagementStoreStub) UpdateNotificationDeliveryStatus(context.Context, s
 	return nil
 }
 
-func (s engagementStoreStub) ListNotifications(context.Context, string, bool, int) ([]engagementdomain.Notification, error) {
+func (s engagementStoreStub) ListNotifications(context.Context, bool, int) ([]engagementdomain.Notification, error) {
 	return nil, nil
 }
 
-func (s engagementStoreStub) SetNotificationReadState(context.Context, string, string, *time.Time) error {
+func (s engagementStoreStub) SetNotificationReadState(context.Context, string, *time.Time) error {
 	return nil
 }
 
@@ -72,15 +72,15 @@ func TestCreateAlertRuleRejectsInvalidInputs(t *testing.T) {
 	}{
 		{
 			name:  "unsupported rule type",
-			input: engagementdomain.AlertRule{RuleType: "price_spike", PropertyID: "property-1", UserID: "user-1"},
+			input: engagementdomain.AlertRule{RuleType: "price_spike", PropertyID: "property-1"},
 		},
 		{
 			name:  "price below without threshold",
-			input: engagementdomain.AlertRule{RuleType: engagementdomain.RuleTypePriceBelow, PropertyID: "property-1", UserID: "user-1"},
+			input: engagementdomain.AlertRule{RuleType: engagementdomain.RuleTypePriceBelow, PropertyID: "property-1"},
 		},
 		{
 			name:  "no property id",
-			input: engagementdomain.AlertRule{RuleType: engagementdomain.RuleTypePriceDrop, UserID: "user-1"},
+			input: engagementdomain.AlertRule{RuleType: engagementdomain.RuleTypePriceDrop},
 		},
 	}
 
@@ -110,7 +110,6 @@ func TestCreateAlertRulePersistsSupportedRuleTypes(t *testing.T) {
 		PropertyID:      " property-1 ",
 		RuleType:        " price_below ",
 		ThresholdAmount: &threshold,
-		UserID:          "user-1",
 	})
 	if err != nil {
 		t.Fatalf("create alert rule: %v", err)

@@ -51,7 +51,7 @@ export const NotificationsPage = (): JSX.Element => {
 
     return (
         <PageStack>
-            <PageCard description={"Notifications are generated after property runs satisfy alert conditions."} title={"Notifications"}>
+            <PageCard description={"In-app alerts are generated after property runs satisfy your configured alert conditions."} title={"Alerts Inbox"}>
                 <FormGrid
                     variant={"inline"}
                     onSubmit={(event) => {
@@ -74,7 +74,7 @@ export const NotificationsPage = (): JSX.Element => {
                 </FormGrid>
             </PageCard>
 
-            <PageCard description={"Use the property link to jump directly back into the tracked record that triggered the alert."} title={"Inbox"}>
+            <PageCard description={"Use the property link to jump directly back into the tracked record that triggered the alert."} title={"Recent Alerts"}>
                 <AsyncContent
                     emptyMessage={"No notifications matched the current filters."}
                     errorMessage={"Could not load notifications."}

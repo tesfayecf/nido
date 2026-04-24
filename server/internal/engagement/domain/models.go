@@ -44,7 +44,6 @@ type BookmarkedProperty struct {
 // Watchlist stores a saved search definition for the current user.
 type Watchlist struct {
 	ID             string
-	UserID         string
 	Name           string
 	Query          string
 	SourceID       string
@@ -56,7 +55,6 @@ type Watchlist struct {
 // AlertRule defines a notification policy for one property.
 type AlertRule struct {
 	ID              string    `json:"id"`
-	UserID          string    `json:"user_id"`
 	PropertyID      string    `json:"property_id"`
 	RuleType        string    `json:"rule_type"`
 	ThresholdAmount *int64    `json:"threshold_amount,omitempty"`
@@ -68,7 +66,6 @@ type AlertRule struct {
 // Notification persists a generated alert for the user.
 type Notification struct {
 	ID             string          `json:"id"`
-	UserID         string          `json:"user_id"`
 	AlertID        string          `json:"alert_id,omitempty"`
 	PropertyID     string          `json:"property_id,omitempty"`
 	Kind           string          `json:"kind"`

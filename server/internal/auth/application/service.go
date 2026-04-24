@@ -70,12 +70,11 @@ func (s *Service) EnsureBootstrapUser(ctx context.Context) (authdomain.User, err
 		ID:          id.Deterministic("usr", email),
 		Email:       email,
 		DisplayName: strings.TrimSpace(s.cfg.BootstrapAdminName),
-		Role:        authdomain.RoleAdmin,
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
 	if user.DisplayName == "" {
-		user.DisplayName = "Administrator"
+		user.DisplayName = "Workspace User"
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
@@ -184,59 +183,6 @@ func (s *Service) ChangePassword(ctx context.Context, userID, currentPassword, n
 	}
 
 	return s.store.UpdateUserPassword(ctx, userID, string(newHash), time.Now().UTC())
-}
-
-// ListUsers returns all workspace users ordered by display name.
-func (s *Service) ListUsers(ctx context.Context) ([]authdomain.User, error) {
-	return s.store.ListUsers(ctx)
-}
-
-// CreateUser creates a new workspace user.
-func (s *Service) CreateUser(ctx context.Context, email, displayName, password, role string) (authdomain.User, error) {
-	normalizedEmail := strings.ToLower(strings.TrimSpace(email))
-	normalizedName := strings.TrimSpace(displayName)
-	normalizedRole := strings.TrimSpace(role)
-	if normalizedEmail == "" || normalizedName == "" {
-		return authdomain.User{}, ErrInvalidProfile
-	}
-	if len(strings.TrimSpace(password)) < 8 {
-		return authdomain.User{}, ErrPasswordTooWeak
-	}
-	if !isValidRole(normalizedRole) {
-		return authdomain.User{}, fmt.Errorf("invalid role")
-	}
-
-	now := time.Now().UTC()
-	user := authdomain.User{
-		ID:          id.Deterministic("usr", normalizedEmail),
-		Email:       normalizedEmail,
-		DisplayName: normalizedName,
-		Role:        normalizedRole,
-		CreatedAt:   now,
-		UpdatedAt:   now,
-	}
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		return authdomain.User{}, fmt.Errorf("hash user password: %w", err)
-	}
-	if err := s.store.UpsertUser(ctx, user, string(hash)); err != nil {
-		return authdomain.User{}, err
-	}
-	return user, nil
-}
-
-// IsAdmin reports whether the supplied user has admin role.
-func IsAdmin(user authdomain.User) bool {
-	return strings.TrimSpace(user.Role) == authdomain.RoleAdmin
-}
-
-func isValidRole(role string) bool {
-	switch role {
-	case authdomain.RoleAdmin, authdomain.RoleOperator, authdomain.RoleViewer:
-		return true
-	default:
-		return false
-	}
 }
 
 func newToken() (string, string, error) {

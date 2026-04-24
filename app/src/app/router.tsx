@@ -113,8 +113,12 @@ export const router = createBrowserRouter([
                         element: <PortfolioAnalyticsPage />,
                     },
                     {
-                        path: "admin",
+                        path: "operations",
                         element: <AdminConsolePage />,
+                    },
+                    {
+                        path: "admin",
+                        element: <Navigate replace to={"/operations"} />,
                     },
                 ],
             },

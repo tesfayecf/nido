@@ -123,7 +123,7 @@ export const TagFilter = ({ onChange, selectedTagIds, tagMatch }: TagFilterProps
                         </button>
                     ))}
                     {allTags.length === 0 ? 
-                        <p className={"muted-copy"}>{"No tags available. Create tags from the Tags admin page."}</p>
+                        <p className={"muted-copy"}>{"No tags available. Create tags from the Tags page."}</p>
                         : null}
                 </div>
             </details>

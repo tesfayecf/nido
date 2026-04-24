@@ -57,7 +57,7 @@ export const LoginPage = (): JSX.Element => {
                     <ThemeToggle />
                 </Toolbar>
                 <p className={"login-panel__description"}>
-                    {"Sign in with your local admin account to manage saved searches, notifications, tracked properties, and ingestion workflows from one workspace."}
+                    {"Sign in with your local workspace account to manage saved searches, alerts, tracked properties, and ingestion workflows."}
                 </p>
 
                 <FormGrid

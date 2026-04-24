@@ -8,8 +8,6 @@ import { FormGrid } from "@/components/ui/FormGrid";
 import { PageCard } from "@/components/ui/PageCard";
 import { PageStack } from "@/components/ui/PageStack";
 import { Select } from "@/components/ui/Select";
-import { authKeys } from "@/services/auth/auth.keys";
-import { listWorkspaceUsers } from "@/services/auth/auth.service";
 import { sourceKeys } from "@/services/backoffice-sources/sources.keys";
 import { listSources } from "@/services/backoffice-sources/sources.service";
 import { tagKeys } from "@/services/tags/tags.keys";
@@ -20,17 +18,15 @@ import { getPortfolioAnalytics } from "@/services/workspace/workspace.service";
 export const PortfolioAnalyticsPage = (): JSX.Element => {
     const [tag, setTag] = useState("");
     const [source, setSource] = useState("");
-    const [owner, setOwner] = useState("");
     const [priority, setPriority] = useState("");
     const [timeRangeDays, setTimeRangeDays] = useState("30");
 
     const filters = useMemo(() => ({
-        owner: owner || undefined,
         priority: priority || undefined,
         source: source || undefined,
         tag: tag || undefined,
         time_range_days: timeRangeDays || undefined,
-    }), [owner, priority, source, tag, timeRangeDays]);
+    }), [priority, source, tag, timeRangeDays]);
 
     const analyticsQuery = useQuery({
         queryFn: () => getPortfolioAnalytics(filters),
@@ -44,17 +40,13 @@ export const PortfolioAnalyticsPage = (): JSX.Element => {
         queryFn: listSources,
         queryKey: sourceKeys.list(),
     });
-    const usersQuery = useQuery({
-        queryFn: listWorkspaceUsers,
-        queryKey: authKeys.users(),
-    });
 
     const analytics = analyticsQuery.data;
 
     return (
         <PageStack>
             <PageCard
-                description={"Workspace-level reporting stays near real time with a published refresh frequency."}
+                description={"Portfolio reporting stays near real time without owner-based filtering or team coordination semantics."}
                 title={"Portfolio Analytics"}
             >
                 <FormGrid>
@@ -68,12 +60,6 @@ export const PortfolioAnalyticsPage = (): JSX.Element => {
                         <Select onChange={(event) => { setSource(event.target.value); }} value={source}>
                             <option value={""}>{"All sources"}</option>
                             {(sourcesQuery.data ?? []).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-                        </Select>
-                    </Field>
-                    <Field label={"Owner"}>
-                        <Select onChange={(event) => { setOwner(event.target.value); }} value={owner}>
-                            <option value={""}>{"All owners"}</option>
-                            {(usersQuery.data ?? []).map((item) => <option key={item.id} value={item.id}>{item.display_name}</option>)}
                         </Select>
                     </Field>
                     <Field label={"Priority"}>
@@ -98,7 +84,7 @@ export const PortfolioAnalyticsPage = (): JSX.Element => {
                 </p>
             </PageCard>
 
-            <PageCard description={"Trend snapshots help teams distinguish signal from noise."} title={"Trend Summaries"}>
+            <PageCard description={"Trend snapshots help distinguish signal from noise."} title={"Trend Summaries"}>
                 <FormGrid>
                     <DataTable
                         caption={"Price change trends"}
@@ -139,7 +125,7 @@ export const PortfolioAnalyticsPage = (): JSX.Element => {
                 </FormGrid>
             </PageCard>
 
-            <PageCard description={"Use workspace rankings to set operational priorities."} title={"Rankings and Risks"}>
+            <PageCard description={"Use rankings to set operational priorities."} title={"Rankings and Risks"}>
                 <DataTable
                     caption={"Source reliability"}
                     columns={[

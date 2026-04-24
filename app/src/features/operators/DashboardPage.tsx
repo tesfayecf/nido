@@ -76,7 +76,7 @@ export const DashboardPage = (): JSX.Element => {
                         <div style={{ display: "grid", gap: "1rem", gridTemplateColumns: "repeat(auto-fit, minmax(12rem, 1fr))" }}>
                             <MetricCard label={"Tracked properties"} value={`${summary.totalProperties}`} />
                             <MetricCard label={"Failed runs (24h)"} value={`${summary.failedRunsLast24Hours}`} />
-                            <MetricCard label={"Unread notifications"} value={`${summary.unreadNotifications}`} />
+                            <MetricCard label={"Unread alerts"} value={`${summary.unreadNotifications}`} />
                             <MetricCard label={"Needs review"} value={`${summary.propertiesByStatus.degraded + summary.propertiesByStatus.inactive + summary.propertiesByStatus.pending}`} />
                         </div>
 

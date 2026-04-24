@@ -5,35 +5,8 @@ import (
 	"testing"
 	"time"
 
-	authdomain "home-searcher/server/internal/auth/domain"
 	ingestiondomain "home-searcher/server/internal/ingestion/domain"
 )
-
-func TestResolveMentionsAcceptsWorkspaceUsers(t *testing.T) {
-	t.Parallel()
-
-	mentions, err := resolveMentions("Ping @operator@local and @viewer@local", []authdomain.User{
-		{ID: "usr_operator", Email: "operator@local"},
-		{ID: "usr_viewer", Email: "viewer@local"},
-	})
-	if err != nil {
-		t.Fatalf("resolveMentions returned error: %v", err)
-	}
-	if len(mentions) != 2 {
-		t.Fatalf("expected 2 mentions, got %d", len(mentions))
-	}
-	if mentions[0] != "usr_operator" || mentions[1] != "usr_viewer" {
-		t.Fatalf("unexpected mentions: %#v", mentions)
-	}
-}
-
-func TestResolveMentionsRejectsUnknownUsers(t *testing.T) {
-	t.Parallel()
-
-	if _, err := resolveMentions("Ping @missing@local", []authdomain.User{{ID: "usr_operator", Email: "operator@local"}}); err == nil {
-		t.Fatal("expected error for unresolved mention")
-	}
-}
 
 func TestComputePriceDeltasReturnsLargestMove(t *testing.T) {
 	t.Parallel()
@@ -53,17 +26,14 @@ func TestComputePriceDeltasReturnsLargestMove(t *testing.T) {
 	}
 }
 
-func TestRoleGuards(t *testing.T) {
+func TestValidWorkflowState(t *testing.T) {
 	t.Parallel()
 
-	if canEditWorkspace(authdomain.User{Role: authdomain.RoleViewer}) {
-		t.Fatal("viewer must not edit workspace")
+	if !validWorkflowState(ingestiondomain.WorkflowStateInvestigating) {
+		t.Fatal("expected investigating workflow state to be valid")
 	}
-	if !canEditWorkspace(authdomain.User{Role: authdomain.RoleOperator}) {
-		t.Fatal("operator should edit workspace")
-	}
-	if !canAdmin(authdomain.User{Role: authdomain.RoleAdmin}) {
-		t.Fatal("admin should pass admin guard")
+	if validWorkflowState("assigned") {
+		t.Fatal("expected multi-user workflow state to be invalid")
 	}
 }
 

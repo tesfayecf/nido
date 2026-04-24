@@ -1,5 +1,3 @@
-import type { AuthUser } from "@/services/auth/auth.types";
-
 export interface ExternalReference {
     readonly key: string;
     readonly value: string;
@@ -17,7 +15,6 @@ export interface PropertyMetadata {
     readonly deal_thesis?: string;
     readonly expected_yield?: number;
     readonly external_references?: ExternalReference[];
-    readonly owner_id?: string;
     readonly pipeline_stage?: string;
     readonly priority: string;
     readonly property_id: string;
@@ -26,24 +23,7 @@ export interface PropertyMetadata {
     readonly workflow_state: "unreviewed" | "investigating" | "resolved";
 }
 
-export interface PropertyComment {
-    readonly body: string;
-    readonly created_at: string;
-    readonly id: string;
-    readonly mentions?: string[];
-    readonly property_id: string;
-    readonly user_id: string;
-}
-
-export interface PropertyWatcher {
-    readonly channels?: string[];
-    readonly created_at: string;
-    readonly property_id: string;
-    readonly user_id: string;
-}
-
 export interface AuditLogEntry {
-    readonly actor_user_id?: string;
     readonly created_at: string;
     readonly id: string;
     readonly summary: string;
@@ -119,7 +99,6 @@ export interface ImportPreview {
 }
 
 export interface SchedulerPause {
-    readonly actor_user_id?: string;
     readonly created_at?: string;
     readonly id?: string;
     readonly reason?: string;
@@ -128,7 +107,6 @@ export interface SchedulerPause {
 }
 
 export interface MaintenanceWindow {
-    readonly actor_user_id?: string;
     readonly created_at?: string;
     readonly ends_at: string;
     readonly id?: string;
@@ -148,9 +126,4 @@ export interface WorkspaceExport {
     readonly analytics: PortfolioAnalytics;
     readonly generated_at: string;
     readonly properties: { readonly id: string; readonly label: string; readonly url: string; }[];
-}
-
-export interface PropertyWorkspaceContext {
-    readonly currentUser?: AuthUser;
-    readonly metadata: PropertyMetadata;
 }

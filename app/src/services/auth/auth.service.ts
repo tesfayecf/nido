@@ -2,12 +2,10 @@ import { apiRequest, type ItemEnvelope, type StatusEnvelope } from "@/lib/api/cl
 
 import type {
     ChangePasswordRequest,
-    CreateUserRequest,
     LoginRequest,
     LoginResponse,
     MeResponse,
     UpdateProfileRequest,
-    UsersResponse,
 } from "@/services/auth/auth.types";
 
 /**
@@ -78,24 +76,4 @@ export const changePassword = async (request: ChangePasswordRequest): Promise<vo
         method: "POST",
         path: "/api/v1/auth/me/password",
     });
-};
-
-export const listWorkspaceUsers = async (): Promise<UsersResponse["items"]> => {
-    const response = await apiRequest<UsersResponse>({
-        auth: true,
-        path: "/api/v1/auth/users",
-    });
-
-    return response.items;
-};
-
-export const createWorkspaceUser = async (request: CreateUserRequest): Promise<MeResponse["user"]> => {
-    const response = await apiRequest<ItemEnvelope<MeResponse["user"]>, CreateUserRequest>({
-        auth: true,
-        body: request,
-        method: "POST",
-        path: "/api/v1/admin/users",
-    });
-
-    return response.item;
 };

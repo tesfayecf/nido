@@ -15,13 +15,12 @@ import (
 // Register binds engagement routes to the supplied mux.
 func Register(mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, service *app.Service) {
 	mux.Handle("GET /api/v1/me/bookmarks", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		principal, ok := authhttp.CurrentPrincipal(r.Context())
-		if !ok {
+		if _, ok := authhttp.CurrentPrincipal(r.Context()); !ok {
 			platformhttp.WriteError(w, http.StatusUnauthorized, "authentication required")
 			return
 		}
 
-		items, err := service.ListBookmarks(r.Context(), principal.User.ID)
+		items, err := service.ListBookmarks(r.Context())
 		if err != nil {
 			platformhttp.WriteError(w, http.StatusInternalServerError, err.Error())
 			return
@@ -31,8 +30,7 @@ func Register(mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, s
 	})))
 
 	mux.Handle("POST /api/v1/me/bookmarks", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		principal, ok := authhttp.CurrentPrincipal(r.Context())
-		if !ok {
+		if _, ok := authhttp.CurrentPrincipal(r.Context()); !ok {
 			platformhttp.WriteError(w, http.StatusUnauthorized, "authentication required")
 			return
 		}
@@ -45,7 +43,7 @@ func Register(mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, s
 			return
 		}
 
-		if err := service.CreateBookmark(r.Context(), principal.User.ID, request.PropertyID); err != nil {
+		if err := service.CreateBookmark(r.Context(), request.PropertyID); err != nil {
 			platformhttp.WriteError(w, http.StatusBadRequest, err.Error())
 			return
 		}
@@ -54,13 +52,12 @@ func Register(mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, s
 	})))
 
 	mux.Handle("DELETE /api/v1/me/bookmarks/{propertyID}", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		principal, ok := authhttp.CurrentPrincipal(r.Context())
-		if !ok {
+		if _, ok := authhttp.CurrentPrincipal(r.Context()); !ok {
 			platformhttp.WriteError(w, http.StatusUnauthorized, "authentication required")
 			return
 		}
 
-		if err := service.DeleteBookmark(r.Context(), principal.User.ID, r.PathValue("propertyID")); err != nil {
+		if err := service.DeleteBookmark(r.Context(), r.PathValue("propertyID")); err != nil {
 			platformhttp.WriteError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
@@ -69,13 +66,12 @@ func Register(mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, s
 	})))
 
 	mux.Handle("GET /api/v1/me/alert-rules", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		principal, ok := authhttp.CurrentPrincipal(r.Context())
-		if !ok {
+		if _, ok := authhttp.CurrentPrincipal(r.Context()); !ok {
 			platformhttp.WriteError(w, http.StatusUnauthorized, "authentication required")
 			return
 		}
 
-		items, err := service.ListAlertRules(r.Context(), principal.User.ID)
+		items, err := service.ListAlertRules(r.Context())
 		if err != nil {
 			platformhttp.WriteError(w, http.StatusInternalServerError, err.Error())
 			return
@@ -85,8 +81,7 @@ func Register(mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, s
 	})))
 
 	mux.Handle("POST /api/v1/me/alert-rules", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		principal, ok := authhttp.CurrentPrincipal(r.Context())
-		if !ok {
+		if _, ok := authhttp.CurrentPrincipal(r.Context()); !ok {
 			platformhttp.WriteError(w, http.StatusUnauthorized, "authentication required")
 			return
 		}
@@ -102,7 +97,6 @@ func Register(mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, s
 		}
 
 		rule, err := service.CreateAlertRule(r.Context(), engagementdomain.AlertRule{
-			UserID:          principal.User.ID,
 			PropertyID:      request.PropertyID,
 			RuleType:        request.RuleType,
 			ThresholdAmount: request.ThresholdAmount,
@@ -116,13 +110,12 @@ func Register(mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, s
 	})))
 
 	mux.Handle("DELETE /api/v1/me/alert-rules/{ruleID}", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		principal, ok := authhttp.CurrentPrincipal(r.Context())
-		if !ok {
+		if _, ok := authhttp.CurrentPrincipal(r.Context()); !ok {
 			platformhttp.WriteError(w, http.StatusUnauthorized, "authentication required")
 			return
 		}
 
-		if err := service.DeleteAlertRule(r.Context(), principal.User.ID, r.PathValue("ruleID")); err != nil {
+		if err := service.DeleteAlertRule(r.Context(), r.PathValue("ruleID")); err != nil {
 			platformhttp.WriteError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
@@ -131,13 +124,12 @@ func Register(mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, s
 	})))
 
 	mux.Handle("GET /api/v1/me/notifications", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		principal, ok := authhttp.CurrentPrincipal(r.Context())
-		if !ok {
+		if _, ok := authhttp.CurrentPrincipal(r.Context()); !ok {
 			platformhttp.WriteError(w, http.StatusUnauthorized, "authentication required")
 			return
 		}
 
-		items, err := service.ListNotifications(r.Context(), principal.User.ID, parseBool(r.URL.Query().Get("unread_only")), platformhttp.ParseLimit(r.URL.Query().Get("limit")))
+		items, err := service.ListNotifications(r.Context(), parseBool(r.URL.Query().Get("unread_only")), platformhttp.ParseLimit(r.URL.Query().Get("limit")))
 		if err != nil {
 			platformhttp.WriteError(w, http.StatusInternalServerError, err.Error())
 			return
@@ -147,13 +139,12 @@ func Register(mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, s
 	})))
 
 	mux.Handle("POST /api/v1/me/notifications/{notificationID}/read", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		principal, ok := authhttp.CurrentPrincipal(r.Context())
-		if !ok {
+		if _, ok := authhttp.CurrentPrincipal(r.Context()); !ok {
 			platformhttp.WriteError(w, http.StatusUnauthorized, "authentication required")
 			return
 		}
 
-		if err := service.MarkNotificationRead(r.Context(), principal.User.ID, r.PathValue("notificationID")); err != nil {
+		if err := service.MarkNotificationRead(r.Context(), r.PathValue("notificationID")); err != nil {
 			platformhttp.WriteError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
@@ -162,13 +153,12 @@ func Register(mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, s
 	})))
 
 	mux.Handle("POST /api/v1/me/notifications/{notificationID}/unread", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		principal, ok := authhttp.CurrentPrincipal(r.Context())
-		if !ok {
+		if _, ok := authhttp.CurrentPrincipal(r.Context()); !ok {
 			platformhttp.WriteError(w, http.StatusUnauthorized, "authentication required")
 			return
 		}
 
-		if err := service.MarkNotificationUnread(r.Context(), principal.User.ID, r.PathValue("notificationID")); err != nil {
+		if err := service.MarkNotificationUnread(r.Context(), r.PathValue("notificationID")); err != nil {
 			platformhttp.WriteError(w, http.StatusInternalServerError, err.Error())
 			return
 		}

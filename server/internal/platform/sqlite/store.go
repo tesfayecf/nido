@@ -513,18 +513,16 @@ func (s *Store) ReplaceObservedListings(ctx context.Context, sourceID string, ob
 func (s *Store) UpsertUser(ctx context.Context, user authdomain.User, passwordHash string) error {
 	_, err := s.db.ExecContext(
 		ctx,
-		`INSERT INTO users (id, email, display_name, role, password_hash, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?)
+		`INSERT INTO users (id, email, display_name, password_hash, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?)
 		 ON CONFLICT(email) DO UPDATE SET
 			id = excluded.id,
 			display_name = excluded.display_name,
-			role = excluded.role,
 			password_hash = excluded.password_hash,
 			updated_at = excluded.updated_at`,
 		user.ID,
 		strings.ToLower(user.Email),
 		user.DisplayName,
-		user.Role,
 		passwordHash,
 		formatTime(user.CreatedAt),
 		formatTime(user.UpdatedAt),
@@ -587,7 +585,7 @@ func (s *Store) UpdateUserPassword(ctx context.Context, userID, passwordHash str
 // GetUserByEmail loads one user and its password hash.
 func (s *Store) GetUserByEmail(ctx context.Context, email string) (authdomain.User, string, error) {
 	var passwordHash string
-	row := s.db.QueryRowContext(ctx, `SELECT id, email, display_name, role, password_hash, created_at, updated_at FROM users WHERE email = ?`, strings.ToLower(email))
+	row := s.db.QueryRowContext(ctx, `SELECT id, email, display_name, password_hash, created_at, updated_at FROM users WHERE email = ?`, strings.ToLower(email))
 	user, err := scanUser(row, &passwordHash)
 	if err != nil {
 		return authdomain.User{}, "", err
@@ -598,12 +596,12 @@ func (s *Store) GetUserByEmail(ctx context.Context, email string) (authdomain.Us
 
 // GetUserByID loads one user by identifier.
 func (s *Store) GetUserByID(ctx context.Context, userID string) (authdomain.User, error) {
-	return scanUser(s.db.QueryRowContext(ctx, `SELECT id, email, display_name, role, NULL, created_at, updated_at FROM users WHERE id = ?`, userID), nil)
+	return scanUser(s.db.QueryRowContext(ctx, `SELECT id, email, display_name, NULL, created_at, updated_at FROM users WHERE id = ?`, userID), nil)
 }
 
 // ListUsers returns workspace users ordered for collaboration lookups.
 func (s *Store) ListUsers(ctx context.Context) ([]authdomain.User, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, email, display_name, role, NULL, created_at, updated_at FROM users ORDER BY display_name ASC, email ASC`)
+	rows, err := s.db.QueryContext(ctx, `SELECT id, email, display_name, NULL, created_at, updated_at FROM users ORDER BY display_name ASC, email ASC`)
 	if err != nil {
 		return nil, fmt.Errorf("list users: %w", err)
 	}
@@ -654,7 +652,7 @@ func (s *Store) CreateSession(ctx context.Context, session authdomain.Session, t
 func (s *Store) GetSessionByTokenHash(ctx context.Context, tokenHash string) (authdomain.Session, authdomain.User, error) {
 	row := s.db.QueryRowContext(
 		ctx,
-		`SELECT s.id, s.user_id, s.created_at, s.expires_at, s.revoked_at, u.id, u.email, u.display_name, u.role, u.created_at, u.updated_at
+		`SELECT s.id, s.user_id, s.created_at, s.expires_at, s.revoked_at, u.id, u.email, u.display_name, u.created_at, u.updated_at
 		 FROM auth_sessions s
 		 JOIN users u ON u.id = s.user_id
 		 WHERE s.token_hash = ?`,
@@ -666,7 +664,6 @@ func (s *Store) GetSessionByTokenHash(ctx context.Context, tokenHash string) (au
 		user                 authdomain.User
 		createdAt, expiresAt string
 		revokedAt            sql.NullString
-		userRole             string
 		userCreatedAt        string
 		userUpdatedAt        string
 	)
@@ -680,13 +677,11 @@ func (s *Store) GetSessionByTokenHash(ctx context.Context, tokenHash string) (au
 		&user.ID,
 		&user.Email,
 		&user.DisplayName,
-		&userRole,
 		&userCreatedAt,
 		&userUpdatedAt,
 	); err != nil {
 		return authdomain.Session{}, authdomain.User{}, err
 	}
-	user.Role = userRole
 
 	var err error
 	session.CreatedAt, err = parseTime(createdAt)
@@ -726,9 +721,9 @@ func (s *Store) RevokeSession(ctx context.Context, sessionID string, revokedAt t
 	return nil
 }
 
-// AddBookmark saves one property bookmark for the user.
-func (s *Store) AddBookmark(ctx context.Context, userID, propertyID string, createdAt time.Time) error {
-	_, err := s.db.ExecContext(ctx, `INSERT INTO bookmarks (user_id, property_id, created_at) VALUES (?, ?, ?) ON CONFLICT(user_id, property_id) DO NOTHING`, userID, propertyID, formatTime(createdAt))
+// AddBookmark saves one property bookmark.
+func (s *Store) AddBookmark(ctx context.Context, propertyID string, createdAt time.Time) error {
+	_, err := s.db.ExecContext(ctx, `INSERT INTO bookmarks (property_id, created_at) VALUES (?, ?) ON CONFLICT(property_id) DO NOTHING`, propertyID, formatTime(createdAt))
 	if err != nil {
 		return fmt.Errorf("add bookmark: %w", err)
 	}
@@ -736,8 +731,8 @@ func (s *Store) AddBookmark(ctx context.Context, userID, propertyID string, crea
 	return nil
 }
 
-// ListBookmarks returns the user's saved properties.
-func (s *Store) ListBookmarks(ctx context.Context, userID string) ([]engagementdomain.BookmarkedProperty, error) {
+// ListBookmarks returns saved properties.
+func (s *Store) ListBookmarks(ctx context.Context) ([]engagementdomain.BookmarkedProperty, error) {
 	rows, err := s.db.QueryContext(
 		ctx,
 		`SELECT b.property_id, p.source_id, p.label, p.url, b.created_at,
@@ -750,9 +745,7 @@ func (s *Store) ListBookmarks(ctx context.Context, userID string) ([]engagementd
 		        ), '{}')
 		 FROM bookmarks b
 		 JOIN properties p ON p.id = b.property_id
-		 WHERE b.user_id = ?
 		 ORDER BY b.created_at DESC`,
-		userID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("list bookmarks: %w", err)
@@ -786,8 +779,8 @@ func (s *Store) ListBookmarks(ctx context.Context, userID string) ([]engagementd
 }
 
 // RemoveBookmark deletes one bookmark.
-func (s *Store) RemoveBookmark(ctx context.Context, userID, propertyID string) error {
-	_, err := s.db.ExecContext(ctx, `DELETE FROM bookmarks WHERE user_id = ? AND property_id = ?`, userID, propertyID)
+func (s *Store) RemoveBookmark(ctx context.Context, propertyID string) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM bookmarks WHERE property_id = ?`, propertyID)
 	if err != nil {
 		return fmt.Errorf("remove bookmark: %w", err)
 	}
@@ -802,7 +795,7 @@ func (s *Store) CreateWatchlist(ctx context.Context, watchlist engagementdomain.
 		`INSERT INTO watchlists (id, user_id, name, query, source_id, max_price_amount, created_at, updated_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		watchlist.ID,
-		watchlist.UserID,
+		"",
 		watchlist.Name,
 		watchlist.Query,
 		nullableString(watchlist.SourceID),
@@ -871,10 +864,9 @@ func (s *Store) DeleteWatchlist(ctx context.Context, userID, watchlistID string)
 func (s *Store) CreateAlertRule(ctx context.Context, rule engagementdomain.AlertRule) error {
 	_, err := s.db.ExecContext(
 		ctx,
-		`INSERT INTO alert_rules (id, user_id, property_id, rule_type, threshold_amount, enabled, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO alert_rules (id, property_id, rule_type, threshold_amount, enabled, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
 		rule.ID,
-		rule.UserID,
 		rule.PropertyID,
 		rule.RuleType,
 		nullableInt64(rule.ThresholdAmount),
@@ -889,9 +881,9 @@ func (s *Store) CreateAlertRule(ctx context.Context, rule engagementdomain.Alert
 	return nil
 }
 
-// ListAlertRules returns rules for one user.
-func (s *Store) ListAlertRules(ctx context.Context, userID string) ([]engagementdomain.AlertRule, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, user_id, property_id, rule_type, threshold_amount, enabled, created_at, updated_at FROM alert_rules WHERE user_id = ? ORDER BY created_at DESC`, userID)
+// ListAlertRules returns stored rules.
+func (s *Store) ListAlertRules(ctx context.Context) ([]engagementdomain.AlertRule, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT id, property_id, rule_type, threshold_amount, enabled, created_at, updated_at FROM alert_rules ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, fmt.Errorf("list alert rules: %w", err)
 	}
@@ -911,7 +903,7 @@ func (s *Store) ListAlertRules(ctx context.Context, userID string) ([]engagement
 
 // ListAlertRulesForEvaluation returns all enabled alert rules.
 func (s *Store) ListAlertRulesForEvaluation(ctx context.Context) ([]engagementdomain.AlertRule, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, user_id, property_id, rule_type, threshold_amount, enabled, created_at, updated_at FROM alert_rules WHERE enabled = 1 ORDER BY created_at DESC`)
+	rows, err := s.db.QueryContext(ctx, `SELECT id, property_id, rule_type, threshold_amount, enabled, created_at, updated_at FROM alert_rules WHERE enabled = 1 ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, fmt.Errorf("list alert rules for evaluation: %w", err)
 	}
@@ -930,8 +922,8 @@ func (s *Store) ListAlertRulesForEvaluation(ctx context.Context) ([]engagementdo
 }
 
 // DeleteAlertRule removes one alert rule.
-func (s *Store) DeleteAlertRule(ctx context.Context, userID, ruleID string) error {
-	_, err := s.db.ExecContext(ctx, `DELETE FROM alert_rules WHERE id = ? AND user_id = ?`, ruleID, userID)
+func (s *Store) DeleteAlertRule(ctx context.Context, ruleID string) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM alert_rules WHERE id = ?`, ruleID)
 	if err != nil {
 		return fmt.Errorf("delete alert rule: %w", err)
 	}
@@ -943,10 +935,9 @@ func (s *Store) DeleteAlertRule(ctx context.Context, userID, ruleID string) erro
 func (s *Store) CreateNotification(ctx context.Context, notification engagementdomain.Notification) error {
 	_, err := s.db.ExecContext(
 		ctx,
-		`INSERT INTO notifications (id, user_id, alert_id, property_id, kind, title, body, data_json, delivery_status, created_at, read_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO notifications (id, alert_id, property_id, kind, title, body, data_json, delivery_status, created_at, read_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		notification.ID,
-		notification.UserID,
 		nullableString(notification.AlertID),
 		nullableString(notification.PropertyID),
 		notification.Kind,
@@ -974,10 +965,10 @@ func (s *Store) UpdateNotificationDeliveryStatus(ctx context.Context, notificati
 	return nil
 }
 
-// ListNotifications returns notifications for one user.
-func (s *Store) ListNotifications(ctx context.Context, userID string, unreadOnly bool, limit int) ([]engagementdomain.Notification, error) {
-	query := `SELECT id, user_id, alert_id, property_id, kind, title, body, data_json, delivery_status, created_at, read_at FROM notifications WHERE user_id = ?`
-	args := []any{userID}
+// ListNotifications returns notifications for the workspace user.
+func (s *Store) ListNotifications(ctx context.Context, unreadOnly bool, limit int) ([]engagementdomain.Notification, error) {
+	query := `SELECT id, alert_id, property_id, kind, title, body, data_json, delivery_status, created_at, read_at FROM notifications WHERE 1 = 1`
+	args := []any{}
 	if unreadOnly {
 		query += ` AND read_at IS NULL`
 	}
@@ -1004,7 +995,7 @@ func (s *Store) ListNotifications(ctx context.Context, userID string, unreadOnly
 
 // ListNotificationsForWorkspace returns all notifications since the supplied time.
 func (s *Store) ListNotificationsForWorkspace(ctx context.Context, since time.Time) ([]engagementdomain.Notification, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, user_id, alert_id, property_id, kind, title, body, data_json, delivery_status, created_at, read_at FROM notifications WHERE created_at >= ? ORDER BY created_at DESC`, formatTime(since))
+	rows, err := s.db.QueryContext(ctx, `SELECT id, alert_id, property_id, kind, title, body, data_json, delivery_status, created_at, read_at FROM notifications WHERE created_at >= ? ORDER BY created_at DESC`, formatTime(since))
 	if err != nil {
 		return nil, fmt.Errorf("list workspace notifications: %w", err)
 	}
@@ -1023,7 +1014,7 @@ func (s *Store) ListNotificationsForWorkspace(ctx context.Context, since time.Ti
 
 // ListAlertRulesForWorkspace returns all alert rules for export and analytics.
 func (s *Store) ListAlertRulesForWorkspace(ctx context.Context) ([]engagementdomain.AlertRule, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, user_id, property_id, rule_type, threshold_amount, enabled, created_at, updated_at FROM alert_rules ORDER BY created_at DESC`)
+	rows, err := s.db.QueryContext(ctx, `SELECT id, property_id, rule_type, threshold_amount, enabled, created_at, updated_at FROM alert_rules ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, fmt.Errorf("list workspace alert rules: %w", err)
 	}
@@ -1041,8 +1032,8 @@ func (s *Store) ListAlertRulesForWorkspace(ctx context.Context) ([]engagementdom
 }
 
 // SetNotificationReadState updates the read timestamp for a notification.
-func (s *Store) SetNotificationReadState(ctx context.Context, userID, notificationID string, readAt *time.Time) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE notifications SET read_at = ? WHERE id = ? AND user_id = ?`, nullableTimeString(readAt), notificationID, userID)
+func (s *Store) SetNotificationReadState(ctx context.Context, notificationID string, readAt *time.Time) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE notifications SET read_at = ? WHERE id = ?`, nullableTimeString(readAt), notificationID)
 	if err != nil {
 		return fmt.Errorf("set notification read state: %w", err)
 	}
@@ -1267,16 +1258,14 @@ func scanRun(scanner scanner) (ingestiondomain.Run, error) {
 func scanUser(scanner scanner, passwordHash *string) (authdomain.User, error) {
 	var (
 		user                 authdomain.User
-		role                 string
 		storedPasswordHash   sql.NullString
 		createdAt, updatedAt string
 	)
 
-	err := scanner.Scan(&user.ID, &user.Email, &user.DisplayName, &role, &storedPasswordHash, &createdAt, &updatedAt)
+	err := scanner.Scan(&user.ID, &user.Email, &user.DisplayName, &storedPasswordHash, &createdAt, &updatedAt)
 	if err != nil {
 		return authdomain.User{}, err
 	}
-	user.Role = role
 
 	user.CreatedAt, err = parseTime(createdAt)
 	if err != nil {
@@ -1295,13 +1284,14 @@ func scanUser(scanner scanner, passwordHash *string) (authdomain.User, error) {
 
 func scanWatchlist(scanner scanner) (engagementdomain.Watchlist, error) {
 	var (
+		userID               string
 		watchlist            engagementdomain.Watchlist
 		sourceID             sql.NullString
 		maxPriceAmount       sql.NullInt64
 		createdAt, updatedAt string
 	)
 
-	err := scanner.Scan(&watchlist.ID, &watchlist.UserID, &watchlist.Name, &watchlist.Query, &sourceID, &maxPriceAmount, &createdAt, &updatedAt)
+	err := scanner.Scan(&watchlist.ID, &userID, &watchlist.Name, &watchlist.Query, &sourceID, &maxPriceAmount, &createdAt, &updatedAt)
 	if err != nil {
 		return engagementdomain.Watchlist{}, err
 	}
@@ -1332,7 +1322,7 @@ func scanAlertRule(scanner scanner) (engagementdomain.AlertRule, error) {
 		createdAt, updatedAt string
 	)
 
-	err := scanner.Scan(&rule.ID, &rule.UserID, &rule.PropertyID, &rule.RuleType, &thresholdAmount, &enabled, &createdAt, &updatedAt)
+	err := scanner.Scan(&rule.ID, &rule.PropertyID, &rule.RuleType, &thresholdAmount, &enabled, &createdAt, &updatedAt)
 	if err != nil {
 		return engagementdomain.AlertRule{}, err
 	}
@@ -1389,7 +1379,6 @@ func scanNotification(scanner scanner) (engagementdomain.Notification, error) {
 
 	err := scanner.Scan(
 		&notification.ID,
-		&notification.UserID,
 		&alertID,
 		&propertyID,
 		&notification.Kind,
@@ -1428,14 +1417,12 @@ func scanNotification(scanner scanner) (engagementdomain.Notification, error) {
 func scanPropertyMetadata(scanner scanner) (ingestiondomain.PropertyMetadata, error) {
 	var (
 		metadata                                ingestiondomain.PropertyMetadata
-		ownerID                                 sql.NullString
 		targetPrice, expectedYield              sql.NullFloat64
 		externalReferencesJSON, attachmentsJSON string
 		createdAt, updatedAt                    string
 	)
 	if err := scanner.Scan(
 		&metadata.PropertyID,
-		&ownerID,
 		&metadata.WorkflowState,
 		&metadata.Priority,
 		&metadata.PipelineStage,
@@ -1449,9 +1436,6 @@ func scanPropertyMetadata(scanner scanner) (ingestiondomain.PropertyMetadata, er
 		&updatedAt,
 	); err != nil {
 		return ingestiondomain.PropertyMetadata{}, err
-	}
-	if ownerID.Valid {
-		metadata.OwnerID = ownerID.String
 	}
 	if targetPrice.Valid {
 		value := targetPrice.Float64
@@ -1479,57 +1463,13 @@ func scanPropertyMetadata(scanner scanner) (ingestiondomain.PropertyMetadata, er
 	return metadata, nil
 }
 
-func scanPropertyWatcher(scanner scanner) (ingestiondomain.PropertyWatcher, error) {
-	var (
-		watcher      ingestiondomain.PropertyWatcher
-		channelsJSON string
-		createdAt    string
-	)
-	if err := scanner.Scan(&watcher.PropertyID, &watcher.UserID, &channelsJSON, &createdAt); err != nil {
-		return ingestiondomain.PropertyWatcher{}, err
-	}
-	if err := json.Unmarshal([]byte(channelsJSON), &watcher.Channels); err != nil {
-		return ingestiondomain.PropertyWatcher{}, fmt.Errorf("unmarshal watcher channels: %w", err)
-	}
-	var err error
-	watcher.CreatedAt, err = parseTime(createdAt)
-	if err != nil {
-		return ingestiondomain.PropertyWatcher{}, err
-	}
-	return watcher, nil
-}
-
-func scanPropertyComment(scanner scanner) (ingestiondomain.PropertyComment, error) {
-	var (
-		comment      ingestiondomain.PropertyComment
-		mentionsJSON string
-		createdAt    string
-	)
-	if err := scanner.Scan(&comment.ID, &comment.PropertyID, &comment.UserID, &comment.Body, &mentionsJSON, &createdAt); err != nil {
-		return ingestiondomain.PropertyComment{}, err
-	}
-	if err := json.Unmarshal([]byte(mentionsJSON), &comment.Mentions); err != nil {
-		return ingestiondomain.PropertyComment{}, fmt.Errorf("unmarshal comment mentions: %w", err)
-	}
-	var err error
-	comment.CreatedAt, err = parseTime(createdAt)
-	if err != nil {
-		return ingestiondomain.PropertyComment{}, err
-	}
-	return comment, nil
-}
-
 func scanAuditLog(scanner scanner) (ingestiondomain.AuditLog, error) {
 	var (
 		entry     ingestiondomain.AuditLog
-		actorID   sql.NullString
 		createdAt string
 	)
-	if err := scanner.Scan(&entry.ID, &actorID, &entry.TargetKind, &entry.TargetID, &entry.Summary, &createdAt); err != nil {
+	if err := scanner.Scan(&entry.ID, &entry.TargetKind, &entry.TargetID, &entry.Summary, &createdAt); err != nil {
 		return ingestiondomain.AuditLog{}, err
-	}
-	if actorID.Valid {
-		entry.ActorUserID = actorID.String
 	}
 	var err error
 	entry.CreatedAt, err = parseTime(createdAt)
@@ -1631,14 +1571,10 @@ func scanIntegrationDelivery(scanner scanner) (ingestiondomain.IntegrationDelive
 func scanSchedulerPause(scanner scanner) (ingestiondomain.SchedulerPause, error) {
 	var (
 		pause     ingestiondomain.SchedulerPause
-		actorID   sql.NullString
 		createdAt string
 	)
-	if err := scanner.Scan(&pause.ID, &pause.ScopeType, &pause.ScopeValue, &actorID, &pause.Reason, &createdAt); err != nil {
+	if err := scanner.Scan(&pause.ID, &pause.ScopeType, &pause.ScopeValue, &pause.Reason, &createdAt); err != nil {
 		return ingestiondomain.SchedulerPause{}, err
-	}
-	if actorID.Valid {
-		pause.ActorUserID = actorID.String
 	}
 	var err error
 	pause.CreatedAt, err = parseTime(createdAt)
@@ -1651,14 +1587,10 @@ func scanSchedulerPause(scanner scanner) (ingestiondomain.SchedulerPause, error)
 func scanMaintenanceWindow(scanner scanner) (ingestiondomain.MaintenanceWindow, error) {
 	var (
 		window                      ingestiondomain.MaintenanceWindow
-		actorID                     sql.NullString
 		startsAt, endsAt, createdAt string
 	)
-	if err := scanner.Scan(&window.ID, &actorID, &window.Name, &startsAt, &endsAt, &window.Reason, &createdAt); err != nil {
+	if err := scanner.Scan(&window.ID, &window.Name, &startsAt, &endsAt, &window.Reason, &createdAt); err != nil {
 		return ingestiondomain.MaintenanceWindow{}, err
-	}
-	if actorID.Valid {
-		window.ActorUserID = actorID.String
 	}
 	var err error
 	window.StartsAt, err = parseTime(startsAt)
@@ -1837,7 +1769,7 @@ func boolToInt(value bool) int {
 func (s *Store) GetPropertyMetadata(ctx context.Context, propertyID string) (ingestiondomain.PropertyMetadata, error) {
 	return scanPropertyMetadata(s.db.QueryRowContext(
 		ctx,
-		`SELECT property_id, owner_id, workflow_state, priority, pipeline_stage, target_price, expected_yield, acquisition_notes, deal_thesis, external_references_json, attachments_json, created_at, updated_at
+		`SELECT property_id, workflow_state, priority, pipeline_stage, target_price, expected_yield, acquisition_notes, deal_thesis, external_references_json, attachments_json, created_at, updated_at
 		 FROM property_metadata WHERE property_id = ?`,
 		propertyID,
 	))
@@ -1856,10 +1788,9 @@ func (s *Store) UpsertPropertyMetadata(ctx context.Context, metadata ingestiondo
 	_, err = s.db.ExecContext(
 		ctx,
 		`INSERT INTO property_metadata (
-			property_id, owner_id, workflow_state, priority, pipeline_stage, target_price, expected_yield, acquisition_notes, deal_thesis, external_references_json, attachments_json, created_at, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			property_id, workflow_state, priority, pipeline_stage, target_price, expected_yield, acquisition_notes, deal_thesis, external_references_json, attachments_json, created_at, updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(property_id) DO UPDATE SET
-			owner_id = excluded.owner_id,
 			workflow_state = excluded.workflow_state,
 			priority = excluded.priority,
 			pipeline_stage = excluded.pipeline_stage,
@@ -1871,7 +1802,6 @@ func (s *Store) UpsertPropertyMetadata(ctx context.Context, metadata ingestiondo
 			attachments_json = excluded.attachments_json,
 			updated_at = excluded.updated_at`,
 		metadata.PropertyID,
-		nullableString(metadata.OwnerID),
 		metadata.WorkflowState,
 		metadata.Priority,
 		metadata.PipelineStage,
@@ -1890,104 +1820,12 @@ func (s *Store) UpsertPropertyMetadata(ctx context.Context, metadata ingestiondo
 	return nil
 }
 
-// ListPropertyWatchers returns watchers for a property.
-func (s *Store) ListPropertyWatchers(ctx context.Context, propertyID string) ([]ingestiondomain.PropertyWatcher, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT property_id, user_id, channels_json, created_at FROM property_watchers WHERE property_id = ? ORDER BY created_at ASC`, propertyID)
-	if err != nil {
-		return nil, fmt.Errorf("list property watchers: %w", err)
-	}
-	defer rows.Close()
-
-	items := make([]ingestiondomain.PropertyWatcher, 0)
-	for rows.Next() {
-		watcher, scanErr := scanPropertyWatcher(rows)
-		if scanErr != nil {
-			return nil, scanErr
-		}
-		items = append(items, watcher)
-	}
-	return items, rows.Err()
-}
-
-// UpsertPropertyWatcher saves one property watcher.
-func (s *Store) UpsertPropertyWatcher(ctx context.Context, watcher ingestiondomain.PropertyWatcher) error {
-	channelsJSON, err := json.Marshal(watcher.Channels)
-	if err != nil {
-		return fmt.Errorf("marshal watcher channels: %w", err)
-	}
-	_, err = s.db.ExecContext(
-		ctx,
-		`INSERT INTO property_watchers (property_id, user_id, channels_json, created_at)
-		 VALUES (?, ?, ?, ?)
-		 ON CONFLICT(property_id, user_id) DO UPDATE SET channels_json = excluded.channels_json`,
-		watcher.PropertyID,
-		watcher.UserID,
-		string(channelsJSON),
-		formatTime(watcher.CreatedAt),
-	)
-	if err != nil {
-		return fmt.Errorf("upsert property watcher: %w", err)
-	}
-	return nil
-}
-
-// DeletePropertyWatcher removes one watcher subscription.
-func (s *Store) DeletePropertyWatcher(ctx context.Context, propertyID, userID string) error {
-	_, err := s.db.ExecContext(ctx, `DELETE FROM property_watchers WHERE property_id = ? AND user_id = ?`, propertyID, userID)
-	if err != nil {
-		return fmt.Errorf("delete property watcher: %w", err)
-	}
-	return nil
-}
-
-// ListPropertyComments returns recent property comments.
-func (s *Store) ListPropertyComments(ctx context.Context, propertyID string, limit int) ([]ingestiondomain.PropertyComment, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, property_id, user_id, body, mentions_json, created_at FROM property_comments WHERE property_id = ? ORDER BY created_at DESC LIMIT ?`, propertyID, limit)
-	if err != nil {
-		return nil, fmt.Errorf("list property comments: %w", err)
-	}
-	defer rows.Close()
-
-	items := make([]ingestiondomain.PropertyComment, 0)
-	for rows.Next() {
-		comment, scanErr := scanPropertyComment(rows)
-		if scanErr != nil {
-			return nil, scanErr
-		}
-		items = append(items, comment)
-	}
-	return items, rows.Err()
-}
-
-// CreatePropertyComment saves one immutable property comment.
-func (s *Store) CreatePropertyComment(ctx context.Context, comment ingestiondomain.PropertyComment) error {
-	mentionsJSON, err := json.Marshal(comment.Mentions)
-	if err != nil {
-		return fmt.Errorf("marshal comment mentions: %w", err)
-	}
-	_, err = s.db.ExecContext(
-		ctx,
-		`INSERT INTO property_comments (id, property_id, user_id, body, mentions_json, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
-		comment.ID,
-		comment.PropertyID,
-		comment.UserID,
-		comment.Body,
-		string(mentionsJSON),
-		formatTime(comment.CreatedAt),
-	)
-	if err != nil {
-		return fmt.Errorf("create property comment: %w", err)
-	}
-	return nil
-}
-
 // CreateAuditLog persists one audit entry.
 func (s *Store) CreateAuditLog(ctx context.Context, log ingestiondomain.AuditLog) error {
 	_, err := s.db.ExecContext(
 		ctx,
-		`INSERT INTO audit_logs (id, actor_user_id, target_kind, target_id, summary, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO audit_logs (id, target_kind, target_id, summary, created_at) VALUES (?, ?, ?, ?, ?)`,
 		log.ID,
-		nullableString(log.ActorUserID),
 		log.TargetKind,
 		log.TargetID,
 		log.Summary,
@@ -2001,7 +1839,7 @@ func (s *Store) CreateAuditLog(ctx context.Context, log ingestiondomain.AuditLog
 
 // ListAuditLogs returns audit logs for a target or the whole workspace.
 func (s *Store) ListAuditLogs(ctx context.Context, targetKind, targetID string, limit int) ([]ingestiondomain.AuditLog, error) {
-	query := `SELECT id, actor_user_id, target_kind, target_id, summary, created_at FROM audit_logs`
+	query := `SELECT id, target_kind, target_id, summary, created_at FROM audit_logs`
 	args := make([]any, 0, 3)
 	clauses := make([]string, 0, 2)
 	if strings.TrimSpace(targetKind) != "" {
@@ -2137,7 +1975,7 @@ func (s *Store) ListIntegrationDeliveries(ctx context.Context, limit int) ([]ing
 
 // ListSchedulerPauses returns configured scheduler pauses.
 func (s *Store) ListSchedulerPauses(ctx context.Context) ([]ingestiondomain.SchedulerPause, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, scope_type, scope_value, actor_user_id, reason, created_at FROM scheduler_pauses ORDER BY created_at DESC`)
+	rows, err := s.db.QueryContext(ctx, `SELECT id, scope_type, scope_value, reason, created_at FROM scheduler_pauses ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, fmt.Errorf("list scheduler pauses: %w", err)
 	}
@@ -2158,11 +1996,10 @@ func (s *Store) ListSchedulerPauses(ctx context.Context) ([]ingestiondomain.Sche
 func (s *Store) CreateSchedulerPause(ctx context.Context, pause ingestiondomain.SchedulerPause) error {
 	_, err := s.db.ExecContext(
 		ctx,
-		`INSERT INTO scheduler_pauses (id, scope_type, scope_value, actor_user_id, reason, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO scheduler_pauses (id, scope_type, scope_value, reason, created_at) VALUES (?, ?, ?, ?, ?)`,
 		pause.ID,
 		pause.ScopeType,
 		pause.ScopeValue,
-		nullableString(pause.ActorUserID),
 		pause.Reason,
 		formatTime(pause.CreatedAt),
 	)
@@ -2183,7 +2020,7 @@ func (s *Store) DeleteSchedulerPause(ctx context.Context, pauseID string) error 
 
 // ListMaintenanceWindows returns configured maintenance windows.
 func (s *Store) ListMaintenanceWindows(ctx context.Context) ([]ingestiondomain.MaintenanceWindow, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, actor_user_id, name, starts_at, ends_at, reason, created_at FROM maintenance_windows ORDER BY starts_at ASC`)
+	rows, err := s.db.QueryContext(ctx, `SELECT id, name, starts_at, ends_at, reason, created_at FROM maintenance_windows ORDER BY starts_at ASC`)
 	if err != nil {
 		return nil, fmt.Errorf("list maintenance windows: %w", err)
 	}
@@ -2204,9 +2041,8 @@ func (s *Store) ListMaintenanceWindows(ctx context.Context) ([]ingestiondomain.M
 func (s *Store) CreateMaintenanceWindow(ctx context.Context, window ingestiondomain.MaintenanceWindow) error {
 	_, err := s.db.ExecContext(
 		ctx,
-		`INSERT INTO maintenance_windows (id, actor_user_id, name, starts_at, ends_at, reason, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO maintenance_windows (id, name, starts_at, ends_at, reason, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
 		window.ID,
-		nullableString(window.ActorUserID),
 		window.Name,
 		formatTime(window.StartsAt),
 		formatTime(window.EndsAt),

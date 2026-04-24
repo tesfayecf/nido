@@ -51,14 +51,14 @@ const authenticatedSections: readonly NavSection[] = [
         items: [
             { icon: "bookmark", label: "Bookmarks", to: "/bookmarks" },
             { icon: "play", label: "Alerts", to: "/alerts" },
-            { icon: "bell", label: "Notifications", to: "/notifications" },
+            { icon: "bell", label: "Alerts Inbox", to: "/notifications" },
         ],
-        title: "Engagement",
+        title: "Tracking",
     },
     {
         items: [
             { icon: "settings", label: "Settings", to: "/settings" },
-            { icon: "settings", label: "Admin", to: "/admin" },
+            { icon: "settings", label: "Operations", to: "/operations" },
         ],
         title: "Account",
     },
@@ -140,7 +140,7 @@ export const AppNav = (): JSX.Element => {
                     </>
                 ) : (
                     <div className={"app-nav__identity"}>
-                        <span className={"muted-copy"}>{"Sign in to manage tracked properties, runs, and notifications."}</span>
+                        <span className={"muted-copy"}>{"Sign in to manage tracked properties, alerts, and operations."}</span>
                         <Button as={NavLink} to={"/login"}>{"Sign in"}</Button>
                     </div>
                 )}

@@ -80,52 +80,6 @@ func Register(mux *http.ServeMux, service *app.Service) {
 		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{"user": principal.User})
 	})))
 
-	mux.Handle("GET /api/v1/auth/users", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		users, err := service.ListUsers(r.Context())
-		if err != nil {
-			platformhttp.WriteError(w, http.StatusInternalServerError, "could not list users")
-			return
-		}
-
-		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{"items": users, "count": len(users)})
-	})))
-
-	mux.Handle("POST /api/v1/admin/users", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		principal, ok := CurrentPrincipal(r.Context())
-		if !ok {
-			platformhttp.WriteError(w, http.StatusUnauthorized, "authentication required")
-			return
-		}
-		if !app.IsAdmin(principal.User) {
-			platformhttp.WriteError(w, http.StatusForbidden, "admin access required")
-			return
-		}
-
-		var request struct {
-			DisplayName string `json:"display_name"`
-			Email       string `json:"email"`
-			Password    string `json:"password"`
-			Role        string `json:"role"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-			platformhttp.WriteError(w, http.StatusBadRequest, "invalid request body")
-			return
-		}
-
-		user, err := service.CreateUser(r.Context(), request.Email, request.DisplayName, request.Password, request.Role)
-		if err != nil {
-			switch err {
-			case app.ErrInvalidProfile, app.ErrPasswordTooWeak:
-				platformhttp.WriteError(w, http.StatusBadRequest, err.Error())
-			default:
-				platformhttp.WriteError(w, http.StatusBadRequest, err.Error())
-			}
-			return
-		}
-
-		platformhttp.WriteJSON(w, http.StatusCreated, map[string]any{"item": user})
-	})))
-
 	mux.Handle("POST /api/v1/auth/logout", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		principal, ok := CurrentPrincipal(r.Context())
 		if !ok {

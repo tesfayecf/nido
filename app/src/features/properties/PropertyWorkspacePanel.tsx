@@ -1,11 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { DataTable } from "@/components/ui/DataTable";
-import { EmptyState } from "@/components/ui/EmptyState";
 import { Field } from "@/components/ui/Field";
 import { FormGrid } from "@/components/ui/FormGrid";
 import { Input } from "@/components/ui/Input";
@@ -15,19 +13,8 @@ import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { useToast } from "@/components/ui/ToastProvider";
 import { formatDateTime } from "@/lib/format/date";
-import { authKeys } from "@/services/auth/auth.keys";
-import { getCurrentUser, listWorkspaceUsers } from "@/services/auth/auth.service";
 import { workspaceKeys } from "@/services/workspace/workspace.keys";
-import {
-    createPropertyComment,
-    getPropertyMetadata,
-    listPropertyAudit,
-    listPropertyComments,
-    listPropertyWatchers,
-    subscribeProperty,
-    unsubscribeProperty,
-    updatePropertyMetadata,
-} from "@/services/workspace/workspace.service";
+import { getPropertyMetadata, listPropertyAudit, updatePropertyMetadata } from "@/services/workspace/workspace.service";
 import type { PropertyMetadata } from "@/services/workspace/workspace.types";
 
 interface PropertyWorkspacePanelProps {
@@ -43,25 +30,9 @@ const DEFAULT_METADATA: PropertyMetadata = {
 export const PropertyWorkspacePanel = ({ propertyId }: PropertyWorkspacePanelProps): JSX.Element => {
     const queryClient = useQueryClient();
     const { pushToast } = useToast();
-    const currentUserQuery = useQuery({
-        queryFn: getCurrentUser,
-        queryKey: authKeys.me(),
-    });
-    const usersQuery = useQuery({
-        queryFn: listWorkspaceUsers,
-        queryKey: authKeys.users(),
-    });
     const metadataQuery = useQuery({
         queryFn: () => getPropertyMetadata(propertyId),
         queryKey: workspaceKeys.metadata(propertyId),
-    });
-    const watchersQuery = useQuery({
-        queryFn: () => listPropertyWatchers(propertyId),
-        queryKey: workspaceKeys.watchers(propertyId),
-    });
-    const commentsQuery = useQuery({
-        queryFn: () => listPropertyComments(propertyId),
-        queryKey: workspaceKeys.comments(propertyId),
     });
     const auditQuery = useQuery({
         queryFn: () => listPropertyAudit(propertyId),
@@ -69,7 +40,6 @@ export const PropertyWorkspacePanel = ({ propertyId }: PropertyWorkspacePanelPro
     });
 
     const [draft, setDraft] = useState<PropertyMetadata>(DEFAULT_METADATA);
-    const [commentDraft, setCommentDraft] = useState("");
 
     useEffect(() => {
         if (metadataQuery.data !== undefined) {
@@ -77,91 +47,35 @@ export const PropertyWorkspacePanel = ({ propertyId }: PropertyWorkspacePanelPro
         }
     }, [metadataQuery.data]);
 
-    const watcherIds = useMemo(() => new Set((watchersQuery.data ?? []).map((watcher) => watcher.user_id)), [watchersQuery.data]);
-    const isWatching = currentUserQuery.data !== undefined && watcherIds.has(currentUserQuery.data.id);
-
     const metadataMutation = useMutation({
         mutationFn: () => updatePropertyMetadata(propertyId, { ...draft, property_id: propertyId }),
         onSuccess(data) {
             queryClient.setQueryData(workspaceKeys.metadata(propertyId), data);
             void queryClient.invalidateQueries({ queryKey: workspaceKeys.audit(propertyId) });
-            pushToast("Property metadata saved.", "success");
+            pushToast("Property context saved.", "success");
         },
         onError(error) {
-            pushToast(error instanceof Error ? error.message : "Could not save property metadata.", "error");
+            pushToast(error instanceof Error ? error.message : "Could not save property context.", "error");
         },
-    });
-
-    const commentMutation = useMutation({
-        mutationFn: () => createPropertyComment(propertyId, commentDraft),
-        onSuccess() {
-            setCommentDraft("");
-            void queryClient.invalidateQueries({ queryKey: workspaceKeys.comments(propertyId) });
-            void queryClient.invalidateQueries({ queryKey: workspaceKeys.audit(propertyId) });
-            pushToast("Comment added.", "success");
-        },
-        onError(error) {
-            pushToast(error instanceof Error ? error.message : "Could not add comment.", "error");
-        },
-    });
-
-    const watcherMutation = useMutation({
-        mutationFn: async () => {
-            if (isWatching) {
-                await unsubscribeProperty(propertyId);
-                return;
-            }
-
-            await subscribeProperty(propertyId);
-        },
-        onSuccess() {
-            void queryClient.invalidateQueries({ queryKey: workspaceKeys.watchers(propertyId) });
-            pushToast(isWatching ? "Watcher removed." : "Watcher added.", "success");
-        },
-        onError(error) {
-            pushToast(error instanceof Error ? error.message : "Could not update watcher subscription.", "error");
-        },
-    });
-
-    const ownerLabel = usersQuery.data?.find((user) => user.id === draft.owner_id)?.display_name ?? "Unassigned";
-    const watcherNames = (watchersQuery.data ?? []).map((watcher) => {
-        return usersQuery.data?.find((user) => user.id === watcher.user_id)?.display_name ?? watcher.user_id;
     });
 
     return (
         <>
             <PageCard
                 action={(
-                    <ActionGroup>
-                        <Button disabled={watcherMutation.isPending} onClick={() => { watcherMutation.mutate(); }} variant={"secondary"}>
-                            {isWatching ? "Unwatch" : "Watch"}
-                        </Button>
-                        <Button disabled={metadataMutation.isPending} onClick={() => { metadataMutation.mutate(); }}>
-                            {metadataMutation.isPending ? "Saving..." : "Save metadata"}
-                        </Button>
-                    </ActionGroup>
+                    <Button disabled={metadataMutation.isPending} onClick={() => { metadataMutation.mutate(); }}>
+                        {metadataMutation.isPending ? "Saving..." : "Save context"}
+                    </Button>
                 )}
-                description={"Track ownership, workflow state, and business context without changing extraction configuration."}
-                title={"Workspace Collaboration"}
+                description={"Track workflow, pricing targets, and notes without ownership, watchers, or threaded collaboration."}
+                title={"Property Context"}
             >
                 <KeyValueGrid compact>
-                    <KeyValuePair label={"Primary owner"} value={ownerLabel} />
-                    <KeyValuePair label={"Watchers"} value={watcherNames.length > 0 ? watcherNames.join(", ") : "No watchers"} />
                     <KeyValuePair label={"Workflow state"} value={draft.workflow_state} />
                     <KeyValuePair label={"Priority"} value={draft.priority} />
+                    <KeyValuePair label={"Pipeline stage"} value={draft.pipeline_stage ?? "Not set"} />
                 </KeyValueGrid>
                 <FormGrid>
-                    <Field label={"Primary owner"}>
-                        <Select
-                            onChange={(event) => {
-                                setDraft((current) => ({ ...current, owner_id: event.target.value === "" ? undefined : event.target.value }));
-                            }}
-                            value={draft.owner_id ?? ""}
-                        >
-                            <option value={""}>{"Unassigned"}</option>
-                            {(usersQuery.data ?? []).map((user) => <option key={user.id} value={user.id}>{`${user.display_name} · ${user.role}`}</option>)}
-                        </Select>
-                    </Field>
                     <Field label={"Workflow state"}>
                         <Select
                             onChange={(event) => {
@@ -258,8 +172,8 @@ export const PropertyWorkspacePanel = ({ propertyId }: PropertyWorkspacePanelPro
                                     .map((line) => line.trim())
                                     .filter((line) => line.includes("|"))
                                     .map((line) => {
-                                        const [rawLabel = "", rawUrl = ""] = line.split("|");
-                                        return { label: rawLabel.trim(), url: rawUrl.trim() };
+                                        const [rawLabel = "", ...urlParts] = line.split("|");
+                                        return { label: rawLabel.trim(), url: urlParts.join("|").trim() };
                                     });
                                 setDraft((current) => ({ ...current, attachments: next }));
                             }}
@@ -270,47 +184,19 @@ export const PropertyWorkspacePanel = ({ propertyId }: PropertyWorkspacePanelPro
                 </FormGrid>
             </PageCard>
 
-            <PageCard description={"Plain-text collaboration notes support email-style mentions such as @operator@local."} title={"Comments and Mentions"}>
-                <Field label={"New comment"}>
-                    <Textarea onChange={(event) => { setCommentDraft(event.target.value); }} rows={4} value={commentDraft} />
-                </Field>
-                <ActionGroup>
-                    <Button disabled={commentMutation.isPending || commentDraft.trim() === ""} onClick={() => { commentMutation.mutate(); }}>
-                        {commentMutation.isPending ? "Posting..." : "Post comment"}
-                    </Button>
-                </ActionGroup>
+            <PageCard description={"Activity is attributed to the single workspace context."} title={"Activity Log"}>
                 <DataTable
-                    caption={"Property comments"}
+                    caption={"Recent property activity"}
                     columns={[
-                        { cell: (item) => usersQuery.data?.find((user) => user.id === item.user_id)?.display_name ?? item.user_id, header: "Author", id: "author" },
-                        { cell: (item) => item.body, header: "Comment", id: "body" },
-                        { cell: (item) => item.mentions?.map((mention) => usersQuery.data?.find((user) => user.id === mention)?.display_name ?? mention).join(", ") ?? "—", header: "Mentions", id: "mentions" },
+                        { cell: (item) => item.summary, header: "Summary", id: "summary" },
                         { cell: (item) => formatDateTime(item.created_at), header: "Created", id: "created_at", sortValue: (item) => item.created_at },
                     ]}
                     compact
-                    emptyMessage={"No comments added yet."}
+                    emptyMessage={"No activity recorded yet."}
                     getRowId={(item) => item.id}
-                    items={commentsQuery.data ?? []}
+                    items={auditQuery.data ?? []}
                     pageSize={5}
                 />
-            </PageCard>
-
-            <PageCard description={"Every configuration, ownership, and workflow change stays traceable."} title={"Audit Trail"}>
-                {auditQuery.data === undefined || auditQuery.data.length === 0 ? <EmptyState message={"No audit entries recorded yet."} /> : (
-                    <DataTable
-                        caption={"Audit trail"}
-                        columns={[
-                            { cell: (item) => formatDateTime(item.created_at), header: "When", id: "created_at", sortValue: (item) => item.created_at },
-                            { cell: (item) => usersQuery.data?.find((user) => user.id === item.actor_user_id)?.display_name ?? item.actor_user_id ?? "System", header: "Actor", id: "actor" },
-                            { cell: (item) => item.summary, header: "Summary", id: "summary" },
-                        ]}
-                        compact
-                        emptyMessage={"No audit entries recorded yet."}
-                        getRowId={(item) => item.id}
-                        items={auditQuery.data}
-                        pageSize={6}
-                    />
-                )}
             </PageCard>
         </>
     );

@@ -3,19 +3,17 @@ package httpapi
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"io"
 	"net/http"
 	"strings"
 
-	authapp "home-searcher/server/internal/auth/application"
 	authhttp "home-searcher/server/internal/auth/transport/httpapi"
 	ingestionapp "home-searcher/server/internal/ingestion/application"
 	ingestiondomain "home-searcher/server/internal/ingestion/domain"
 	platformhttp "home-searcher/server/internal/platform/httpapi"
 )
 
-// RegisterWorkspace binds collaboration, analytics, portability, and admin routes.
+// RegisterWorkspace binds property-context, analytics, portability, and operations routes.
 func RegisterWorkspace(mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, service *ingestionapp.WorkspaceService) {
 	mux.Handle("GET /api/v1/backoffice/properties/{propertyID}/metadata", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		propertyID := strings.TrimSpace(r.PathValue("propertyID"))
@@ -41,91 +39,10 @@ func RegisterWorkspace(mux *http.ServeMux, requireAuth func(http.Handler) http.H
 		metadata.PropertyID = strings.TrimSpace(r.PathValue("propertyID"))
 		saved, err := service.UpdatePropertyMetadata(r.Context(), principal.User, metadata)
 		if err != nil {
-			switch {
-			case errors.Is(err, ingestionapp.ErrForbidden):
-				platformhttp.WriteError(w, http.StatusForbidden, err.Error())
-			default:
-				platformhttp.WriteError(w, http.StatusBadRequest, err.Error())
-			}
+			platformhttp.WriteError(w, http.StatusBadRequest, err.Error())
 			return
 		}
 		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{"item": saved})
-	})))
-
-	mux.Handle("GET /api/v1/backoffice/properties/{propertyID}/comments", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		propertyID := strings.TrimSpace(r.PathValue("propertyID"))
-		limit := platformhttp.ParseLimit(r.URL.Query().Get("limit"))
-		comments, err := service.ListPropertyComments(r.Context(), propertyID, limit)
-		if err != nil {
-			platformhttp.WriteError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{"items": comments, "count": len(comments)})
-	})))
-
-	mux.Handle("POST /api/v1/backoffice/properties/{propertyID}/comments", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		principal, ok := authhttp.CurrentPrincipal(r.Context())
-		if !ok {
-			platformhttp.WriteError(w, http.StatusUnauthorized, "authentication required")
-			return
-		}
-		var body struct {
-			Body string `json:"body"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			platformhttp.WriteError(w, http.StatusBadRequest, "invalid request body")
-			return
-		}
-		comment, err := service.AddPropertyComment(r.Context(), principal.User, strings.TrimSpace(r.PathValue("propertyID")), body.Body)
-		if err != nil {
-			switch {
-			case errors.Is(err, ingestionapp.ErrForbidden):
-				platformhttp.WriteError(w, http.StatusForbidden, err.Error())
-			default:
-				platformhttp.WriteError(w, http.StatusBadRequest, err.Error())
-			}
-			return
-		}
-		platformhttp.WriteJSON(w, http.StatusCreated, map[string]any{"item": comment})
-	})))
-
-	mux.Handle("GET /api/v1/backoffice/properties/{propertyID}/watchers", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		watchers, err := service.ListPropertyWatchers(r.Context(), strings.TrimSpace(r.PathValue("propertyID")))
-		if err != nil {
-			platformhttp.WriteError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{"items": watchers, "count": len(watchers)})
-	})))
-
-	mux.Handle("POST /api/v1/backoffice/properties/{propertyID}/watchers", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		principal, ok := authhttp.CurrentPrincipal(r.Context())
-		if !ok {
-			platformhttp.WriteError(w, http.StatusUnauthorized, "authentication required")
-			return
-		}
-		var body struct {
-			Channels []string `json:"channels"`
-		}
-		_ = json.NewDecoder(r.Body).Decode(&body)
-		if err := service.SubscribeProperty(r.Context(), principal.User, strings.TrimSpace(r.PathValue("propertyID")), body.Channels); err != nil {
-			platformhttp.WriteError(w, http.StatusBadRequest, err.Error())
-			return
-		}
-		platformhttp.WriteJSON(w, http.StatusCreated, map[string]string{"status": "subscribed"})
-	})))
-
-	mux.Handle("DELETE /api/v1/backoffice/properties/{propertyID}/watchers", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		principal, ok := authhttp.CurrentPrincipal(r.Context())
-		if !ok {
-			platformhttp.WriteError(w, http.StatusUnauthorized, "authentication required")
-			return
-		}
-		if err := service.UnsubscribeProperty(r.Context(), principal.User, strings.TrimSpace(r.PathValue("propertyID"))); err != nil {
-			platformhttp.WriteError(w, http.StatusBadRequest, err.Error())
-			return
-		}
-		platformhttp.WriteJSON(w, http.StatusOK, map[string]string{"status": "unsubscribed"})
 	})))
 
 	mux.Handle("GET /api/v1/backoffice/properties/{propertyID}/audit", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -164,12 +81,7 @@ func RegisterWorkspace(mux *http.ServeMux, requireAuth func(http.Handler) http.H
 		}
 		preview, err := service.ImportCSVProperties(r.Context(), principal.User, reader)
 		if err != nil {
-			switch {
-			case errors.Is(err, ingestionapp.ErrForbidden):
-				platformhttp.WriteError(w, http.StatusForbidden, err.Error())
-			default:
-				platformhttp.WriteError(w, http.StatusBadRequest, err.Error())
-			}
+			platformhttp.WriteError(w, http.StatusBadRequest, err.Error())
 			return
 		}
 		platformhttp.WriteJSON(w, http.StatusCreated, map[string]any{"item": preview})
@@ -188,7 +100,6 @@ func RegisterWorkspace(mux *http.ServeMux, requireAuth func(http.Handler) http.H
 
 	mux.Handle("GET /api/v1/backoffice/analytics/portfolio", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		filter := map[string]string{
-			"owner":           strings.TrimSpace(r.URL.Query().Get("owner")),
 			"priority":        strings.TrimSpace(r.URL.Query().Get("priority")),
 			"source":          strings.TrimSpace(r.URL.Query().Get("source")),
 			"tag":             strings.TrimSpace(r.URL.Query().Get("tag")),
@@ -224,12 +135,7 @@ func RegisterWorkspace(mux *http.ServeMux, requireAuth func(http.Handler) http.H
 		}
 		saved, err := service.SaveIntegration(r.Context(), principal.User, config)
 		if err != nil {
-			switch {
-			case errors.Is(err, ingestionapp.ErrForbidden):
-				platformhttp.WriteError(w, http.StatusForbidden, err.Error())
-			default:
-				platformhttp.WriteError(w, http.StatusBadRequest, err.Error())
-			}
+			platformhttp.WriteError(w, http.StatusBadRequest, err.Error())
 			return
 		}
 		platformhttp.WriteJSON(w, http.StatusCreated, map[string]any{"item": saved})
@@ -243,12 +149,7 @@ func RegisterWorkspace(mux *http.ServeMux, requireAuth func(http.Handler) http.H
 		}
 		delivery, err := service.TestIntegration(r.Context(), principal.User, strings.TrimSpace(r.PathValue("integrationID")))
 		if err != nil {
-			switch {
-			case errors.Is(err, ingestionapp.ErrForbidden):
-				platformhttp.WriteError(w, http.StatusForbidden, err.Error())
-			default:
-				platformhttp.WriteError(w, http.StatusBadRequest, err.Error())
-			}
+			platformhttp.WriteError(w, http.StatusBadRequest, err.Error())
 			return
 		}
 		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{"item": delivery})
@@ -264,13 +165,8 @@ func RegisterWorkspace(mux *http.ServeMux, requireAuth func(http.Handler) http.H
 	})))
 
 	mux.Handle("GET /api/v1/admin/system-health", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		principal, ok := authhttp.CurrentPrincipal(r.Context())
-		if !ok {
+		if _, ok := authhttp.CurrentPrincipal(r.Context()); !ok {
 			platformhttp.WriteError(w, http.StatusUnauthorized, "authentication required")
-			return
-		}
-		if !authapp.IsAdmin(principal.User) {
-			platformhttp.WriteError(w, http.StatusForbidden, "admin access required")
 			return
 		}
 		health, err := service.GetSystemHealth(r.Context())
@@ -282,13 +178,8 @@ func RegisterWorkspace(mux *http.ServeMux, requireAuth func(http.Handler) http.H
 	})))
 
 	mux.Handle("GET /api/v1/admin/scheduler/pauses", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		principal, ok := authhttp.CurrentPrincipal(r.Context())
-		if !ok {
+		if _, ok := authhttp.CurrentPrincipal(r.Context()); !ok {
 			platformhttp.WriteError(w, http.StatusUnauthorized, "authentication required")
-			return
-		}
-		if !authapp.IsAdmin(principal.User) {
-			platformhttp.WriteError(w, http.StatusForbidden, "admin access required")
 			return
 		}
 		pauses, err := service.ListSchedulerPauses(r.Context())
@@ -312,12 +203,7 @@ func RegisterWorkspace(mux *http.ServeMux, requireAuth func(http.Handler) http.H
 		}
 		saved, err := service.CreateSchedulerPause(r.Context(), principal.User, pause)
 		if err != nil {
-			switch {
-			case errors.Is(err, ingestionapp.ErrForbidden):
-				platformhttp.WriteError(w, http.StatusForbidden, err.Error())
-			default:
-				platformhttp.WriteError(w, http.StatusBadRequest, err.Error())
-			}
+			platformhttp.WriteError(w, http.StatusBadRequest, err.Error())
 			return
 		}
 		platformhttp.WriteJSON(w, http.StatusCreated, map[string]any{"item": saved})
@@ -330,25 +216,15 @@ func RegisterWorkspace(mux *http.ServeMux, requireAuth func(http.Handler) http.H
 			return
 		}
 		if err := service.DeleteSchedulerPause(r.Context(), principal.User, strings.TrimSpace(r.PathValue("pauseID"))); err != nil {
-			switch {
-			case errors.Is(err, ingestionapp.ErrForbidden):
-				platformhttp.WriteError(w, http.StatusForbidden, err.Error())
-			default:
-				platformhttp.WriteError(w, http.StatusBadRequest, err.Error())
-			}
+			platformhttp.WriteError(w, http.StatusBadRequest, err.Error())
 			return
 		}
 		platformhttp.WriteJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
 	})))
 
 	mux.Handle("GET /api/v1/admin/maintenance-windows", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		principal, ok := authhttp.CurrentPrincipal(r.Context())
-		if !ok {
+		if _, ok := authhttp.CurrentPrincipal(r.Context()); !ok {
 			platformhttp.WriteError(w, http.StatusUnauthorized, "authentication required")
-			return
-		}
-		if !authapp.IsAdmin(principal.User) {
-			platformhttp.WriteError(w, http.StatusForbidden, "admin access required")
 			return
 		}
 		windows, err := service.ListMaintenanceWindows(r.Context())
@@ -372,12 +248,7 @@ func RegisterWorkspace(mux *http.ServeMux, requireAuth func(http.Handler) http.H
 		}
 		saved, err := service.CreateMaintenanceWindow(r.Context(), principal.User, window)
 		if err != nil {
-			switch {
-			case errors.Is(err, ingestionapp.ErrForbidden):
-				platformhttp.WriteError(w, http.StatusForbidden, err.Error())
-			default:
-				platformhttp.WriteError(w, http.StatusBadRequest, err.Error())
-			}
+			platformhttp.WriteError(w, http.StatusBadRequest, err.Error())
 			return
 		}
 		platformhttp.WriteJSON(w, http.StatusCreated, map[string]any{"item": saved})
@@ -390,25 +261,15 @@ func RegisterWorkspace(mux *http.ServeMux, requireAuth func(http.Handler) http.H
 			return
 		}
 		if err := service.DeleteMaintenanceWindow(r.Context(), principal.User, strings.TrimSpace(r.PathValue("windowID"))); err != nil {
-			switch {
-			case errors.Is(err, ingestionapp.ErrForbidden):
-				platformhttp.WriteError(w, http.StatusForbidden, err.Error())
-			default:
-				platformhttp.WriteError(w, http.StatusBadRequest, err.Error())
-			}
+			platformhttp.WriteError(w, http.StatusBadRequest, err.Error())
 			return
 		}
 		platformhttp.WriteJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
 	})))
 
 	mux.Handle("GET /api/v1/admin/workspace/export", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		principal, ok := authhttp.CurrentPrincipal(r.Context())
-		if !ok {
+		if _, ok := authhttp.CurrentPrincipal(r.Context()); !ok {
 			platformhttp.WriteError(w, http.StatusUnauthorized, "authentication required")
-			return
-		}
-		if !authapp.IsAdmin(principal.User) {
-			platformhttp.WriteError(w, http.StatusForbidden, "admin access required")
 			return
 		}
 		exported, err := service.ExportWorkspace(r.Context())
@@ -433,12 +294,7 @@ func RegisterWorkspace(mux *http.ServeMux, requireAuth func(http.Handler) http.H
 		}
 		preview, err := service.RestoreWorkspace(r.Context(), principal.User, payload, dryRun)
 		if err != nil {
-			switch {
-			case errors.Is(err, ingestionapp.ErrForbidden):
-				platformhttp.WriteError(w, http.StatusForbidden, err.Error())
-			default:
-				platformhttp.WriteError(w, http.StatusBadRequest, err.Error())
-			}
+			platformhttp.WriteError(w, http.StatusBadRequest, err.Error())
 			return
 		}
 		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{"item": preview})

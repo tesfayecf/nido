@@ -6,7 +6,6 @@ export interface AlertRule {
     readonly rule_type: string;
     readonly threshold_amount?: number;
     readonly updated_at: string;
-    readonly user_id: string;
 }
 
 export interface CreateAlertRuleRequest {
