@@ -13,7 +13,9 @@ type IconName =
     | "bell"
     | "bookmark"
     | "clock"
+    | "home"
     | "history"
+    | "inbox"
     | "play"
     | "search"
     | "settings"
@@ -33,6 +35,8 @@ interface NavSection {
 const authenticatedSections: readonly NavSection[] = [
     {
         items: [
+            { icon: "home", label: "Dashboard", to: "/dashboard" },
+            { icon: "inbox", label: "Triage", to: "/triage" },
             { icon: "search", label: "Properties", to: "/properties" },
             { icon: "clock", label: "Events", to: "/events" },
             { icon: "sources", label: "Sources", to: "/sources" },
