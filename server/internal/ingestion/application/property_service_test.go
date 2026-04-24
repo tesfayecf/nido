@@ -88,6 +88,10 @@ func (s *propertyServiceStoreStub) CreatePropertySnapshot(_ context.Context, sna
 	return nil
 }
 
+func (s *propertyServiceStoreStub) UpsertPropertyFieldValues(context.Context, ingestiondomain.PropertySnapshot, []ingestiondomain.FieldSelector) error {
+	return nil
+}
+
 func (s *propertyServiceStoreStub) ListPropertySnapshots(context.Context, string, int) ([]ingestiondomain.PropertySnapshot, error) {
 	return nil, nil
 }

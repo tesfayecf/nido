@@ -49,6 +49,7 @@ const (
 // FieldSelector describes how to extract one named field from a page.
 type FieldSelector struct {
 	Name              string         `json:"name"`
+	FieldName         string         `json:"field_name,omitempty"`
 	SelectorType      SelectorType   `json:"selector_type"`
 	SelectorValue     string         `json:"selector_value"`
 	FallbackSelectors []string       `json:"fallback_selectors,omitempty"`
@@ -61,6 +62,7 @@ type FieldSelector struct {
 
 type fieldSelectorPayload struct {
 	Name              string         `json:"name"`
+	FieldName         string         `json:"field_name,omitempty"`
 	SelectorType      SelectorType   `json:"selector_type"`
 	SelectorValue     string         `json:"selector_value"`
 	FallbackSelectors []string       `json:"fallback_selectors,omitempty"`
@@ -82,6 +84,7 @@ func (field *FieldSelector) UnmarshalJSON(data []byte) error {
 	normalized := FieldSelector{
 		Attribute:      strings.TrimSpace(payload.Attribute),
 		ExtractionMode: payload.ExtractionMode,
+		FieldName:      strings.TrimSpace(payload.FieldName),
 		Name:           strings.TrimSpace(payload.Name),
 		Required:       payload.Required,
 		SelectorType:   payload.SelectorType,
@@ -132,6 +135,7 @@ func (field FieldSelector) MarshalJSON() ([]byte, error) {
 	payload := fieldSelectorPayload{
 		Attribute:         strings.TrimSpace(field.Attribute),
 		ExtractionMode:    field.ExtractionMode,
+		FieldName:         strings.TrimSpace(field.FieldName),
 		FallbackSelectors: NormalizeSelectorList(field.FallbackSelectors),
 		Name:              strings.TrimSpace(field.Name),
 		Required:          field.Required,

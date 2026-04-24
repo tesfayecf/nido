@@ -22,6 +22,8 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useToast } from "@/components/ui/ToastProvider";
 import { FieldEditorDialog } from "@/features/backoffice/FieldEditorDialog";
 import { formatDateTime } from "@/lib/format/date";
+import { fieldKeys } from "@/services/fields/fields.keys";
+import { listFields } from "@/services/fields/fields.service";
 import { sourceKeys } from "@/services/backoffice-sources/sources.keys";
 import { deleteSource, getSource, upsertSource } from "@/services/backoffice-sources/sources.service";
 import type { Source } from "@/services/backoffice-sources/sources.types";
@@ -113,6 +115,10 @@ export const SourceDetailPage = (): JSX.Element => {
             return buildSourceHealthSnapshot(snapshotSets);
         },
         queryKey: ["source-health", sourceId ?? "new"],
+    });
+    const fieldDefinitionsQuery = useQuery({
+        queryFn: listFields,
+        queryKey: fieldKeys.list(),
     });
 
     useEffect(() => {
@@ -225,7 +231,7 @@ export const SourceDetailPage = (): JSX.Element => {
                         </Field>
                     </div>
 
-                    <SelectorBuilder fields={selectorFields} onChange={setSelectorFields} previewByFieldName={previewMap} />
+                    <SelectorBuilder fieldDefinitions={fieldDefinitionsQuery.data} fields={selectorFields} onChange={setSelectorFields} previewByFieldName={previewMap} />
 
                     <ActionGroup>
                         <Button onClick={() => { setSelectorFields((currentFields) => [...currentFields, createEmptySelectorDraft()]); }} variant={"secondary"}>{"Add field"}</Button>
@@ -378,6 +384,7 @@ export const SourceDetailPage = (): JSX.Element => {
                 title={"Delete source"}
             />
             <FieldEditorDialog
+                fieldDefinitions={fieldDefinitionsQuery.data}
                 initialField={fieldEditor?.initial}
                 isSaving={saveMutation.isPending}
                 onClose={() => { setFieldEditor(null); }}

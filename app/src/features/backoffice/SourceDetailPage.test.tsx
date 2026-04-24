@@ -8,6 +8,7 @@ import { SourceDetailPage } from "@/features/backoffice/SourceDetailPage";
 import type { Source } from "@/services/backoffice-sources/sources.types";
 
 const getSourceMock = vi.fn<(sourceId: string) => Promise<Source>>();
+const listFieldsMock = vi.fn();
 const listPropertiesMock = vi.fn();
 const listPropertySnapshotsMock = vi.fn();
 
@@ -21,6 +22,10 @@ vi.mock("@/services/properties/properties.service", () => ({
     listProperties: () => listPropertiesMock(),
     listPropertySnapshots: () => listPropertySnapshotsMock(),
     previewExtraction: vi.fn(),
+}));
+
+vi.mock("@/services/fields/fields.service", () => ({
+    listFields: () => listFieldsMock(),
 }));
 
 const EXISTING_SOURCE: Source = {
@@ -58,7 +63,9 @@ describe("SourceDetailPage", () => {
         getSourceMock.mockReset();
         listPropertiesMock.mockReset();
         listPropertySnapshotsMock.mockReset();
+        listFieldsMock.mockReset();
         getSourceMock.mockResolvedValue(EXISTING_SOURCE);
+        listFieldsMock.mockResolvedValue([]);
         listPropertiesMock.mockResolvedValue([]);
         listPropertySnapshotsMock.mockResolvedValue([]);
     });

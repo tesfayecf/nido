@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ToastProvider } from "@/components/ui/ToastProvider";
 import { PropertyDetailPage } from "@/features/properties/PropertyDetailPage";
+import type { FieldDefinitionUsage } from "@/services/fields/fields.types";
 import type {
     Property,
     PropertyExtractionConfig,
@@ -22,6 +23,7 @@ const listPropertyConfigVersionsMock = vi.fn<() => Promise<PropertyExtractionCon
 const listBookmarksMock = vi.fn();
 const listPropertyRunsMock = vi.fn<() => Promise<PropertyRun[]>>();
 const listPropertySnapshotsMock = vi.fn<() => Promise<PropertySnapshot[]>>();
+const listFieldsMock = vi.fn<() => Promise<FieldDefinitionUsage[]>>();
 const listPropertyTagsMock = vi.fn();
 const listSourcesMock = vi.fn();
 const previewExtractionMock = vi.fn();
@@ -65,6 +67,10 @@ vi.mock("@/services/bookmarks/bookmarks.service", () => ({
 
 vi.mock("@/services/backoffice-sources/sources.service", () => ({
     listSources: () => listSourcesMock(),
+}));
+
+vi.mock("@/services/fields/fields.service", () => ({
+    listFields: () => listFieldsMock(),
 }));
 
 vi.mock("@/services/properties/properties.service", () => ({
@@ -152,6 +158,7 @@ describe("PropertyDetailPage", () => {
         listBookmarksMock.mockReset();
         listPropertyRunsMock.mockReset();
         listPropertySnapshotsMock.mockReset();
+        listFieldsMock.mockReset();
         listPropertyTagsMock.mockReset();
         listSourcesMock.mockReset();
         previewExtractionMock.mockReset();
@@ -167,6 +174,7 @@ describe("PropertyDetailPage", () => {
         listPropertyConfigVersionsMock.mockResolvedValue([CONFIG]);
         listPropertyRunsMock.mockResolvedValue(RUNS);
         listPropertySnapshotsMock.mockResolvedValue([]);
+        listFieldsMock.mockResolvedValue([]);
         listPropertyTagsMock.mockResolvedValue([]);
         listSourcesMock.mockResolvedValue([]);
         updatePropertyMock.mockResolvedValue(PROPERTY);

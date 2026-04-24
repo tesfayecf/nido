@@ -8,6 +8,7 @@ export type TextMode = "textContent" | "innerText";
 
 export interface FieldSelector {
     readonly name: string;
+    readonly field_name?: string;
     readonly selector_type: SelectorType;
     readonly selector_value: string;
     readonly fallback_selectors?: string[];

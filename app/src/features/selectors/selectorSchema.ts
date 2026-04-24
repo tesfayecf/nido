@@ -9,6 +9,7 @@ import type {
 export interface SelectorFieldDraft {
     readonly attribute: string;
     readonly extractionMode: ExtractionMode;
+    readonly fieldName: string;
     readonly fallbackSelectorsRaw: string;
     readonly id: string;
     readonly name: string;
@@ -22,6 +23,7 @@ export interface SelectorFieldDraft {
 interface LegacyFieldSelector {
     readonly attribute?: string;
     readonly extraction_mode?: ExtractionMode;
+    readonly field_name?: string;
     readonly fallback_selectors?: string[];
     readonly name?: string;
     readonly required?: boolean;
@@ -78,6 +80,7 @@ export const normalizeFieldSelector = (raw: LegacyFieldSelector): FieldSelector 
     return {
         attribute: raw.attribute?.trim() !== "" ? raw.attribute?.trim() : undefined,
         extraction_mode: extractionMode,
+        field_name: raw.field_name?.trim() !== "" ? raw.field_name?.trim() : undefined,
         fallback_selectors: raw.fallback_selectors?.map((selector) => selector.trim()).filter((selector) => selector !== "")
             ?? selectors.slice(1),
         name: (raw.name ?? "").trim(),
@@ -92,6 +95,7 @@ export const normalizeFieldSelector = (raw: LegacyFieldSelector): FieldSelector 
 export const createEmptySelectorDraft = (): SelectorFieldDraft => ({
     attribute: "",
     extractionMode: "text",
+    fieldName: "",
     fallbackSelectorsRaw: "",
     id: crypto.randomUUID(),
     name: "",
@@ -103,14 +107,15 @@ export const createEmptySelectorDraft = (): SelectorFieldDraft => ({
 });
 
 export const createDefaultSelectorDrafts = (): SelectorFieldDraft[] => [
-    { ...createEmptySelectorDraft(), name: "price", required: true },
-    { ...createEmptySelectorDraft(), name: "title" },
-    { ...createEmptySelectorDraft(), name: "location" },
+    { ...createEmptySelectorDraft(), fieldName: "price", name: "price", required: true },
+    { ...createEmptySelectorDraft(), fieldName: "title", name: "title" },
+    { ...createEmptySelectorDraft(), fieldName: "location", name: "location" },
 ];
 
 export const selectorToDraft = (selector: FieldSelector): SelectorFieldDraft => ({
     attribute: selector.attribute ?? "",
     extractionMode: selector.extraction_mode,
+    fieldName: selector.field_name ?? "",
     fallbackSelectorsRaw: (selector.fallback_selectors ?? []).join("\n"),
     id: crypto.randomUUID(),
     name: selector.name,
@@ -124,6 +129,7 @@ export const selectorToDraft = (selector: FieldSelector): SelectorFieldDraft => 
 export const draftToSelector = (draft: SelectorFieldDraft): FieldSelector => ({
     attribute: draft.attribute.trim() !== "" ? draft.attribute.trim() : undefined,
     extraction_mode: draft.extractionMode,
+    field_name: draft.fieldName.trim() !== "" ? draft.fieldName.trim() : undefined,
     fallback_selectors: draft.fallbackSelectorsRaw
         .split("\n")
         .map((selector) => selector.trim())

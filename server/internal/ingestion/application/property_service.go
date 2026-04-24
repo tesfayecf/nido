@@ -65,6 +65,7 @@ type PropertyStore interface {
 	ListPropertyConfigs(ctx context.Context, propertyID string) ([]ingestiondomain.PropertyExtractionConfig, error)
 	GetPropertyConfigVersion(ctx context.Context, propertyID string, version int) (ingestiondomain.PropertyExtractionConfig, error)
 	CreatePropertySnapshot(ctx context.Context, snapshot ingestiondomain.PropertySnapshot) error
+	UpsertPropertyFieldValues(ctx context.Context, snapshot ingestiondomain.PropertySnapshot, fields []ingestiondomain.FieldSelector) error
 	ListPropertySnapshots(ctx context.Context, propertyID string, limit int) ([]ingestiondomain.PropertySnapshot, error)
 	ListAllPropertySnapshots(ctx context.Context, propertyID string, limit int) ([]ingestiondomain.PropertySnapshot, error)
 	GetPropertySnapshot(ctx context.Context, snapshotID string) (ingestiondomain.PropertySnapshot, error)
@@ -358,6 +359,7 @@ func summarizeConfigChange(previous, current []ingestiondomain.FieldSelector) st
 
 func selectorsEqual(left, right ingestiondomain.FieldSelector) bool {
 	if left.Name != right.Name ||
+		left.FieldName != right.FieldName ||
 		left.SelectorType != right.SelectorType ||
 		left.SelectorValue != right.SelectorValue ||
 		left.ExtractionMode != right.ExtractionMode ||
@@ -539,6 +541,9 @@ func (s *PropertyService) IngestProperty(ctx context.Context, propertyID string)
 	if err := s.store.CreatePropertySnapshot(ctx, snapshot); err != nil {
 		return ingestiondomain.PropertySnapshot{}, err
 	}
+	if err := s.store.UpsertPropertyFieldValues(ctx, snapshot, config.Fields); err != nil {
+		return ingestiondomain.PropertySnapshot{}, err
+	}
 
 	nextRun := nextPropertyRunAt(now, property.ScheduleInterval())
 	if err := s.store.UpdatePropertyRunState(ctx, propertyID, status, &now, nextRun); err != nil {
@@ -659,6 +664,9 @@ func (s *PropertyService) IngestPropertyOnce(ctx context.Context, propertyID str
 	}
 
 	if err := s.store.CreatePropertySnapshot(ctx, snapshot); err != nil {
+		return ingestiondomain.PropertySnapshot{}, err
+	}
+	if err := s.store.UpsertPropertyFieldValues(ctx, snapshot, config.Fields); err != nil {
 		return ingestiondomain.PropertySnapshot{}, err
 	}
 
@@ -1163,6 +1171,7 @@ func normalizeConfiguredFields(fields []ingestiondomain.FieldSelector) ([]ingest
 	names := make(map[string]struct{}, len(fields))
 	for _, field := range fields {
 		field.Name = strings.TrimSpace(field.Name)
+		field.FieldName = strings.TrimSpace(field.FieldName)
 		field.SelectorValue = strings.TrimSpace(field.SelectorValue)
 		field.Attribute = strings.TrimSpace(field.Attribute)
 		field.Transform = strings.TrimSpace(field.Transform)

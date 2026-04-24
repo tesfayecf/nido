@@ -7,11 +7,13 @@ import { Field } from "@/components/ui/Field";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
+import type { FieldDefinitionUsage } from "@/services/fields/fields.types";
 import type { PropertyPreviewFieldResult, SelectorType } from "@/services/properties/properties.types";
 import type { SelectorFieldDraft } from "@/features/selectors/selectorSchema";
 
 interface SelectorBuilderProps {
     readonly fields: SelectorFieldDraft[];
+    readonly fieldDefinitions?: FieldDefinitionUsage[];
     readonly onChange: Dispatch<SetStateAction<SelectorFieldDraft[]>>;
     readonly previewByFieldName?: Map<string, PropertyPreviewFieldResult>;
 }
@@ -65,8 +67,10 @@ const previewLabel = (field?: PropertyPreviewFieldResult): string => {
     return field.message ?? "No value found yet.";
 };
 
-export const SelectorBuilder = ({ fields, onChange, previewByFieldName }: SelectorBuilderProps): JSX.Element => {
+export const SelectorBuilder = ({ fieldDefinitions, fields, onChange, previewByFieldName }: SelectorBuilderProps): JSX.Element => {
     const [helpOpen, setHelpOpen] = useState(false);
+    const systemFields = (fieldDefinitions ?? []).filter((item) => item.system_defined);
+    const userFields = (fieldDefinitions ?? []).filter((item) => !item.system_defined);
 
     return (
         <div className={"selector-builder"}>
@@ -136,6 +140,28 @@ export const SelectorBuilder = ({ fields, onChange, previewByFieldName }: Select
                                         type={"text"}
                                         value={field.name}
                                     />
+                                </Field>
+
+                                <Field
+                                    hint={"Optional. Map this output to a shared canonical field for cross-property analytics."}
+                                    label={"Global field"}
+                                >
+                                    <Select
+                                        onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { fieldName: event.target.value })); }}
+                                        value={field.fieldName}
+                                    >
+                                        <option value={""}>{"Unassigned"}</option>
+                                        {systemFields.length > 0 ? (
+                                            <optgroup label={"System fields"}>
+                                                {systemFields.map((option) => <option key={option.id} value={option.name}>{option.display_name}</option>)}
+                                            </optgroup>
+                                        ) : null}
+                                        {userFields.length > 0 ? (
+                                            <optgroup label={"Custom fields"}>
+                                                {userFields.map((option) => <option key={option.id} value={option.name}>{option.display_name}</option>)}
+                                            </optgroup>
+                                        ) : null}
+                                    </Select>
                                 </Field>
 
                                 <Field
