@@ -24,7 +24,7 @@ Commands:
 	config                    Print the resolved tool and runtime configuration.
 	backend-build             Build the production backend binary.
 	backend-run               Run the built backend binary.
-	backend-dev               Run the backend with go run.
+	backend-dev               Build and run the backend development binary.
 	backend-migrate           Run backend migrations.
 	backend-test              Run backend tests.
 	frontend-install          Install frontend dependencies.
@@ -35,7 +35,7 @@ Commands:
 	frontend-test             Run frontend tests.
 	frontend-lint             Run frontend lint.
 	app-build                 Build the backend binary and frontend bundle.
-	app-dev                   Run backend go run and frontend dev together.
+	app-dev                   Run the backend development binary and frontend dev together.
 	app-start                 Build both sides and run backend + frontend preview.
 
 Environment:
@@ -91,6 +91,13 @@ backend_env() {
 	"$@"
 }
 
+exec_backend_command() {
+	exec env \
+		HS_DATABASE_PATH="${HS_DATABASE_PATH:-${DATABASE_PATH}}" \
+		HS_HTTP_ADDR="${HS_HTTP_ADDR:-${BACKEND_HTTP_ADDR}}" \
+		"$@"
+}
+
 frontend_build_env() {
 	VITE_API_ORIGIN="${VITE_API_ORIGIN:-${APP_API_ORIGIN}}" "$@"
 }
@@ -131,19 +138,22 @@ backend_run() {
 
 	log "Running backend binary"
 	ensure_path_parent "${DATABASE_PATH}"
-	(
-		cd "${ROOT_DIR}"
-		backend_env "${SERVER_BIN}"
-	)
+	cd "${ROOT_DIR}"
+	exec_backend_command "${SERVER_BIN}"
 }
 
 backend_dev() {
-	log "Running backend with go run"
-	ensure_path_parent "${DATABASE_PATH}"
+	log "Building backend development binary"
+	ensure_path_parent "${SERVER_BIN}"
 	(
 		cd "${SERVER_DIR}"
-		backend_env run_go run ./cmd/server
+		run_go build -o "${SERVER_BIN}" ./cmd/server
 	)
+
+	log "Running backend development binary"
+	ensure_path_parent "${DATABASE_PATH}"
+	cd "${ROOT_DIR}"
+	exec_backend_command "${SERVER_BIN}"
 }
 
 backend_migrate() {

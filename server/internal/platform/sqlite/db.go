@@ -27,6 +27,28 @@ func Open(ctx context.Context, cfg config.DatabaseConfig) (*sql.DB, error) {
 		strings.ReplaceAll(cfg.Path, "\\", "/"),
 	)
 
+	db, err := openDatabase(ctx, dsn)
+	if err == nil {
+		return db, nil
+	}
+	if !isCorruptDatabaseError(err) {
+		return nil, err
+	}
+
+	backupPath, backupErr := quarantineCorruptDatabase(cfg.Path)
+	if backupErr != nil {
+		return nil, fmt.Errorf("%w; quarantine corrupt sqlite database: %v", err, backupErr)
+	}
+
+	db, retryErr := openDatabase(ctx, dsn)
+	if retryErr != nil {
+		return nil, fmt.Errorf("%w; quarantined corrupt sqlite database at %s but reopen failed: %v", err, backupPath, retryErr)
+	}
+
+	return db, nil
+}
+
+func openDatabase(ctx context.Context, dsn string) (*sql.DB, error) {
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite database: %w", err)
@@ -41,6 +63,55 @@ func Open(ctx context.Context, cfg config.DatabaseConfig) (*sql.DB, error) {
 	}
 
 	return db, nil
+}
+
+func isCorruptDatabaseError(err error) bool {
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "database disk image is malformed") ||
+		strings.Contains(message, "file is not a database") ||
+		strings.Contains(message, "database schema is corrupt")
+}
+
+func quarantineCorruptDatabase(path string) (string, error) {
+	backupPath := nextCorruptDatabaseBackupPath(path)
+	if err := renameIfExists(path, backupPath); err != nil {
+		return "", err
+	}
+	if err := renameIfExists(path+"-wal", backupPath+"-wal"); err != nil {
+		return "", err
+	}
+	if err := renameIfExists(path+"-shm", backupPath+"-shm"); err != nil {
+		return "", err
+	}
+	return backupPath, nil
+}
+
+func nextCorruptDatabaseBackupPath(path string) string {
+	timestamp := time.Now().UTC().Format("20060102-150405")
+	base := fmt.Sprintf("%s.corrupt-%s", path, timestamp)
+	if _, err := os.Stat(base); os.IsNotExist(err) {
+		return base
+	}
+
+	for attempt := 1; ; attempt++ {
+		candidate := fmt.Sprintf("%s-%d", base, attempt)
+		if _, err := os.Stat(candidate); os.IsNotExist(err) {
+			return candidate
+		}
+	}
+}
+
+func renameIfExists(from string, to string) error {
+	if _, err := os.Stat(from); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("stat %s: %w", from, err)
+	}
+	if err := os.Rename(from, to); err != nil {
+		return fmt.Errorf("rename %s to %s: %w", from, to, err)
+	}
+	return nil
 }
 
 // Migrate applies the SQLite schema required by the first iteration.
