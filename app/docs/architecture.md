@@ -45,16 +45,32 @@ The router is intentionally flat and feature-owned. The index route redirects to
 | Path | Owner | Responsibility |
 | --- | --- | --- |
 | `/login` | `features/auth` | Login flow and redirect handoff |
+| `/dashboard` | `features/operators` | Operator overview with cross-capability summaries |
+| `/triage` | `features/operators` | Review queue for notifications, runs, and follow-up actions |
 | `/properties` | `features/properties` | Tracked property list, URL-driven filters, bookmark and ingest actions |
 | `/properties/new` | `features/properties` | Property creation |
-| `/properties/:propertyId` | `features/properties` | Property detail, extraction config, snapshots, property-run history |
+| `/properties/:propertyId` | `features/properties` | Property detail, extraction config, snapshots, and property-run history |
 | `/properties/:propertyId/fields/:fieldName/analysis` | `features/properties` | Field-level analysis for selector tuning |
-| `/sources`, `/sources/new`, `/sources/:sourceId` | `features/backoffice` | Source CRUD and source-to-property coordination |
+| `/analytics` | `features/analytics` | Aggregated market-analysis views backed by field and analytics data |
+| `/fields` | `features/fields` | Field definition management and unmapped-field review |
+| `/sources`, `/sources/new`, `/sources/:sourceId` | `features/backoffice` | Source CRUD, selector preview support, and source-to-property coordination |
 | `/runs`, `/runs/:runId` | `features/backoffice` | Global snapshot history and snapshot inspection |
 | `/events` | `features/backoffice` | In-session live SSE event feed |
-| `/tags` | `features/tags` | Tag CRUD |
 | `/bookmarks`, `/alerts`, `/notifications` | `features/engagement` | User-specific tracking workflows |
-| `/settings` | `features/settings` | Account profile and password maintenance |
+| `/tags` | `features/tags` | Tag CRUD and categorization |
+| `/settings` | `features/settings` | Account profile, password, and notification preference maintenance |
+| `/admin` | `features/platform` | Platform-level settings, integrations, and administrative coordination |
+
+### Shell navigation groups
+
+`components/shell/navigation.ts` groups the mounted routes into four operator-facing sections:
+
+- Core workflow: properties, analytics, bookmarks, alerts
+- Operations: dashboard, triage, notifications
+- Admin / Advanced: admin, sources, runs, events, fields, tags
+- Account: settings
+
+If a route is added or moved, update both the router and the navigation metadata in the same change.
 
 ## Module Boundaries
 
@@ -71,13 +87,16 @@ The router is intentionally flat and feature-owned. The index route redirects to
 
 ### Service modules currently in use
 
-- `auth`
+- `analytics`
 - `alert-rules`
+- `auth`
 - `backoffice-events`
 - `backoffice-runs`
 - `backoffice-sources`
 - `bookmarks`
+- `fields`
 - `notifications`
+- `platform`
 - `properties`
 - `tags`
 
@@ -185,6 +204,26 @@ Why this matters:
 - live event monitoring under `/events`
 
 One important detail: the global `/runs` pages work with stored property snapshots, while property detail pages use `/properties/:propertyId/runs` to show scheduler attempt history.
+
+### Operators
+
+`features/operators` owns summary and queue-oriented workflows that cut across properties, runs, notifications, sources, and tags.
+
+- `DashboardPage` is the operator overview surface.
+- `TriageInboxPage` is the review queue.
+- `CommandPalette` exposes quick actions and is part of that same workflow cluster.
+
+### Analytics
+
+`features/analytics` owns aggregated views and chart logic. Keep chart-specific transformation helpers close to this feature unless another route genuinely reuses them.
+
+### Fields
+
+`features/fields` owns field definition management. Use it for schema-level field operations; use `features/properties` only when the workflow is about a specific property's extraction behavior.
+
+### Platform
+
+`features/platform` owns administrative and integration-oriented workflows that span alerting, source setup, notifications, platform settings, and summary views. Keep platform-wide coordination here rather than leaking it into operator or property features.
 
 ### Engagement
 

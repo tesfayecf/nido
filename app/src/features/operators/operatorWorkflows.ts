@@ -113,9 +113,15 @@ export const mergeBulkTagIds = (currentTagIds: readonly string[], bulkTagIds: re
     return Array.from(new Set([...currentTagIds, ...bulkTagIds]));
 };
 
-export const retainVisibleSelection = (selectedPropertyIds: readonly string[], visiblePropertyIds: readonly string[]): string[] => {
+export const retainVisibleSelection = (selectedPropertyIds: string[], visiblePropertyIds: readonly string[]): string[] => {
     const visibleIds = new Set(visiblePropertyIds);
-    return selectedPropertyIds.filter((propertyId) => visibleIds.has(propertyId));
+    const nextSelection = selectedPropertyIds.filter((propertyId) => visibleIds.has(propertyId));
+
+    if (nextSelection.length === selectedPropertyIds.length && nextSelection.every((propertyId, index) => propertyId === selectedPropertyIds[index])) {
+        return selectedPropertyIds;
+    }
+
+    return nextSelection;
 };
 
 interface ApplySavedViewOptions {

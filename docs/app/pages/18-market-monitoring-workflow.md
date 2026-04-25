@@ -1,38 +1,26 @@
-# Market Monitoring Workflow
-
-## Purpose
-Document the real workflow for browsing listings, saving targets, creating saved searches, and monitoring resulting notifications and runs.
+# Property Tracking Tutorial
 
 ## Screenshot
-![Market monitoring workflow reference](../assets/listings-price-history.png)
+![Property onboarding](../assets/property-new-current.png)
 
-## UI Elements
-### Element: Explorer step
-- Type: workflow step
-- Description: Uses the listings page filters, compare tray, and price-history modal.
-- Behavior: Helps operators shortlist listings without leaving the main explorer.
+## Goal
+Track one page from its URL through the first verified run without creating extra records you do not need.
 
-### Element: Saved tracking step
-- Type: workflow step
-- Description: Uses bookmarks, watchlists, and alert rules.
-- Behavior: Converts interesting inventory into personal tracking rules.
+## Steps
+1. Start from [Properties Workspace](./04-listing-detail.md) and open [New Property](./05-bookmarks.md).
+2. Enter the property URL and the run cadence you want.
+3. Add selector fields and fallback selectors for the values you care about.
+4. Save the property and its first config.
+5. Open [Property Detail](./06-watchlists.md) and review the read-first summary.
+6. Use `Run now` to verify the current configuration against the live page.
+7. Review [Runs](./15-runs.md) and [Run Detail](./16-run-detail.md) if the output needs explanation.
+8. Add alerts only after the extraction output is stable enough to monitor.
 
-### Element: Notification step
-- Type: workflow step
-- Description: Uses the notifications inbox.
-- Behavior: Surfaces ingest-time matches from watchlists and alert rules.
-
-### Element: Backoffice verification step
-- Type: workflow step
-- Description: Uses sources and runs.
-- Behavior: Confirms whether an ingest completed successfully and what it processed.
-
-## User Actions
-- Filter and compare listings in [Listings Explorer](./03-listings.md) → Shortlist a candidate.
-- Open listing detail and bookmark it → The listing becomes part of the personal saved set.
-- Create a watchlist and alert rule → Future ingests produce notifications.
-- Review notifications and runs → Confirm what changed and whether the ingestion pipeline stayed healthy.
+## Practical Checks
+- Start with the smallest useful field set and grow it only when the operator really needs more data.
+- Fix template or selector quality before layering alerts and daily review on top.
+- The current app uses a structured selector builder; there is no visual DOM selector workflow.
 
 ## Navigation
-- Previous: [Property Tracking Workflow](./17-property-tracking-workflow.md)
-- Next: [Shared UI States](./19-shared-ui-states.md)
+- Previous: [Admin Surfaces](./17-property-tracking-workflow.md)
+- Next: [Monitoring Tutorial](./19-shared-ui-states.md)

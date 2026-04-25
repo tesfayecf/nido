@@ -1,32 +1,23 @@
 # Run Detail
 
-## Purpose
-Inspect one ingestion run, including backend diagnostics and artifact references.
-
 ## Screenshot
-![Run detail](../assets/run-detail.png)
+![Run detail](../assets/run-detail-current.png)
 
-## UI Elements
-### Element: Metadata grid
-- Type: data panel
-- Description: Shows status, source id, trigger kind, correlation id, timing, attempts, items, and artifact keys.
-- Behavior: Renders the full backend run record.
+## What You Do Here
+Inspect one stored snapshot, compare it with the previous snapshot, and decide whether the change is expected or needs follow-up.
 
-### Element: Diagnostics block
-- Type: code panel
-- Description: Shows raw diagnostics JSON.
-- Behavior: Exposes backend fields without client-side reshaping.
+## Quick Start
+1. Review run status, property id, observed time, and config version.
+2. Read the plain-language change summary first.
+3. Use the field comparison table to inspect previous and current values.
+4. Toggle unchanged fields on when you need a full before-and-after view.
+5. Check the comparison context to see which previous snapshot anchors the result.
 
-### Element: Back to runs
-- Type: link
-- Description: Returns to the run list.
-- Behavior: Navigates back to `/backoffice/runs`.
-
-## User Actions
-- Review a completed run → Confirm artifact location, item count, and timing.
-- Review a failed run → Inspect raw failure diagnostics and failure-artifact keys.
-- Return to runs → Continue monitoring broader run history.
+## What To Check
+- The detail page is read-only; it exists to explain what changed, not to edit anything.
+- Comparison is anchored to the immediately previous property snapshot when one exists.
+- The run detail page is the best place to verify whether a template or selector change produced the expected output.
 
 ## Navigation
 - Previous: [Runs](./15-runs.md)
-- Next: [Property Tracking Workflow](./17-property-tracking-workflow.md)
+- Next: [Admin Surfaces](./17-property-tracking-workflow.md)

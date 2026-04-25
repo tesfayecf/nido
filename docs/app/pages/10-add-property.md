@@ -1,37 +1,23 @@
-# Add Property
-
-## Purpose
-Register a property page URL for scheduled or manual extraction.
+# Overview Dashboard
 
 ## Screenshot
-![Add property form](../assets/add-property.png)
+![Overview dashboard](../assets/dashboard-current.png)
 
-## UI Elements
-### Element: URL
-- Type: input
-- Description: Stores the property page that will be fetched for extraction.
-- Behavior: Required before the create button enables.
+## What You Do Here
+Start the day from one summary page so you can see what changed, what broke, and what deserves attention before you start drilling into individual properties.
 
-### Element: Label
-- Type: input
-- Description: Provides a human-friendly name for the tracked property.
-- Behavior: Optional but recommended for list readability.
+## Quick Start
+1. Review the status breakdown first.
+2. Check the recently changed properties and upcoming scheduled runs.
+3. Scan the source health and portfolio analytics sections for broader patterns.
+4. Open the triage inbox when the dashboard surfaces something that needs action.
+5. Open a specific property only after the summary tells you where to look.
 
-### Element: Schedule and retry fields
-- Type: numeric inputs
-- Description: Configure polling interval, retry attempts, and retry backoff.
-- Behavior: Persist directly to the backend property record.
-
-### Element: Create property
-- Type: button
-- Description: Creates the property record.
-- Behavior: Navigates to the new property detail route after success.
-
-## User Actions
-- Enter a valid URL and submit → The property is created and editable.
-- Leave the URL blank → The button stays disabled.
-- Receive a validation error → An inline error banner appears.
+## What To Check
+- The dashboard is intentionally read-first and cross-portfolio.
+- It helps you choose the next page to open instead of trying to replace detailed workflows.
+- The supporting analytics sections are useful for trend spotting, not for direct configuration changes.
 
 ## Navigation
-- Previous: [Tracked Properties](./09-properties.md)
-- Next: [Property Detail](./11-property-detail.md)
+- Previous: [Alerts](./09-properties.md)
+- Next: [Review Queue](./11-property-detail.md)

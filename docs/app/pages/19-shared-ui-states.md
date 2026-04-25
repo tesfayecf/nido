@@ -1,37 +1,26 @@
-# Shared UI States
-
-## Purpose
-Capture the reusable loading, empty, success, and failure patterns that appear across the documented screens.
+# Monitoring Tutorial
 
 ## Screenshot
-![Shared state reference](../assets/listings.png)
+![Daily monitoring workflow](../assets/dashboard-current.png)
 
-## UI Elements
-### Element: Loading states
-- Type: status copy
-- Description: Pages such as listings, bookmarks, properties, sources, and runs show explicit loading text while data is fetched.
-- Behavior: Keeps the shell stable until the query resolves.
+## Goal
+Turn the current portfolio into a repeatable daily review loop without adding unnecessary process overhead.
 
-### Element: Empty states
-- Type: status message
-- Description: Lists and panels explain when there are no bookmarks, no compare items, no notifications, no live events, or no recorded price changes.
-- Behavior: Guides the operator toward the next useful action.
+## Steps
+1. Start on [Overview Dashboard](./10-add-property.md) to see what changed and what failed.
+2. Move into [Review Queue](./11-property-detail.md) for the highest-priority work items.
+3. Use [Properties Workspace](./04-listing-detail.md) when you need to scan the broader tracked set.
+4. Use [Market Analysis](./07-alerts.md) when you need a grouped or filtered comparison view.
+5. Save a property in [Saved / Shortlist](./08-notifications.md) when it deserves human follow-up.
+6. Add or tune rules in [Alerts](./09-properties.md) so future runs generate useful notifications.
+7. Review [Notifications](./12-sources.md) after runs complete.
+8. Open [Runs](./15-runs.md), [Run Detail](./16-run-detail.md), or `Events` from the admin navigation only when you need deeper troubleshooting.
 
-### Element: Success states
-- Type: status badge and result panels
-- Description: Examples include completed runs, valid property snapshots, and successful extraction previews.
-- Behavior: Confirm that the last action produced usable output.
-
-### Element: Error and degraded states
-- Type: error banner or status badge
-- Description: Login failures, query failures, failed runs, preview failures, and temporarily unavailable live updates are surfaced directly in-page.
-- Behavior: Preserve the route while showing the failure reason.
-
-## User Actions
-- Wait for a list to load → The page replaces loading copy with fetched content.
-- Reach an empty collection → Read the guidance and move to the linked creation workflow.
-- Hit a failed run or failed request → Inspect the surfaced error details, then retry from the relevant screen.
+## Practical Checks
+- The shortest reliable loop is dashboard, triage, property, then back out again.
+- Use aggregate views and admin tools to decide faster, not to replace property-level verification.
+- Keep the workflow redacted and lightweight: add only the alerts, tags, and templates that help the operator make the next decision.
 
 ## Navigation
-- Previous: [Market Monitoring Workflow](./18-market-monitoring-workflow.md)
+- Previous: [Property Tracking Tutorial](./18-market-monitoring-workflow.md)
 - Next: [Documentation index](../index.md)

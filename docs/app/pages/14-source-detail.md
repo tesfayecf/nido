@@ -1,37 +1,23 @@
-# Source Detail
-
-## Purpose
-Edit an existing source template, review its selector fields, and confirm it is ready for downstream property use.
+# Template Detail
 
 ## Screenshot
-![Source detail](../assets/source-detail.png)
+![Template detail](../assets/source-detail-current.png)
 
-## UI Elements
-### Element: Template identity
-- Type: form
-- Description: Shows the stored template id in read-only mode plus editable name and preview URL fields.
-- Behavior: Saves changes through the backend upsert route.
+## What You Do Here
+Inspect an existing source template, review its field structure, and update selectors only when the source layout has changed.
 
-### Element: Selector builder
-- Type: structured form
-- Description: Shows typed selector cards with field names, selector types, extraction modes, optional fallback selectors, and required flags.
-- Behavior: Saves a structured selector payload back into the template config JSON.
+## Quick Start
+1. Open the template from the source list.
+2. Review the saved field set and metadata first.
+3. Open the edit flow when selectors or preview behavior need attention.
+4. Use the preview controls to confirm the current page structure still matches the template.
+5. Save or delete the template when the change is complete.
 
-### Element: Validation
-- Type: status panel
-- Description: Summarizes whether the current template is ready for preview or save.
-- Behavior: Shows any outstanding selector issues directly under the form.
-
-### Element: Metadata
-- Type: data panel
-- Description: Shows created and updated timestamps for the template record.
-- Behavior: Reflects backend source record values.
-
-## User Actions
-- Edit selector fields and save → The backend template record updates.
-- Review validation hints → Operators can confirm whether the selector cards are complete.
-- Review timestamps → Operators can verify when the template was last changed.
+## What To Check
+- Existing templates stay read-first until you intentionally open editing.
+- The same structured selector model is used for both create and edit flows.
+- Validation belongs to the template itself, so fix selector quality here before changing linked properties one by one.
 
 ## Navigation
-- Previous: [Create Template](./13-add-source.md)
+- Previous: [Sources](./13-add-source.md)
 - Next: [Runs](./15-runs.md)

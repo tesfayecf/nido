@@ -51,6 +51,22 @@ pnpm dev
 
 The frontend dev server runs on `http://127.0.0.1:3000` and proxies `/api` requests to the backend on `http://127.0.0.1:8080` by default.
 
+### Unified Helper
+
+If you want one root-level entrypoint for the common backend and frontend flows, use:
+
+```bash
+./cmd/home-searcher.sh help
+./cmd/home-searcher.sh app-start
+```
+
+The helper exposes backend build and run commands, frontend build and preview commands, and forwards the usual `HS_*` and `VITE_*` environment variables. For example:
+
+```bash
+HS_DATABASE_PATH="./server/.sqlite/local.db" ./cmd/home-searcher.sh backend-run
+APP_API_ORIGIN="http://127.0.0.1:8080" ./cmd/home-searcher.sh frontend-build
+```
+
 ## Verification Commands
 
 Frontend:

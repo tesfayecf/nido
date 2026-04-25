@@ -1,32 +1,23 @@
-# Watchlists
-
-## Purpose
-Create reusable saved-search definitions that drive alerts and notifications.
+# Property Detail
 
 ## Screenshot
-![Watchlists](../assets/watchlists.png)
+![Property detail](../assets/property-detail-current.png)
 
-## UI Elements
-### Element: Create Watchlist form
-- Type: form
-- Description: Captures name, text query, source id, and optional max price.
-- Behavior: Creates a watchlist and resets the form on success.
+## What You Do Here
+Inspect one tracked property, review its current extracted values, and only open editing controls when you actually need to change behavior.
 
-### Element: Current Watchlists list
-- Type: interactive list
-- Description: Shows the stored watchlists with query summary, source id, updated time, and price ceiling.
-- Behavior: Refreshes after create or delete.
+## Quick Start
+1. Review the latest extracted values first.
+2. Check business metadata, tags, and alert coverage for operator context.
+3. Use `Run now` when you need an immediate refresh.
+4. Open `Edit` when you need to change selectors, schedule, metadata, or source assignment.
+5. Review recent runs and snapshots after each important change.
 
-### Element: Delete
-- Type: button
-- Description: Removes a watchlist.
-- Behavior: Deletes the selected record from the backend.
-
-## User Actions
-- Create a watchlist for a source → The rule becomes available to alerts and future notifications.
-- Delete a watchlist → The list refetches without the removed item.
-- Leave fields blank or load while waiting → Form validation or loading states keep the workflow explicit.
+## What To Check
+- The page is read-first by default, with editing behind an explicit action.
+- Recent automation runs refresh on a short interval so you can validate changes without leaving the page.
+- Snapshot history is tied to config versions so you can tell which rules produced which values.
 
 ## Navigation
-- Previous: [Bookmarks](./05-bookmarks.md)
-- Next: [Alert Rules](./07-alerts.md)
+- Previous: [New Property](./05-bookmarks.md)
+- Next: [Market Analysis](./07-alerts.md)

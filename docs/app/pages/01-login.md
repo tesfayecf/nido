@@ -1,36 +1,22 @@
-# Login
-
-## Purpose
-Authenticate into the workspace to unlock personal tracking and backoffice routes.
+# Sign In
 
 ## Screenshot
-![Login screen](../assets/login.png)
+![Sign in page](../assets/login-current.png)
 
-## UI Elements
-### Element: Theme toggle
-- Type: selector
-- Description: Switches between light, dark, and system themes.
-- Behavior: Updates the application theme before sign-in.
+## What You Do Here
+Authenticate into the workspace, confirm the theme you want to use, and return to the protected route you were trying to open.
 
-### Element: Email
-- Type: input
-- Description: Accepts the account email.
-- Behavior: Required for sign-in submission.
+## Quick Start
+1. Open the login route.
+2. Choose `Light`, `Dark`, or `System` before signing in if you want a different theme.
+3. Enter the local admin email and password.
+4. Select `Sign in`.
+5. Continue into the workspace shell.
 
-### Element: Password
-- Type: input
-- Description: Accepts the account password.
-- Behavior: Required for sign-in submission.
-
-### Element: Sign in
-- Type: button
-- Description: Sends the credentials to the auth endpoint.
-- Behavior: Shows a pending label while authenticating, then routes to the requested page or `/listings`.
-
-## User Actions
-- Enter valid credentials → Session is stored and the shell loads.
-- Enter invalid credentials → An error banner is shown.
-- Open the page with an active session → The app redirects away from login.
+## What To Check
+- Theme selection is available before authentication.
+- Protected routes redirect here and then return to the original target after a successful sign-in.
+- The login page stays focused on access only; everything else happens inside the shell.
 
 ## Navigation
 - Previous: [Documentation index](../index.md)

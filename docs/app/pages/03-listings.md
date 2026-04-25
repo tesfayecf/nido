@@ -1,43 +1,22 @@
-# Listings Explorer
-
-## Purpose
-Provide the main market-intelligence workspace for filtering, comparing, and reviewing listings.
+# Getting Started
 
 ## Screenshot
-![Listings explorer](../assets/listings.png)
+![Starting workspace](../assets/properties-current.png)
 
-## UI Elements
-### Element: Filter bar
-- Type: form
-- Description: Holds search text, source, min/max price, sort, limit, and value-anomaly controls.
-- Behavior: Apply writes filters into the URL; Reset draft restores the in-form draft to the current URL state.
+## What You Do Here
+Use the current portfolio view to choose the fastest starting path: add a tracked page, inspect an existing tracked property, or switch into the daily review flow.
 
-### Element: Summary strip
-- Type: metric panel
-- Description: Shows listing count, average price, anomaly count, and dominant sort.
-- Behavior: Recomputes after filter changes or list refreshes.
+## Quick Start
+1. Start on `Properties` to see the current tracked portfolio.
+2. Use `New property` when you need to onboard a page from scratch.
+3. Open an existing property when you need to adjust selectors, metadata, tags, or alerts.
+4. Switch to `Overview` when you want a high-level summary before acting.
+5. Switch to `Review Queue` when you want the shortest path from problem to action.
 
-### Element: Result rows
-- Type: interactive list
-- Description: Shows title, source, price, market delta, time markers, and quick actions.
-- Behavior: Supports opening detail, opening the original source, toggling compare, and opening the price-history modal.
-
-### Element: Viewport Intelligence
-- Type: control panel
-- Description: Displays synthetic bounds, zoom, and regional cluster summaries.
-- Behavior: Pan and zoom buttons update the session viewport state.
-
-### Element: Side-by-Side Compare
-- Type: comparison panel
-- Description: Holds up to three shortlisted listings.
-- Behavior: Fills as compare is toggled from result rows and can be cleared.
-
-## User Actions
-- Change filters and press Apply → The result set refreshes from the backend.
-- Press Compare on a row → The listing appears in the compare panel.
-- Press Price history → An in-context modal opens without leaving the page.
-- Open the page while signed out → Browsing still works, but authenticated live-update prompts remain gated.
+## Two Common Paths
+- Track one page: start with [New Property](./05-bookmarks.md) and continue through [Property Detail](./06-watchlists.md).
+- Review the portfolio: start with [Overview Dashboard](./10-add-property.md) and continue through [Review Queue](./11-property-detail.md).
 
 ## Navigation
 - Previous: [Shell Navigation](./02-shell-navigation.md)
-- Next: [Listing Detail](./04-listing-detail.md)
+- Next: [Properties Workspace](./04-listing-detail.md)

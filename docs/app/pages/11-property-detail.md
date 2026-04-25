@@ -1,38 +1,23 @@
-# Property Detail
-
-## Purpose
-Configure selector-based extraction for one tracked property, review the guided builder, and inspect saved snapshots.
+# Review Queue
 
 ## Screenshot
-![Property detail](../assets/property-detail.png)
+![Review queue](../assets/triage-current.png)
 
-## UI Elements
-### Element: Property Settings
-- Type: form
-- Description: Shows URL, label, schedule interval, and retry policy.
-- Behavior: Saves updates to the existing property record.
+## What You Do Here
+Work through the consolidated inbox of degraded properties, failed runs, unread notifications, and missing setup without hunting across several pages.
 
-### Element: Extraction Configuration
-- Type: structured form
-- Description: Defines field names, selector types, selector values, extraction modes, optional attribute names, fallback selectors, and required flags.
-- Behavior: Adds or removes selector cards and saves a new config version.
+## Quick Start
+1. Filter the queue by severity when you need a tighter work set.
+2. Read each work item from top to bottom; rows are sorted by severity first and recency second.
+3. Open the property or run linked to the item.
+4. Use inline actions such as `Run now` or notification review when they are available.
+5. Return to the queue after each fix until the highest-priority items are cleared.
 
-### Element: Extraction Preview
-- Type: result panel
-- Description: Runs the current selector set against the target page without persisting state.
-- Behavior: Shows field-level readiness states, extracted values, or clear failures when the preview target is unavailable.
-
-### Element: Current Snapshot
-- Type: status panel
-- Description: Shows the latest persisted extraction result for the property.
-- Behavior: Displays the most recent run state, extracted values, and a manual run action.
-
-## User Actions
-- Save configuration → The latest selector version is stored for future ingests.
-- Run preview → The page displays extracted values for quick verification when the preview target can be fetched.
-- Press Ingest now → A persisted snapshot is created and appears in history.
-- Expect a visual DOM selector → Use the structured manual builder instead; a visual selector is not implemented in the current UI.
+## What To Check
+- The queue is an action page, not a reporting page.
+- It combines issues from properties, runs, notifications, and setup gaps into one list.
+- Inline actions are there to reduce route switching for common fixes.
 
 ## Navigation
-- Previous: [Add Property](./10-add-property.md)
-- Next: [Sources](./12-sources.md)
+- Previous: [Overview Dashboard](./10-add-property.md)
+- Next: [Notifications](./12-sources.md)

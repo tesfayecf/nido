@@ -1,32 +1,23 @@
 # Runs
 
-## Purpose
-Browse recent ingestion runs and filter them by source.
-
 ## Screenshot
-![Runs list](../assets/runs.png)
+![Runs list](../assets/runs-current.png)
 
-## UI Elements
-### Element: Run filters
-- Type: form
-- Description: Filters recent runs by source id and limit.
-- Behavior: Apply updates the URL-backed filters.
+## What You Do Here
+Review stored snapshots, trigger a manual run, and jump into a detailed comparison when something changed or failed.
 
-### Element: Recent Runs list
-- Type: interactive list
-- Description: Shows run id, source id, trigger kind, status, items, attempts, and finish time.
-- Behavior: Links each run to its detail page.
+## Quick Start
+1. Filter the list by property id or result limit.
+2. Apply the filters.
+3. Open a run row when you need the full snapshot detail.
+4. Use `Create run` when you want an immediate manual check for a selected property.
+5. Delete a stored run only when the snapshot should no longer exist.
 
-### Element: Live Events panel
-- Type: status panel
-- Description: Surfaces SSE connection state for operator workflows.
-- Behavior: Displays events when the backend emits them during the session.
-
-## User Actions
-- Filter by source id → The list narrows to matching runs.
-- Open a completed or failed run → The run detail screen opens.
-- Load with no matching runs → The page shows its empty-state guidance.
+## What To Check
+- The runs table is a snapshot history surface, not just a live execution log.
+- Row selection is the fastest path into full comparison detail.
+- Manual runs are useful after a selector or template change when you want fast verification.
 
 ## Navigation
-- Previous: [Source Detail](./14-source-detail.md)
+- Previous: [Template Detail](./14-source-detail.md)
 - Next: [Run Detail](./16-run-detail.md)

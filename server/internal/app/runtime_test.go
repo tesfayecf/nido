@@ -9,11 +9,86 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"home-searcher/server/internal/platform/config"
 )
+
+func TestRuntimeAllowsLoopbackCORSRequests(t *testing.T) {
+	t.Parallel()
+
+	server, _ := newRuntimeServer(t)
+	defer server.Close()
+
+	origin := "http://localhost:4173"
+	preflight, err := http.NewRequest(http.MethodOptions, server.URL+"/api/v1/auth/login", nil)
+	if err != nil {
+		t.Fatalf("new preflight request: %v", err)
+	}
+	preflight.Header.Set("Origin", origin)
+	preflight.Header.Set("Access-Control-Request-Method", http.MethodPost)
+	preflight.Header.Set("Access-Control-Request-Headers", "content-type")
+
+	preflightResponse, err := http.DefaultClient.Do(preflight)
+	if err != nil {
+		t.Fatalf("do preflight request: %v", err)
+	}
+	defer preflightResponse.Body.Close()
+
+	if preflightResponse.StatusCode != http.StatusNoContent {
+		body, readErr := io.ReadAll(preflightResponse.Body)
+		if readErr != nil {
+			t.Fatalf("unexpected preflight status %d and read body: %v", preflightResponse.StatusCode, readErr)
+		}
+		t.Fatalf("unexpected preflight status %d, body=%s", preflightResponse.StatusCode, string(body))
+	}
+	if got := preflightResponse.Header.Get("Access-Control-Allow-Origin"); got != origin {
+		t.Fatalf("unexpected preflight allow origin: %q", got)
+	}
+	if got := preflightResponse.Header.Get("Access-Control-Allow-Headers"); got != "content-type" {
+		t.Fatalf("unexpected preflight allow headers: %q", got)
+	}
+	if got := preflightResponse.Header.Get("Access-Control-Allow-Methods"); !strings.Contains(got, http.MethodPost) {
+		t.Fatalf("expected preflight methods to include POST, got %q", got)
+	}
+
+	loginPayload, err := json.Marshal(map[string]string{
+		"email":    "admin@local",
+		"password": "dev-password",
+	})
+	if err != nil {
+		t.Fatalf("marshal login payload: %v", err)
+	}
+
+	loginRequest, err := http.NewRequest(http.MethodPost, server.URL+"/api/v1/auth/login", bytes.NewReader(loginPayload))
+	if err != nil {
+		t.Fatalf("new login request: %v", err)
+	}
+	loginRequest.Header.Set("Origin", origin)
+	loginRequest.Header.Set("Content-Type", "application/json")
+
+	loginResponse, err := http.DefaultClient.Do(loginRequest)
+	if err != nil {
+		t.Fatalf("do login request: %v", err)
+	}
+	defer loginResponse.Body.Close()
+
+	loginBody, err := io.ReadAll(loginResponse.Body)
+	if err != nil {
+		t.Fatalf("read login response: %v", err)
+	}
+	if loginResponse.StatusCode != http.StatusOK {
+		t.Fatalf("unexpected login status %d, body=%s", loginResponse.StatusCode, string(loginBody))
+	}
+	if got := loginResponse.Header.Get("Access-Control-Allow-Origin"); got != origin {
+		t.Fatalf("unexpected login allow origin: %q", got)
+	}
+	if !bytes.Contains(loginBody, []byte("token")) {
+		t.Fatalf("expected login response body to contain token, body=%s", string(loginBody))
+	}
+}
 
 func TestRuntimePropertyTrackingFlow(t *testing.T) {
 	t.Parallel()

@@ -1,27 +1,24 @@
-# Bookmarks
-
-## Purpose
-Review the saved listings tied to the current authenticated user.
+# New Property
 
 ## Screenshot
-![Bookmarks](../assets/bookmarks.png)
+![New property](../assets/property-new-current.png)
 
-## UI Elements
-### Element: Bookmark rows
-- Type: interactive list
-- Description: Shows saved listing title, location, saved timestamp, and current price.
-- Behavior: Each row links back to detail and to the external listing source.
+## What You Do Here
+Create a tracked property and its first extraction configuration in one guided flow.
 
-### Element: Remove
-- Type: button
-- Description: Deletes the bookmark.
-- Behavior: Disables while the delete request is pending.
+## Quick Start
+1. Enter the target page URL.
+2. Choose the run interval that should drive future checks.
+3. Configure retry behavior for failed runs.
+4. Add or refine selector fields and ordered fallback selectors.
+5. Add business metadata only when it helps operator decisions later.
+6. Save the property and its config together.
 
-## User Actions
-- Open a bookmarked listing → The listing detail page opens.
-- Press Remove → The bookmark disappears after the query refreshes.
-- Open with no bookmarks → The page shows its empty-state guidance.
+## What To Check
+- The page is intentionally guided: URL first, fields next, preview and validation before save.
+- Schedule validation blocks invalid run intervals before the record is created.
+- Operator-authored metadata is kept alongside the property so later runs do not overwrite it.
 
 ## Navigation
-- Previous: [Listing Detail](./04-listing-detail.md)
-- Next: [Watchlists](./06-watchlists.md)
+- Previous: [Properties Workspace](./04-listing-detail.md)
+- Next: [Property Detail](./06-watchlists.md)

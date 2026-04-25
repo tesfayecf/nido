@@ -36,6 +36,9 @@ export const Dialog = ({
     const titleId = useId();
     const descriptionId = useId();
 
+    // Lock body scroll and focus the first focusable element only when the dialog opens.
+    // Intentionally does not depend on `onOpenChange` so that inline callbacks created by
+    // callers on every render do not re-trigger this effect and steal focus mid-typing.
     useEffect(() => {
         if (!open) {
             return undefined;
@@ -46,6 +49,17 @@ export const Dialog = ({
 
         const focusableElements = contentRef.current?.querySelectorAll<HTMLElement>(focusableSelector);
         focusableElements?.[0]?.focus();
+
+        return () => {
+            document.body.style.overflow = previousOverflow;
+        };
+    }, [open]);
+
+    // Keep the keyboard handler up-to-date with the latest `onOpenChange` reference.
+    useEffect(() => {
+        if (!open) {
+            return undefined;
+        }
 
         const handleKeyDown = (event: KeyboardEvent): void => {
             if (event.key === "Escape") {
@@ -83,7 +97,6 @@ export const Dialog = ({
 
         window.addEventListener("keydown", handleKeyDown);
         return () => {
-            document.body.style.overflow = previousOverflow;
             window.removeEventListener("keydown", handleKeyDown);
         };
     }, [onOpenChange, open]);

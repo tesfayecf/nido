@@ -500,17 +500,17 @@ const parsePropertyCSV = (text: string): PropertyImportRow[] => {
         return {
             label: row.label ?? "",
             metadata: {
-                acquisition_notes: row.acquisition_notes || undefined,
-                business_stage: row.business_stage || undefined,
-                deal_thesis: row.deal_thesis || undefined,
+                acquisition_notes: row.acquisition_notes ?? undefined,
+                business_stage: row.business_stage ?? undefined,
+                deal_thesis: row.deal_thesis ?? undefined,
                 expected_rent: row.expected_rent !== "" ? Number(row.expected_rent) : undefined,
                 expected_yield_bps: row.expected_yield_bps !== "" ? Number(row.expected_yield_bps) : undefined,
-                priority_level: row.priority_level || undefined,
+                priority_level: row.priority_level ?? undefined,
                 target_price: row.target_price !== "" ? Number(row.target_price) : undefined,
             },
-            pause_reason: row.pause_reason || undefined,
+            pause_reason: row.pause_reason ?? undefined,
             paused: row.paused === "true",
-            source_id: row.source_id || undefined,
+            source_id: row.source_id ?? undefined,
             url: row.url ?? "",
         } satisfies PropertyImportRow;
     });

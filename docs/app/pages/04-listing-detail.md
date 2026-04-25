@@ -1,42 +1,23 @@
-# Listing Detail
-
-## Purpose
-Show one normalized listing record and its persisted price-history timeline.
+# Properties Workspace
 
 ## Screenshot
-![Listing detail](../assets/listing-detail.png)
+![Properties workspace](../assets/properties-current.png)
 
-## UI Elements
-### Element: Detail metrics grid
-- Type: data panel
-- Description: Shows current price, location, first seen, last seen, source, and external id.
-- Behavior: Renders the latest canonical backend snapshot.
+## What You Do Here
+Review tracked properties, filter the working set, and jump into the next task without opening multiple pages first.
 
-### Element: Back to listings
-- Type: link
-- Description: Returns to the explorer.
-- Behavior: Navigates back to `/listings`.
+## Quick Start
+1. Review the saved views at the top of the page to narrow the working set quickly.
+2. Use search, status, location, `Saved only`, and tags to refine the list.
+3. Sort by the table headers when you want a different scan order.
+4. Use row actions to save, run, delete, or open more actions without leaving the table.
+5. Open a row when you want the full property detail view.
 
-### Element: Open original
-- Type: link
-- Description: Opens the source page outside the app.
-- Behavior: Uses the listing URL from the backend.
-
-### Element: Bookmark toggle
-- Type: button
-- Description: Adds or removes the listing from personal bookmarks.
-- Behavior: Requires authentication and shows a pending label while saving.
-
-### Element: Price History panel
-- Type: timeline panel
-- Description: Lists all persisted price changes for the listing.
-- Behavior: Shows an empty-state message when no changes have been recorded.
-
-## User Actions
-- Open a listing from the explorer → The detail view loads route-specific data.
-- Remove bookmark → The listing is removed from `/bookmarks`.
-- Review price history → Operators can see whether prior ingest runs captured price changes.
+## What To Check
+- The workspace is optimized for scanning first and drilling in second.
+- Saved views do not create new records; they only change the visible slice.
+- Tags and shortlist state are available directly from the list so you do not need to open every property.
 
 ## Navigation
-- Previous: [Listings Explorer](./03-listings.md)
-- Next: [Bookmarks](./05-bookmarks.md)
+- Previous: [Getting Started](./03-listings.md)
+- Next: [New Property](./05-bookmarks.md)

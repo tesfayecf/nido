@@ -110,7 +110,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Runtime,
 	platformopshttp.Register(mux, authMiddleware, platformService)
 
 	return &Runtime{
-		Handler:           platformhttp.LoggingMiddleware(logger, mux),
+		Handler:           platformhttp.LoggingMiddleware(logger, platformhttp.CORSMiddleware(mux)),
 		db:                db,
 		cancel:            cancel,
 		scheduler:         nil,

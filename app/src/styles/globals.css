@@ -382,39 +382,70 @@ textarea {
 
 .button {
     align-items: center;
-    background: var(--color-accent);
     border: 1px solid transparent;
-    border-radius: var(--radius-md);
-    color: var(--color-surface-strong);
+    border-radius: calc(var(--radius-md));
+    box-shadow: var(--button-shadow, none);
+    color: var(--color-text);
     cursor: pointer;
     display: inline-flex;
-    font-weight: 600;
+    font-size: var(--text-sm);
+    font-weight: 700;
     gap: var(--space-2);
     justify-content: center;
+    line-height: var(--line-height-tight);
+    max-width: 100%;
     min-height: 2.75rem;
+    min-width: 0;
     padding: 0.78rem 1.1rem;
+    text-align: center;
+    text-decoration: none;
+    transition: background-color var(--duration-normal) ease, border-color var(--duration-normal) ease, box-shadow var(--duration-normal) ease, color var(--duration-normal) ease, transform var(--duration-fast) ease;
+    user-select: none;
+    vertical-align: top;
 }
 
 .button:hover:not(:disabled) {
-    background: var(--color-primary-strong);
     transform: translateY(-1px);
 }
 
+.button:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.button:focus-visible {
+    box-shadow: 0 0 0 3px var(--color-focus-ring), var(--button-shadow, none);
+    outline: none;
+}
+
 .button:disabled {
+    box-shadow: none;
     cursor: not-allowed;
     opacity: 0.65;
+    transform: none;
+}
+
+.button--primary {
+    --button-shadow: none;
+    background: color-mix(in srgb, var(--color-accent) 88%, white);
+    border-color: color-mix(in srgb, var(--color-accent) 72%, black);
+    color: var(--color-surface-strong);
+}
+
+.button--primary:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--color-accent) 78%, white);
+    border-color: color-mix(in srgb, var(--color-accent) 72%, black);
 }
 
 .button--secondary {
-    background: var(--color-surface-muted);
-    border-color: var(--color-border);
+    --button-shadow: 0 10px 18px -22px var(--color-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.92);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--color-surface) 96%, transparent), color-mix(in srgb, var(--color-surface-muted) 92%, var(--color-surface)));
+    border-color: color-mix(in srgb, var(--color-border-strong) 78%, var(--color-surface-muted));
     color: var(--color-text);
 }
 
 .button--secondary:hover:not(:disabled) {
-    background: var(--color-surface);
-    background: color-mix(in srgb, var(--color-surface-muted) 78%, var(--color-accent-soft));
-    border-color: var(--color-border-strong);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--color-surface) 94%, var(--color-accent-soft)), color-mix(in srgb, var(--color-surface-muted) 74%, var(--color-accent-soft)));
+    border-color: color-mix(in srgb, var(--color-accent) 26%, var(--color-border-strong));
 }
 
 .button--pill {
@@ -1383,6 +1414,8 @@ textarea {
 }
 
 .button__label {
+    display: block;
+    max-width: 100%;
     white-space: nowrap;
 }
 
@@ -2028,7 +2061,7 @@ body {
     display: flex;
     flex-direction: column;
     max-height: calc(100vh - 3rem);
-    width: min(100%, 36rem);
+    width: min(100%, 48rem);
 }
 
 .dialog--wide {
@@ -2057,9 +2090,15 @@ body {
 }
 
 .dialog__body {
-    max-height: calc(100vh - 12rem);
+    flex: 1;
+    max-height: calc(100vh - 10rem);
     overflow: auto;
     padding: var(--space-4);
+}
+
+.dialog--wide .dialog__body {
+    max-height: calc(100vh - 8rem);
+    padding: var(--space-5);
 }
 
 .dialog__footer {
@@ -2371,13 +2410,28 @@ body {
 }
 
 .button {
-    border-radius: var(--radius-md);
+    border-radius: calc(var(--radius-md));
     min-height: var(--control-height-md);
-    padding: 0.68rem 0.95rem;
+    padding: 0.56rem 0.78rem;
+}
+
+.button--medium {
+    min-height: var(--control-height-md);
 }
 
 .button--small {
     min-height: var(--control-height-sm);
+    padding: 0.38rem 0.64rem;
+}
+
+.button--large {
+    min-height: var(--control-height-lg);
+    padding: 0.74rem 1rem;
+}
+
+.button--medium .button__label {
+    text-wrap: balance;
+    white-space: normal;
 }
 
 .theme-toggle {
@@ -2437,6 +2491,69 @@ body {
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-2);
+}
+
+.enterprise-chip-row--saved-views {
+    align-items: center;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--color-surface) 92%, transparent), color-mix(in srgb, var(--color-surface-muted) 92%, var(--color-surface)));
+    border: 1px solid var(--color-border);
+    border-radius: calc(var(--radius-pill) + var(--space-1));
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-surface) 84%, transparent);
+    flex-wrap: nowrap;
+    max-width: 100%;
+    overflow-x: auto;
+    padding: var(--space-1);
+    scrollbar-width: none;
+    width: fit-content;
+}
+
+.enterprise-chip-row--saved-views::-webkit-scrollbar {
+    display: none;
+}
+
+.enterprise-chip-button {
+    border-color: transparent;
+    border-radius: var(--radius-pill);
+    color: var(--color-text-secondary);
+    flex: 0 0 auto;
+    font-size: var(--text-sm);
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    min-height: 2.35rem;
+    padding: 0.5rem 0.95rem;
+    transition: background-color var(--duration-normal) ease, border-color var(--duration-normal) ease, box-shadow var(--duration-normal) ease, color var(--duration-normal) ease, transform var(--duration-fast) ease;
+}
+
+.enterprise-chip-button.button--secondary {
+    background: transparent;
+    border-color: transparent;
+}
+
+.enterprise-chip-button:hover:not(:disabled) {
+    transform: translateY(0);
+}
+
+.enterprise-chip-button.button--secondary:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--color-surface) 78%, var(--color-accent-soft));
+    border-color: color-mix(in srgb, var(--color-border-strong) 78%, var(--color-accent-soft));
+    color: var(--color-text);
+}
+
+.enterprise-chip-button--active {
+    background: color-mix(in srgb, var(--color-accent) 88%, white);
+    border-color: color-mix(in srgb, var(--color-accent) 72%, black);
+    box-shadow: none;
+    color: var(--color-surface-strong);
+}
+
+.enterprise-chip-button--active:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--color-accent) 78%, white);
+    border-color: color-mix(in srgb, var(--color-accent) 72%, black);
+}
+
+.enterprise-chip-button:focus-visible {
+    box-shadow: 0 0 0 3px var(--color-focus-ring);
+    outline: none;
 }
 
 .enterprise-inline-chip {

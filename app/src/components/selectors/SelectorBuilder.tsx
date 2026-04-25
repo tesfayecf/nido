@@ -69,17 +69,32 @@ const previewLabel = (field?: PropertyPreviewFieldResult): string => {
 
 export const SelectorBuilder = ({ fieldDefinitions, fields, onChange, previewByFieldName }: SelectorBuilderProps): JSX.Element => {
     const [helpOpen, setHelpOpen] = useState(false);
+    const [tipsOpen, setTipsOpen] = useState(false);
+    const [openFallbacks, setOpenFallbacks] = useState<Set<string>>(new Set());
     const systemFields = (fieldDefinitions ?? []).filter((item) => item.system_defined);
     const userFields = (fieldDefinitions ?? []).filter((item) => !item.system_defined);
+
+    const toggleFallback = (fieldId: string): void => {
+        setOpenFallbacks((prev) => {
+            const next = new Set(prev);
+            if (next.has(fieldId)) { next.delete(fieldId); } else { next.add(fieldId); }
+            return next;
+        });
+    };
 
     return (
         <div className={"selector-builder"}>
             <div className={"selector-builder__intro"}>
                 <div className={"selector-builder__intro-header"}>
                     <p className={"selector-builder__eyebrow"}>{"Selector builder"}</p>
-                    <Button onClick={() => { setHelpOpen(true); }} size={"small"} variant={"secondary"}>
-                        {"How to use"}
-                    </Button>
+                    <div className={"action-group"}>
+                        <Button onClick={() => { setTipsOpen((prev) => !prev); }} size={"small"} variant={"ghost"}>
+                            {tipsOpen ? "Hide tips ▴" : "Tips ▾"}
+                        </Button>
+                        <Button onClick={() => { setHelpOpen(true); }} size={"small"} variant={"secondary"}>
+                            {"How to use"}
+                        </Button>
+                    </div>
                 </div>
                 <h3 className={"selector-builder__title"}>{"Tell Home Searcher where each value lives on the page."}</h3>
                 <p className={"selector-builder__copy"}>
@@ -87,20 +102,22 @@ export const SelectorBuilder = ({ fieldDefinitions, fields, onChange, previewByF
                 </p>
             </div>
 
-            <div className={"selector-builder__tips"} role={"list"}>
-                <div className={"selector-builder__tip"} role={"listitem"}>
-                    <strong>{"CSS selector"}</strong>
-                    <span>{'Selects page elements with classes or ids, for example ".price" or "#title".'}</span>
+            {tipsOpen ? (
+                <div className={"selector-builder__tips"} role={"list"}>
+                    <div className={"selector-builder__tip"} role={"listitem"}>
+                        <strong>{"CSS selector"}</strong>
+                        <span>{'Selects page elements with classes or ids, for example ".price" or "#title".'}</span>
+                    </div>
+                    <div className={"selector-builder__tip"} role={"listitem"}>
+                        <strong>{"Fallback selectors"}</strong>
+                        <span>{"Add one selector per line and they will be tried in order if the main selector fails."}</span>
+                    </div>
+                    <div className={"selector-builder__tip"} role={"listitem"}>
+                        <strong>{"Extraction"}</strong>
+                        <span>{'Use "Text" for readable content, or "Attribute" when you need href, src, content, and similar values.'}</span>
+                    </div>
                 </div>
-                <div className={"selector-builder__tip"} role={"listitem"}>
-                    <strong>{"Fallback selectors"}</strong>
-                    <span>{"Add one selector per line and they will be tried in order if the main selector fails."}</span>
-                </div>
-                <div className={"selector-builder__tip"} role={"listitem"}>
-                    <strong>{"Extraction"}</strong>
-                    <span>{'Use "Text" for readable content, or "Attribute" when you need href, src, content, and similar values.'}</span>
-                </div>
-            </div>
+            ) : null}
 
             <div className={"item-list"}>
                 {fields.map((field, index) => {
@@ -193,19 +210,30 @@ export const SelectorBuilder = ({ fieldDefinitions, fields, onChange, previewByF
                                     />
                                 </Field>
 
-                                <Field
-                                    fullWidth
-                                    hint={"Optional. Add one selector per line in the order you want to try them."}
-                                    label={"Fallback selectors"}
-                                >
-                                    <Textarea
-                                        className={"selector-builder__textarea"}
-                                        onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { fallbackSelectorsRaw: event.target.value })); }}
-                                        placeholder={field.selectorType === "xpath" ? "//div[@data-price]" : ".price-alt\n[data-price]"}
-                                        rows={3}
-                                        value={field.fallbackSelectorsRaw}
-                                    />
-                                </Field>
+                                <div className={"field field--full-width"}>
+                                    <Button
+                                        onClick={() => { toggleFallback(field.id); }}
+                                        size={"small"}
+                                        variant={"ghost"}
+                                    >
+                                        {openFallbacks.has(field.id) ? "Hide fallback selectors ▴" : "Add fallback selectors ▾"}
+                                    </Button>
+                                    {openFallbacks.has(field.id) ? (
+                                        <Field
+                                            fullWidth
+                                            hint={"Optional. Add one selector per line in the order you want to try them."}
+                                            label={"Fallback selectors"}
+                                        >
+                                            <Textarea
+                                                className={"selector-builder__textarea"}
+                                                onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { fallbackSelectorsRaw: event.target.value })); }}
+                                                placeholder={field.selectorType === "xpath" ? "//div[@data-price]" : ".price-alt\n[data-price]"}
+                                                rows={3}
+                                                value={field.fallbackSelectorsRaw}
+                                            />
+                                        </Field>
+                                    ) : null}
+                                </div>
 
                                 <Field label={"Extraction type"}>
                                     <Select

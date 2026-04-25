@@ -347,12 +347,23 @@ export const PropertiesPage = (): JSX.Element => {
                 title={"Properties"}
             >
                 <div className={"enterprise-section-stack"}>
-                    <div className={"enterprise-chip-row"}>
-                        {SAVED_VIEW_OPTIONS.map((option) => (
-                            <Button key={option.id} onClick={() => { setSavedView(option.id); }} size={"small"} variant={savedViewId === option.id ? "primary" : "secondary"}>
-                                {option.label}
-                            </Button>
-                        ))}
+                    <div aria-label={"Saved property views"} className={"enterprise-chip-row enterprise-chip-row--saved-views"} role={"group"}>
+                        {SAVED_VIEW_OPTIONS.map((option) => {
+                            const isActive = savedViewId === option.id;
+
+                            return (
+                                <Button
+                                    aria-pressed={isActive}
+                                    className={isActive ? "enterprise-chip-button enterprise-chip-button--active" : "enterprise-chip-button"}
+                                    key={option.id}
+                                    onClick={() => { setSavedView(option.id); }}
+                                    size={"small"}
+                                    variant={isActive ? "primary" : "secondary"}
+                                >
+                                    {option.label}
+                                </Button>
+                            );
+                        })}
                     </div>
                     <span className={"muted-copy"}>{savedView.description}</span>
                     <div className={"enterprise-metric-grid"}>

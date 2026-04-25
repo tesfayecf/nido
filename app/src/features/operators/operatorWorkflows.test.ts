@@ -118,6 +118,12 @@ describe("operatorWorkflows", () => {
         expect(retainVisibleSelection(["property-1", "property-2"], ["property-2"])).toEqual(["property-2"]);
     });
 
+    it("preserves the current selection reference when visible rows are unchanged", () => {
+        const selection = ["property-2"];
+
+        expect(retainVisibleSelection(selection, ["property-2"])).toBe(selection);
+    });
+
     it("creates richer live event summaries", () => {
         expect(eventSeverity("ingestion.run.failed")).toBe("critical");
         expect(summarizeEventData({ error: "failed", property_id: "property-2", source_id: "source-2" })).toContain("property_id: property-2");

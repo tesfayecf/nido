@@ -1,37 +1,24 @@
 # Shell Navigation
 
-## Purpose
-Describe the shared application shell used on all non-login routes.
-
 ## Screenshot
-![Application shell](../assets/listings.png)
+![Application shell](../assets/properties-current.png)
 
-## UI Elements
-### Element: Sidebar navigation
-- Type: menu
-- Description: Groups routes into Explore, Track, and Operate sections.
-- Behavior: Highlights the active route and collapses on small screens.
+## What You Do Here
+Use the shell to move between the core property workflow, the daily operations views, the advanced admin tools, and your account settings without losing the current authenticated session.
 
-### Element: Header title block
-- Type: status header
-- Description: Shows the current section, route title, and route description.
-- Behavior: Changes automatically with navigation.
+## Quick Start
+1. Use the left sidebar to choose a route group: `Core workflow`, `Operations`, `Admin / Advanced`, or `Account`.
+2. Use the header to confirm the current section and page title.
+3. Open the command palette from the header when you want faster route access.
+4. Use the sidebar toggle on narrower layouts.
+5. Sign out from the footer when you are done.
 
-### Element: Menu button
-- Type: button
-- Description: Toggles sidebar visibility on narrow viewports.
-- Behavior: Opens or closes the navigation drawer.
-
-### Element: Signed-in footer
-- Type: status panel
-- Description: Shows the current user identity and sign-out action.
-- Behavior: Switches to a sign-in prompt when no valid session exists.
-
-## User Actions
-- Choose a sidebar link → The route content changes inside the shared shell.
-- Press Sign out → Protected state is cleared and the user returns to login.
-- Use Skip to main content → Keyboard focus jumps into the page body.
+## What To Check
+- The active route stays inside the shared shell rather than opening a separate layout.
+- `Skip to main content` is available for keyboard navigation.
+- The footer shows the signed-in user when authentication is present and a sign-in prompt when it is not.
+- The shell groups routes by operator job, not by backend endpoint names.
 
 ## Navigation
-- Previous: [Login](./01-login.md)
-- Next: [Listings Explorer](./03-listings.md)
+- Previous: [Sign In](./01-login.md)
+- Next: [Getting Started](./03-listings.md)

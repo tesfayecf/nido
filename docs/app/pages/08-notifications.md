@@ -1,32 +1,22 @@
-# Notifications
-
-## Purpose
-Show ingestion-driven notifications created by watchlist and alert-rule matches.
+# Saved / Shortlist
 
 ## Screenshot
-![Notifications](../assets/notifications.png)
+![Saved shortlist](../assets/bookmarks-current.png)
 
-## UI Elements
-### Element: Notification filters
-- Type: form
-- Description: Filters the inbox by unread status and result limit.
-- Behavior: Apply writes the current filter values into the URL.
+## What You Do Here
+Review the properties you explicitly saved for follow-up without creating a separate watchlist or query layer.
 
-### Element: Inbox list
-- Type: interactive list
-- Description: Shows title, body, rule kind, read status, and created timestamp.
-- Behavior: Refreshes from the backend when filters or read state change.
+## Quick Start
+1. Save properties from the main list or the detail page.
+2. Open `Saved / Shortlist` when you want to review only the manually shortlisted set.
+3. Re-open a property when you need its full context again.
+4. Remove saved items when they no longer deserve attention.
 
-### Element: Mark read
-- Type: button
-- Description: Marks a notification as read.
-- Behavior: Removes the item from unread-only views after refetch.
-
-## User Actions
-- Apply unread-only filtering → Only unread notifications stay visible.
-- Mark read → The selected notification updates its state.
-- Load with no notifications → The page shows its empty-state message.
+## What To Check
+- Bookmarks are direct property saves tied to tracked properties.
+- This route is best for a short human-curated list, not for automation.
+- The shortlist works well as a handoff point into alerts or deeper property review.
 
 ## Navigation
-- Previous: [Alert Rules](./07-alerts.md)
-- Next: [Tracked Properties](./09-properties.md)
+- Previous: [Market Analysis](./07-alerts.md)
+- Next: [Alerts](./09-properties.md)

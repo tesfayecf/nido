@@ -4,11 +4,25 @@
 
 Read these in order when you are new to the app:
 
-1. [architecture.md](./architecture.md)
-2. [backend-contract.md](./backend-contract.md)
-3. [local-development.md](./local-development.md)
+1. [codebase-map.md](./codebase-map.md)
+2. [architecture.md](./architecture.md)
+3. [design-system.md](./design-system.md)
+4. [backend-contract.md](./backend-contract.md)
+5. [local-development.md](./local-development.md)
 
 The app is small enough that correctness comes from preserving boundaries, not from adding more abstraction.
+
+## Find The Right Place Fast
+
+| Change type | Primary entry point | Usually changes nearby |
+| --- | --- | --- |
+| New page or route | `src/app/router.tsx` | `src/features/<capability>`, `src/components/shell/navigation.ts`, docs in this folder |
+| Backend data contract | `src/services/<capability>` | [backend-contract.md](./backend-contract.md), owning feature, focused tests |
+| Shared visual pattern | `src/components/ui` | [design-system.md](./design-system.md), `src/styles/globals.css`, affected feature pages |
+| Shell framing or navigation | `src/app/AppShell.tsx` | `src/components/shell/*`, `src/stores/shell.store.ts` |
+| Auth flow or session expiry | `src/app/RequireAuth.tsx` | `src/stores/session.store.ts`, `src/services/auth`, `src/lib/api/client.ts` |
+| Live event behavior | `src/features/backoffice/EventsPage.tsx` | `src/services/backoffice-events`, `src/lib/api/sse.ts`, `src/stores/live-events.store.ts` |
+| Theme or tokens | `src/styles/tokens.css` | `src/styles/globals.css`, `src/hooks/useTheme.tsx`, `src/components/shell/ThemeToggle.tsx` |
 
 ## Daily Commands
 
@@ -25,15 +39,18 @@ pnpm build
 
 Prefer `pnpm typecheck` and targeted tests before broad UI rewrites.
 
+If a change is docs-only, review the changed markdown for link drift and route drift before moving on.
+
 ## Change Routing And Screens
 
 When adding a page or route:
 
 1. Create or extend the page under `src/features/<capability>`.
 2. Add the route in `src/app/router.tsx`.
-3. Keep public routes rare. Most pages should remain behind `RequireAuth`.
-4. If the page belongs in the authenticated shell, update navigation and shell copy together.
+3. If the page belongs in the authenticated shell, update `src/components/shell/navigation.ts` and route metadata together.
+4. Keep public routes rare. Most pages should remain behind `RequireAuth`.
 5. Add a focused test if the route has auth or redirect behavior.
+6. Update [codebase-map.md](./codebase-map.md) and [architecture.md](./architecture.md) when route ownership changes.
 
 Do not put fetch logic in router definitions. The current architecture expects pages to own their TanStack Query hooks directly.
 

@@ -30,7 +30,7 @@ const sizeClassNames: Record<ButtonSize, string> = {
 const variantClassNames: Record<ButtonVariant, string> = {
     destructive: "button--destructive",
     ghost: "button--ghost",
-    primary: "button",
+    primary: "button--primary",
     secondary: "button--secondary",
 };
 

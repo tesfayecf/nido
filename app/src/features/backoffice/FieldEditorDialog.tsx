@@ -70,6 +70,7 @@ export const FieldEditorDialog = ({
                     </Button>
                 </>
             )}
+            className={"dialog--wide"}
             description={"Configure a single selector field. Changes apply to the current source template once saved."}
             onOpenChange={(value) => { if (!value) { onClose(); } }}
             open={open}

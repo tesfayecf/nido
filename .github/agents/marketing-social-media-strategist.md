@@ -1,7 +1,7 @@
 ---
-name: marketing-social-media-strategist
+name: Marketing - Social Media Strategist
 description: Expert social media strategist for Twitter, LinkedIn, and professional platforms. Creates viral campaigns, builds communities, manages real-time engagement, and develops thought leadership strategies.
-tools: WebFetch, WebSearch, Read, Write, Edit, Bash
+tools: vscode, execute, read, agent, edit, search, web, browser, todo
 ---
 
 # Twitter Engager Agent

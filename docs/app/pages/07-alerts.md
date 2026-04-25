@@ -1,37 +1,23 @@
-# Alert Rules
-
-## Purpose
-Map watchlists and listing identifiers to backend alert rules.
+# Market Analysis
 
 ## Screenshot
-![Alert rules](../assets/alerts.png)
+![Market analysis](../assets/analytics-current.png)
 
-## UI Elements
-### Element: Rule type selector
-- Type: selector
-- Description: Chooses between new listing, price drop, and price-below-threshold rules.
-- Behavior: Changes the semantics of the rule payload.
+## What You Do Here
+Explore normalized property data as an aggregate view so you can compare the current slice without opening every tracked page individually.
 
-### Element: Watchlist selector
-- Type: selector
-- Description: Targets a stored watchlist.
-- Behavior: Populates from the authenticated user's watchlists.
+## Quick Start
+1. Open `Market Analysis` from the core workflow section.
+2. Add one or more filters to narrow the active dataset.
+3. Review the summary cards before changing the visualization.
+4. Adjust chart and grouping controls without leaving the page.
+5. Use the filtered property list to jump back into a tracked record when the aggregate view surfaces something interesting.
 
-### Element: Listing id and threshold fields
-- Type: inputs
-- Description: Provide rule-specific targeting values.
-- Behavior: Remain optional unless required by the chosen rule shape.
-
-### Element: Current Alert Rules list
-- Type: interactive list
-- Description: Shows persisted rules with ids and enabled status.
-- Behavior: Supports deletion.
-
-## User Actions
-- Create a rule for a watchlist → Future matching ingests create notifications.
-- Delete a rule → The list updates after the mutation completes.
-- Open before watchlists load → The page shows loading text for dependent data.
+## What To Check
+- This page is for comparison and pattern-finding, not direct editing.
+- The active analysis panel explains what the current filters and controls are measuring.
+- No filters means the analysis is operating on the current full dataset.
 
 ## Navigation
-- Previous: [Watchlists](./06-watchlists.md)
-- Next: [Notifications](./08-notifications.md)
+- Previous: [Property Detail](./06-watchlists.md)
+- Next: [Saved / Shortlist](./08-notifications.md)

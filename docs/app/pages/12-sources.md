@@ -1,32 +1,23 @@
-# Sources
-
-## Purpose
-List reusable source templates and jump into the selector builder for each one.
+# Notifications
 
 ## Screenshot
-![Sources list](../assets/sources.png)
+![Notifications inbox](../assets/notifications-current.png)
 
-## UI Elements
-### Element: Source rows
-- Type: interactive list
-- Description: Shows the template name, id, updated timestamp, and edit/delete actions.
-- Behavior: Opens the template builder for review or maintenance.
+## What You Do Here
+Review alert outcomes after runs complete and jump back to the property that triggered the message.
 
-### Element: Create template
-- Type: link
-- Description: Opens create mode for a new reusable selector template.
-- Behavior: Navigates to `/sources/new`.
+## Quick Start
+1. Set `Unread only` when you want to focus on new work.
+2. Adjust the result limit if you need a larger or smaller inbox slice.
+3. Apply the filters.
+4. Read the notification title and body.
+5. Open the related property or mark the notification read or unread.
 
-### Element: Live Events panel
-- Type: status panel
-- Description: Shows SSE connection state for backoffice operations.
-- Behavior: Displays recent event payloads when received.
-
-## User Actions
-- Open a template row → The template builder loads.
-- Press Create template → A new template starts with guided selector fields.
-- Open the page with no templates → The empty state explains creation as the next step.
+## What To Check
+- Notifications are created by alert conditions, not by manual note-taking.
+- The inbox stays lightweight: filter, read, jump back to the property, and move on.
+- This page is usually paired with alerts, review queue, and property detail.
 
 ## Navigation
-- Previous: [Property Detail](./11-property-detail.md)
-- Next: [Create Template](./13-add-source.md)
+- Previous: [Review Queue](./11-property-detail.md)
+- Next: [Sources](./13-add-source.md)
