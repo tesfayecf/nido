@@ -127,7 +127,16 @@ func Migrate(ctx context.Context, db *sql.DB) error {
 		}
 	}
 
+	if err := prepareSystemFieldDefinitionsForSeed(ctx, db); err != nil {
+		return err
+	}
 	if err := seedFieldDefinitions(ctx, db); err != nil {
+		return err
+	}
+	if err := reconcilePropertyFieldDefinitionReferences(ctx, db); err != nil {
+		return err
+	}
+	if err := cleanupLegacySystemFieldDefinitions(ctx, db); err != nil {
 		return err
 	}
 	if err := backfillPropertyFieldValues(ctx, db); err != nil {
@@ -254,14 +263,6 @@ CREATE TABLE IF NOT EXISTS auth_sessions (
 );
 
 CREATE INDEX IF NOT EXISTS idx_auth_sessions_user_id ON auth_sessions(user_id);
-
-DROP TABLE IF EXISTS watchlists;
-DROP TABLE IF EXISTS notifications;
-DROP TABLE IF EXISTS alert_rules;
-DROP TABLE IF EXISTS bookmarks;
-DROP TABLE IF EXISTS price_events;
-DROP TABLE IF EXISTS listing_snapshots;
-DROP TABLE IF EXISTS listings;
 
 CREATE TABLE IF NOT EXISTS bookmarks (
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -552,6 +553,7 @@ func seedFieldDefinitions(ctx context.Context, db *sql.DB) error {
 			`INSERT INTO field_definitions (id, name, display_name, data_type, unit, description, enum_values_json, default_value, use_default_when_missing, comparison_operator, comparison_value, system_defined, created_at, updated_at)
 			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			 ON CONFLICT(id) DO UPDATE SET
+				name = excluded.name,
 				display_name = excluded.display_name,
 				data_type = excluded.data_type,
 				unit = excluded.unit,
@@ -583,6 +585,127 @@ func seedFieldDefinitions(ctx context.Context, db *sql.DB) error {
 	}
 
 	return nil
+}
+
+func prepareSystemFieldDefinitionsForSeed(ctx context.Context, db *sql.DB) error {
+	type existingFieldDefinition struct {
+		id   string
+		name string
+	}
+
+	rows, err := db.QueryContext(ctx, `SELECT id, name FROM field_definitions WHERE system_defined = 1`)
+	if err != nil {
+		return fmt.Errorf("query system field definitions for seed preparation: %w", err)
+	}
+	defer rows.Close()
+
+	byName := make(map[string]existingFieldDefinition)
+	for rows.Next() {
+		var item existingFieldDefinition
+		if err := rows.Scan(&item.id, &item.name); err != nil {
+			return fmt.Errorf("scan system field definition for seed preparation: %w", err)
+		}
+		byName[strings.ToLower(strings.TrimSpace(item.name))] = item
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterate system field definitions for seed preparation: %w", err)
+	}
+
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	for _, field := range defaultFieldDefinitions {
+		existing, ok := byName[strings.ToLower(field.Name)]
+		if !ok || existing.id == field.ID {
+			continue
+		}
+
+		if _, err := db.ExecContext(
+			ctx,
+			`UPDATE field_definitions SET name = ?, updated_at = ? WHERE id = ?`,
+			legacySystemFieldDefinitionName(field.Name, existing.id),
+			now,
+			existing.id,
+		); err != nil {
+			return fmt.Errorf("rename legacy system field definition %q from %q: %w", field.Name, existing.id, err)
+		}
+	}
+
+	return nil
+}
+
+func reconcilePropertyFieldDefinitionReferences(ctx context.Context, db *sql.DB) error {
+	fieldDefinitions, err := loadFieldDefinitionMap(ctx, db)
+	if err != nil {
+		return err
+	}
+
+	type storedPropertyFieldValue struct {
+		id                string
+		fieldDefinitionID sql.NullString
+		fieldName         string
+		valueText         string
+	}
+
+	rows, err := db.QueryContext(ctx, `SELECT id, field_definition_id, field_name, value_text FROM property_field_values WHERE TRIM(field_name) != ''`)
+	if err != nil {
+		return fmt.Errorf("query property field values for reconciliation: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]storedPropertyFieldValue, 0)
+	for rows.Next() {
+		var item storedPropertyFieldValue
+		if err := rows.Scan(&item.id, &item.fieldDefinitionID, &item.fieldName, &item.valueText); err != nil {
+			return fmt.Errorf("scan property field value for reconciliation: %w", err)
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterate property field values for reconciliation: %w", err)
+	}
+
+	for _, item := range items {
+		definition, ok := fieldDefinitions[strings.ToLower(strings.TrimSpace(item.fieldName))]
+		if !ok {
+			continue
+		}
+
+		currentFieldDefinitionID := strings.TrimSpace(item.fieldDefinitionID.String)
+		if item.fieldDefinitionID.Valid && currentFieldDefinitionID == definition.ID && strings.EqualFold(strings.TrimSpace(item.fieldName), definition.Name) {
+			continue
+		}
+
+		valueText := applyFieldDefinitionFallback(definition, item.valueText)
+		valueText = applyFieldDefinitionComparison(definition, valueText)
+		validationStatus, validationMessage := ingestiondomain.ValidateFieldValue(definition, valueText)
+		if _, err := db.ExecContext(
+			ctx,
+			`UPDATE property_field_values
+			 SET field_definition_id = ?, field_name = ?, value_text = ?, validation_status = ?, validation_message = ?
+			 WHERE id = ?`,
+			definition.ID,
+			definition.Name,
+			valueText,
+			validationStatus,
+			validationMessage,
+			item.id,
+		); err != nil {
+			return fmt.Errorf("reconcile property field definition reference: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func cleanupLegacySystemFieldDefinitions(ctx context.Context, db *sql.DB) error {
+	if _, err := db.ExecContext(ctx, `DELETE FROM field_definitions WHERE system_defined = 1 AND name LIKE '__legacy__%'`); err != nil {
+		return fmt.Errorf("delete legacy system field definitions: %w", err)
+	}
+
+	return nil
+}
+
+func legacySystemFieldDefinitionName(name, id string) string {
+	return fmt.Sprintf("__legacy__%s__%s", strings.ToLower(strings.TrimSpace(name)), strings.ToLower(strings.TrimSpace(id)))
 }
 
 func backfillPropertyFieldValues(ctx context.Context, db *sql.DB) error {

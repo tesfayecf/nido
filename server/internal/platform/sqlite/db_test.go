@@ -163,6 +163,183 @@ func TestListAnalyticsRecordsAllowsNullSourceID(t *testing.T) {
 	}
 }
 
+func TestListBookmarksAllowsNullSourceID(t *testing.T) {
+	t.Parallel()
+
+	databasePath := filepath.Join(t.TempDir(), "nido.db")
+	db, err := Open(context.Background(), config.DatabaseConfig{Path: databasePath})
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
+	defer db.Close()
+
+	if err := Migrate(context.Background(), db); err != nil {
+		t.Fatalf("migrate database: %v", err)
+	}
+
+	store := NewStore(db)
+	createdAt := time.Now().UTC().Format(time.RFC3339Nano)
+	execTestStatement(t, db, `
+		INSERT INTO users (id, email, display_name, password_hash, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?)
+	`, "user-1", "user@example.test", "Test User", "hash", createdAt, createdAt)
+	execTestStatement(t, db, `
+		INSERT INTO properties (id, url, label, source_id, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?)
+	`, "property-1", "https://example.test/property/1", "Property Without Source", sql.NullString{}, createdAt, createdAt)
+	execTestStatement(t, db, `
+		INSERT INTO bookmarks (user_id, property_id, created_at)
+		VALUES (?, ?, ?)
+	`, "user-1", "property-1", createdAt)
+
+	items, err := store.ListBookmarks(context.Background(), "user-1")
+	if err != nil {
+		t.Fatalf("list bookmarks: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("expected one bookmark, got %d", len(items))
+	}
+	if items[0].SourceID != "" {
+		t.Fatalf("expected empty source id for bookmarked property without source, got %q", items[0].SourceID)
+	}
+}
+
+func TestMigratePreservesEngagementDataOnRerun(t *testing.T) {
+	t.Parallel()
+
+	databasePath := filepath.Join(t.TempDir(), "nido.db")
+	db, err := Open(context.Background(), config.DatabaseConfig{Path: databasePath})
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
+	defer db.Close()
+
+	if err := Migrate(context.Background(), db); err != nil {
+		t.Fatalf("initial migrate database: %v", err)
+	}
+
+	createdAt := time.Now().UTC().Format(time.RFC3339Nano)
+	execTestStatement(t, db, `
+		INSERT INTO users (id, email, display_name, password_hash, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?)
+	`, "user-1", "user@example.test", "Test User", "hash", createdAt, createdAt)
+	execTestStatement(t, db, `
+		INSERT INTO properties (id, url, label, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?)
+	`, "property-1", "https://example.test/property/1", "Preserved Property", createdAt, createdAt)
+	execTestStatement(t, db, `
+		INSERT INTO bookmarks (user_id, property_id, created_at)
+		VALUES (?, ?, ?)
+	`, "user-1", "property-1", createdAt)
+	execTestStatement(t, db, `
+		INSERT INTO alert_rules (id, user_id, property_id, rule_type, threshold_amount, enabled, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+	`, "alert-1", "user-1", "property-1", "price_below", 100000, 1, createdAt, createdAt)
+	execTestStatement(t, db, `
+		INSERT INTO notifications (id, user_id, alert_id, property_id, kind, title, body, data_json, delivery_status, created_at, read_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, "notification-1", "user-1", "alert-1", "property-1", "price_below", "Price below target", "Property is below target", `{}`, "pending", createdAt, sql.NullString{})
+
+	if err := Migrate(context.Background(), db); err != nil {
+		t.Fatalf("rerun migrate database: %v", err)
+	}
+
+	assertTableCount(t, db, "bookmarks", 1)
+	assertTableCount(t, db, "alert_rules", 1)
+	assertTableCount(t, db, "notifications", 1)
+}
+
+func TestMigrateRepairsLegacyRoomsFieldDefinitionIDs(t *testing.T) {
+	t.Parallel()
+
+	databasePath := filepath.Join(t.TempDir(), "nido.db")
+	db, err := Open(context.Background(), config.DatabaseConfig{Path: databasePath})
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
+	defer db.Close()
+
+	if err := Migrate(context.Background(), db); err != nil {
+		t.Fatalf("initial migrate database: %v", err)
+	}
+
+	observedAt := time.Now().UTC().Format(time.RFC3339Nano)
+	execTestStatement(t, db, `DELETE FROM field_definitions WHERE id = ?`, "field-rooms")
+	execTestStatement(t, db, `UPDATE field_definitions SET name = ?, display_name = ?, updated_at = ? WHERE id = ?`, "rooms", "Rooms", observedAt, "field-bathrooms")
+	execTestStatement(t, db, `
+		INSERT INTO properties (id, url, label, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?)
+	`, "property-legacy-rooms", "https://example.test/property/legacy-rooms", "Legacy Rooms Property", observedAt, observedAt)
+	execTestStatement(t, db, `
+		INSERT INTO property_snapshots (id, property_id, config_version, observed_at, values_json, change_flags_json, is_valid, error_message)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+	`, "snapshot-legacy-rooms", "property-legacy-rooms", 1, observedAt, `{"rooms":"3"}`, `{}`, 1, sql.NullString{})
+	execTestStatement(t, db, `
+		INSERT INTO property_field_values
+			(id, property_id, snapshot_id, field_definition_id, field_name, selector_name, config_version, value_text, observed_at, validation_status, validation_message, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, "snapshot-legacy-rooms:rooms", "property-legacy-rooms", "snapshot-legacy-rooms", "field-bathrooms", "rooms", "rooms", 1, "3", observedAt, ingestiondomain.FieldValidationStatusValid, "", observedAt)
+
+	if err := Migrate(context.Background(), db); err != nil {
+		t.Fatalf("rerun migrate database: %v", err)
+	}
+
+	var roomsName string
+	if err := db.QueryRowContext(context.Background(), `SELECT name FROM field_definitions WHERE id = ?`, "field-rooms").Scan(&roomsName); err != nil {
+		t.Fatalf("query repaired rooms field definition: %v", err)
+	}
+	if roomsName != "rooms" {
+		t.Fatalf("expected canonical rooms field definition, got %q", roomsName)
+	}
+
+	var bathroomsName string
+	if err := db.QueryRowContext(context.Background(), `SELECT name FROM field_definitions WHERE id = ?`, "field-bathrooms").Scan(&bathroomsName); err != nil {
+		t.Fatalf("query repaired bathrooms field definition: %v", err)
+	}
+	if bathroomsName != "bathrooms" {
+		t.Fatalf("expected canonical bathrooms field definition, got %q", bathroomsName)
+	}
+
+	var fieldDefinitionID string
+	var fieldName string
+	if err := db.QueryRowContext(
+		context.Background(),
+		`SELECT field_definition_id, field_name FROM property_field_values WHERE id = ?`,
+		"snapshot-legacy-rooms:rooms",
+	).Scan(&fieldDefinitionID, &fieldName); err != nil {
+		t.Fatalf("query repaired property field value: %v", err)
+	}
+	if fieldDefinitionID != "field-rooms" {
+		t.Fatalf("expected property field value to reference field-rooms, got %q", fieldDefinitionID)
+	}
+	if fieldName != "rooms" {
+		t.Fatalf("expected property field name rooms, got %q", fieldName)
+	}
+
+	records, err := NewStore(db).ListAnalyticsRecords(context.Background())
+	if err != nil {
+		t.Fatalf("list analytics records after legacy field repair: %v", err)
+	}
+	if len(records) != 1 {
+		t.Fatalf("expected one analytics record after legacy field repair, got %d", len(records))
+	}
+	if got := records[0].Values["rooms"]; got != "3" {
+		t.Fatalf("expected repaired analytics rooms value 3, got %q", got)
+	}
+}
+
+func assertTableCount(t *testing.T, db *sql.DB, tableName string, want int) {
+	t.Helper()
+
+	var got int
+	if err := db.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM `+tableName).Scan(&got); err != nil {
+		t.Fatalf("count rows in %s: %v", tableName, err)
+	}
+	if got != want {
+		t.Fatalf("expected %d rows in %s, got %d", want, tableName, got)
+	}
+}
+
 func execTestStatement(t *testing.T, db *sql.DB, query string, args ...any) {
 	t.Helper()
 

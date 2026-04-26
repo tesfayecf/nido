@@ -740,12 +740,16 @@ func (s *Store) ListBookmarks(ctx context.Context, userID string) ([]engagementd
 	for rows.Next() {
 		var (
 			item       engagementdomain.BookmarkedProperty
+			sourceID   sql.NullString
 			label      string
 			valuesJSON string
 			createdAt  string
 		)
-		if err := rows.Scan(&item.PropertyID, &item.SourceID, &label, &item.URL, &createdAt, &valuesJSON); err != nil {
+		if err := rows.Scan(&item.PropertyID, &sourceID, &label, &item.URL, &createdAt, &valuesJSON); err != nil {
 			return nil, fmt.Errorf("scan bookmark: %w", err)
+		}
+		if sourceID.Valid {
+			item.SourceID = sourceID.String
 		}
 		values := decodeSnapshotValues(valuesJSON)
 		item.Title = firstNonEmpty(values["title"], label, item.URL)
