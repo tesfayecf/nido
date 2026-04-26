@@ -17,12 +17,14 @@ const createPropertyMock = vi.fn();
 const deletePropertyMock = vi.fn();
 const getPropertyMock = vi.fn<(propertyId: string) => Promise<Property>>();
 const getPropertyConfigMock = vi.fn<() => Promise<PropertyExtractionConfig>>();
+const getPropertySummaryMock = vi.fn();
 const ingestPropertyMock = vi.fn();
 const listAlertRulesMock = vi.fn();
 const listPropertyConfigVersionsMock = vi.fn<() => Promise<PropertyExtractionConfig[]>>();
 const listBookmarksMock = vi.fn();
 const listPropertyRunsMock = vi.fn<() => Promise<PropertyRun[]>>();
 const listPropertySnapshotsMock = vi.fn<() => Promise<PropertySnapshot[]>>();
+const listPropertySummariesMock = vi.fn();
 const listFieldsMock = vi.fn<() => Promise<FieldDefinitionUsage[]>>();
 const listPropertyTagsMock = vi.fn();
 const listSourcesMock = vi.fn();
@@ -78,10 +80,12 @@ vi.mock("@/services/properties/properties.service", () => ({
     deleteProperty: (propertyId: string) => deletePropertyMock(propertyId),
     getProperty: (propertyId: string) => getPropertyMock(propertyId),
     getPropertyConfig: () => getPropertyConfigMock(),
+    getPropertySummary: (propertyId: string) => getPropertySummaryMock(propertyId),
     ingestProperty: (propertyId: string) => ingestPropertyMock(propertyId),
     listPropertyRuns: () => listPropertyRunsMock(),
     listPropertyConfigVersions: () => listPropertyConfigVersionsMock(),
     listPropertySnapshots: () => listPropertySnapshotsMock(),
+    listPropertySummaries: () => listPropertySummariesMock(),
     previewExtraction: (payload: Record<string, unknown>) => previewExtractionMock(payload),
     rollbackPropertyConfig: (propertyId: string, version: number) => rollbackPropertyConfigMock(propertyId, version),
     updateProperty: (propertyId: string, payload: Record<string, unknown>) => updatePropertyMock(propertyId, payload),
@@ -125,6 +129,20 @@ const RUNS: PropertyRun[] = [
     },
 ];
 
+const SUMMARY = {
+    current_values: { area_m2: "80", location: "Bilbao", price: "220000" },
+    decision: {
+        current_price: 220000,
+        current_price_per_sqm: 2750,
+        freshness_status: "fresh" as const,
+        stage: "candidate",
+        target_price: 210000,
+    },
+    latest_change_summary: "Price updated",
+    property: PROPERTY,
+    signals: [],
+};
+
 const renderPropertyDetailPage = (): ReturnType<typeof render> => {
     const queryClient = new QueryClient({
         defaultOptions: {
@@ -146,18 +164,44 @@ const renderPropertyDetailPage = (): ReturnType<typeof render> => {
     );
 };
 
+const renderPropertyCreatePage = (): ReturnType<typeof render> => {
+    const queryClient = new QueryClient({
+        defaultOptions: {
+            mutations: { retry: false },
+            queries: { retry: false },
+        },
+    });
+    const router = createMemoryRouter(
+        [
+            { path: "/properties/new", element: <PropertyDetailPage /> },
+            { path: "/properties/:propertyId", element: <PropertyDetailPage /> },
+        ],
+        { initialEntries: ["/properties/new"] },
+    );
+
+    return render(
+        <QueryClientProvider client={queryClient}>
+            <ToastProvider>
+                <RouterProvider router={router} />
+            </ToastProvider>
+        </QueryClientProvider>,
+    );
+};
+
 describe("PropertyDetailPage", () => {
     beforeEach(() => {
         createPropertyMock.mockReset();
         deletePropertyMock.mockReset();
         getPropertyMock.mockReset();
         getPropertyConfigMock.mockReset();
+        getPropertySummaryMock.mockReset();
         ingestPropertyMock.mockReset();
         listAlertRulesMock.mockReset();
         listPropertyConfigVersionsMock.mockReset();
         listBookmarksMock.mockReset();
         listPropertyRunsMock.mockReset();
         listPropertySnapshotsMock.mockReset();
+        listPropertySummariesMock.mockReset();
         listFieldsMock.mockReset();
         listPropertyTagsMock.mockReset();
         listSourcesMock.mockReset();
@@ -169,11 +213,13 @@ describe("PropertyDetailPage", () => {
 
         getPropertyMock.mockResolvedValue(PROPERTY);
         getPropertyConfigMock.mockResolvedValue(CONFIG);
+        getPropertySummaryMock.mockResolvedValue(SUMMARY);
         listAlertRulesMock.mockResolvedValue([]);
         listBookmarksMock.mockResolvedValue([]);
         listPropertyConfigVersionsMock.mockResolvedValue([CONFIG]);
         listPropertyRunsMock.mockResolvedValue(RUNS);
         listPropertySnapshotsMock.mockResolvedValue([]);
+        listPropertySummariesMock.mockResolvedValue([SUMMARY]);
         listFieldsMock.mockResolvedValue([]);
         listPropertyTagsMock.mockResolvedValue([]);
         listSourcesMock.mockResolvedValue([]);
@@ -193,6 +239,7 @@ describe("PropertyDetailPage", () => {
         renderPropertyDetailPage();
 
         fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+        fireEvent.click(screen.getByRole("button", { name: "Show advanced configs" }));
 
         const scheduleInput = document.querySelector<HTMLInputElement>("#prop-schedule-value");
         const scheduleUnit = document.querySelector<HTMLSelectElement>("#prop-schedule-unit");
@@ -207,6 +254,24 @@ describe("PropertyDetailPage", () => {
         await waitFor(() => {
             expect(updatePropertyMock).toHaveBeenCalledWith("prop_1", expect.objectContaining({
                 schedule_interval_seconds: 3600,
+            }));
+        });
+    });
+
+    it("creates a property from the minimal URL-first flow", async () => {
+        createPropertyMock.mockResolvedValue({ ...PROPERTY, id: "prop_new" });
+
+        renderPropertyCreatePage();
+
+        expect(await screen.findByText("Show additional fields")).toBeInTheDocument();
+        fireEvent.change(screen.getByLabelText("URL"), { target: { value: "https://example.com/new-listing" } });
+        fireEvent.click(screen.getByRole("button", { name: "Create property" }));
+
+        await waitFor(() => {
+            expect(createPropertyMock).toHaveBeenCalledWith(expect.objectContaining({
+                label: "",
+                schedule_interval_seconds: 0,
+                url: "https://example.com/new-listing",
             }));
         });
     });

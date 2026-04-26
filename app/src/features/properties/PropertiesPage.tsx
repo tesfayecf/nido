@@ -19,6 +19,8 @@ import { TagBadge } from "@/components/tags/TagBadge";
 import { TagFilter } from "@/components/tags/TagFilter";
 import { parseNumeric } from "@/features/analytics/analytics.utils";
 import { DecisionStrip } from "@/features/properties/DecisionStrip";
+import { buildPriceIntelligence } from "@/features/properties/priceIntelligence";
+import { readWorkspaceSettings } from "@/features/settings/workspaceSettings";
 import { SAVED_VIEW_OPTIONS, applySavedView, buildPropertyRunSummary, mergeBulkTagIds, retainVisibleSelection, type SavedViewId } from "@/features/operators/operatorWorkflows";
 import { formatDateTime } from "@/lib/format/date";
 import { writeParam } from "@/lib/routing/searchParams";
@@ -83,6 +85,7 @@ const statusTone = (status: PropertyStatus): "danger" | "neutral" | "success" | 
 };
 
 export const PropertiesPage = (): JSX.Element => {
+    const workspaceSettings = useMemo(() => readWorkspaceSettings(), []);
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const { pushToast } = useToast();
@@ -287,9 +290,9 @@ export const PropertiesPage = (): JSX.Element => {
             const latestRun = propertyRunSummary.get(property.id)?.latestRun;
             const tagIds = propertyTagsMap.get(property.id) ?? [];
             const tags = tagIds.map((tagId) => allTagsById.get(tagId)).filter((tag): tag is Tag => tag !== undefined);
-            return buildPropertyTableRow(property, latestRun, tags, bookmarkedIds.has(property.id), summariesById.get(property.id));
+            return buildPropertyTableRow(property, latestRun, tags, bookmarkedIds.has(property.id), summariesById.get(property.id), summariesQuery.data ?? [], workspaceSettings);
         });
-    }, [allTagsById, baseProperties, bookmarkedIds, propertyRunSummary, propertyTagsMap, summariesById]);
+    }, [allTagsById, baseProperties, bookmarkedIds, propertyRunSummary, propertyTagsMap, summariesById, summariesQuery.data, workspaceSettings]);
 
     const locationOptions = useMemo(() => {
         return Array.from(new Set(propertyRows.map((row) => row.location).filter((value): value is string => value !== undefined && value.trim() !== ""))).sort((left, right) => left.localeCompare(right));
@@ -321,17 +324,17 @@ export const PropertiesPage = (): JSX.Element => {
     const selectedProperties = selectedRows.map((row) => row.property);
     const allVisibleSelected = filteredRows.length > 0 && filteredRows.every((row) => selectedPropertyIds.includes(row.id));
     const summaryCards = useMemo(() => {
-        const belowTarget = propertyRows.filter((row) => row.price !== undefined && row.property.metadata?.target_price !== undefined && row.price <= row.property.metadata.target_price).length;
+        const cheapCount = propertyRows.filter((row) => row.summary !== undefined && buildPriceIntelligence(row.summary, summariesQuery.data ?? [row.summary], workspaceSettings).classification === "cheap").length;
         const reviewQueue = propertyRows.filter((row) => row.property.status !== "active").length;
         const freshSignals = propertyRows.filter((row) => row.signals.some((signal) => signal.label === "Price updated")).length;
         const shortlist = propertyRows.filter((row) => row.isBookmarked).length;
         return [
             { label: "In scope", value: `${filteredRows.length}` },
-            { label: "Below target", value: `${belowTarget}` },
+            { label: "Cheap", value: `${cheapCount}` },
             { label: "Saved", value: `${shortlist}` },
             { label: "Needs review", value: `${reviewQueue + freshSignals}` },
         ];
-    }, [filteredRows.length, propertyRows]);
+    }, [filteredRows.length, propertyRows, summariesQuery.data, workspaceSettings]);
 
     const handleTagFilterChange = (tagIds: string[], tagMatch: "any" | "all"): void => {
         const params = new URLSearchParams(searchParams);
@@ -545,11 +548,17 @@ export const PropertiesPage = (): JSX.Element => {
                         },
                         {
                             cell: (item) => item.summary !== undefined
-                                ? <DecisionStrip compact summary={item.summary} />
+                                ? <DecisionStrip allSummaries={summariesQuery.data} compact settings={workspaceSettings} summary={item.summary} />
                                 : <span className={"muted-copy"}>{"—"}</span>,
                             header: "Decision",
                             id: "decision",
-                            sortValue: (item) => item.summary?.decision.price_gap_percent ?? 0,
+                            sortValue: (item) => {
+                                if (item.summary === undefined) {
+                                    return 0;
+                                }
+
+                                return buildPriceIntelligence(item.summary, summariesQuery.data ?? [item.summary], workspaceSettings).market_delta_percent ?? item.summary.decision.price_gap_percent ?? 0;
+                            },
                             width: "18rem",
                             wrap: true,
                         },
@@ -716,6 +725,8 @@ const buildPropertyTableRow = (
     tags: readonly Tag[],
     isBookmarked: boolean,
     summary?: PropertySummary,
+    allSummaries: readonly PropertySummary[] = [],
+    workspaceSettings = readWorkspaceSettings(),
 ): PropertyTableRow => {
     const price = readRunNumber(latestRun, ["price", "price_amount", "listing_price", "asking_price"]);
     const sizeSquareMeters = readRunNumber(latestRun, ["price_m2_area", "area_m2", "size_m2", "surface_m2", "m2", "area", "size"]);
@@ -733,12 +744,12 @@ const buildPropertyTableRow = (
     ].filter((value): value is string => value !== undefined);
 
     const signals: SignalBadge[] = [];
-    if (price !== undefined && property.metadata?.target_price !== undefined) {
-        if (price <= property.metadata.target_price) {
-            signals.push({ label: "Below target", tone: "success" });
-        } else if (price >= property.metadata.target_price * 1.1) {
-            signals.push({ label: "Above target", tone: "warning" });
-        }
+    if (summary !== undefined) {
+        const intelligence = buildPriceIntelligence(summary, allSummaries.length > 0 ? allSummaries : [summary], workspaceSettings);
+        signals.push({
+            label: intelligence.classification === "cheap" ? "Cheap" : intelligence.classification === "expensive" ? "Expensive" : "Fair",
+            tone: intelligence.classification === "cheap" ? "success" : intelligence.classification === "expensive" ? "warning" : "neutral",
+        });
     }
 
     if (latestRun?.change_flags?.price === true) {
