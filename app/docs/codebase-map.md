@@ -7,9 +7,13 @@ Use this document when you need to answer two questions quickly:
 1. Where does a change belong?
 2. Which nearby files usually change with it?
 
-Read [architecture.md](./architecture.md) for runtime behavior, [design-system.md](./design-system.md) for implementation-level UI rules, and [maintenance.md](./maintenance.md) for change procedures.
+Read [architecture.md](./architecture.md) for runtime behavior, [design-patterns.md](./design-patterns.md) for stable implementation rules, [design-system.md](./design-system.md) for implementation-level UI rules, and [maintenance.md](./maintenance.md) for change procedures.
 
-## Five-Minute Orientation
+## Use This When
+
+Read this when you know the behavior you need to change but do not yet know the owning folder, route, or neighboring files.
+
+## First Files To Open
 
 1. Start at `src/main.tsx` to see how the app boots.
 2. Move to `src/app/AppProviders.tsx` for providers and `src/app/router.tsx` for the mounted routes.
@@ -32,7 +36,7 @@ src/main.tsx
 
 When a workflow uses live backoffice events, the request path forks through `src/lib/api/sse.ts`, `src/services/backoffice-events/events.service.ts`, and `src/stores/live-events.store.ts`.
 
-## Source Tree Map
+## Directory Map
 
 | Area | What lives here | Start here when |
 | --- | --- | --- |
@@ -93,7 +97,7 @@ Representative service areas in active use:
 
 Keep transport details inside services and `src/lib/api`. Feature pages should compose queries and mutations, not reimplement HTTP concerns.
 
-## Common Maintenance Paths
+## Common Change Paths
 
 | If you need to... | Start here | Usually touch next |
 | --- | --- | --- |
@@ -106,7 +110,7 @@ Keep transport details inside services and `src/lib/api`. Feature pages should c
 | Change visual tokens or theming | `src/styles/tokens.css` | `src/styles/globals.css`, `src/hooks/useTheme.tsx`, and `src/components/shell/ThemeToggle.tsx` |
 | Change selector-building UX | `src/components/selectors/SelectorBuilder.tsx` | `src/features/selectors`, `src/features/properties`, or `src/features/backoffice` depending on ownership |
 
-## Design Principles To Preserve In Code
+## Design Patterns To Preserve
 
 - Keep server state in TanStack Query. Do not mirror backend-owned collections in Zustand.
 - Use URL search params for filters or view state that should survive refresh or deep linking.
@@ -114,6 +118,8 @@ Keep transport details inside services and `src/lib/api`. Feature pages should c
 - Reuse shared UI primitives before introducing route-specific markup or CSS patterns.
 - Treat status, timestamps, and destructive actions as operational information, not decoration.
 - Keep helper copy outside form labels and connect it with `aria-describedby` so accessible names stay stable.
+
+For the longer explanation and anti-patterns, continue in [design-patterns.md](./design-patterns.md).
 
 ## Doc Sync Rule
 

@@ -11,9 +11,18 @@ The backend under `/server` is a Go modular monolith optimized for authenticated
 - application services owning orchestration
 - best-effort live events for visibility, not correctness
 
-Use [codebase-map.md](./codebase-map.md) when you need file locations, [local-development.md](./local-development.md) to run the server, and [maintenance.md](./maintenance.md) for day-2 change workflows.
+Use [codebase-map.md](./codebase-map.md) when you need file locations, [design-patterns.md](./design-patterns.md) for stable implementation rules, [local-development.md](./local-development.md) to run the server, and [maintenance.md](./maintenance.md) for day-2 change workflows.
 
-## 90-Second System Model
+## Use This When
+
+Read this when you need to answer any of these questions before editing code:
+
+- what the active backend runtime actually mounts today
+- where request, ingest, scheduler, and event behavior are decided
+- which config is active versus parsed-only
+- which boundaries must stay explicit during refactors
+
+## System Model
 
 The mounted runtime currently centers on:
 
@@ -152,7 +161,7 @@ Important distinctions:
 - The property scheduler starts automatically in `app.New()`.
 - `TickInterval` comes from config, while global concurrency `4` and per-domain concurrency `1` are currently hardcoded in the composition root.
 
-## Design Principles
+## Design Patterns To Preserve
 
 - `internal/app` is the only composition root.
 - Mounted runtime wins over repo shape. If a package exists but `runtime.go` does not wire it, it is not a supported runtime surface.
@@ -163,6 +172,8 @@ Important distinctions:
 - Property snapshots and property runs answer different operational questions and must stay distinct.
 - Concurrency and lifecycle defaults should stay visible in the composition root, not hidden in downstream packages.
 - Config only matters when the runtime consumes it. Parsed-only settings are not product guarantees.
+
+For the longer rationale, ownership table, and anti-patterns, continue in [design-patterns.md](./design-patterns.md).
 
 ## Configuration Reality Check
 

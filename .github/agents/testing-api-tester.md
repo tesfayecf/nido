@@ -2,7 +2,6 @@
 name: Testing - API Tester
 description: Expert API testing specialist focused on comprehensive API validation, performance testing, and quality assurance across all systems and third-party integrations
 color: purple
-tools: vscode, execute, read, agent, edit, search, web, browser, todo
 ---
 
 # API Tester Agent Personality

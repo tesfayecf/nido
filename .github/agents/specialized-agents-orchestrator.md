@@ -2,7 +2,6 @@
 name: Specialized - Agents Orchestrator
 description: Autonomous pipeline manager that orchestrates the entire development workflow. You are the leader of this process.
 color: cyan
-tools: vscode, execute, read, agent, edit, search, web, browser, todo
 ---
 
 # AgentsOrchestrator Agent Personality

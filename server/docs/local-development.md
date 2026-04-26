@@ -1,6 +1,21 @@
 # Local Development Runbook
 
-## Fastest Backend-Only Start
+## Purpose
+
+This runbook helps maintainers and feature developers start the backend quickly, verify the mounted runtime, and understand which environment variables actually shape local behavior.
+
+Use [design-patterns.md](./design-patterns.md) for stable implementation rules, [architecture.md](./architecture.md) for runtime boundaries, and [maintenance.md](./maintenance.md) for day-2 change procedures.
+
+## Use This When
+
+Read this when you need to:
+
+- start a new local backend session
+- smoke-test the mounted API surface
+- check which configuration is active versus parsed-only
+- run focused validation after a backend change
+
+## Fastest Start
 
 From the repository root, this is enough for a local backend session:
 
@@ -55,7 +70,7 @@ Useful helper scripts from the repository root:
 ./cmd/garage.sh status
 ```
 
-## Five-Minute Smoke Test
+## Verification
 
 ```bash
 BASE_URL="http://127.0.0.1:8080"
@@ -177,4 +192,4 @@ Do not expect object storage, bootstrap source registration, or scheduler disabl
 - Object-store configuration is parsed, but the active runtime does not instantiate an object store.
 - Bootstrap source configuration is parsed, but the current runtime does not auto-register a source from it.
 
-Use [architecture.md](./architecture.md) to understand why those boundaries exist and [maintenance.md](./maintenance.md) when changing them.
+Use [architecture.md](./architecture.md) to understand why those boundaries exist, [design-patterns.md](./design-patterns.md) for the stable implementation rules behind them, and [maintenance.md](./maintenance.md) when changing them.

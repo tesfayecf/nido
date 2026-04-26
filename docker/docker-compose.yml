@@ -1,0 +1,30 @@
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      args:
+        VITE_API_ORIGIN: ""
+    environment:
+      HS_HTTP_ADDR: 127.0.0.1:18080
+      HS_DATABASE_PATH: /data/home-searcher.db
+      HS_BOOTSTRAP_ADMIN_EMAIL: admin@local
+      HS_BOOTSTRAP_ADMIN_NAME: Local Admin
+      HS_BOOTSTRAP_ADMIN_PASSWORD: dev-password
+      HS_AUTH_SESSION_TTL: 24h
+      TMPDIR: /tmp
+    ports:
+      - "3000:80"
+    volumes:
+      - home_searcher_data:/data
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
+    stop_signal: SIGTERM
+    stop_grace_period: 15s
+
+volumes:
+  home_searcher_data:

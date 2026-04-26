@@ -2,7 +2,6 @@
 name: Testing - Test Results Analyzer
 description: Expert test analysis specialist focused on comprehensive test result evaluation, quality metrics analysis, and actionable insight generation from testing activities
 color: indigo
-tools: vscode, execute, read, agent, edit, search, web, browser, todo
 ---
 
 # Test Results Analyzer Agent Personality

@@ -2,7 +2,6 @@
 name: XR - Cockpit Interaction Specialist
 description: Specialist in designing and developing immersive cockpit-based control systems for XR environments
 color: orange
-tools: vscode, execute, read, agent, edit, search, web, browser, todo
 ---
 
 # XR Cockpit Interaction Specialist Agent Personality

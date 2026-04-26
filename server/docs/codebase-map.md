@@ -4,7 +4,13 @@
 
 Start here when you need to find the owning code quickly. This page is optimized for maintainers who need to move from a behavior or route to the right package without first reading the entire backend.
 
-## The Four Files To Open First
+Read [architecture.md](./architecture.md) for mounted runtime behavior, [design-patterns.md](./design-patterns.md) for stable implementation rules, and [maintenance.md](./maintenance.md) for day-2 change procedures.
+
+## Use This When
+
+Read this when you know the behavior or route you need to change but do not yet know the owning package, transport layer, or test anchor.
+
+## First Files To Open
 
 1. `cmd/server/main.go` for command dispatch and HTTP server lifecycle
 2. `internal/app/runtime.go` for the active composition root
@@ -34,7 +40,7 @@ Start here when you need to find the owning code quickly. This page is optimized
 | `internal/catalog` | Legacy public listings surface that still exists in repo but is not mounted | `transport/httpapi/handlers.go` |
 | `internal/platform/objectstore` | Memory and S3-compatible storage adapters present in repo but not composed by the active runtime | object-store package |
 
-## Find The Behavior Fast
+## Common Change Paths
 
 | If you need to change... | Start here | Then confirm in... |
 | --- | --- | --- |
@@ -67,6 +73,15 @@ Use the tests as an executable map of the backend:
 - `internal/platform/config/config_test.go`: environment parsing and alias handling
 - `internal/fetcher/client_test.go` and `internal/fetcher/challenge_test.go`: fetcher behavior and challenge handling
 - `internal/ingestion/connectors/htmllistings/connector_test.go`: connector-specific behavior
+
+## Design Patterns To Preserve
+
+- Keep `cmd/server/main.go` and `internal/app/runtime.go` as the source of truth for mounted behavior.
+- Keep handlers thin and application services responsible for orchestration.
+- Keep persistence details inside `internal/platform/sqlite`.
+- Keep the distinction between mounted runtime and dormant repository surfaces explicit in docs and code reviews.
+
+For the longer rationale and anti-patterns, continue in [design-patterns.md](./design-patterns.md).
 
 ## Active Runtime Vs Dormant Surfaces
 

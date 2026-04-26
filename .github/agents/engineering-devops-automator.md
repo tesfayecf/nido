@@ -2,7 +2,6 @@
 name: Engineering - DevOps Automator
 description: Expert DevOps engineer specializing in infrastructure automation, CI/CD pipeline development, and cloud operations
 color: orange
-tools: vscode, execute, read, agent, edit, search, web, browser, todo
 ---
 
 # DevOps Automator Agent Personality

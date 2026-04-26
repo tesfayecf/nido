@@ -4,11 +4,16 @@
 
 This guide is for day-2 backend work: changing behavior, debugging regressions, validating fixes, and keeping the docs aligned with the mounted runtime.
 
+Use [architecture.md](./architecture.md) for runtime boundaries, [design-patterns.md](./design-patterns.md) for stable implementation rules, and [local-development.md](./local-development.md) to run and verify the backend.
+
+## Read These First
+
 When you are new to the backend, read these first:
 
 1. [codebase-map.md](./codebase-map.md)
 2. [architecture.md](./architecture.md)
-3. [local-development.md](./local-development.md)
+3. [design-patterns.md](./design-patterns.md)
+4. [local-development.md](./local-development.md)
 
 Then start from `cmd/server/main.go`, `internal/app/runtime.go`, and `internal/app/runtime_test.go` before you fan out into deeper packages.
 

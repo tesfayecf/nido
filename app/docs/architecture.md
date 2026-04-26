@@ -4,9 +4,18 @@
 
 The frontend under `/app` is an authenticated React operations console for tracked property monitoring and maintenance. It is optimized for backoffice workflows rather than public browsing. The browser owns presentation, local interaction state, and session persistence. The backend remains the source of truth for properties, extraction configs, snapshots, scheduler history, tags, alerts, notifications, and live events.
 
-Use this document for the system shape. Use [local-development.md](./local-development.md) for startup, [backend-contract.md](./backend-contract.md) for wire details, and [maintenance.md](./maintenance.md) for day-2 changes.
+Use this document for the mounted runtime and ownership boundaries. Use [design-patterns.md](./design-patterns.md) for the implementation rules that should remain stable, [local-development.md](./local-development.md) for startup, [backend-contract.md](./backend-contract.md) for wire details, and [maintenance.md](./maintenance.md) for day-2 changes.
 
-## Runtime Overview
+## Use This When
+
+Read this when you need to answer any of these questions before editing code:
+
+- which routes and workflows are actually mounted today
+- where auth, shell, service, and state boundaries are enforced
+- how request, mutation, and live-event flows move through the app
+- which feature boundaries should stay intact during refactors
+
+## System Model
 
 ```mermaid
 flowchart LR
@@ -72,7 +81,7 @@ The router is intentionally flat and feature-owned. The index route redirects to
 
 If a route is added or moved, update both the router and the navigation metadata in the same change.
 
-## Module Boundaries
+## Ownership Boundaries
 
 | Area | Responsibility | Notes |
 | --- | --- | --- |
@@ -188,6 +197,16 @@ Why this matters:
 - Native `EventSource` cannot send bearer headers, so the app uses `@microsoft/fetch-event-source`.
 - The stream is session-scoped and stored in memory only. Refreshing the page clears the buffer.
 - `BackofficeEvent.type` is intentionally typed as `known union | string` because the server emits a broader set of event names than the UI currently enumerates.
+
+## Design Patterns To Preserve
+
+- Keep runtime composition inside `src/main.tsx` and `src/app/*` so mounted behavior stays easy to reason about.
+- Keep feature pages responsible for workflow composition and service modules responsible for backend contract handling.
+- Keep TanStack Query, URL state, Zustand, and component state responsibilities explicit instead of blending them together.
+- Keep shared primitives in `src/components/ui` ahead of route-local markup and styling.
+- Keep auth expiry handling, API transport, and SSE transport centralized so protected behavior changes in one place.
+
+For the longer rationale and anti-patterns, continue in [design-patterns.md](./design-patterns.md).
 
 ## Feature Boundaries Worth Preserving
 

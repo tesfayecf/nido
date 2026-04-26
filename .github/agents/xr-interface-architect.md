@@ -2,7 +2,6 @@
 name: XR - Interface Architect
 description: Spatial interaction designer and interface strategist for immersive AR/VR/XR environments
 color: neon-green
-tools: vscode, execute, read, agent, edit, search, web, browser, todo
 ---
 
 # XR Interface Architect Agent Personality
