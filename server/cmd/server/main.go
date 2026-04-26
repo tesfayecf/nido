@@ -14,6 +14,7 @@ import (
 	"nido/server/internal/app"
 	"nido/server/internal/platform/config"
 	platformsqlite "nido/server/internal/platform/sqlite"
+	"nido/server/internal/seed"
 )
 
 func main() {
@@ -40,6 +41,12 @@ func run(args []string) error {
 		return serve(cfg, logger)
 	case "migrate":
 		return migrate(cfg)
+	case "seed":
+		variant := ""
+		if len(args) > 1 {
+			variant = args[1]
+		}
+		return seedDatabase(cfg, variant)
 	default:
 		return fmt.Errorf("unknown command %q", command)
 	}
@@ -102,5 +109,24 @@ func migrate(cfg config.Config) error {
 	}
 
 	fmt.Fprintf(os.Stdout, "sqlite schema ready at %s\n", cfg.Database.Path)
+	return nil
+}
+
+func seedDatabase(cfg config.Config, variant string) error {
+	ctx := context.Background()
+	db, err := platformsqlite.Open(ctx, cfg.Database)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	if err := platformsqlite.Migrate(ctx, db); err != nil {
+		return err
+	}
+	if err := seed.Apply(ctx, db, seed.Options{Variant: variant}); err != nil {
+		return err
+	}
+
+	fmt.Fprintf(os.Stdout, "seed data ready at %s\n", cfg.Database.Path)
 	return nil
 }
