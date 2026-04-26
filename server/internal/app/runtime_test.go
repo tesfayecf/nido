@@ -292,6 +292,115 @@ func TestRuntimeAnalyticsDatasetUsesLatestNormalizedValues(t *testing.T) {
 	}
 }
 
+func TestRuntimeShouldRejectInvalidEndpointRequestsWhenInputOrAuthIsInvalid(t *testing.T) {
+	t.Parallel()
+
+	server, token := newRuntimeServer(t)
+	defer server.Close()
+
+	mustJSONRequest(t, http.MethodGet, server.URL+"/api/v1/backoffice/sources", "", nil, http.StatusUnauthorized, nil)
+	mustJSONRequest(t, http.MethodPost, server.URL+"/api/v1/auth/login", "", map[string]string{
+		"email":    "admin@local",
+		"password": "wrong-password",
+	}, http.StatusUnauthorized, nil)
+	mustJSONRequest(t, http.MethodPost, server.URL+"/api/v1/backoffice/sources", token, map[string]any{
+		"id":          "",
+		"name":        "",
+		"config_json": "{",
+	}, http.StatusBadRequest, nil)
+	mustJSONRequest(t, http.MethodPost, server.URL+"/api/v1/backoffice/properties", token, map[string]any{
+		"url": "ftp://example.invalid/listing",
+	}, http.StatusBadRequest, nil)
+	mustJSONRequest(t, http.MethodGet, server.URL+"/api/v1/backoffice/sources/missing-source", token, nil, http.StatusNotFound, nil)
+	mustJSONRequest(t, http.MethodPost, server.URL+"/api/v1/me/alert-rules", token, map[string]any{
+		"property_id": "missing-property",
+		"rule_type":   "not_supported",
+	}, http.StatusBadRequest, nil)
+	mustJSONRequest(t, http.MethodPost, server.URL+"/api/v1/backoffice/tags", token, map[string]any{
+		"name": "",
+	}, http.StatusBadRequest, nil)
+}
+
+func TestRuntimeShouldPersistBackofficeDataWhenRequestsAreValid(t *testing.T) {
+	t.Parallel()
+
+	server, token := newRuntimeServer(t)
+	defer server.Close()
+
+	var sourceResponse struct {
+		Item struct {
+			ID   string `json:"id"`
+			Name string `json:"name"`
+		} `json:"item"`
+	}
+	mustJSONRequest(t, http.MethodPost, server.URL+"/api/v1/backoffice/sources", token, map[string]any{
+		"id":           "source-crud",
+		"name":         "Source CRUD",
+		"kind":         "html-listings",
+		"endpoint_url": "https://example.com/feed",
+		"config_json":  `{"item_selector":".listing"}`,
+	}, http.StatusCreated, &sourceResponse)
+	if sourceResponse.Item.ID != "source-crud" || sourceResponse.Item.Name != "Source CRUD" {
+		t.Fatalf("unexpected source response: %+v", sourceResponse.Item)
+	}
+
+	property := createProperty(t, server.URL, token, map[string]any{
+		"label":     "CRUD property",
+		"source_id": "source-crud",
+		"url":       "https://example.com/properties/1",
+		"metadata": map[string]any{
+			"priority_level": "high",
+			"business_stage": "screening",
+			"target_price":   210000,
+		},
+	})
+
+	var tagResponse struct {
+		Item struct {
+			ID   string `json:"id"`
+			Name string `json:"name"`
+		} `json:"item"`
+	}
+	mustJSONRequest(t, http.MethodPost, server.URL+"/api/v1/backoffice/tags", token, map[string]any{
+		"name":  "Screening",
+		"color": "#2563eb",
+	}, http.StatusCreated, &tagResponse)
+	if tagResponse.Item.ID == "" || tagResponse.Item.Name != "Screening" {
+		t.Fatalf("unexpected tag response: %+v", tagResponse.Item)
+	}
+
+	mustJSONRequest(t, http.MethodPut, server.URL+"/api/v1/backoffice/properties/"+property.ID+"/tags", token, map[string]any{
+		"tag_ids": []string{tagResponse.Item.ID},
+	}, http.StatusOK, nil)
+
+	var filtered struct {
+		Count int `json:"count"`
+		Items []struct {
+			ID       string `json:"id"`
+			Label    string `json:"label"`
+			SourceID string `json:"source_id"`
+		} `json:"items"`
+	}
+	mustJSONRequest(t, http.MethodGet, server.URL+"/api/v1/backoffice/properties?tag_id="+tagResponse.Item.ID+"&priority_level=high&business_stage=screening", token, nil, http.StatusOK, &filtered)
+	if filtered.Count != 1 || filtered.Items[0].ID != property.ID || filtered.Items[0].SourceID != "source-crud" {
+		t.Fatalf("unexpected filtered properties: %+v", filtered)
+	}
+
+	var tags struct {
+		Count int `json:"count"`
+		Items []struct {
+			ID string `json:"id"`
+		} `json:"items"`
+	}
+	mustJSONRequest(t, http.MethodGet, server.URL+"/api/v1/backoffice/properties/"+property.ID+"/tags", token, nil, http.StatusOK, &tags)
+	if tags.Count != 1 || tags.Items[0].ID != tagResponse.Item.ID {
+		t.Fatalf("unexpected property tags: %+v", tags)
+	}
+
+	mustJSONRequest(t, http.MethodDelete, server.URL+"/api/v1/backoffice/properties/"+property.ID, token, nil, http.StatusOK, nil)
+	mustJSONRequest(t, http.MethodGet, server.URL+"/api/v1/backoffice/properties/"+property.ID, token, nil, http.StatusNotFound, nil)
+}
+
 type createdProperty struct {
 	ID string `json:"id"`
 }
