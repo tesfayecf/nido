@@ -1944,6 +1944,33 @@ func (s *Store) GetLastValidPropertySnapshot(ctx context.Context, propertyID str
 	return snapshot, err
 }
 
+// GetLatestPropertySnapshots returns up to n most-recent snapshots for a property (any validity).
+func (s *Store) GetLatestPropertySnapshots(ctx context.Context, propertyID string, n int) ([]ingestiondomain.PropertySnapshot, error) {
+	if n <= 0 {
+		n = 2
+	}
+	rows, err := s.db.QueryContext(
+		ctx,
+		`SELECT id, property_id, config_version, observed_at, values_json, change_flags_json, is_valid, error_message FROM property_snapshots WHERE property_id = ? ORDER BY observed_at DESC LIMIT ?`,
+		propertyID,
+		n,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("get latest property snapshots: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]ingestiondomain.PropertySnapshot, 0, n)
+	for rows.Next() {
+		snapshot, err := scanPropertySnapshot(rows)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, snapshot)
+	}
+	return items, rows.Err()
+}
+
 func scanProperty(s scanner) (ingestiondomain.Property, error) {
 	var (
 		property             ingestiondomain.Property

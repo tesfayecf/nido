@@ -35,6 +35,18 @@ export const ALERT_RULE_TYPES: readonly AlertRuleTypeOption[] = [
         requiresThreshold: false,
         value: "any_change",
     },
+    {
+        description: "Significant price change",
+        logicSummary: "Triggers when the price changes by 2% or more (up or down) between snapshots.",
+        requiresThreshold: false,
+        value: "significant_price_change",
+    },
+    {
+        description: "Status change",
+        logicSummary: "Triggers when the listing status field changes between snapshots.",
+        requiresThreshold: false,
+        value: "status_change",
+    },
 ];
 
 const lookup = new Map(ALERT_RULE_TYPES.map((option) => [option.value, option]));

@@ -14,13 +14,19 @@ const (
 	RuleTypePriceAbove = "price_above"
 	// RuleTypeAnyChange notifies when any tracked field changes between snapshots.
 	RuleTypeAnyChange = "any_change"
+	// RuleTypeSignificantPriceChange notifies when price changes by a significant percentage.
+	RuleTypeSignificantPriceChange = "significant_price_change"
+	// RuleTypeStatusChange notifies when the listing status field changes.
+	RuleTypeStatusChange = "status_change"
 )
 
 var supportedRuleTypes = map[string]struct{}{
-	RuleTypePriceDrop:  {},
-	RuleTypePriceBelow: {},
-	RuleTypePriceAbove: {},
-	RuleTypeAnyChange:  {},
+	RuleTypePriceDrop:              {},
+	RuleTypePriceBelow:             {},
+	RuleTypePriceAbove:             {},
+	RuleTypeAnyChange:              {},
+	RuleTypeSignificantPriceChange: {},
+	RuleTypeStatusChange:           {},
 }
 
 // IsSupportedRuleType reports whether the provided rule type is implemented.

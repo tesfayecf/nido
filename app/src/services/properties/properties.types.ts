@@ -158,3 +158,42 @@ export interface PropertyListFilter {
     readonly priorityLevel?: string;
     readonly businessStage?: string;
 }
+
+// ── Change Intelligence Layer ─────────────────────────────────────────────────
+
+export type ChangeImpact = "positive" | "negative" | "neutral";
+export type ChangeGroup = "pricing" | "status" | "data_quality" | "freshness";
+
+export interface ChangeSignal {
+    readonly field: string;
+    readonly label: string;
+    readonly previous?: string;
+    readonly current?: string;
+    readonly absolute_delta?: number;
+    readonly percent_delta?: number;
+    readonly observed_at: string;
+    readonly impact: ChangeImpact;
+    readonly group: ChangeGroup;
+}
+
+export interface DecisionContext {
+    readonly current_price?: number;
+    readonly target_price?: number;
+    readonly price_gap_absolute?: number;
+    readonly price_gap_percent?: number;
+    readonly current_price_per_sqm?: number;
+    readonly expected_yield_bps?: number;
+    readonly stage?: string;
+    readonly priority_level?: string;
+    readonly deal_thesis_summary?: string;
+    readonly freshness_status: "fresh" | "stale" | "unknown";
+    readonly last_observed_at?: string;
+}
+
+export interface PropertySummary {
+    readonly property: Property;
+    readonly current_values: Record<string, string>;
+    readonly decision: DecisionContext;
+    readonly signals: ChangeSignal[];
+    readonly latest_change_summary: string;
+}
