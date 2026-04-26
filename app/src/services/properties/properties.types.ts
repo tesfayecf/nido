@@ -186,7 +186,7 @@ export interface DecisionContext {
     readonly stage?: string;
     readonly priority_level?: string;
     readonly deal_thesis_summary?: string;
-    readonly freshness_status: "fresh" | "stale" | "unknown";
+    readonly freshness_status: "aging" | "fresh" | "stale" | "unknown";
     readonly last_observed_at?: string;
 }
 

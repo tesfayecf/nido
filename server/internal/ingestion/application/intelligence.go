@@ -13,6 +13,8 @@ import (
 )
 
 const (
+	// agingThresholdHours is how old a snapshot must be before it is considered aging.
+	agingThresholdHours = 24
 	// staleThresholdHours is how old a snapshot must be before it is considered stale.
 	staleThresholdHours = 48
 	// dealThesisMaxRunes is the maximum runes (Unicode code points) shown in the deal thesis summary.
@@ -33,8 +35,8 @@ func ComputeChangeSignals(
 ) []ingestiondomain.ChangeSignal {
 	signals := make([]ingestiondomain.ChangeSignal, 0, 4)
 
-	currentValues := decodeValues(current.Values)
-	previousValues := decodeValues(previous.Values)
+	currentValues := decodeStringValues(current.Values)
+	previousValues := decodeStringValues(previous.Values)
 
 	observedAt := current.ObservedAt
 	if observedAt.IsZero() {
@@ -42,8 +44,8 @@ func ComputeChangeSignals(
 	}
 
 	// ── Price change ──────────────────────────────────────────────────────────
-	currentPrice, hasCurrentPrice := extractNumericField(currentValues, "price")
-	previousPrice, hasPreviousPrice := extractNumericField(previousValues, "price")
+	currentPrice, hasCurrentPrice := extractFirstNumericField(currentValues, "price")
+	previousPrice, hasPreviousPrice := extractFirstNumericField(previousValues, "price")
 
 	if hasCurrentPrice && hasPreviousPrice && currentPrice != previousPrice {
 		delta := currentPrice - previousPrice
@@ -70,8 +72,8 @@ func ComputeChangeSignals(
 	}
 
 	// ── €/m² change ───────────────────────────────────────────────────────────
-	currentSqm, hasCurrentSqm := extractNumericField(currentValues, "size", "sqm", "area")
-	previousSqm, hasPreviousSqm := extractNumericField(previousValues, "size", "sqm", "area")
+	currentSqm, hasCurrentSqm := extractFirstNumericField(currentValues, "size", "sqm", "area")
+	previousSqm, hasPreviousSqm := extractFirstNumericField(previousValues, "size", "sqm", "area")
 
 	if hasCurrentPrice && hasCurrentSqm && currentSqm > 0 {
 		currentPPM := currentPrice / currentSqm
@@ -188,10 +190,10 @@ func DeriveDecisionContext(
 		FreshnessStatus: "unknown",
 	}
 
-	values := decodeValues(currentSnapshot.Values)
+	values := decodeStringValues(currentSnapshot.Values)
 
 	// Current price
-	if price, ok := extractNumericField(values, "price"); ok {
+	if price, ok := extractFirstNumericField(values, "price"); ok {
 		ctx.CurrentPrice = &price
 	}
 
@@ -214,7 +216,7 @@ func DeriveDecisionContext(
 
 	// €/m²
 	if ctx.CurrentPrice != nil {
-		if sqm, ok := extractNumericField(values, "size", "sqm", "area"); ok && sqm > 0 {
+		if sqm, ok := extractFirstNumericField(values, "size", "sqm", "area"); ok && sqm > 0 {
 			ppm := *ctx.CurrentPrice / sqm
 			ctx.CurrentPricePerSqm = &ppm
 		}
@@ -240,8 +242,11 @@ func DeriveDecisionContext(
 	if !currentSnapshot.ObservedAt.IsZero() {
 		t := currentSnapshot.ObservedAt
 		ctx.LastObservedAt = &t
-		if time.Since(t) > staleThresholdHours*time.Hour {
+		age := time.Since(t)
+		if age > staleThresholdHours*time.Hour {
 			ctx.FreshnessStatus = "stale"
+		} else if age > agingThresholdHours*time.Hour {
+			ctx.FreshnessStatus = "aging"
 		} else {
 			ctx.FreshnessStatus = "fresh"
 		}
@@ -274,7 +279,7 @@ func BuildLatestChangeSummary(signals []ingestiondomain.ChangeSignal) string {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-func decodeValues(raw json.RawMessage) map[string]string {
+func decodeStringValues(raw json.RawMessage) map[string]string {
 	if len(raw) == 0 {
 		return map[string]string{}
 	}
@@ -285,8 +290,8 @@ func decodeValues(raw json.RawMessage) map[string]string {
 	return out
 }
 
-// extractNumericField tries each field name in order and returns the first parseable int64.
-func extractNumericField(values map[string]string, fieldNames ...string) (int64, bool) {
+// extractFirstNumericField tries each field name in order and returns the first parseable int64.
+func extractFirstNumericField(values map[string]string, fieldNames ...string) (int64, bool) {
 	for _, name := range fieldNames {
 		raw := strings.TrimSpace(values[name])
 		if raw == "" {
