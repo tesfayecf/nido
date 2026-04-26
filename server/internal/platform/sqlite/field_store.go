@@ -534,8 +534,8 @@ func applyFieldDefinitionComparison(definition ingestiondomain.FieldDefinition, 
 	case "contains":
 		return fmt.Sprintf("%t", strings.Contains(strings.ToLower(value), strings.ToLower(definition.ComparisonValue)))
 	case "gt", "lt":
-		left := parseFieldFloat(value)
-		right := parseFieldFloat(definition.ComparisonValue)
+		left := parseLooseFieldFloat(value)
+		right := parseLooseFieldFloat(definition.ComparisonValue)
 		if strings.TrimSpace(strings.ToLower(definition.ComparisonOperator)) == "gt" {
 			return fmt.Sprintf("%t", left > right)
 		}
@@ -547,7 +547,7 @@ func applyFieldDefinitionComparison(definition ingestiondomain.FieldDefinition, 
 	}
 }
 
-func parseFieldFloat(value string) float64 {
+func parseLooseFieldFloat(value string) float64 {
 	var builder strings.Builder
 	for _, r := range value {
 		if (r >= '0' && r <= '9') || r == '.' || r == ',' || r == '-' {
