@@ -29,6 +29,8 @@ import { CopyButton } from "@/components/ui/CopyButton";
 import { useToast } from "@/components/ui/ToastProvider";
 import { TagBadge } from "@/components/tags/TagBadge";
 import { TagPicker } from "@/components/tags/TagPicker";
+import { buildPriceIntelligence, formatDecisionStatus } from "@/features/properties/priceIntelligence";
+import { readWorkspaceSettings } from "@/features/settings/workspaceSettings";
 import { fieldKeys } from "@/services/fields/fields.keys";
 import { listFields } from "@/services/fields/fields.service";
 import { PropertyAlertCreateDialog } from "@/features/engagement/PropertyAlertCreateDialog";
@@ -68,6 +70,7 @@ import {
     getProperty,
     getPropertyConfig,
     getPropertySummary,
+    listPropertySummaries,
     listPropertyConfigVersions,
     ingestProperty,
     listPropertyRuns,
@@ -235,13 +238,14 @@ export const PropertyDetailPage = (): JSX.Element => {
     const isCreateMode = propertyId === undefined || propertyId === "new";
     const resolvedId = isCreateMode ? "" : propertyId;
 
+    const workspaceSettings = useMemo(() => readWorkspaceSettings(), []);
     const [url, setUrl] = useState("");
     const [label, setLabel] = useState("");
-    const [sourceId, setSourceId] = useState("");
-    const [scheduleIntervalValue, setScheduleIntervalValue] = useState("");
-    const [scheduleIntervalUnit, setScheduleIntervalUnit] = useState<DurationUnit>("minutes");
-    const [retryMaxAttempts, setRetryMaxAttempts] = useState(1);
-    const [retryBackoffMillis, setRetryBackoffMillis] = useState(500);
+    const [sourceId, setSourceId] = useState(() => workspaceSettings.operations.default_source_id);
+    const [scheduleIntervalValue, setScheduleIntervalValue] = useState(() => workspaceSettings.operations.default_schedule_interval_value);
+    const [scheduleIntervalUnit, setScheduleIntervalUnit] = useState<DurationUnit>(() => workspaceSettings.operations.default_schedule_interval_unit);
+    const [retryMaxAttempts, setRetryMaxAttempts] = useState(() => workspaceSettings.operations.default_retry_max_attempts);
+    const [retryBackoffMillis, setRetryBackoffMillis] = useState(() => workspaceSettings.operations.default_retry_backoff_millis);
     const [fieldRows, setFieldRows] = useState<SelectorFieldDraft[]>(createDefaultSelectorDrafts);
     const [previewValues, setPreviewValues] = useState<Record<string, string>>({});
     const [previewMap, setPreviewMap] = useState<Map<string, PropertyPreviewFieldResult>>(new Map());
@@ -255,7 +259,10 @@ export const PropertyDetailPage = (): JSX.Element => {
     const [compareRightVersion, setCompareRightVersion] = useState<number>(0);
     const [rollbackTargetVersion, setRollbackTargetVersion] = useState<number | null>(null);
     const [metadataDraft, setMetadataDraft] = useState<PropertyMetadataDraft>(EMPTY_METADATA_DRAFT);
-    const [businessContextOpen, setBusinessContextOpen] = useState(false);
+    const [additionalFieldsOpen, setAdditionalFieldsOpen] = useState(false);
+    const [advancedOpen, setAdvancedOpen] = useState(false);
+    const [notesOpen, setNotesOpen] = useState(false);
+    const [decisionContextOpen, setDecisionContextOpen] = useState(false);
 
     const propertyQuery = useQuery({
         enabled: !isCreateMode,
@@ -310,6 +317,11 @@ export const PropertyDetailPage = (): JSX.Element => {
         queryFn: () => getPropertySummary(resolvedId),
         queryKey: propertyKeys.summary(resolvedId),
     });
+    const summariesQuery = useQuery({
+        enabled: !isCreateMode,
+        queryFn: () => listPropertySummaries(),
+        queryKey: propertyKeys.summaries(),
+    });
 
     useEffect(() => {
         if (propertyQuery.data !== undefined) {
@@ -326,6 +338,18 @@ export const PropertyDetailPage = (): JSX.Element => {
     }, [propertyQuery.data]);
 
     useEffect(() => {
+        if (!isCreateMode || url.trim() !== "" || label.trim() !== "") {
+            return;
+        }
+
+        setSourceId(workspaceSettings.operations.default_source_id);
+        setScheduleIntervalValue(workspaceSettings.operations.default_schedule_interval_value);
+        setScheduleIntervalUnit(workspaceSettings.operations.default_schedule_interval_unit);
+        setRetryMaxAttempts(workspaceSettings.operations.default_retry_max_attempts);
+        setRetryBackoffMillis(workspaceSettings.operations.default_retry_backoff_millis);
+    }, [isCreateMode, label, url, workspaceSettings]);
+
+    useEffect(() => {
         if (configQuery.data?.fields !== undefined && configQuery.data.fields.length > 0) {
             setFieldRows(configQuery.data.fields.map(selectorToDraft));
         }
@@ -336,7 +360,14 @@ export const PropertyDetailPage = (): JSX.Element => {
     const retryBackoffError = retryBackoffMillis < MIN_RETRY_BACKOFF_MS
         ? `Retry interval must be at least ${MIN_RETRY_BACKOFF_MS}ms.`
         : undefined;
-    const propertySaveError = scheduleIntervalError ?? retryBackoffError;
+    const effectiveScheduleIntervalSeconds = isCreateMode && !advancedOpen ? 0 : scheduleIntervalSeconds ?? 0;
+    const effectiveRetryBackoffMillis = isCreateMode && !advancedOpen
+        ? Math.max(retryBackoffMillis, MIN_RETRY_BACKOFF_MS)
+        : retryBackoffMillis;
+    const effectiveRetryMaxAttempts = isCreateMode && !advancedOpen
+        ? Math.max(retryMaxAttempts, 1)
+        : retryMaxAttempts;
+    const propertySaveError = (!isCreateMode || advancedOpen) ? scheduleIntervalError ?? retryBackoffError : undefined;
 
     const savePropertyMutation = useMutation({
         mutationFn: async () => {
@@ -356,9 +387,9 @@ export const PropertyDetailPage = (): JSX.Element => {
                 },
                 pause_reason: metadataDraft.pauseReason.trim() !== "" ? metadataDraft.pauseReason.trim() : undefined,
                 paused: metadataDraft.paused,
-                retry_backoff_millis: retryBackoffMillis,
-                retry_max_attempts: retryMaxAttempts,
-                schedule_interval_seconds: scheduleIntervalSeconds ?? 0,
+                retry_backoff_millis: effectiveRetryBackoffMillis,
+                retry_max_attempts: effectiveRetryMaxAttempts,
+                schedule_interval_seconds: effectiveScheduleIntervalSeconds,
                 source_id: sourceId.trim() !== "" ? sourceId.trim() : undefined,
                 url,
             };
@@ -556,12 +587,17 @@ export const PropertyDetailPage = (): JSX.Element => {
             : propertyQuery.data?.schedule_interval_seconds !== undefined && propertyQuery.data.schedule_interval_seconds > 0
                 ? "success"
                 : "neutral";
+    const pricingInsight = useMemo(() => {
+        return summaryQuery.data !== undefined
+            ? buildPriceIntelligence(summaryQuery.data, summariesQuery.data ?? [summaryQuery.data], workspaceSettings)
+            : undefined;
+    }, [summariesQuery.data, summaryQuery.data, workspaceSettings]);
 
     const editorContent = (
         <PageStack>
             <PageCard
                 action={!isCreateMode ? <Button as={Link} to={"/properties"} variant={"secondary"}>{"Back to properties"}</Button> : undefined}
-                description={isCreateMode ? "Guided setup: 1) enter the URL, 2) define fields, 3) preview extraction, 4) review validation, 5) save the property and config together." : "Update the property URL, template assignment, schedule, and retry behavior."}
+                description={isCreateMode ? "Start with a URL, then optionally expand fields, notes, and advanced configuration only when you need them." : "Update the property URL first, then expand optional sections for notes, pricing context, and automation controls."}
                 title={isCreateMode ? "Add Property" : "Edit Property"}
             >
                 {propertyQuery.isError ? <ErrorBanner>{"Could not load property."}</ErrorBanner> : null}
@@ -580,79 +616,52 @@ export const PropertyDetailPage = (): JSX.Element => {
                             })}
                         </Select>
                     </Field>
-                    <Field
-                        error={scheduleIntervalError}
-                        fullWidth
-                        hint={scheduleIntervalError === undefined ? "Runs every X minutes/hours using the saved backend schedule." : undefined}
-                        label={"Run interval"}
-                    >
-                        <div style={{ display: "grid", gap: "0.75rem" }}>
-                            <div style={{ display: "grid", gap: "0.75rem", gridTemplateColumns: "minmax(0, 1fr) 11rem" }}>
-                                <Input
-                                    id={"prop-schedule-value"}
-                                    invalid={scheduleIntervalError !== undefined}
-                                    min={1}
-                                    onChange={(event) => { setScheduleIntervalValue(event.target.value); }}
-                                    placeholder={"15"}
-                                    type={"number"}
-                                    value={scheduleIntervalValue}
-                                />
-                                <Select
-                                    id={"prop-schedule-unit"}
-                                    invalid={scheduleIntervalError !== undefined}
-                                    onChange={(event) => { setScheduleIntervalUnit(event.target.value as DurationUnit); }}
-                                    value={scheduleIntervalUnit}
-                                >
-                                    <option value={"seconds"}>{"Seconds"}</option>
-                                    <option value={"minutes"}>{"Minutes"}</option>
-                                    <option value={"hours"}>{"Hours"}</option>
-                                </Select>
-                            </div>
-                            <ActionGroup>
-                                {SCHEDULE_PRESETS.map((preset) => {
-                                    const presetLabel = formatDurationFromSeconds(durationDraftToSeconds(preset.value, preset.unit) ?? 0);
-                                    return (
-                                        <Button
-                                            key={`${preset.value}-${preset.unit}`}
-                                            onClick={() => {
-                                                setScheduleIntervalValue(preset.value);
-                                                setScheduleIntervalUnit(preset.unit);
-                                            }}
-                                            size={"small"}
-                                            variant={"secondary"}
-                                        >
-                                            {presetLabel}
-                                        </Button>
-                                    );
-                                })}
-                            </ActionGroup>
-                        </div>
-                    </Field>
-                    <div style={{ display: "grid", gap: "0.25rem", gridColumn: "1 / -1" }}>
-                        <strong>{"Retry on failure"}</strong>
-                        <p className={"muted-copy"}>{"Only failed runs use retry attempts and retry interval. Successful runs wait for the next scheduled execution."}</p>
-                    </div>
-                    <Field hint={"Retry on failure before the base schedule resumes."} label={"Max attempts"}>
-                        <Input id={"prop-retry"} min={1} onChange={(event) => { setRetryMaxAttempts(readNonNegativeNumber(event.target.value, 1)); }} type={"number"} value={retryMaxAttempts} />
-                    </Field>
-                    <Field error={retryBackoffError} hint={"Retry interval between failed attempts."} label={"Retry interval (ms)"}>
-                        <Input
-                            id={"prop-backoff"}
-                            invalid={retryBackoffError !== undefined}
-                            min={MIN_RETRY_BACKOFF_MS}
-                            onChange={(event) => { setRetryBackoffMillis(readNonNegativeNumber(event.target.value, 500)); }}
-                            type={"number"}
-                            value={retryBackoffMillis}
-                        />
-                    </Field>
                     <div style={{ display: "grid", gap: "0.5rem", gridColumn: "1 / -1" }}>
-                        <Button onClick={() => { setBusinessContextOpen((open) => !open); }} type={"button"} variant={"secondary"}>
-                            {businessContextOpen ? "Hide business context" : "Show optional business context"}
+                        <Button onClick={() => { setAdditionalFieldsOpen((open) => !open); }} type={"button"} variant={"secondary"}>
+                            {additionalFieldsOpen ? "Hide additional fields" : "Show additional fields"}
                         </Button>
-                        <p className={"muted-copy"}>{"Optional metadata is hidden by default to keep editing focused on name, URL, source, and run interval."}</p>
+                        <Button onClick={() => { setNotesOpen((open) => !open); }} type={"button"} variant={"secondary"}>
+                            {notesOpen ? "Hide notes and thesis" : "Show notes and thesis"}
+                        </Button>
+                        <Button onClick={() => { setDecisionContextOpen((open) => !open); }} type={"button"} variant={"secondary"}>
+                            {decisionContextOpen ? "Hide decision context" : "Show decision context"}
+                        </Button>
+                        <Button onClick={() => { setAdvancedOpen((open) => !open); }} type={"button"} variant={"secondary"}>
+                            {advancedOpen ? "Hide advanced configs" : "Show advanced configs"}
+                        </Button>
+                        <p className={"muted-copy"}>{"Only the URL is required. Price fields, notes, and automation remains optional layers."}</p>
                     </div>
-                    {businessContextOpen ? (
+                    {notesOpen ? (
                         <>
+                            <Field fullWidth label={"Notes"}>
+                                <Textarea onChange={(event) => { setMetadataDraft((current) => ({ ...current, acquisitionNotes: event.target.value })); }} rows={3} value={metadataDraft.acquisitionNotes} />
+                            </Field>
+                            <Field fullWidth label={"Thesis"}>
+                                <Textarea onChange={(event) => { setMetadataDraft((current) => ({ ...current, dealThesis: event.target.value })); }} rows={4} value={metadataDraft.dealThesis} />
+                            </Field>
+                        </>
+                    ) : null}
+                    {decisionContextOpen ? (
+                        <>
+                            <div style={{ display: "grid", gap: "0.25rem", gridColumn: "1 / -1" }}>
+                                <strong>{"Decision status"}</strong>
+                                <div className={"action-group"}>
+                                    {["candidate", "shortlisted", "rejected"].map((value) => (
+                                        <Button
+                                            key={value}
+                                            onClick={() => { setMetadataDraft((current) => ({ ...current, businessStage: current.businessStage === value ? "" : value })); }}
+                                            size={"small"}
+                                            type={"button"}
+                                            variant={metadataDraft.businessStage === value ? "primary" : "secondary"}
+                                        >
+                                            {formatDecisionStatus(value)}
+                                        </Button>
+                                    ))}
+                                </div>
+                            </div>
+                            <Field label={"Target price"}>
+                                <Input min={0} onChange={(event) => { setMetadataDraft((current) => ({ ...current, targetPrice: event.target.value })); }} type={"number"} value={metadataDraft.targetPrice} />
+                            </Field>
                             <Field label={"Priority"}>
                                 <Select onChange={(event) => { setMetadataDraft((current) => ({ ...current, priorityLevel: event.target.value })); }} value={metadataDraft.priorityLevel}>
                                     <option value={""}>{"Not set"}</option>
@@ -662,11 +671,71 @@ export const PropertyDetailPage = (): JSX.Element => {
                                     <option value={"critical"}>{"Critical"}</option>
                                 </Select>
                             </Field>
-                            <Field label={"Business stage"}>
-                                <Input onChange={(event) => { setMetadataDraft((current) => ({ ...current, businessStage: event.target.value })); }} placeholder={"Underwriting, offer, closed"} type={"text"} value={metadataDraft.businessStage} />
+                        </>
+                    ) : null}
+                    {advancedOpen ? (
+                        <>
+                            <Field
+                                error={scheduleIntervalError}
+                                fullWidth
+                                hint={scheduleIntervalError === undefined ? "Runs every X minutes/hours using the saved backend schedule." : undefined}
+                                label={"Run interval"}
+                            >
+                                <div style={{ display: "grid", gap: "0.75rem" }}>
+                                    <div style={{ display: "grid", gap: "0.75rem", gridTemplateColumns: "minmax(0, 1fr) 11rem" }}>
+                                        <Input
+                                            id={"prop-schedule-value"}
+                                            invalid={scheduleIntervalError !== undefined}
+                                            min={1}
+                                            onChange={(event) => { setScheduleIntervalValue(event.target.value); }}
+                                            placeholder={"15"}
+                                            type={"number"}
+                                            value={scheduleIntervalValue}
+                                        />
+                                        <Select
+                                            id={"prop-schedule-unit"}
+                                            invalid={scheduleIntervalError !== undefined}
+                                            onChange={(event) => { setScheduleIntervalUnit(event.target.value as DurationUnit); }}
+                                            value={scheduleIntervalUnit}
+                                        >
+                                            <option value={"seconds"}>{"Seconds"}</option>
+                                            <option value={"minutes"}>{"Minutes"}</option>
+                                            <option value={"hours"}>{"Hours"}</option>
+                                        </Select>
+                                    </div>
+                                    <ActionGroup>
+                                        {SCHEDULE_PRESETS.map((preset) => {
+                                            const presetLabel = formatDurationFromSeconds(durationDraftToSeconds(preset.value, preset.unit) ?? 0);
+                                            return (
+                                                <Button
+                                                    key={`${preset.value}-${preset.unit}`}
+                                                    onClick={() => {
+                                                        setScheduleIntervalValue(preset.value);
+                                                        setScheduleIntervalUnit(preset.unit);
+                                                    }}
+                                                    size={"small"}
+                                                    type={"button"}
+                                                    variant={"secondary"}
+                                                >
+                                                    {presetLabel}
+                                                </Button>
+                                            );
+                                        })}
+                                    </ActionGroup>
+                                </div>
                             </Field>
-                            <Field label={"Target price"}>
-                                <Input min={0} onChange={(event) => { setMetadataDraft((current) => ({ ...current, targetPrice: event.target.value })); }} type={"number"} value={metadataDraft.targetPrice} />
+                            <Field hint={"Retry on failure before the base schedule resumes."} label={"Max attempts"}>
+                                <Input id={"prop-retry"} min={1} onChange={(event) => { setRetryMaxAttempts(readNonNegativeNumber(event.target.value, 1)); }} type={"number"} value={retryMaxAttempts} />
+                            </Field>
+                            <Field error={retryBackoffError} hint={"Retry interval between failed attempts."} label={"Retry interval (ms)"}>
+                                <Input
+                                    id={"prop-backoff"}
+                                    invalid={retryBackoffError !== undefined}
+                                    min={MIN_RETRY_BACKOFF_MS}
+                                    onChange={(event) => { setRetryBackoffMillis(readNonNegativeNumber(event.target.value, 500)); }}
+                                    type={"number"}
+                                    value={retryBackoffMillis}
+                                />
                             </Field>
                             <Field label={"Expected rent"}>
                                 <Input min={0} onChange={(event) => { setMetadataDraft((current) => ({ ...current, expectedRent: event.target.value })); }} type={"number"} value={metadataDraft.expectedRent} />
@@ -679,9 +748,6 @@ export const PropertyDetailPage = (): JSX.Element => {
                             </Field>
                             <Field fullWidth label={"Pause reason"}>
                                 <Input onChange={(event) => { setMetadataDraft((current) => ({ ...current, pauseReason: event.target.value })); }} placeholder={"Optional reason for pausing automation"} type={"text"} value={metadataDraft.pauseReason} />
-                            </Field>
-                            <Field fullWidth label={"Acquisition notes"}>
-                                <Textarea onChange={(event) => { setMetadataDraft((current) => ({ ...current, acquisitionNotes: event.target.value })); }} rows={3} value={metadataDraft.acquisitionNotes} />
                             </Field>
                         </>
                     ) : null}
@@ -708,35 +774,37 @@ export const PropertyDetailPage = (): JSX.Element => {
             </PageCard>
 
             {isCreateMode ? (
-                <PageCard description={"Build the initial field set, preview extraction on the target page, and validate the selectors before saving."} title={"Guided Field Setup"}>
-                    <SelectorBuilder fieldDefinitions={fieldDefinitionsQuery.data} fields={fieldRows} onChange={setFieldRows} previewByFieldName={previewMap} />
-                    {fieldRows.length === 0 ? <EmptyState message={"No fields defined yet. Add a field to start extracting data."} /> : null}
-                    <ActionGroup>
-                        <Button onClick={() => { setFieldRows((rows) => [...rows, createEmptySelectorDraft()]); }} variant={"secondary"}>{"Add field"}</Button>
-                        <Button disabled={previewMutation.isPending || url.trim() === "" || validationMessages.length > 0} onClick={() => { previewMutation.mutate(); }} variant={"secondary"}>{previewMutation.isPending ? "Previewing..." : "Preview extraction"}</Button>
-                        <Button disabled={saveConfigMutation.isPending || validationMessages.length > 0} onClick={() => { saveConfigMutation.mutate(); }}>{saveConfigMutation.isPending ? "Saving..." : "Save configuration"}</Button>
-                    </ActionGroup>
-                    {validationMessages.length > 0 ? (
-                        <div className={"selector-builder__validation-list"}>
-                            {validationMessages.map((message) => <ErrorBanner key={message}>{message}</ErrorBanner>)}
-                        </div>
-                    ) : null}
-                    {saveConfigMutation.isError ? <ErrorBanner>{"Could not save configuration."}</ErrorBanner> : null}
-                    {previewFailures.length > 0 ? (
-                        <div className={"selector-builder__validation-list"}>
-                            {previewFailures.map((failure) => <ErrorBanner key={failure}>{failure}</ErrorBanner>)}
-                        </div>
-                    ) : null}
-                    {Object.keys(previewValues).length > 0 ? (
-                        <div className={"selector-builder__results"}>
-                            {Object.entries(previewValues).map(([fieldName, value]) => (
-                                <article className={"selector-builder__result-card"} key={fieldName}>
-                                    <span className={"selector-builder__result-label"}>{fieldName}</span>
-                                    <strong className={"selector-builder__result-value"}>{value}</strong>
-                                </article>
-                            ))}
-                        </div>
-                    ) : null}
+                <PageCard description={"Add extraction fields only when you want to capture price or other metadata immediately."} title={"Additional fields"}>
+                    {!additionalFieldsOpen ? <EmptyState message={"Additional fields are hidden by default so property intake stays fast."} /> : (
+                        <>
+                            <SelectorBuilder fieldDefinitions={fieldDefinitionsQuery.data} fields={fieldRows} onChange={setFieldRows} previewByFieldName={previewMap} />
+                            {fieldRows.length === 0 ? <EmptyState message={"No fields defined yet. Add a field to start extracting data."} /> : null}
+                            <ActionGroup>
+                                <Button onClick={() => { setFieldRows((rows) => [...rows, createEmptySelectorDraft()]); }} type={"button"} variant={"secondary"}>{"Add field"}</Button>
+                                <Button disabled={previewMutation.isPending || url.trim() === "" || validationMessages.length > 0} onClick={() => { previewMutation.mutate(); }} type={"button"} variant={"secondary"}>{previewMutation.isPending ? "Previewing..." : "Preview extraction"}</Button>
+                            </ActionGroup>
+                            {validationMessages.length > 0 ? (
+                                <div className={"selector-builder__validation-list"}>
+                                    {validationMessages.map((message) => <ErrorBanner key={message}>{message}</ErrorBanner>)}
+                                </div>
+                            ) : null}
+                            {previewFailures.length > 0 ? (
+                                <div className={"selector-builder__validation-list"}>
+                                    {previewFailures.map((failure) => <ErrorBanner key={failure}>{failure}</ErrorBanner>)}
+                                </div>
+                            ) : null}
+                            {Object.keys(previewValues).length > 0 ? (
+                                <div className={"selector-builder__results"}>
+                                    {Object.entries(previewValues).map(([fieldName, value]) => (
+                                        <article className={"selector-builder__result-card"} key={fieldName}>
+                                            <span className={"selector-builder__result-label"}>{fieldName}</span>
+                                            <strong className={"selector-builder__result-value"}>{value}</strong>
+                                        </article>
+                                    ))}
+                                </div>
+                            ) : null}
+                        </>
+                    )}
                 </PageCard>
             ) : null}
         </PageStack>
@@ -785,23 +853,33 @@ export const PropertyDetailPage = (): JSX.Element => {
                     ) : null}
                 </PageCard>
 
-                <PageCard description={"Optional business context is summarized here only when present."} title={"Business Context"}>
+                <PageCard description={"Decision status and qualitative notes remain optional so they never block the core property workflow."} title={"Notes & Decision"}>
                     {propertyQuery.data?.metadata === undefined ? <EmptyState message={"No metadata has been added yet. Use Edit to capture priority, pricing context, and deal notes."} /> : (
                         <KeyValueGrid compact>
+                            <KeyValuePair label={"Decision status"} value={formatDecisionStatus(propertyQuery.data.metadata.business_stage)} />
                             <KeyValuePair label={"Priority"} value={propertyQuery.data.metadata.priority_level ?? "Not set"} />
-                            <KeyValuePair label={"Business stage"} value={propertyQuery.data.metadata.business_stage ?? "Not set"} />
                             <KeyValuePair label={"Target price"} value={propertyQuery.data.metadata.target_price !== undefined ? `${propertyQuery.data.metadata.target_price}` : "Not set"} />
                             <KeyValuePair label={"Expected rent"} value={propertyQuery.data.metadata.expected_rent !== undefined ? `${propertyQuery.data.metadata.expected_rent}` : "Not set"} />
                             <KeyValuePair label={"Expected yield"} value={propertyQuery.data.metadata.expected_yield_bps !== undefined ? `${(propertyQuery.data.metadata.expected_yield_bps / BASIS_POINTS_PER_PERCENT).toFixed(1)}%` : "Not set"} />
                             <KeyValuePair label={"Automation paused"} value={propertyQuery.data.paused ? `Yes${propertyQuery.data.pause_reason !== undefined && propertyQuery.data.pause_reason !== "" ? ` · ${propertyQuery.data.pause_reason}` : ""}` : "No"} />
-                            <KeyValuePair label={"Acquisition notes"} value={propertyQuery.data.metadata.acquisition_notes ?? "—"} />
+                            <KeyValuePair label={"Notes"} value={propertyQuery.data.metadata.acquisition_notes ?? "—"} />
+                            <KeyValuePair label={"Thesis"} value={propertyQuery.data.metadata.deal_thesis ?? "—"} />
                         </KeyValueGrid>
                     )}
                 </PageCard>
 
                 {summaryQuery.data !== undefined ? (
-                    <PageCard description={"Acquisition intelligence computed from latest snapshot data and business targets."} title={"Decision Context"}>
-                        <DecisionStrip summary={summaryQuery.data} />
+                    <PageCard description={"Price intelligence is anchored on current price, target price, and the best available market benchmark."} title={"Price Intelligence"}>
+                        <DecisionStrip allSummaries={summariesQuery.data} settings={workspaceSettings} summary={summaryQuery.data} />
+                        {pricingInsight !== undefined ? (
+                            <KeyValueGrid compact style={{ marginTop: "1rem" }}>
+                                <KeyValuePair label={"Decision status"} value={formatDecisionStatus(summaryQuery.data.decision.stage)} />
+                                <KeyValuePair label={"Market average"} value={pricingInsight.market_average !== undefined ? formatEuro(pricingInsight.market_average) : "Not enough comparables"} />
+                                <KeyValuePair label={"Gap vs market"} value={pricingInsight.market_delta_percent !== undefined ? `${pricingInsight.market_delta_percent.toFixed(1)}%` : "—"} />
+                                <KeyValuePair label={"Gap vs target"} value={pricingInsight.target_delta_percent !== undefined ? `${pricingInsight.target_delta_percent.toFixed(1)}%` : "—"} />
+                                <KeyValuePair label={"Comparables"} value={`${pricingInsight.comparable_count}`} />
+                            </KeyValueGrid>
+                        ) : null}
                         {summaryQuery.data.signals.length > 0 ? (
                             <Tabs
                                 defaultTabId={"all"}

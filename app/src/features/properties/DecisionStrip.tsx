@@ -1,5 +1,8 @@
 import type { DecisionContext, PropertySummary } from "@/services/properties/properties.types";
 
+import { buildPriceIntelligence, formatDecisionStatus } from "@/features/properties/priceIntelligence";
+import type { WorkspaceSettings } from "@/features/settings/workspaceSettings";
+
 const formatPrice = (value: number | undefined): string => {
     if (value === undefined) {
         return "—";
@@ -53,7 +56,7 @@ const StageChip = ({ stage }: StageChipProps): JSX.Element | null => {
 
     return (
         <span className={"inline-flex items-center rounded-full border border-zinc-300 bg-zinc-50 px-2 py-0.5 text-xs font-medium text-zinc-700 dark:border-zinc-600 dark:bg-zinc-800/60 dark:text-zinc-300"}>
-            {stage.replace(/_/g, " ")}
+            {formatDecisionStatus(stage)}
         </span>
     );
 };
@@ -82,27 +85,52 @@ const PriorityChip = ({ level }: PriorityChipProps): JSX.Element | null => {
 };
 
 interface DecisionStripProps {
+    readonly allSummaries?: readonly PropertySummary[];
     readonly compact?: boolean;
+    readonly settings?: WorkspaceSettings;
     readonly summary: PropertySummary;
 }
 
-export const DecisionStrip = ({ compact = false, summary }: DecisionStripProps): JSX.Element => {
+const ClassificationChip = ({ value }: { readonly value: ReturnType<typeof buildPriceIntelligence>["classification"]; }): JSX.Element => {
+    const styles: Record<string, string> = {
+        cheap: "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300",
+        expensive: "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300",
+        fair: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
+    };
+    return (
+        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${styles[value]}`}>
+            {value}
+        </span>
+    );
+};
+
+export const DecisionStrip = ({ allSummaries, compact = false, settings, summary }: DecisionStripProps): JSX.Element => {
     const { decision, latest_change_summary } = summary;
-    const gapTone = decision.price_gap_percent !== undefined && decision.price_gap_percent > 0
+    const intelligence = buildPriceIntelligence(summary, allSummaries ?? [summary], settings);
+    const targetGapTone = intelligence.target_delta_percent !== undefined && intelligence.target_delta_percent > 0
+        ? "text-red-600 dark:text-red-400"
+        : "text-green-600 dark:text-green-400";
+    const marketGapTone = intelligence.market_delta_percent !== undefined && intelligence.market_delta_percent > 0
         ? "text-red-600 dark:text-red-400"
         : "text-green-600 dark:text-green-400";
 
     if (compact) {
         return (
             <div className={"flex flex-wrap items-center gap-2 text-sm"}>
-                {decision.current_price !== undefined ? (
+                {intelligence.current_price !== undefined ? (
                     <span className={"font-semibold text-zinc-900 dark:text-zinc-100"}>
-                        {formatPrice(decision.current_price)}
+                        {formatPrice(intelligence.current_price)}
                     </span>
                 ) : null}
-                {decision.price_gap_percent !== undefined ? (
-                    <span className={`text-xs font-medium ${gapTone}`} title={`Target: ${formatPrice(decision.target_price)}`}>
-                        {formatPct(decision.price_gap_percent, { sign: true })}{" vs target"}
+                <ClassificationChip value={intelligence.classification} />
+                {intelligence.target_delta_percent !== undefined ? (
+                    <span className={`text-xs font-medium ${targetGapTone}`} title={`Target: ${formatPrice(intelligence.target_price)}`}>
+                        {formatPct(intelligence.target_delta_percent, { sign: true })}{" vs target"}
+                    </span>
+                ) : null}
+                {intelligence.market_delta_percent !== undefined ? (
+                    <span className={`text-xs font-medium ${marketGapTone}`} title={`Market average: ${formatPrice(intelligence.market_average)}`}>
+                        {formatPct(intelligence.market_delta_percent, { sign: true })}{" vs market"}
                     </span>
                 ) : null}
                 <FreshnessChip status={decision.freshness_status} />
@@ -117,42 +145,66 @@ export const DecisionStrip = ({ compact = false, summary }: DecisionStripProps):
                 <div>
                     <p className={"text-xs text-zinc-500 dark:text-zinc-400"}>{"Current price"}</p>
                     <p className={"text-xl font-bold text-zinc-900 dark:text-zinc-100"}>
-                        {formatPrice(decision.current_price)}
+                        {formatPrice(intelligence.current_price)}
                     </p>
                 </div>
 
-                {decision.target_price !== undefined ? (
+                {intelligence.target_price !== undefined ? (
                     <div>
-                        <p className={"text-xs text-zinc-500 dark:text-zinc-400"}>{"Target"}</p>
+                        <p className={"text-xs text-zinc-500 dark:text-zinc-400"}>{"Target price"}</p>
                         <p className={"text-xl font-semibold text-zinc-700 dark:text-zinc-300"}>
-                            {formatPrice(decision.target_price)}
+                            {formatPrice(intelligence.target_price)}
                         </p>
                     </div>
                 ) : null}
 
-                {decision.price_gap_percent !== undefined ? (
+                {intelligence.market_average !== undefined ? (
+                    <div>
+                        <p className={"text-xs text-zinc-500 dark:text-zinc-400"}>{"Market average"}</p>
+                        <p className={"text-xl font-semibold text-zinc-700 dark:text-zinc-300"}>
+                            {formatPrice(intelligence.market_average)}
+                        </p>
+                    </div>
+                ) : null}
+
+                {intelligence.target_delta_percent !== undefined ? (
                     <div>
                         <p className={"text-xs text-zinc-500 dark:text-zinc-400"}>{"Gap vs target"}</p>
-                        <p className={`text-xl font-semibold ${gapTone}`}>
-                            {formatPct(decision.price_gap_percent, { sign: true })}
+                        <p className={`text-xl font-semibold ${targetGapTone}`}>
+                            {formatPct(intelligence.target_delta_percent, { sign: true })}
                         </p>
                     </div>
                 ) : null}
 
-                {decision.current_price_per_sqm !== undefined ? (
+                {intelligence.market_delta_percent !== undefined ? (
+                    <div>
+                        <p className={"text-xs text-zinc-500 dark:text-zinc-400"}>{"Gap vs market"}</p>
+                        <p className={`text-xl font-semibold ${marketGapTone}`}>
+                            {formatPct(intelligence.market_delta_percent, { sign: true })}
+                        </p>
+                    </div>
+                ) : null}
+
+                {intelligence.current_price_per_unit !== undefined ? (
                     <div>
                         <p className={"text-xs text-zinc-500 dark:text-zinc-400"}>{"€/m²"}</p>
                         <p className={"text-xl font-semibold text-zinc-800 dark:text-zinc-200"}>
-                            {formatPrice(decision.current_price_per_sqm)}
+                            {formatPrice(intelligence.current_price_per_unit)}
                         </p>
                     </div>
                 ) : null}
 
                 <div className={"ml-auto flex flex-wrap items-center gap-2"}>
+                    <ClassificationChip value={intelligence.classification} />
                     <FreshnessChip status={decision.freshness_status} />
                     <StageChip stage={decision.stage} />
                     <PriorityChip level={decision.priority_level} />
                 </div>
+            </div>
+
+            <div className={"mt-3 flex flex-wrap gap-4 text-sm text-zinc-500 dark:text-zinc-400"}>
+                <span>{`${intelligence.benchmark_label === "target price" ? "Target price" : "Market benchmark"}: ${formatPrice(intelligence.benchmark_value)}`}</span>
+                <span>{`${intelligence.comparable_count} comparables`}</span>
             </div>
 
             {latest_change_summary !== "" || decision.deal_thesis_summary !== undefined ? (

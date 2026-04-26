@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -260,6 +261,7 @@ export const FieldsPage = (): JSX.Element => {
                                                 align: "right",
                                                 cell: (item) => (
                                                     <div className={"action-group"}>
+                                                        <Button as={Link} size={"small"} to={`/fields/${encodeURIComponent(item.name)}/analytics`} variant={"secondary"}>{"Analyze"}</Button>
                                                         <Button onClick={() => { openEdit(item); }} size={"small"} variant={"secondary"}>{"Edit"}</Button>
                                                         <Button onClick={() => { setDeleteTarget(item); }} size={"small"} variant={"secondary"}>{"Delete"}</Button>
                                                     </div>

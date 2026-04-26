@@ -12,6 +12,7 @@ import { AlertsPage } from "@/features/engagement/AlertsPage";
 import { BookmarksPage } from "@/features/engagement/BookmarksPage";
 import { NotificationsPage } from "@/features/engagement/NotificationsPage";
 import { AnalyticsPage } from "@/features/analytics/AnalyticsPage";
+import { FieldAnalyticsPage } from "@/features/fields/FieldAnalyticsPage";
 import { FieldsPage } from "@/features/fields/FieldsPage";
 import { DashboardPage } from "@/features/operators/DashboardPage";
 import { AdminPage } from "@/features/platform/AdminPage";
@@ -71,6 +72,10 @@ export const router = createBrowserRouter([
                     {
                         path: "fields",
                         element: <FieldsPage />,
+                    },
+                    {
+                        path: "fields/:fieldName/analytics",
+                        element: <FieldAnalyticsPage />,
                     },
                     {
                         path: "sources",
