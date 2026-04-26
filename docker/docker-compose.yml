@@ -1,30 +1,32 @@
 services:
   app:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
-      args:
-        VITE_API_ORIGIN: ""
-    environment:
-      NIDO_HTTP_ADDR: 127.0.0.1:18080
-      NIDO_DATABASE_PATH: /data/nido.db
-      NIDO_BOOTSTRAP_ADMIN_EMAIL: admin@local
-      NIDO_BOOTSTRAP_ADMIN_NAME: Local Admin
-      NIDO_BOOTSTRAP_ADMIN_PASSWORD: dev-password
-      NIDO_AUTH_SESSION_TTL: 24h
-      TMPDIR: /tmp
-    ports:
-      - "3000:80"
-    volumes:
-      - nido_data:/data
+    container_name: nido
+    image: tesfayecf/nido:latest-arm64
     restart: unless-stopped
+    env_file: 'nido.env'
+    volumes:
+      - /home/tesfa/services/nido/data:/data
+    network_mode: bridge
+    ports:
+      - "4000:3000"
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 1024M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:18080/api/v1/health/ready"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    labels:
+      - "com.example.description=nido"
+      - "com.example.version=0.1.0"
     read_only: true
+    stop_signal: SIGTERM
+    stop_grace_period: 15s
     tmpfs:
       - /var/cache/nginx
       - /var/run
       - /tmp
-    stop_signal: SIGTERM
-    stop_grace_period: 15s
-
-volumes:
-  nido_data:

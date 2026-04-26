@@ -14,13 +14,20 @@ The image keeps the frontend same-origin with the API by serving static assets t
 - `nginx.conf`: static file serving plus same-container `/api` reverse proxy with SSE-friendly settings
 - `docker-compose.yml`: one-service deployment stack with persistent SQLite storage
 
-## Build And Run
+## Build
 
 From the repository root:
 
 ```bash
-docker compose -f docker/docker-compose.yml build
-docker compose -f docker/docker-compose.yml up -d
+docker buildx build --platform linux/arm64 -t tesfayecf/nido:latest-arm64 -f ./docker/Dockerfile . --load
+```
+
+## Run
+
+From the repository root:
+
+```bash
+docker compose -f docker/docker-compose.yml up
 ```
 
 Then open:
