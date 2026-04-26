@@ -44,7 +44,9 @@ func (s *fieldServiceStoreStub) CreateFieldDefinition(_ context.Context, field i
 	return nil
 }
 
-func (s *fieldServiceStoreStub) UpdateFieldDefinition(context.Context, ingestiondomain.FieldDefinition) error { return nil }
+func (s *fieldServiceStoreStub) UpdateFieldDefinition(context.Context, ingestiondomain.FieldDefinition) error {
+	return nil
+}
 
 func (s *fieldServiceStoreStub) DeleteFieldDefinition(context.Context, string) error { return nil }
 

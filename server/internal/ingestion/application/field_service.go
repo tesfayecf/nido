@@ -78,15 +78,19 @@ func (s *FieldService) UpdateFieldDefinition(ctx context.Context, fieldID string
 
 	now := s.clock.Now().UTC()
 	next, err := normalizeFieldDefinitionInput(ingestiondomain.FieldDefinition{
-		ID:            existing.ID,
-		Name:          existing.Name,
-		DisplayName:   firstNonEmptyString(patch.DisplayName, existing.DisplayName),
-		DataType:      firstNonEmptyFieldType(patch.DataType, existing.DataType),
-		Unit:          firstNonEmptyString(patch.Unit, existing.Unit),
-		Description:   firstNonEmptyString(patch.Description, existing.Description),
-		EnumValues:    chooseStringSlice(patch.EnumValues, existing.EnumValues),
-		SystemDefined: existing.SystemDefined,
-		CreatedAt:     existing.CreatedAt,
+		ID:                    existing.ID,
+		Name:                  existing.Name,
+		DisplayName:           firstNonEmptyString(patch.DisplayName, existing.DisplayName),
+		DataType:              firstNonEmptyFieldType(patch.DataType, existing.DataType),
+		Unit:                  firstNonEmptyString(patch.Unit, existing.Unit),
+		Description:           firstNonEmptyString(patch.Description, existing.Description),
+		EnumValues:            chooseStringSlice(patch.EnumValues, existing.EnumValues),
+		DefaultValue:          chooseStringValue(patch.DefaultValue, existing.DefaultValue),
+		UseDefaultWhenMissing: patch.UseDefaultWhenMissing,
+		ComparisonOperator:    chooseStringValue(patch.ComparisonOperator, existing.ComparisonOperator),
+		ComparisonValue:       chooseStringValue(patch.ComparisonValue, existing.ComparisonValue),
+		SystemDefined:         existing.SystemDefined,
+		CreatedAt:             existing.CreatedAt,
 	}, now, true)
 	if err != nil {
 		return ingestiondomain.FieldDefinition{}, err
@@ -229,6 +233,9 @@ func normalizeFieldDefinitionInput(field ingestiondomain.FieldDefinition, now ti
 	field.DisplayName = strings.TrimSpace(field.DisplayName)
 	field.Unit = strings.TrimSpace(field.Unit)
 	field.Description = strings.TrimSpace(field.Description)
+	field.DefaultValue = strings.TrimSpace(field.DefaultValue)
+	field.ComparisonOperator = strings.TrimSpace(strings.ToLower(field.ComparisonOperator))
+	field.ComparisonValue = strings.TrimSpace(field.ComparisonValue)
 	field.EnumValues = trimNonEmpty(field.EnumValues)
 	field.UpdatedAt = now
 	if field.CreatedAt.IsZero() {
@@ -253,6 +260,19 @@ func normalizeFieldDefinitionInput(field ingestiondomain.FieldDefinition, now ti
 	}
 	if field.DataType != ingestiondomain.FieldDataTypeEnum {
 		field.EnumValues = nil
+	}
+	if field.DataType == ingestiondomain.FieldDataTypeBoolean && field.ComparisonOperator != "" {
+		switch field.ComparisonOperator {
+		case "eq", "gt", "lt", "contains":
+		default:
+			return ingestiondomain.FieldDefinition{}, fmt.Errorf("unsupported comparison operator")
+		}
+		if field.ComparisonValue == "" {
+			return ingestiondomain.FieldDefinition{}, fmt.Errorf("comparison value is required")
+		}
+	} else if field.DataType != ingestiondomain.FieldDataTypeBoolean {
+		field.ComparisonOperator = ""
+		field.ComparisonValue = ""
 	}
 	return field, nil
 }
@@ -290,4 +310,11 @@ func trimNonEmpty(items []string) []string {
 		return nil
 	}
 	return trimmed
+}
+
+func chooseStringValue(value, fallback string) string {
+	if strings.TrimSpace(value) == "" {
+		return fallback
+	}
+	return strings.TrimSpace(value)
 }

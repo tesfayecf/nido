@@ -26,7 +26,7 @@ export const SCHEDULE_PRESETS: readonly DurationDraft[] = [
 
 export const durationDraftFromSeconds = (seconds?: number): DurationDraft => {
     if (seconds === undefined || seconds <= 0) {
-        return { unit: "minutes", value: "" };
+        return { unit: "hours", value: "1" };
     }
 
     if (seconds % durationUnitSeconds.hours === 0) {

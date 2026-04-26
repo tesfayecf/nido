@@ -48,30 +48,46 @@ const (
 
 // FieldSelector describes how to extract one named field from a page.
 type FieldSelector struct {
-	Name              string         `json:"name"`
-	FieldName         string         `json:"field_name,omitempty"`
-	SelectorType      SelectorType   `json:"selector_type"`
-	SelectorValue     string         `json:"selector_value"`
-	FallbackSelectors []string       `json:"fallback_selectors,omitempty"`
-	ExtractionMode    ExtractionMode `json:"extraction_mode"`
-	TextMode          TextMode       `json:"text_mode,omitempty"`
-	Attribute         string         `json:"attribute,omitempty"`
-	Transform         string         `json:"transform,omitempty"`
-	Required          bool           `json:"required"`
+	Name                  string         `json:"name"`
+	FieldName             string         `json:"field_name,omitempty"`
+	SelectorType          SelectorType   `json:"selector_type"`
+	SelectorValue         string         `json:"selector_value"`
+	FallbackSelectors     []string       `json:"fallback_selectors,omitempty"`
+	ExtractionMode        ExtractionMode `json:"extraction_mode"`
+	TextMode              TextMode       `json:"text_mode,omitempty"`
+	Attribute             string         `json:"attribute,omitempty"`
+	Transform             string         `json:"transform,omitempty"`
+	DefaultValue          string         `json:"default_value,omitempty"`
+	UseDefaultWhenMissing bool           `json:"use_default_when_missing,omitempty"`
+	RegexPattern          string         `json:"regex_pattern,omitempty"`
+	SplitDelimiter        string         `json:"split_delimiter,omitempty"`
+	MultiValue            bool           `json:"multi_value,omitempty"`
+	PartialMatch          string         `json:"partial_match,omitempty"`
+	ComparisonOperator    string         `json:"comparison_operator,omitempty"`
+	ComparisonValue       string         `json:"comparison_value,omitempty"`
+	Required              bool           `json:"required"`
 }
 
 type fieldSelectorPayload struct {
-	Name              string         `json:"name"`
-	FieldName         string         `json:"field_name,omitempty"`
-	SelectorType      SelectorType   `json:"selector_type"`
-	SelectorValue     string         `json:"selector_value"`
-	FallbackSelectors []string       `json:"fallback_selectors,omitempty"`
-	ExtractionMode    ExtractionMode `json:"extraction_mode"`
-	TextMode          TextMode       `json:"text_mode,omitempty"`
-	Attribute         string         `json:"attribute,omitempty"`
-	Transform         string         `json:"transform,omitempty"`
-	Required          bool           `json:"required"`
-	Selectors         []string       `json:"selectors,omitempty"`
+	Name                  string         `json:"name"`
+	FieldName             string         `json:"field_name,omitempty"`
+	SelectorType          SelectorType   `json:"selector_type"`
+	SelectorValue         string         `json:"selector_value"`
+	FallbackSelectors     []string       `json:"fallback_selectors,omitempty"`
+	ExtractionMode        ExtractionMode `json:"extraction_mode"`
+	TextMode              TextMode       `json:"text_mode,omitempty"`
+	Attribute             string         `json:"attribute,omitempty"`
+	Transform             string         `json:"transform,omitempty"`
+	DefaultValue          string         `json:"default_value,omitempty"`
+	UseDefaultWhenMissing bool           `json:"use_default_when_missing,omitempty"`
+	RegexPattern          string         `json:"regex_pattern,omitempty"`
+	SplitDelimiter        string         `json:"split_delimiter,omitempty"`
+	MultiValue            bool           `json:"multi_value,omitempty"`
+	PartialMatch          string         `json:"partial_match,omitempty"`
+	ComparisonOperator    string         `json:"comparison_operator,omitempty"`
+	ComparisonValue       string         `json:"comparison_value,omitempty"`
+	Required              bool           `json:"required"`
+	Selectors             []string       `json:"selectors,omitempty"`
 }
 
 // UnmarshalJSON keeps old selector arrays compatible with the new structured model.
@@ -82,15 +98,23 @@ func (field *FieldSelector) UnmarshalJSON(data []byte) error {
 	}
 
 	normalized := FieldSelector{
-		Attribute:      strings.TrimSpace(payload.Attribute),
-		ExtractionMode: payload.ExtractionMode,
-		FieldName:      strings.TrimSpace(payload.FieldName),
-		Name:           strings.TrimSpace(payload.Name),
-		Required:       payload.Required,
-		SelectorType:   payload.SelectorType,
-		SelectorValue:  strings.TrimSpace(payload.SelectorValue),
-		TextMode:       payload.TextMode,
-		Transform:      strings.TrimSpace(payload.Transform),
+		Attribute:             strings.TrimSpace(payload.Attribute),
+		ComparisonOperator:    strings.TrimSpace(payload.ComparisonOperator),
+		ComparisonValue:       strings.TrimSpace(payload.ComparisonValue),
+		DefaultValue:          strings.TrimSpace(payload.DefaultValue),
+		ExtractionMode:        payload.ExtractionMode,
+		FieldName:             strings.TrimSpace(payload.FieldName),
+		MultiValue:            payload.MultiValue,
+		Name:                  strings.TrimSpace(payload.Name),
+		PartialMatch:          strings.TrimSpace(payload.PartialMatch),
+		RegexPattern:          strings.TrimSpace(payload.RegexPattern),
+		Required:              payload.Required,
+		SelectorType:          payload.SelectorType,
+		SelectorValue:         strings.TrimSpace(payload.SelectorValue),
+		SplitDelimiter:        strings.TrimSpace(payload.SplitDelimiter),
+		TextMode:              payload.TextMode,
+		Transform:             strings.TrimSpace(payload.Transform),
+		UseDefaultWhenMissing: payload.UseDefaultWhenMissing,
 	}
 
 	if normalized.SelectorValue == "" && len(payload.Selectors) > 0 {
@@ -133,16 +157,24 @@ func (field *FieldSelector) UnmarshalJSON(data []byte) error {
 // MarshalJSON writes the structured selector format used by the redesigned UI.
 func (field FieldSelector) MarshalJSON() ([]byte, error) {
 	payload := fieldSelectorPayload{
-		Attribute:         strings.TrimSpace(field.Attribute),
-		ExtractionMode:    field.ExtractionMode,
-		FieldName:         strings.TrimSpace(field.FieldName),
-		FallbackSelectors: NormalizeSelectorList(field.FallbackSelectors),
-		Name:              strings.TrimSpace(field.Name),
-		Required:          field.Required,
-		SelectorType:      field.SelectorType,
-		SelectorValue:     strings.TrimSpace(field.SelectorValue),
-		TextMode:          field.TextMode,
-		Transform:         strings.TrimSpace(field.Transform),
+		Attribute:             strings.TrimSpace(field.Attribute),
+		ComparisonOperator:    strings.TrimSpace(field.ComparisonOperator),
+		ComparisonValue:       strings.TrimSpace(field.ComparisonValue),
+		DefaultValue:          strings.TrimSpace(field.DefaultValue),
+		ExtractionMode:        field.ExtractionMode,
+		FieldName:             strings.TrimSpace(field.FieldName),
+		FallbackSelectors:     NormalizeSelectorList(field.FallbackSelectors),
+		MultiValue:            field.MultiValue,
+		Name:                  strings.TrimSpace(field.Name),
+		PartialMatch:          strings.TrimSpace(field.PartialMatch),
+		RegexPattern:          strings.TrimSpace(field.RegexPattern),
+		Required:              field.Required,
+		SelectorType:          field.SelectorType,
+		SelectorValue:         strings.TrimSpace(field.SelectorValue),
+		SplitDelimiter:        strings.TrimSpace(field.SplitDelimiter),
+		TextMode:              field.TextMode,
+		Transform:             strings.TrimSpace(field.Transform),
+		UseDefaultWhenMissing: field.UseDefaultWhenMissing,
 	}
 
 	if payload.SelectorType == "" {

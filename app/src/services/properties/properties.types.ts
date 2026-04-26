@@ -16,6 +16,14 @@ export interface FieldSelector {
     readonly text_mode?: TextMode;
     readonly attribute?: string;
     readonly transform?: string;
+    readonly default_value?: string;
+    readonly use_default_when_missing?: boolean;
+    readonly regex_pattern?: string;
+    readonly split_delimiter?: string;
+    readonly multi_value?: boolean;
+    readonly partial_match?: string;
+    readonly comparison_operator?: "" | "eq" | "gt" | "lt" | "contains";
+    readonly comparison_value?: string;
     readonly required: boolean;
 }
 

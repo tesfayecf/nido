@@ -746,6 +746,9 @@ func (s *PropertyService) normalizeAndValidateProperty(ctx context.Context, prop
 	if property.Status == "" {
 		property.Status = ingestiondomain.PropertyStatusPending
 	}
+	if property.ScheduleIntervalSeconds <= 0 {
+		property.ScheduleIntervalSeconds = int((time.Hour).Seconds())
+	}
 	if property.RetryMaxAttempts <= 0 {
 		property.RetryMaxAttempts = 1
 	}
@@ -991,7 +994,7 @@ func selectFieldValue(document *goquery.Document, rootNode *html.Node, field ing
 			continue
 		}
 
-		transformed, transformErr := applyTransform(value, field.Transform)
+		transformed, transformErr := applyFieldExtractionOptions(value, field)
 		if transformErr != nil {
 			result.Message = transformErr.Error()
 			result.ErrorCode = ingestiondomain.PreviewErrorCodeTransformFailed
@@ -1013,6 +1016,13 @@ func selectFieldValue(document *goquery.Document, rootNode *html.Node, field ing
 		}
 		result.Message = "The matched element was empty."
 		result.ErrorCode = ingestiondomain.PreviewErrorCodeEmptyValue
+	}
+	if field.UseDefaultWhenMissing && strings.TrimSpace(field.DefaultValue) != "" {
+		result.Message = "Used default value"
+		result.Success = true
+		result.Value = strings.TrimSpace(field.DefaultValue)
+		result.ErrorCode = ingestiondomain.PreviewErrorCodeOK
+		return result
 	}
 	if result.Message == "" {
 		result.Message = "No selector matched."
@@ -1175,6 +1185,12 @@ func normalizeConfiguredFields(fields []ingestiondomain.FieldSelector) ([]ingest
 		field.SelectorValue = strings.TrimSpace(field.SelectorValue)
 		field.Attribute = strings.TrimSpace(field.Attribute)
 		field.Transform = strings.TrimSpace(field.Transform)
+		field.DefaultValue = strings.TrimSpace(field.DefaultValue)
+		field.RegexPattern = strings.TrimSpace(field.RegexPattern)
+		field.SplitDelimiter = strings.TrimSpace(field.SplitDelimiter)
+		field.PartialMatch = strings.TrimSpace(field.PartialMatch)
+		field.ComparisonOperator = strings.TrimSpace(strings.ToLower(field.ComparisonOperator))
+		field.ComparisonValue = strings.TrimSpace(field.ComparisonValue)
 		field.FallbackSelectors = ingestiondomain.NormalizeSelectorList(field.FallbackSelectors)
 
 		if field.Name == "" {
@@ -1233,6 +1249,21 @@ func normalizeConfiguredFields(fields []ingestiondomain.FieldSelector) ([]ingest
 		if _, ok := supportedTransforms[strings.TrimSpace(strings.ToLower(field.Transform))]; !ok {
 			return nil, fmt.Errorf("field %q uses unknown transform %q", field.Name, field.Transform)
 		}
+		if field.RegexPattern != "" {
+			if _, err := regexp.Compile(field.RegexPattern); err != nil {
+				return nil, fmt.Errorf("field %q has invalid regex", field.Name)
+			}
+		}
+		if field.ComparisonOperator != "" {
+			switch field.ComparisonOperator {
+			case "eq", "gt", "lt", "contains":
+			default:
+				return nil, fmt.Errorf("field %q uses unknown comparison operator", field.Name)
+			}
+			if field.ComparisonValue == "" {
+				return nil, fmt.Errorf("field %q comparison needs a value", field.Name)
+			}
+		}
 		normalized = append(normalized, field)
 	}
 
@@ -1251,6 +1282,76 @@ func validateXPathSelector(selector string) error {
 		return fmt.Errorf("uses unsupported XPath syntax")
 	}
 	return nil
+}
+
+func applyFieldExtractionOptions(value string, field ingestiondomain.FieldSelector) (string, error) {
+	value = strings.TrimSpace(value)
+	if field.RegexPattern != "" {
+		expression, err := regexp.Compile(field.RegexPattern)
+		if err != nil {
+			return "", fmt.Errorf("invalid regex extraction")
+		}
+		match := expression.FindStringSubmatch(value)
+		if len(match) == 0 {
+			return "", fmt.Errorf("regex extraction found no match")
+		}
+		if len(match) > 1 {
+			value = match[1]
+		} else {
+			value = match[0]
+		}
+	}
+	if field.PartialMatch != "" {
+		if index := strings.Index(strings.ToLower(value), strings.ToLower(field.PartialMatch)); index >= 0 {
+			value = value[index : index+len(field.PartialMatch)]
+		} else {
+			return "", fmt.Errorf("partial match was not found")
+		}
+	}
+	if field.SplitDelimiter != "" {
+		parts := strings.Split(value, field.SplitDelimiter)
+		trimmed := make([]string, 0, len(parts))
+		for _, part := range parts {
+			part = strings.TrimSpace(part)
+			if part != "" {
+				trimmed = append(trimmed, part)
+			}
+		}
+		if len(trimmed) == 0 {
+			return "", fmt.Errorf("split extraction found no values")
+		}
+		if field.MultiValue {
+			value = strings.Join(trimmed, ", ")
+		} else {
+			value = trimmed[0]
+		}
+	}
+	transformed, err := applyTransform(value, field.Transform)
+	if err != nil {
+		return "", err
+	}
+	if field.ComparisonOperator != "" {
+		return fmt.Sprintf("%t", compareFieldValue(transformed, field.ComparisonOperator, field.ComparisonValue)), nil
+	}
+	return transformed, nil
+}
+
+func compareFieldValue(value, operator, expected string) bool {
+	switch operator {
+	case "contains":
+		return strings.Contains(strings.ToLower(value), strings.ToLower(expected))
+	case "gt", "lt":
+		left := ingestiondomain.ParseLooseFloat(value)
+		right := ingestiondomain.ParseLooseFloat(expected)
+		if operator == "gt" {
+			return left > right
+		}
+		return left < right
+	case "eq":
+		return strings.EqualFold(strings.TrimSpace(value), strings.TrimSpace(expected))
+	default:
+		return false
+	}
 }
 
 // supportedTransforms enumerates the transform identifiers recognised by the

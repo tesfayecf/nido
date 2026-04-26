@@ -6,15 +6,13 @@ import (
 	"net/http"
 	"strings"
 
-	authhttp "nido/server/internal/auth/transport/httpapi"
 	app "nido/server/internal/ingestion/application"
 	ingestiondomain "nido/server/internal/ingestion/domain"
-	platformevents "nido/server/internal/platform/events"
 	platformhttp "nido/server/internal/platform/httpapi"
 )
 
-// Register binds source-template and live-event HTTP routes to the supplied mux.
-func Register(mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, service *app.Service, broker *platformevents.Broker) {
+// Register binds source-template HTTP routes to the supplied mux.
+func Register(mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, service *app.Service) {
 	mux.Handle("GET /api/v1/backoffice/sources", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		sources, err := service.ListSources(r.Context())
 		if err != nil {
@@ -77,17 +75,6 @@ func Register(mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, s
 		}
 
 		platformhttp.WriteJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
-	})))
-
-	mux.Handle("GET /api/v1/backoffice/events", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if _, ok := authhttp.CurrentPrincipal(r.Context()); !ok {
-			platformhttp.WriteError(w, http.StatusUnauthorized, "authentication required")
-			return
-		}
-
-		events, cancel := broker.Subscribe(32)
-		defer cancel()
-		platformhttp.StreamSSE(w, r, events)
 	})))
 }
 

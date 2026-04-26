@@ -200,6 +200,31 @@ const parseOptionalNumber = (value: string): number | undefined => {
     return Number.isFinite(parsed) ? parsed : undefined;
 };
 
+
+const parseAttributeNumber = (value: string | undefined): number | undefined => {
+    if (value === undefined) {
+        return undefined;
+    }
+
+    const parsed = Number(value.replace(/[^0-9.,-]/g, "").replace(/,/g, "."));
+    return Number.isFinite(parsed) ? parsed : undefined;
+};
+
+const formatEuro = (value: number): string => `${Math.round(value).toLocaleString("en")} €`;
+
+const buildPropertyAttributes = (values: Record<string, string>): { pricePerSquareMeter?: string; rooms?: string; surfaceArea?: string; totalPrice?: string; } => {
+    const price = parseAttributeNumber(values.price ?? values.total_price);
+    const area = parseAttributeNumber(values.area_m2 ?? values.surface_area ?? values.surface);
+    const rooms = values.rooms ?? values.bedrooms;
+
+    return {
+        pricePerSquareMeter: price !== undefined && area !== undefined && area > 0 ? `${Math.round(price / area).toLocaleString("en")} €/m²` : undefined,
+        rooms,
+        surfaceArea: area !== undefined ? `${area.toLocaleString("en")} m²` : undefined,
+        totalPrice: price !== undefined ? formatEuro(price) : undefined,
+    };
+};
+
 export const PropertyDetailPage = (): JSX.Element => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
@@ -228,6 +253,7 @@ export const PropertyDetailPage = (): JSX.Element => {
     const [compareRightVersion, setCompareRightVersion] = useState<number>(0);
     const [rollbackTargetVersion, setRollbackTargetVersion] = useState<number | null>(null);
     const [metadataDraft, setMetadataDraft] = useState<PropertyMetadataDraft>(EMPTY_METADATA_DRAFT);
+    const [businessContextOpen, setBusinessContextOpen] = useState(false);
 
     const propertyQuery = useQuery({
         enabled: !isCreateMode,
@@ -467,8 +493,24 @@ export const PropertyDetailPage = (): JSX.Element => {
     const isBookmarked = (bookmarksQuery.data ?? []).some((item) => item.property_id === resolvedId);
     const validationMessages = useMemo(() => validateSelectorDrafts(fieldRows), [fieldRows]);
     const extractedValueRows = useMemo(() => {
-        return Object.entries(latestSnapshot?.values ?? {}).map(([field, value]) => ({ field, value }));
-    }, [latestSnapshot?.values]);
+        const values = { ...latestSnapshot?.values ?? {} };
+        const configuredFields = fieldRows.map((field) => ({ fallback: field.defaultValue, name: field.name, useFallback: field.useDefaultWhenMissing }));
+        for (const field of configuredFields) {
+            if (field.useFallback && field.name.trim() !== "" && values[field.name] === undefined && field.fallback.trim() !== "") {
+                values[field.name] = field.fallback;
+            }
+        }
+
+        for (const definition of fieldDefinitionsQuery.data ?? []) {
+            if (definition.use_default_when_missing && definition.default_value !== undefined && definition.default_value !== "" && values[definition.name] === undefined) {
+                values[definition.name] = definition.default_value;
+            }
+        }
+
+        return Object.entries(values).map(([field, value]) => ({ field, value }));
+    }, [fieldDefinitionsQuery.data, fieldRows, latestSnapshot?.values]);
+    const latestValues = useMemo(() => Object.fromEntries(extractedValueRows.map((item) => [item.field, item.value])), [extractedValueRows]);
+    const attributes = useMemo(() => buildPropertyAttributes(latestValues), [latestValues]);
     const recentRuns = useMemo(() => {
         const snapshots = snapshotsQuery.data ?? [];
         if (snapshotConfigFilter <= 0) {
@@ -596,49 +638,46 @@ export const PropertyDetailPage = (): JSX.Element => {
                             value={retryBackoffMillis}
                         />
                     </Field>
-                    <div style={{ display: "grid", gap: "0.25rem", gridColumn: "1 / -1" }}>
-                        <strong>{"Business context"}</strong>
-                        <p className={"muted-copy"}>{"Keep operator-authored metadata inside the property so automation never overwrites it."}</p>
+                    <div style={{ display: "grid", gap: "0.5rem", gridColumn: "1 / -1" }}>
+                        <Button onClick={() => { setBusinessContextOpen((open) => !open); }} type={"button"} variant={"secondary"}>
+                            {businessContextOpen ? "Hide business context" : "Show optional business context"}
+                        </Button>
+                        <p className={"muted-copy"}>{"Optional metadata is hidden by default to keep editing focused on name, URL, source, and run interval."}</p>
                     </div>
-                    <Field label={"Priority"}>
-                        <Select onChange={(event) => { setMetadataDraft((current) => ({ ...current, priorityLevel: event.target.value })); }} value={metadataDraft.priorityLevel}>
-                            <option value={""}>{"Not set"}</option>
-                            <option value={"low"}>{"Low"}</option>
-                            <option value={"medium"}>{"Medium"}</option>
-                            <option value={"high"}>{"High"}</option>
-                            <option value={"critical"}>{"Critical"}</option>
-                        </Select>
-                    </Field>
-                    <Field label={"Business stage"}>
-                        <Input onChange={(event) => { setMetadataDraft((current) => ({ ...current, businessStage: event.target.value })); }} placeholder={"Underwriting, offer, closed"} type={"text"} value={metadataDraft.businessStage} />
-                    </Field>
-                    <Field label={"Target price"}>
-                        <Input min={0} onChange={(event) => { setMetadataDraft((current) => ({ ...current, targetPrice: event.target.value })); }} type={"number"} value={metadataDraft.targetPrice} />
-                    </Field>
-                    <Field label={"Expected rent"}>
-                        <Input min={0} onChange={(event) => { setMetadataDraft((current) => ({ ...current, expectedRent: event.target.value })); }} type={"number"} value={metadataDraft.expectedRent} />
-                    </Field>
-                    <Field label={"Expected yield (%)"}>
-                        <Input min={0} onChange={(event) => { setMetadataDraft((current) => ({ ...current, expectedYieldPercent: event.target.value })); }} step={"0.1"} type={"number"} value={metadataDraft.expectedYieldPercent} />
-                    </Field>
-                    <Field hint={"Pause this property without changing its saved run cadence."} label={"Paused"} variant={"checkbox"}>
-                        <input checked={metadataDraft.paused} onChange={(event) => { setMetadataDraft((current) => ({ ...current, paused: event.target.checked })); }} type={"checkbox"} />
-                    </Field>
-                    <Field fullWidth label={"Pause reason"}>
-                        <Input onChange={(event) => { setMetadataDraft((current) => ({ ...current, pauseReason: event.target.value })); }} placeholder={"Optional reason for pausing automation"} type={"text"} value={metadataDraft.pauseReason} />
-                    </Field>
-                    <Field fullWidth label={"Acquisition notes"}>
-                        <Textarea onChange={(event) => { setMetadataDraft((current) => ({ ...current, acquisitionNotes: event.target.value })); }} rows={4} value={metadataDraft.acquisitionNotes} />
-                    </Field>
-                    <Field fullWidth label={"Deal thesis"}>
-                        <Textarea onChange={(event) => { setMetadataDraft((current) => ({ ...current, dealThesis: event.target.value })); }} rows={4} value={metadataDraft.dealThesis} />
-                    </Field>
-                    <Field fullWidth hint={"One per line: label|value"} label={"External references"}>
-                        <Textarea onChange={(event) => { setMetadataDraft((current) => ({ ...current, externalReferencesText: event.target.value })); }} rows={4} value={metadataDraft.externalReferencesText} />
-                    </Field>
-                    <Field fullWidth hint={"One per line: label|url"} label={"Attachments and linked documents"}>
-                        <Textarea onChange={(event) => { setMetadataDraft((current) => ({ ...current, attachmentsText: event.target.value })); }} rows={4} value={metadataDraft.attachmentsText} />
-                    </Field>
+                    {businessContextOpen ? (
+                        <>
+                            <Field label={"Priority"}>
+                                <Select onChange={(event) => { setMetadataDraft((current) => ({ ...current, priorityLevel: event.target.value })); }} value={metadataDraft.priorityLevel}>
+                                    <option value={""}>{"Not set"}</option>
+                                    <option value={"low"}>{"Low"}</option>
+                                    <option value={"medium"}>{"Medium"}</option>
+                                    <option value={"high"}>{"High"}</option>
+                                    <option value={"critical"}>{"Critical"}</option>
+                                </Select>
+                            </Field>
+                            <Field label={"Business stage"}>
+                                <Input onChange={(event) => { setMetadataDraft((current) => ({ ...current, businessStage: event.target.value })); }} placeholder={"Underwriting, offer, closed"} type={"text"} value={metadataDraft.businessStage} />
+                            </Field>
+                            <Field label={"Target price"}>
+                                <Input min={0} onChange={(event) => { setMetadataDraft((current) => ({ ...current, targetPrice: event.target.value })); }} type={"number"} value={metadataDraft.targetPrice} />
+                            </Field>
+                            <Field label={"Expected rent"}>
+                                <Input min={0} onChange={(event) => { setMetadataDraft((current) => ({ ...current, expectedRent: event.target.value })); }} type={"number"} value={metadataDraft.expectedRent} />
+                            </Field>
+                            <Field label={"Expected yield (%)"}>
+                                <Input min={0} onChange={(event) => { setMetadataDraft((current) => ({ ...current, expectedYieldPercent: event.target.value })); }} step={"0.1"} type={"number"} value={metadataDraft.expectedYieldPercent} />
+                            </Field>
+                            <Field hint={"Pause this property without changing its saved run cadence."} label={"Paused"} variant={"checkbox"}>
+                                <input checked={metadataDraft.paused} onChange={(event) => { setMetadataDraft((current) => ({ ...current, paused: event.target.checked })); }} type={"checkbox"} />
+                            </Field>
+                            <Field fullWidth label={"Pause reason"}>
+                                <Input onChange={(event) => { setMetadataDraft((current) => ({ ...current, pauseReason: event.target.value })); }} placeholder={"Optional reason for pausing automation"} type={"text"} value={metadataDraft.pauseReason} />
+                            </Field>
+                            <Field fullWidth label={"Acquisition notes"}>
+                                <Textarea onChange={(event) => { setMetadataDraft((current) => ({ ...current, acquisitionNotes: event.target.value })); }} rows={3} value={metadataDraft.acquisitionNotes} />
+                            </Field>
+                        </>
+                    ) : null}
                 </FormGrid>
                 {!isCreateMode && propertyQuery.data !== undefined ? (
                     <KeyValueGrid compact>
@@ -661,36 +700,38 @@ export const PropertyDetailPage = (): JSX.Element => {
                 </ActionGroup>
             </PageCard>
 
-            <PageCard description={isCreateMode ? "Build the initial field set, preview extraction on the target page, and validate the selectors before saving." : "Edit the selectors that this property should use after inheriting from its source template."} title={isCreateMode ? "Guided Field Setup" : "Extraction Configuration"}>
-                <SelectorBuilder fieldDefinitions={fieldDefinitionsQuery.data} fields={fieldRows} onChange={setFieldRows} previewByFieldName={previewMap} />
-                {fieldRows.length === 0 ? <EmptyState message={"No fields defined yet. Add a field to start extracting data."} /> : null}
-                <ActionGroup>
-                    <Button onClick={() => { setFieldRows((rows) => [...rows, createEmptySelectorDraft()]); }} variant={"secondary"}>{"Add field"}</Button>
-                    <Button disabled={previewMutation.isPending || url.trim() === "" || validationMessages.length > 0} onClick={() => { previewMutation.mutate(); }} variant={"secondary"}>{previewMutation.isPending ? "Previewing..." : "Preview extraction"}</Button>
-                    <Button disabled={saveConfigMutation.isPending || validationMessages.length > 0} onClick={() => { saveConfigMutation.mutate(); }}>{saveConfigMutation.isPending ? "Saving..." : "Save configuration"}</Button>
-                </ActionGroup>
-                {validationMessages.length > 0 ? (
-                    <div className={"selector-builder__validation-list"}>
-                        {validationMessages.map((message) => <ErrorBanner key={message}>{message}</ErrorBanner>)}
-                    </div>
-                ) : null}
-                {saveConfigMutation.isError ? <ErrorBanner>{"Could not save configuration."}</ErrorBanner> : null}
-                {previewFailures.length > 0 ? (
-                    <div className={"selector-builder__validation-list"}>
-                        {previewFailures.map((failure) => <ErrorBanner key={failure}>{failure}</ErrorBanner>)}
-                    </div>
-                ) : null}
-                {Object.keys(previewValues).length > 0 ? (
-                    <div className={"selector-builder__results"}>
-                        {Object.entries(previewValues).map(([fieldName, value]) => (
-                            <article className={"selector-builder__result-card"} key={fieldName}>
-                                <span className={"selector-builder__result-label"}>{fieldName}</span>
-                                <strong className={"selector-builder__result-value"}>{value}</strong>
-                            </article>
-                        ))}
-                    </div>
-                ) : null}
-            </PageCard>
+            {isCreateMode ? (
+                <PageCard description={"Build the initial field set, preview extraction on the target page, and validate the selectors before saving."} title={"Guided Field Setup"}>
+                    <SelectorBuilder fieldDefinitions={fieldDefinitionsQuery.data} fields={fieldRows} onChange={setFieldRows} previewByFieldName={previewMap} />
+                    {fieldRows.length === 0 ? <EmptyState message={"No fields defined yet. Add a field to start extracting data."} /> : null}
+                    <ActionGroup>
+                        <Button onClick={() => { setFieldRows((rows) => [...rows, createEmptySelectorDraft()]); }} variant={"secondary"}>{"Add field"}</Button>
+                        <Button disabled={previewMutation.isPending || url.trim() === "" || validationMessages.length > 0} onClick={() => { previewMutation.mutate(); }} variant={"secondary"}>{previewMutation.isPending ? "Previewing..." : "Preview extraction"}</Button>
+                        <Button disabled={saveConfigMutation.isPending || validationMessages.length > 0} onClick={() => { saveConfigMutation.mutate(); }}>{saveConfigMutation.isPending ? "Saving..." : "Save configuration"}</Button>
+                    </ActionGroup>
+                    {validationMessages.length > 0 ? (
+                        <div className={"selector-builder__validation-list"}>
+                            {validationMessages.map((message) => <ErrorBanner key={message}>{message}</ErrorBanner>)}
+                        </div>
+                    ) : null}
+                    {saveConfigMutation.isError ? <ErrorBanner>{"Could not save configuration."}</ErrorBanner> : null}
+                    {previewFailures.length > 0 ? (
+                        <div className={"selector-builder__validation-list"}>
+                            {previewFailures.map((failure) => <ErrorBanner key={failure}>{failure}</ErrorBanner>)}
+                        </div>
+                    ) : null}
+                    {Object.keys(previewValues).length > 0 ? (
+                        <div className={"selector-builder__results"}>
+                            {Object.entries(previewValues).map(([fieldName, value]) => (
+                                <article className={"selector-builder__result-card"} key={fieldName}>
+                                    <span className={"selector-builder__result-label"}>{fieldName}</span>
+                                    <strong className={"selector-builder__result-value"}>{value}</strong>
+                                </article>
+                            ))}
+                        </div>
+                    ) : null}
+                </PageCard>
+            ) : null}
         </PageStack>
     );
 
@@ -726,6 +767,8 @@ export const PropertyDetailPage = (): JSX.Element => {
                             />
                             <KeyValuePair label={"Property status"} value={<StatusBadge tone={propertyQuery.data.status === "active" ? "success" : propertyQuery.data.status === "degraded" ? "warning" : propertyQuery.data.status === "inactive" ? "danger" : "neutral"} value={propertyQuery.data.status} />} />
                             <KeyValuePair label={"Source"} value={sourcesQuery.data?.find((source) => source.id === propertyQuery.data?.source_id)?.name ?? "No template"} />
+                            <KeyValuePair label={"Price"} value={attributes.totalPrice ?? "Not captured"} />
+                            <KeyValuePair label={"Location"} value={latestValues.location ?? "Not captured"} />
                             <KeyValuePair label={"Runs every"} value={formatDurationFromSeconds(propertyQuery.data.schedule_interval_seconds)} />
                             <KeyValuePair label={"Next run"} value={propertyQuery.data.next_run_at === undefined ? "Not scheduled yet" : formatDateTime(propertyQuery.data.next_run_at)} />
                             <KeyValuePair label={"Updated"} value={propertyQuery.data.updated_at === undefined ? "—" : formatDateTime(propertyQuery.data.updated_at)} />
@@ -735,7 +778,7 @@ export const PropertyDetailPage = (): JSX.Element => {
                     ) : null}
                 </PageCard>
 
-                <PageCard description={"Operator-authored portfolio context stays attached to the property and is never replaced by extraction runs."} title={"Business Metadata"}>
+                <PageCard description={"Optional business context is summarized here only when present."} title={"Business Context"}>
                     {propertyQuery.data?.metadata === undefined ? <EmptyState message={"No metadata has been added yet. Use Edit to capture priority, pricing context, and deal notes."} /> : (
                         <KeyValueGrid compact>
                             <KeyValuePair label={"Priority"} value={propertyQuery.data.metadata.priority_level ?? "Not set"} />
@@ -745,21 +788,32 @@ export const PropertyDetailPage = (): JSX.Element => {
                             <KeyValuePair label={"Expected yield"} value={propertyQuery.data.metadata.expected_yield_bps !== undefined ? `${(propertyQuery.data.metadata.expected_yield_bps / BASIS_POINTS_PER_PERCENT).toFixed(1)}%` : "Not set"} />
                             <KeyValuePair label={"Automation paused"} value={propertyQuery.data.paused ? `Yes${propertyQuery.data.pause_reason !== undefined && propertyQuery.data.pause_reason !== "" ? ` · ${propertyQuery.data.pause_reason}` : ""}` : "No"} />
                             <KeyValuePair label={"Acquisition notes"} value={propertyQuery.data.metadata.acquisition_notes ?? "—"} />
-                            <KeyValuePair label={"Deal thesis"} value={propertyQuery.data.metadata.deal_thesis ?? "—"} />
-                            <KeyValuePair
-                                label={"External references"}
-                                value={(propertyQuery.data.metadata.external_references ?? []).length === 0
-                                    ? "—"
-                                    : (propertyQuery.data.metadata.external_references ?? []).map((item) => `${item.label}: ${item.value}`).join(", ")}
-                            />
-                            <KeyValuePair
-                                label={"Attachments"}
-                                value={(propertyQuery.data.metadata.attachments ?? []).length === 0
-                                    ? "—"
-                                    : (propertyQuery.data.metadata.attachments ?? []).map((item) => `${item.label}: ${item.url}`).join(", ")}
-                            />
                         </KeyValueGrid>
                     )}
+                </PageCard>
+
+                <PageCard description={"Auto-calculated from the latest extracted values and field defaults."} title={"Attributes"}>
+                    <KeyValueGrid compact>
+                        <KeyValuePair label={"€/m²"} value={attributes.pricePerSquareMeter ?? "Needs price and surface"} />
+                        <KeyValuePair label={"Total price"} value={attributes.totalPrice ?? "Not captured"} />
+                        <KeyValuePair label={"Surface area"} value={attributes.surfaceArea ?? "Not captured"} />
+                        <KeyValuePair label={"Rooms"} value={attributes.rooms ?? "Not captured"} />
+                    </KeyValueGrid>
+                </PageCard>
+
+                <PageCard description={"Change selectors from this dedicated field configuration section, separate from the general Edit dialog."} title={"Field Configuration"}>
+                    <SelectorBuilder fieldDefinitions={fieldDefinitionsQuery.data} fields={fieldRows} onChange={setFieldRows} previewByFieldName={previewMap} />
+                    <ActionGroup>
+                        <Button onClick={() => { setFieldRows((rows) => [...rows, createEmptySelectorDraft()]); }} variant={"secondary"}>{"Add field"}</Button>
+                        <Button disabled={previewMutation.isPending || url.trim() === "" || validationMessages.length > 0} onClick={() => { previewMutation.mutate(); }} variant={"secondary"}>{previewMutation.isPending ? "Previewing..." : "Preview extraction"}</Button>
+                        <Button disabled={saveConfigMutation.isPending || validationMessages.length > 0} onClick={() => { saveConfigMutation.mutate(); }}>{saveConfigMutation.isPending ? "Saving..." : "Save configuration"}</Button>
+                    </ActionGroup>
+                    {validationMessages.length > 0 ? (
+                        <div className={"selector-builder__validation-list"}>
+                            {validationMessages.map((message) => <ErrorBanner key={message}>{message}</ErrorBanner>)}
+                        </div>
+                    ) : null}
+                    {saveConfigMutation.isError ? <ErrorBanner>{"Could not save configuration."}</ErrorBanner> : null}
                 </PageCard>
 
                 <PageCard
