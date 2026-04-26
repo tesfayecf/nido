@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -14,12 +15,13 @@ import (
 
 func scanFieldDefinition(scanner scanner) (ingestiondomain.FieldDefinition, error) {
 	var (
-		field        ingestiondomain.FieldDefinition
-		dataType     string
-		enumJSON     string
-		systemDefined int
-		createdAt    string
-		updatedAt    string
+		field          ingestiondomain.FieldDefinition
+		dataType       string
+		enumJSON       string
+		defaultMissing int
+		systemDefined  int
+		createdAt      string
+		updatedAt      string
 	)
 
 	if err := scanner.Scan(
@@ -30,6 +32,10 @@ func scanFieldDefinition(scanner scanner) (ingestiondomain.FieldDefinition, erro
 		&field.Unit,
 		&field.Description,
 		&enumJSON,
+		&field.DefaultValue,
+		&defaultMissing,
+		&field.ComparisonOperator,
+		&field.ComparisonValue,
 		&systemDefined,
 		&createdAt,
 		&updatedAt,
@@ -39,6 +45,7 @@ func scanFieldDefinition(scanner scanner) (ingestiondomain.FieldDefinition, erro
 
 	field.DataType = ingestiondomain.FieldDataType(dataType)
 	field.EnumValues = decodeStringArrayJSON(enumJSON)
+	field.UseDefaultWhenMissing = defaultMissing == 1
 	field.SystemDefined = systemDefined == 1
 	var err error
 	field.CreatedAt, err = parseTime(createdAt)
@@ -64,6 +71,10 @@ func (s *Store) ListFieldDefinitions(ctx context.Context) ([]ingestiondomain.Fie
 			fd.unit,
 			fd.description,
 			fd.enum_values_json,
+			fd.default_value,
+			fd.use_default_when_missing,
+			fd.comparison_operator,
+			fd.comparison_value,
 			fd.system_defined,
 			fd.created_at,
 			fd.updated_at,
@@ -71,7 +82,7 @@ func (s *Store) ListFieldDefinitions(ctx context.Context) ([]ingestiondomain.Fie
 			COUNT(pfv.id) AS value_count
 		FROM field_definitions fd
 		LEFT JOIN property_field_values pfv ON pfv.field_definition_id = fd.id
-		GROUP BY fd.id, fd.name, fd.display_name, fd.data_type, fd.unit, fd.description, fd.enum_values_json, fd.system_defined, fd.created_at, fd.updated_at
+		GROUP BY fd.id, fd.name, fd.display_name, fd.data_type, fd.unit, fd.description, fd.enum_values_json, fd.default_value, fd.use_default_when_missing, fd.comparison_operator, fd.comparison_value, fd.system_defined, fd.created_at, fd.updated_at
 		ORDER BY fd.system_defined DESC, fd.display_name ASC`)
 	if err != nil {
 		return nil, fmt.Errorf("list field definitions: %w", err)
@@ -92,12 +103,13 @@ func (s *Store) ListFieldDefinitions(ctx context.Context) ([]ingestiondomain.Fie
 
 func scanFieldDefinitionUsage(scanner scanner) (ingestiondomain.FieldDefinitionUsage, error) {
 	var (
-		usage         ingestiondomain.FieldDefinitionUsage
-		dataType      string
-		enumJSON      string
-		systemDefined int
-		createdAt     string
-		updatedAt     string
+		usage          ingestiondomain.FieldDefinitionUsage
+		dataType       string
+		enumJSON       string
+		defaultMissing int
+		systemDefined  int
+		createdAt      string
+		updatedAt      string
 	)
 	if err := scanner.Scan(
 		&usage.ID,
@@ -107,6 +119,10 @@ func scanFieldDefinitionUsage(scanner scanner) (ingestiondomain.FieldDefinitionU
 		&usage.Unit,
 		&usage.Description,
 		&enumJSON,
+		&usage.DefaultValue,
+		&defaultMissing,
+		&usage.ComparisonOperator,
+		&usage.ComparisonValue,
 		&systemDefined,
 		&createdAt,
 		&updatedAt,
@@ -117,6 +133,7 @@ func scanFieldDefinitionUsage(scanner scanner) (ingestiondomain.FieldDefinitionU
 	}
 	usage.DataType = ingestiondomain.FieldDataType(dataType)
 	usage.EnumValues = decodeStringArrayJSON(enumJSON)
+	usage.UseDefaultWhenMissing = defaultMissing == 1
 	usage.SystemDefined = systemDefined == 1
 	var err error
 	usage.CreatedAt, err = parseTime(createdAt)
@@ -132,12 +149,12 @@ func scanFieldDefinitionUsage(scanner scanner) (ingestiondomain.FieldDefinitionU
 
 // GetFieldDefinition returns one field by identifier.
 func (s *Store) GetFieldDefinition(ctx context.Context, fieldID string) (ingestiondomain.FieldDefinition, error) {
-	return scanFieldDefinition(s.db.QueryRowContext(ctx, `SELECT id, name, display_name, data_type, unit, description, enum_values_json, system_defined, created_at, updated_at FROM field_definitions WHERE id = ?`, fieldID))
+	return scanFieldDefinition(s.db.QueryRowContext(ctx, `SELECT id, name, display_name, data_type, unit, description, enum_values_json, default_value, use_default_when_missing, comparison_operator, comparison_value, system_defined, created_at, updated_at FROM field_definitions WHERE id = ?`, fieldID))
 }
 
 // GetFieldDefinitionByName returns one field by canonical name.
 func (s *Store) GetFieldDefinitionByName(ctx context.Context, fieldName string) (ingestiondomain.FieldDefinition, error) {
-	return scanFieldDefinition(s.db.QueryRowContext(ctx, `SELECT id, name, display_name, data_type, unit, description, enum_values_json, system_defined, created_at, updated_at FROM field_definitions WHERE name = ? COLLATE NOCASE`, fieldName))
+	return scanFieldDefinition(s.db.QueryRowContext(ctx, `SELECT id, name, display_name, data_type, unit, description, enum_values_json, default_value, use_default_when_missing, comparison_operator, comparison_value, system_defined, created_at, updated_at FROM field_definitions WHERE name = ? COLLATE NOCASE`, fieldName))
 }
 
 // CreateFieldDefinition stores a new canonical field.
@@ -145,8 +162,8 @@ func (s *Store) CreateFieldDefinition(ctx context.Context, field ingestiondomain
 	enumJSON, _ := json.Marshal(field.EnumValues)
 	_, err := s.db.ExecContext(
 		ctx,
-		`INSERT INTO field_definitions (id, name, display_name, data_type, unit, description, enum_values_json, system_defined, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO field_definitions (id, name, display_name, data_type, unit, description, enum_values_json, default_value, use_default_when_missing, comparison_operator, comparison_value, system_defined, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		field.ID,
 		field.Name,
 		field.DisplayName,
@@ -154,6 +171,10 @@ func (s *Store) CreateFieldDefinition(ctx context.Context, field ingestiondomain
 		field.Unit,
 		field.Description,
 		string(enumJSON),
+		field.DefaultValue,
+		boolToInt(field.UseDefaultWhenMissing),
+		field.ComparisonOperator,
+		field.ComparisonValue,
 		boolToInt(field.SystemDefined),
 		formatTime(field.CreatedAt),
 		formatTime(field.UpdatedAt),
@@ -170,13 +191,17 @@ func (s *Store) UpdateFieldDefinition(ctx context.Context, field ingestiondomain
 	result, err := s.db.ExecContext(
 		ctx,
 		`UPDATE field_definitions
-		 SET display_name = ?, data_type = ?, unit = ?, description = ?, enum_values_json = ?, updated_at = ?
+		 SET display_name = ?, data_type = ?, unit = ?, description = ?, enum_values_json = ?, default_value = ?, use_default_when_missing = ?, comparison_operator = ?, comparison_value = ?, updated_at = ?
 		 WHERE id = ?`,
 		field.DisplayName,
 		string(field.DataType),
 		field.Unit,
 		field.Description,
 		string(enumJSON),
+		field.DefaultValue,
+		boolToInt(field.UseDefaultWhenMissing),
+		field.ComparisonOperator,
+		field.ComparisonValue,
 		formatTime(field.UpdatedAt),
 		field.ID,
 	)
@@ -263,6 +288,8 @@ func (s *Store) UpsertPropertyFieldValues(ctx context.Context, snapshot ingestio
 		validationMessage := ""
 		if definition, ok := fieldDefinitions[strings.ToLower(fieldName)]; ok {
 			fieldID = definition.ID
+			value = applyFieldDefinitionFallback(definition, value)
+			value = applyFieldDefinitionComparison(definition, value)
 			validationStatus, validationMessage = ingestiondomain.ValidateFieldValue(definition, value)
 		}
 
@@ -420,8 +447,24 @@ func (s *Store) ListAnalyticsRecords(ctx context.Context) ([]ingestiondomain.Ana
 			records[recordIndex].Values[fieldName.String] = valueText.String
 		}
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	fieldDefinitions, err := loadFieldDefinitionMap(ctx, s.db)
+	if err != nil {
+		return nil, err
+	}
+	for index := range records {
+		for _, definition := range fieldDefinitions {
+			if definition.UseDefaultWhenMissing && strings.TrimSpace(definition.DefaultValue) != "" {
+				if _, exists := records[index].Values[definition.Name]; !exists {
+					records[index].Values[definition.Name] = definition.DefaultValue
+				}
+			}
+		}
+	}
 
-	return records, rows.Err()
+	return records, nil
 }
 
 // RemapPropertyFieldValues updates normalized values for one property selector group.
@@ -454,14 +497,17 @@ func (s *Store) RemapPropertyFieldValues(ctx context.Context, propertyID, select
 	}
 
 	for _, current := range values {
-		validationStatus, validationMessage := ingestiondomain.ValidateFieldValue(definition, current.value)
+		value := applyFieldDefinitionFallback(definition, current.value)
+		value = applyFieldDefinitionComparison(definition, value)
+		validationStatus, validationMessage := ingestiondomain.ValidateFieldValue(definition, value)
 		if _, err := s.db.ExecContext(
 			ctx,
 			`UPDATE property_field_values
-			 SET field_definition_id = ?, field_name = ?, validation_status = ?, validation_message = ?
+			 SET field_definition_id = ?, field_name = ?, value_text = ?, validation_status = ?, validation_message = ?
 			 WHERE id = ?`,
 			definition.ID,
 			definition.Name,
+			value,
 			validationStatus,
 			validationMessage,
 			current.id,
@@ -471,6 +517,45 @@ func (s *Store) RemapPropertyFieldValues(ctx context.Context, propertyID, select
 	}
 
 	return nil
+}
+
+func applyFieldDefinitionFallback(definition ingestiondomain.FieldDefinition, value string) string {
+	if definition.UseDefaultWhenMissing && strings.TrimSpace(value) == "" {
+		return strings.TrimSpace(definition.DefaultValue)
+	}
+	return value
+}
+
+func applyFieldDefinitionComparison(definition ingestiondomain.FieldDefinition, value string) string {
+	if definition.DataType != ingestiondomain.FieldDataTypeBoolean || strings.TrimSpace(definition.ComparisonOperator) == "" {
+		return value
+	}
+	switch strings.TrimSpace(strings.ToLower(definition.ComparisonOperator)) {
+	case "contains":
+		return fmt.Sprintf("%t", strings.Contains(strings.ToLower(value), strings.ToLower(definition.ComparisonValue)))
+	case "gt", "lt":
+		left := parseFieldFloat(value)
+		right := parseFieldFloat(definition.ComparisonValue)
+		if strings.TrimSpace(strings.ToLower(definition.ComparisonOperator)) == "gt" {
+			return fmt.Sprintf("%t", left > right)
+		}
+		return fmt.Sprintf("%t", left < right)
+	case "eq":
+		return fmt.Sprintf("%t", strings.EqualFold(strings.TrimSpace(value), strings.TrimSpace(definition.ComparisonValue)))
+	default:
+		return value
+	}
+}
+
+func parseFieldFloat(value string) float64 {
+	var builder strings.Builder
+	for _, r := range value {
+		if (r >= '0' && r <= '9') || r == '.' || r == ',' || r == '-' {
+			builder.WriteRune(r)
+		}
+	}
+	parsed, _ := strconv.ParseFloat(strings.ReplaceAll(builder.String(), ",", "."), 64)
+	return parsed
 }
 
 // CreatePropertyConfigVersion writes a new property config version directly.
@@ -508,6 +593,9 @@ func normalizeFieldDefinition(field ingestiondomain.FieldDefinition, now time.Ti
 	field.DisplayName = strings.TrimSpace(field.DisplayName)
 	field.Unit = strings.TrimSpace(field.Unit)
 	field.Description = strings.TrimSpace(field.Description)
+	field.DefaultValue = strings.TrimSpace(field.DefaultValue)
+	field.ComparisonOperator = strings.TrimSpace(field.ComparisonOperator)
+	field.ComparisonValue = strings.TrimSpace(field.ComparisonValue)
 	field.EnumValues = trimStringSlice(field.EnumValues)
 	if field.CreatedAt.IsZero() {
 		field.CreatedAt = now

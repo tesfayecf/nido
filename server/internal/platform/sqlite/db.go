@@ -393,6 +393,10 @@ CREATE TABLE IF NOT EXISTS field_definitions (
     unit TEXT NOT NULL DEFAULT '',
     description TEXT NOT NULL DEFAULT '',
     enum_values_json TEXT NOT NULL DEFAULT '[]',
+    default_value TEXT NOT NULL DEFAULT '',
+    use_default_when_missing INTEGER NOT NULL DEFAULT 0,
+    comparison_operator TEXT NOT NULL DEFAULT '',
+    comparison_value TEXT NOT NULL DEFAULT '',
     system_defined INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
@@ -486,6 +490,10 @@ var columnMigrations = []columnMigration{
 	{table: "properties", column: "last_run_at", definition: "TEXT"},
 	{table: "properties", column: "next_run_at", definition: "TEXT"},
 	{table: "property_extraction_configs", column: "change_summary", definition: "TEXT NOT NULL DEFAULT ''"},
+	{table: "field_definitions", column: "default_value", definition: "TEXT NOT NULL DEFAULT ''"},
+	{table: "field_definitions", column: "use_default_when_missing", definition: "INTEGER NOT NULL DEFAULT 0"},
+	{table: "field_definitions", column: "comparison_operator", definition: "TEXT NOT NULL DEFAULT ''"},
+	{table: "field_definitions", column: "comparison_value", definition: "TEXT NOT NULL DEFAULT ''"},
 }
 
 var defaultFieldDefinitions = []ingestiondomain.FieldDefinition{
@@ -498,9 +506,9 @@ var defaultFieldDefinitions = []ingestiondomain.FieldDefinition{
 		SystemDefined: true,
 	},
 	{
-		ID:            "field-bedrooms",
-		Name:          "bedrooms",
-		DisplayName:   "Bedrooms",
+		ID:            "field-rooms",
+		Name:          "rooms",
+		DisplayName:   "Rooms",
 		DataType:      ingestiondomain.FieldDataTypeNumber,
 		SystemDefined: true,
 	},
@@ -541,16 +549,20 @@ func seedFieldDefinitions(ctx context.Context, db *sql.DB) error {
 		enumJSON, _ := json.Marshal(field.EnumValues)
 		if _, err := db.ExecContext(
 			ctx,
-			`INSERT INTO field_definitions (id, name, display_name, data_type, unit, description, enum_values_json, system_defined, created_at, updated_at)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			`INSERT INTO field_definitions (id, name, display_name, data_type, unit, description, enum_values_json, default_value, use_default_when_missing, comparison_operator, comparison_value, system_defined, created_at, updated_at)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			 ON CONFLICT(id) DO UPDATE SET
-			 	display_name = excluded.display_name,
-			 	data_type = excluded.data_type,
-			 	unit = excluded.unit,
-			 	description = excluded.description,
-			 	enum_values_json = excluded.enum_values_json,
-			 	system_defined = excluded.system_defined,
-			 	updated_at = excluded.updated_at`,
+				display_name = excluded.display_name,
+				data_type = excluded.data_type,
+				unit = excluded.unit,
+				description = excluded.description,
+				enum_values_json = excluded.enum_values_json,
+				default_value = excluded.default_value,
+				use_default_when_missing = excluded.use_default_when_missing,
+				comparison_operator = excluded.comparison_operator,
+				comparison_value = excluded.comparison_value,
+				system_defined = excluded.system_defined,
+				updated_at = excluded.updated_at`,
 			field.ID,
 			field.Name,
 			field.DisplayName,
@@ -558,6 +570,10 @@ func seedFieldDefinitions(ctx context.Context, db *sql.DB) error {
 			field.Unit,
 			field.Description,
 			string(enumJSON),
+			field.DefaultValue,
+			boolToInt(field.UseDefaultWhenMissing),
+			field.ComparisonOperator,
+			field.ComparisonValue,
 			boolToInt(field.SystemDefined),
 			now,
 			now,
@@ -672,7 +688,7 @@ func backfillPropertyFieldValues(ctx context.Context, db *sql.DB) error {
 }
 
 func loadFieldDefinitionMap(ctx context.Context, db *sql.DB) (map[string]ingestiondomain.FieldDefinition, error) {
-	rows, err := db.QueryContext(ctx, `SELECT id, name, display_name, data_type, unit, description, enum_values_json, system_defined, created_at, updated_at FROM field_definitions`)
+	rows, err := db.QueryContext(ctx, `SELECT id, name, display_name, data_type, unit, description, enum_values_json, default_value, use_default_when_missing, comparison_operator, comparison_value, system_defined, created_at, updated_at FROM field_definitions`)
 	if err != nil {
 		return nil, fmt.Errorf("query field definitions: %w", err)
 	}

@@ -1,6 +1,5 @@
 import type { QueryClient } from "@tanstack/react-query";
 
-import { useLiveEventsStore } from "@/stores/live-events.store";
 import { useSessionStore } from "@/stores/session.store";
 import { useShellStore } from "@/stores/shell.store";
 
@@ -32,7 +31,6 @@ export const hasActiveSession = (session: SessionSnapshot, now: number = Date.no
  */
 export const clearAuthenticatedClientState = (): void => {
     useSessionStore.getState().clearSession();
-    useLiveEventsStore.setState({ connectionState: "closed", items: [] });
     useShellStore.setState({ navOpen: true });
 };
 

@@ -71,13 +71,13 @@ export const SelectorBuilder = ({ fieldDefinitions, fields, onChange, previewByF
     const [helpOpen, setHelpOpen] = useState(false);
     const [tipsOpen, setTipsOpen] = useState(false);
     const [openFallbacks, setOpenFallbacks] = useState<Set<string>>(new Set());
-    const systemFields = (fieldDefinitions ?? []).filter((item) => item.system_defined);
-    const userFields = (fieldDefinitions ?? []).filter((item) => !item.system_defined);
+    const globalFields = [...fieldDefinitions ?? []].sort((left, right) => left.display_name.localeCompare(right.display_name));
 
     const toggleFallback = (fieldId: string): void => {
         setOpenFallbacks((prev) => {
             const next = new Set(prev);
             if (next.has(fieldId)) { next.delete(fieldId); } else { next.add(fieldId); }
+
             return next;
         });
     };
@@ -168,16 +168,7 @@ export const SelectorBuilder = ({ fieldDefinitions, fields, onChange, previewByF
                                         value={field.fieldName}
                                     >
                                         <option value={""}>{"Unassigned"}</option>
-                                        {systemFields.length > 0 ? (
-                                            <optgroup label={"System fields"}>
-                                                {systemFields.map((option) => <option key={option.id} value={option.name}>{option.display_name}</option>)}
-                                            </optgroup>
-                                        ) : null}
-                                        {userFields.length > 0 ? (
-                                            <optgroup label={"Custom fields"}>
-                                                {userFields.map((option) => <option key={option.id} value={option.name}>{option.display_name}</option>)}
-                                            </optgroup>
-                                        ) : null}
+                                        {globalFields.map((option) => <option key={option.id} value={option.name}>{option.display_name}</option>)}
                                     </Select>
                                 </Field>
 
@@ -277,6 +268,81 @@ export const SelectorBuilder = ({ fieldDefinitions, fields, onChange, previewByF
                                             return <option key={option.value} value={option.value}>{option.label}</option>;
                                         })}
                                     </Select>
+                                </Field>
+
+                                <Field hint={"Used when the field is missing or empty."} label={"Default value"}>
+                                    <Input
+                                        onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { defaultValue: event.target.value })); }}
+                                        placeholder={"Fallback value"}
+                                        type={"text"}
+                                        value={field.defaultValue}
+                                    />
+                                </Field>
+
+                                <Field label={"Use default if missing"} variant={"checkbox"}>
+                                    <input
+                                        checked={field.useDefaultWhenMissing}
+                                        onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { useDefaultWhenMissing: event.target.checked })); }}
+                                        type={"checkbox"}
+                                    />
+                                </Field>
+
+                                <Field hint={"Capture the first regex match or group."} label={"Regex extraction"}>
+                                    <Input
+                                        onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { regexPattern: event.target.value })); }}
+                                        placeholder={"\\d+[.,]?\\d*"}
+                                        type={"text"}
+                                        value={field.regexPattern}
+                                    />
+                                </Field>
+
+                                <Field label={"Partial match"}>
+                                    <Input
+                                        onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { partialMatch: event.target.value })); }}
+                                        placeholder={"Text to keep"}
+                                        type={"text"}
+                                        value={field.partialMatch}
+                                    />
+                                </Field>
+
+                                <Field hint={"Split text and keep first value unless multi-value is enabled."} label={"Split delimiter"}>
+                                    <Input
+                                        onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { splitDelimiter: event.target.value })); }}
+                                        placeholder={","}
+                                        type={"text"}
+                                        value={field.splitDelimiter}
+                                    />
+                                </Field>
+
+                                <Field label={"Return multiple values"} variant={"checkbox"}>
+                                    <input
+                                        checked={field.multiValue}
+                                        onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { multiValue: event.target.checked })); }}
+                                        type={"checkbox"}
+                                    />
+                                </Field>
+
+                                <Field hint={"Optional boolean output such as price > 500000."} label={"Boolean comparison"}>
+                                    <Select
+                                        onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { comparisonOperator: event.target.value as SelectorFieldDraft["comparisonOperator"] })); }}
+                                        value={field.comparisonOperator}
+                                    >
+                                        <option value={""}>{"None"}</option>
+                                        <option value={"eq"}>{"Equals"}</option>
+                                        <option value={"gt"}>{"Greater than"}</option>
+                                        <option value={"lt"}>{"Less than"}</option>
+                                        <option value={"contains"}>{"Contains"}</option>
+                                    </Select>
+                                </Field>
+
+                                <Field label={"Comparison value"}>
+                                    <Input
+                                        disabled={field.comparisonOperator === ""}
+                                        onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { comparisonValue: event.target.value })); }}
+                                        placeholder={"500000"}
+                                        type={"text"}
+                                        value={field.comparisonValue}
+                                    />
                                 </Field>
                             </div>
 

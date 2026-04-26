@@ -102,7 +102,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Runtime,
 	authhttp.Register(mux, authService)
 	authMiddleware := authhttp.Middleware(authService)
 	engagementhttp.Register(mux, authMiddleware, engagementService)
-	ingestionhttp.Register(mux, authMiddleware, sourceService, eventBroker)
+	ingestionhttp.Register(mux, authMiddleware, sourceService)
 	ingestionhttp.RegisterRuns(mux, authMiddleware, propertyService)
 	ingestionhttp.RegisterProperties(mux, authMiddleware, propertyService)
 	ingestionhttp.RegisterFields(mux, authMiddleware, fieldService)

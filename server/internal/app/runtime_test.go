@@ -227,7 +227,7 @@ func TestRuntimeAnalyticsDatasetUsesLatestNormalizedValues(t *testing.T) {
 	propertyPageOne := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.WriteString(w, `<html><body>
 			<span data-field="price">`+currentPrice+`</span>
-			<span data-field="bedrooms">3</span>
+			<span data-field="rooms">3</span>
 			<span data-field="location">Bilbao</span>
 		</body></html>`)
 	}))
@@ -236,7 +236,7 @@ func TestRuntimeAnalyticsDatasetUsesLatestNormalizedValues(t *testing.T) {
 	propertyPageTwo := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.WriteString(w, `<html><body>
 			<span data-field="price">310000</span>
-			<span data-field="bedrooms">4</span>
+			<span data-field="rooms">4</span>
 			<span data-field="location">Getxo</span>
 		</body></html>`)
 	}))
@@ -248,7 +248,7 @@ func TestRuntimeAnalyticsDatasetUsesLatestNormalizedValues(t *testing.T) {
 	createSource(t, server.URL, token, map[string]any{
 		"id":          "analytics-template",
 		"name":        "Analytics template",
-		"config_json": `[{"name":"price","selectors":["[data-field='price']"],"required":true,"field_name":"price"},{"name":"bedrooms","selectors":["[data-field='bedrooms']"],"required":false,"field_name":"bedrooms"},{"name":"location","selectors":["[data-field='location']"],"required":false,"field_name":"location"}]`,
+		"config_json": `[{"name":"price","selectors":["[data-field='price']"],"required":true,"field_name":"price"},{"name":"rooms","selectors":["[data-field='rooms']"],"required":false,"field_name":"rooms"},{"name":"location","selectors":["[data-field='location']"],"required":false,"field_name":"location"}]`,
 	})
 
 	propertyOne := createProperty(t, server.URL, token, map[string]any{
@@ -287,8 +287,8 @@ func TestRuntimeAnalyticsDatasetUsesLatestNormalizedValues(t *testing.T) {
 	if got := records["Bilbao flat"]["price"]; got != "245000" {
 		t.Fatalf("expected latest price for Bilbao flat, got %q", got)
 	}
-	if got := records["Getxo house"]["bedrooms"]; got != "4" {
-		t.Fatalf("expected normalized bedrooms for Getxo house, got %q", got)
+	if got := records["Getxo house"]["rooms"]; got != "4" {
+		t.Fatalf("expected normalized rooms for Getxo house, got %q", got)
 	}
 }
 

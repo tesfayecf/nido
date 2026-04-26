@@ -226,23 +226,31 @@ export const SourceDetailPage = (): JSX.Element => {
                         <Field label={"Template name"}>
                             <Input onChange={(event) => { setFormState((previous) => ({ ...previous, name: event.target.value })); }} placeholder={"Search results template"} value={formState.name} />
                         </Field>
-                        <Field hint={"Use any page that matches this template to confirm the selectors before saving."} label={"Preview URL"}>
-                            <Input onChange={(event) => { setPreviewUrl(event.target.value); }} placeholder={"https://example.com/property"} type={"url"} value={previewUrl} />
-                        </Field>
+                        {isCreateMode ? (
+                            <Field hint={"Use any page that matches this template to confirm the selectors before saving."} label={"Preview URL"}>
+                                <Input onChange={(event) => { setPreviewUrl(event.target.value); }} placeholder={"https://example.com/property"} type={"url"} value={previewUrl} />
+                            </Field>
+                        ) : null}
                     </div>
 
-                    <SelectorBuilder fieldDefinitions={fieldDefinitionsQuery.data} fields={selectorFields} onChange={setSelectorFields} previewByFieldName={previewMap} />
+                    {isCreateMode ? 
+                        <SelectorBuilder fieldDefinitions={fieldDefinitionsQuery.data} fields={selectorFields} onChange={setSelectorFields} previewByFieldName={previewMap} />
+                        : null}
 
                     <ActionGroup>
-                        <Button onClick={() => { setSelectorFields((currentFields) => [...currentFields, createEmptySelectorDraft()]); }} variant={"secondary"}>{"Add field"}</Button>
-                        <Button disabled={previewUrl.trim() === "" || validationMessages.length > 0} isLoading={previewMutation.isPending} onClick={() => { previewMutation.mutate(); }} variant={"secondary"}>
-                            {previewMutation.isPending ? "Checking..." : "Preview template"}
-                        </Button>
-                        <Button disabled={formState.id.trim() === "" || formState.name.trim() === "" || validationMessages.length > 0} isLoading={saveMutation.isPending} type={"submit"}>
+                        {isCreateMode ? (
+                            <>
+                                <Button onClick={() => { setSelectorFields((currentFields) => [...currentFields, createEmptySelectorDraft()]); }} variant={"secondary"}>{"Add field"}</Button>
+                                <Button disabled={previewUrl.trim() === "" || validationMessages.length > 0} isLoading={previewMutation.isPending} onClick={() => { previewMutation.mutate(); }} variant={"secondary"}>
+                                    {previewMutation.isPending ? "Checking..." : "Preview template"}
+                                </Button>
+                            </>
+                        ) : null}
+                        <Button disabled={formState.id.trim() === "" || formState.name.trim() === "" || (isCreateMode && validationMessages.length > 0)} isLoading={saveMutation.isPending} type={"submit"}>
                             {saveMutation.isPending ? "Saving..." : isCreateMode ? "Create template" : "Save template"}
                         </Button>
                     </ActionGroup>
-                    {validationMessages.length > 0 ? (
+                    {isCreateMode && validationMessages.length > 0 ? (
                         <div className={"selector-builder__validation-list"}>
                             {validationMessages.map((message) => <ErrorBanner key={message}>{message}</ErrorBanner>)}
                         </div>

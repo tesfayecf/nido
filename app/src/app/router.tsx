@@ -4,7 +4,6 @@ import { AppRouteError } from "@/app/AppRouteError";
 import { AppShell } from "@/app/AppShell";
 import { RequireAuth } from "@/app/RequireAuth";
 import { SourceDetailPage } from "@/features/backoffice/SourceDetailPage";
-import { EventsPage } from "@/features/backoffice/EventsPage";
 import { SourcesPage } from "@/features/backoffice/SourcesPage";
 import { RunDetailPage } from "@/features/backoffice/RunDetailPage";
 import { RunsPage } from "@/features/backoffice/RunsPage";
@@ -72,10 +71,6 @@ export const router = createBrowserRouter([
                     {
                         path: "fields",
                         element: <FieldsPage />,
-                    },
-                    {
-                        path: "events",
-                        element: <EventsPage />,
                     },
                     {
                         path: "sources",

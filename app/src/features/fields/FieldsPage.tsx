@@ -13,7 +13,6 @@ import { Input } from "@/components/ui/Input";
 import { PageCard } from "@/components/ui/PageCard";
 import { PageStack } from "@/components/ui/PageStack";
 import { Select } from "@/components/ui/Select";
-import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Tabs } from "@/components/ui/Tabs";
 import { Textarea } from "@/components/ui/Textarea";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -29,6 +28,10 @@ interface FieldFormState {
     readonly enumValuesText: string;
     readonly name: string;
     readonly unit: string;
+    readonly defaultValue: string;
+    readonly useDefaultWhenMissing: boolean;
+    readonly comparisonOperator: "" | "eq" | "gt" | "lt" | "contains";
+    readonly comparisonValue: string;
 }
 
 const EMPTY_FORM: FieldFormState = {
@@ -38,6 +41,10 @@ const EMPTY_FORM: FieldFormState = {
     enumValuesText: "",
     name: "",
     unit: "",
+    defaultValue: "",
+    useDefaultWhenMissing: false,
+    comparisonOperator: "",
+    comparisonValue: "",
 };
 
 const formFromField = (field: FieldDefinitionUsage | null): FieldFormState => ({
@@ -47,6 +54,10 @@ const formFromField = (field: FieldDefinitionUsage | null): FieldFormState => ({
     enumValuesText: (field?.enum_values ?? []).join("\n"),
     name: field?.name ?? "",
     unit: field?.unit ?? "",
+    defaultValue: field?.default_value ?? "",
+    useDefaultWhenMissing: field?.use_default_when_missing ?? false,
+    comparisonOperator: field?.comparison_operator ?? "",
+    comparisonValue: field?.comparison_value ?? "",
 });
 
 const parseEnumValues = (value: string): string[] | undefined => {
@@ -58,7 +69,6 @@ export const FieldsPage = (): JSX.Element => {
     const queryClient = useQueryClient();
     const { pushToast } = useToast();
     const [search, setSearch] = useState("");
-    const [scope, setScope] = useState<"all" | "system" | "user">("all");
     const [editorOpen, setEditorOpen] = useState(false);
     const [editingField, setEditingField] = useState<FieldDefinitionUsage | null>(null);
     const [form, setForm] = useState<FieldFormState>(EMPTY_FORM);
@@ -132,14 +142,6 @@ export const FieldsPage = (): JSX.Element => {
     const filteredFields = useMemo(() => {
         const normalizedSearch = search.trim().toLowerCase();
         return (fieldsQuery.data ?? []).filter((field) => {
-            if (scope === "system" && !field.system_defined) {
-                return false;
-            }
-
-            if (scope === "user" && field.system_defined) {
-                return false;
-            }
-
             if (normalizedSearch === "") {
                 return true;
             }
@@ -147,10 +149,9 @@ export const FieldsPage = (): JSX.Element => {
             return [field.name, field.display_name, field.description ?? "", field.unit ?? ""]
                 .some((value) => value.toLowerCase().includes(normalizedSearch));
         });
-    }, [fieldsQuery.data, scope, search]);
+    }, [fieldsQuery.data, search]);
 
-    const systemFields = useMemo(() => (fieldsQuery.data ?? []).filter((field) => field.system_defined), [fieldsQuery.data]);
-    const customFields = useMemo(() => (fieldsQuery.data ?? []).filter((field) => !field.system_defined), [fieldsQuery.data]);
+    const allFields = useMemo(() => [...fieldsQuery.data ?? []].sort((left, right) => left.display_name.localeCompare(right.display_name)), [fieldsQuery.data]);
 
     const openCreate = (): void => {
         setEditingField(null);
@@ -172,6 +173,10 @@ export const FieldsPage = (): JSX.Element => {
             enum_values: form.dataType === "enum" ? parseEnumValues(form.enumValuesText) : undefined,
             name: form.name.trim(),
             unit: form.unit.trim() !== "" ? form.unit.trim() : undefined,
+            default_value: form.defaultValue.trim() !== "" ? form.defaultValue.trim() : undefined,
+            use_default_when_missing: form.useDefaultWhenMissing,
+            comparison_operator: form.dataType === "boolean" && form.comparisonOperator !== "" ? form.comparisonOperator : undefined,
+            comparison_value: form.dataType === "boolean" && form.comparisonValue.trim() !== "" ? form.comparisonValue.trim() : undefined,
         };
 
         if (editingField === null) {
@@ -198,13 +203,7 @@ export const FieldsPage = (): JSX.Element => {
                         <Field label={"Search fields"}>
                             <Input onChange={(event) => { setSearch(event.target.value); }} placeholder={"Search by name or metadata"} value={search} />
                         </Field>
-                        <Field label={"Scope"}>
-                            <Select onChange={(event) => { setScope(event.target.value as "all" | "system" | "user"); }} value={scope}>
-                                <option value={"all"}>{"All fields"}</option>
-                                <option value={"system"}>{"System fields"}</option>
-                                <option value={"user"}>{"User-defined fields"}</option>
-                            </Select>
-                        </Field>
+                        <div className={"muted-copy"} style={{ alignSelf: "end" }}>{"All fields are managed in one shared list."}</div>
                     </div>
                 </PageCard>
 
@@ -230,11 +229,6 @@ export const FieldsPage = (): JSX.Element => {
                                                 header: "Field",
                                                 id: "field",
                                                 sortValue: (item) => item.display_name,
-                                            },
-                                            {
-                                                cell: (item) => <StatusBadge tone={item.system_defined ? "neutral" : "success"} value={item.system_defined ? "system" : "custom"} />,
-                                                header: "Kind",
-                                                id: "kind",
                                             },
                                             {
                                                 cell: (item) => item.data_type,
@@ -389,6 +383,28 @@ export const FieldsPage = (): JSX.Element => {
                     <Field label={"Unit"}>
                         <Input onChange={(event) => { setForm((current) => ({ ...current, unit: event.target.value })); }} placeholder={"€, m²"} value={form.unit} />
                     </Field>
+                    <Field hint={"Returned when the field is missing or empty."} label={"Default value"}>
+                        <Input onChange={(event) => { setForm((current) => ({ ...current, defaultValue: event.target.value })); }} value={form.defaultValue} />
+                    </Field>
+                    <Field label={"Use default if missing"} variant={"checkbox"}>
+                        <input checked={form.useDefaultWhenMissing} onChange={(event) => { setForm((current) => ({ ...current, useDefaultWhenMissing: event.target.checked })); }} type={"checkbox"} />
+                    </Field>
+                    {form.dataType === "boolean" ? (
+                        <>
+                            <Field label={"Comparison rule"}>
+                                <Select onChange={(event) => { setForm((current) => ({ ...current, comparisonOperator: event.target.value as FieldFormState["comparisonOperator"] })); }} value={form.comparisonOperator}>
+                                    <option value={""}>{"None"}</option>
+                                    <option value={"eq"}>{"Equals"}</option>
+                                    <option value={"gt"}>{"Greater than"}</option>
+                                    <option value={"lt"}>{"Less than"}</option>
+                                    <option value={"contains"}>{"Contains"}</option>
+                                </Select>
+                            </Field>
+                            <Field label={"Comparison value"}>
+                                <Input disabled={form.comparisonOperator === ""} onChange={(event) => { setForm((current) => ({ ...current, comparisonValue: event.target.value })); }} value={form.comparisonValue} />
+                            </Field>
+                        </>
+                    ) : null}
                     <Field label={"Description"}>
                         <Textarea onChange={(event) => { setForm((current) => ({ ...current, description: event.target.value })); }} rows={3} value={form.description} />
                     </Field>
@@ -449,16 +465,7 @@ export const FieldsPage = (): JSX.Element => {
                     <Field label={"Canonical field"}>
                         <Select onChange={(event) => { setAssignFieldName(event.target.value); }} value={assignFieldName}>
                             <option value={""}>{"Select a field"}</option>
-                            {systemFields.length > 0 ? (
-                                <optgroup label={"System fields"}>
-                                    {systemFields.map((field) => <option key={field.id} value={field.name}>{field.display_name}</option>)}
-                                </optgroup>
-                            ) : null}
-                            {customFields.length > 0 ? (
-                                <optgroup label={"Custom fields"}>
-                                    {customFields.map((field) => <option key={field.id} value={field.name}>{field.display_name}</option>)}
-                                </optgroup>
-                            ) : null}
+                            {allFields.map((field) => <option key={field.id} value={field.name}>{field.display_name}</option>)}
                         </Select>
                     </Field>
                 </div>
