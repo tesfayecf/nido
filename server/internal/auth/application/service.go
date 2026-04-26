@@ -13,9 +13,9 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
-	authdomain "home-searcher/server/internal/auth/domain"
-	platformconfig "home-searcher/server/internal/platform/config"
-	"home-searcher/server/internal/platform/id"
+	authdomain "nido/server/internal/auth/domain"
+	platformconfig "nido/server/internal/platform/config"
+	"nido/server/internal/platform/id"
 )
 
 var (

@@ -52,7 +52,7 @@ export const LoginPage = (): JSX.Element => {
                 <Toolbar>
                     <div>
                         <p className={"login-panel__eyebrow"}>{"Access"}</p>
-                        <h1 className={"login-panel__title"}>{"Home Searcher"}</h1>
+                        <h1 className={"login-panel__title"}>{"Nido"}</h1>
                     </div>
                     <ThemeToggle />
                 </Toolbar>

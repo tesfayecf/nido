@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
-	"home-searcher/server/internal/engine"
-	ingestiondomain "home-searcher/server/internal/ingestion/domain"
-	"home-searcher/server/internal/platform/id"
+	"nido/server/internal/engine"
+	ingestiondomain "nido/server/internal/ingestion/domain"
+	"nido/server/internal/platform/id"
 )
 
 // PropertySchedulerStore defines the persistence contract for PropertyScheduler.

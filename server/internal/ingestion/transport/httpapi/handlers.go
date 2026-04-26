@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"strings"
 
-	authhttp "home-searcher/server/internal/auth/transport/httpapi"
-	app "home-searcher/server/internal/ingestion/application"
-	ingestiondomain "home-searcher/server/internal/ingestion/domain"
-	platformevents "home-searcher/server/internal/platform/events"
-	platformhttp "home-searcher/server/internal/platform/httpapi"
+	authhttp "nido/server/internal/auth/transport/httpapi"
+	app "nido/server/internal/ingestion/application"
+	ingestiondomain "nido/server/internal/ingestion/domain"
+	platformevents "nido/server/internal/platform/events"
+	platformhttp "nido/server/internal/platform/httpapi"
 )
 
 // Register binds source-template and live-event HTTP routes to the supplied mux.

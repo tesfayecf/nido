@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	platformconfig "home-searcher/server/internal/platform/config"
+	platformconfig "nido/server/internal/platform/config"
 )
 
 // Renderer executes a server-side browser render for JavaScript-heavy pages.
@@ -64,5 +64,5 @@ func (r *commandRenderer) Render(ctx context.Context, url string) ([]byte, error
 type unavailableRenderer struct{}
 
 func (unavailableRenderer) Render(_ context.Context, url string) ([]byte, error) {
-	return nil, fmt.Errorf("browser rendering is not configured for %q; set HS_BROWSER_COMMAND to enable it", url)
+	return nil, fmt.Errorf("browser rendering is not configured for %q; set NIDO_BROWSER_COMMAND to enable it", url)
 }

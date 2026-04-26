@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	ingestiondomain "home-searcher/server/internal/ingestion/domain"
-	"home-searcher/server/internal/platform/id"
+	ingestiondomain "nido/server/internal/ingestion/domain"
+	"nido/server/internal/platform/id"
 )
 
 // ErrFieldDefinitionNotFound indicates the requested field does not exist.

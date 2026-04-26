@@ -12,11 +12,11 @@ import (
 	"strings"
 	"time"
 
-	ingestionapp "home-searcher/server/internal/ingestion/application"
-	platformconfig "home-searcher/server/internal/platform/config"
-	platformevents "home-searcher/server/internal/platform/events"
-	"home-searcher/server/internal/platform/id"
-	platformopsdomain "home-searcher/server/internal/platformops/domain"
+	ingestionapp "nido/server/internal/ingestion/application"
+	platformconfig "nido/server/internal/platform/config"
+	platformevents "nido/server/internal/platform/events"
+	"nido/server/internal/platform/id"
+	platformopsdomain "nido/server/internal/platformops/domain"
 )
 
 type Store interface {
@@ -188,7 +188,7 @@ func (s *Service) ListDeliveryLogs(ctx context.Context, limit int) ([]platformop
 
 func (s *Service) TestChannel(ctx context.Context, channel string) error {
 	payload := map[string]any{
-		"message": "home-searcher integration test",
+		"message": "nido integration test",
 		"sent_at": time.Now().UTC(),
 		"channel": channel,
 	}
@@ -236,7 +236,7 @@ func (s *Service) maybeSendDigest(ctx context.Context) error {
 		return err
 	}
 	body := fmt.Sprintf(
-		"Home Searcher daily digest\n\nTracked properties: %d\nPaused properties: %d\nQueue depth: %d\nRuns last 24h: %d\nFailures last 24h: %d\nSuccess rate: %.1f%%\n",
+		"Nido daily digest\n\nTracked properties: %d\nPaused properties: %d\nQueue depth: %d\nRuns last 24h: %d\nFailures last 24h: %d\nSuccess rate: %.1f%%\n",
 		summary.TrackedProperties,
 		summary.PausedProperties,
 		summary.QueueDepth,
@@ -244,7 +244,7 @@ func (s *Service) maybeSendDigest(ctx context.Context) error {
 		summary.FailuresLast24Hours,
 		summary.SuccessRate,
 	)
-	if err := s.sendEmailDigest(settings.EmailDigest.Recipient, "Home Searcher digest", body); err != nil {
+	if err := s.sendEmailDigest(settings.EmailDigest.Recipient, "Nido digest", body); err != nil {
 		return s.persistLog(ctx, platformopsdomain.IntegrationDeliveryLog{
 			ID:           id.New("idel"),
 			Channel:      "email",

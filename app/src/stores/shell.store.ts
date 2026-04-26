@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-const STORAGE_KEY = "home-searcher.nav-collapsed";
+const STORAGE_KEY = "nido.nav-collapsed";
 
 const readStoredCollapsed = (): boolean => {
     if (typeof window === "undefined") {

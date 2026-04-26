@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"home-searcher/server/internal/engine"
-	"home-searcher/server/internal/fetcher"
-	ingestiondomain "home-searcher/server/internal/ingestion/domain"
+	"nido/server/internal/engine"
+	"nido/server/internal/fetcher"
+	ingestiondomain "nido/server/internal/ingestion/domain"
 )
 
 type stubFetchClient struct {

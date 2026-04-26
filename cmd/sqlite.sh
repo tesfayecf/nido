@@ -4,7 +4,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 GO_BIN="${ROOT_DIR}/third-party/go/bin/go"
-DATABASE_PATH="${HS_DATABASE_PATH:-${ROOT_DIR}/.sqlite/home-searcher.db}"
+DATABASE_PATH="${NIDO_DATABASE_PATH:-${ROOT_DIR}/.sqlite/nido.db}"
 
 usage() {
 	cat <<'EOF'
@@ -34,7 +34,7 @@ case "${command_name}" in
 		mkdir -p "$(dirname "${DATABASE_PATH}")"
 		(
 			cd "${ROOT_DIR}/server"
-			HS_DATABASE_PATH="${DATABASE_PATH}" GOTOOLCHAIN=local "${GO_BIN}" run ./cmd/server migrate
+			NIDO_DATABASE_PATH="${DATABASE_PATH}" GOTOOLCHAIN=local "${GO_BIN}" run ./cmd/server migrate
 		)
 		;;
 	tables)

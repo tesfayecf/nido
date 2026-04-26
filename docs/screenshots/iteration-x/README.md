@@ -4,7 +4,7 @@ Screenshots captured against the local dev server (`pnpm dev` + bundled Go backe
 
 | # | File | Requirement |
 |---|------|-------------|
-| 1 | `01-header-branding.png` | (#9) Header simplified to "H" icon + "Property Tracker" — "Home Searcher" text removed. |
+| 1 | `01-header-branding.png` | (#9) Header simplified to "H" icon + "Property Tracker" — "Nido" text removed. |
 | 2 | `02-settings-page.png` | (#7) New Settings page with Account / Password / Appearance segments and the relocated theme selector. |
 | 3 | `03-alerts-expanded-rules.png` | (#8) Alerts page with expanded rule types: Price drop, Price below threshold, Price above threshold, Any change. |
 | 4 | `04-source-detail-fields-table.png` | (#1) Structured fields table with row-level Edit/Delete actions and dedicated "Add field" button (separate from "Edit"). |

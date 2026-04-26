@@ -2,8 +2,8 @@
 
 This setup packages the documented split runtime into a single container for a single-user, single-host deployment:
 
-- the Go API and scheduler described in [server/docs/local-development.md](/home/tesfa/Finance/tools/home-searcher/server/docs/local-development.md)
-- the built Vite frontend described in [app/docs/local-development.md](/home/tesfa/Finance/tools/home-searcher/app/docs/local-development.md)
+- the Go API and scheduler described in [server/docs/local-development.md](./../server/docs/local-development.md)
+- the built Vite frontend described in [app/docs/local-development.md](./../app/docs/local-development.md)
 
 The image keeps the frontend same-origin with the API by serving static assets through Nginx and proxying `/api/*` to the Go process on `127.0.0.1:18080` inside the same container. That stays aligned with the frontend API client contract while avoiding deployment-time CORS reliance.
 
@@ -38,7 +38,7 @@ password: dev-password
 
 ## Persistence
 
-SQLite data is stored in the named volume `home_searcher_data` at `/data/home-searcher.db` inside the app container.
+SQLite data is stored in the named volume `nido_data` at `/data/nido.db` inside the app container.
 
 To stop and remove the stack:
 

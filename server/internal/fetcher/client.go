@@ -17,8 +17,8 @@ import (
 
 	"github.com/sony/gobreaker"
 
-	"home-searcher/server/internal/engine"
-	"home-searcher/server/internal/ingestion/browser"
+	"nido/server/internal/engine"
+	"nido/server/internal/ingestion/browser"
 )
 
 // HTTPClient implements shared outbound source fetching.

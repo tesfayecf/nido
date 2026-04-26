@@ -1,4 +1,4 @@
-# Home Searcher Application Documentation
+# Nido Application Documentation
 
 ## How To Use This Manual
 This manual follows the current UI served from `http://localhost:3000/` and documents the shipped frontend under `/app`. The copy is intentionally redacted: it explains the operator flow, the main controls, and the expected checks without repeating sample property names, ids, or record values shown in the screenshots.

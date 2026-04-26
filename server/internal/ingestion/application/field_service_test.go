@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	ingestiondomain "home-searcher/server/internal/ingestion/domain"
+	ingestiondomain "nido/server/internal/ingestion/domain"
 )
 
 type fieldServiceStoreStub struct {

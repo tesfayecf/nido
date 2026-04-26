@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"home-searcher/server/internal/ingestion/domain"
+	"nido/server/internal/ingestion/domain"
 )
 
 type ingestionStoreStub struct {

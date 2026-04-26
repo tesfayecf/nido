@@ -126,7 +126,7 @@ Keep concurrency decisions visible in the composition root. Hidden scheduler mag
 - Check the property's `next_run_at`, `last_run_at`, status, and schedule interval.
 - Check the scheduler tick interval.
 - Remember that the current runtime starts the property scheduler automatically.
-- Remember that `HS_SCHEDULER_ENABLED` is parsed but not currently used to disable the scheduler.
+- Remember that `NIDO_SCHEDULER_ENABLED` is parsed but not currently used to disable the scheduler.
 
 ### Run history looks inconsistent
 
@@ -137,7 +137,7 @@ Keep concurrency decisions visible in the composition root. Hidden scheduler mag
 ### 403 or anti-bot fetch failures
 
 - Check the shared fetcher configuration first.
-- If browser rendering is needed, check `HS_BROWSER_COMMAND`, `HS_BROWSER_ARGS`, and `HS_BROWSER_TIMEOUT`.
+- If browser rendering is needed, check `NIDO_BROWSER_COMMAND`, `NIDO_BROWSER_ARGS`, and `NIDO_BROWSER_TIMEOUT`.
 - Do not assume every fetch should escalate to browser execution. Keep that choice explicit.
 - Headless browser fallback reduces some failures, but it does not guarantee bypass of all anti-bot systems.
 

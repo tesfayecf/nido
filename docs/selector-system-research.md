@@ -13,7 +13,7 @@ PRs.
 
 ## 1. Problem recap
 
-The product needs a small number of users to point Home Searcher at a property
+The product needs a small number of users to point Nido at a property
 listing URL and reliably extract a handful of fields (price, title, location,
 …) over time, even as upstream sites mutate their DOM.
 

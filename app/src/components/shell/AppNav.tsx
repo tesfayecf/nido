@@ -34,7 +34,7 @@ export const AppNav = (): JSX.Element => {
     return (
         <aside className={navCollapsed ? "app-nav app-nav--collapsed" : "app-nav"}>
             <div className={"app-nav__brand"}>
-                <span aria-hidden className={"app-nav__brand-mark"}>{"H"}</span>
+                <span aria-hidden className={"app-nav__brand-mark"}>{"N"}</span>
                 <div className={"app-nav__brand-copy"}>
                     <span className={"app-nav__eyebrow"}>{"Acquisition workspace"}</span>
                 </div>

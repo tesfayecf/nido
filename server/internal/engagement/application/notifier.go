@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	engagementdomain "home-searcher/server/internal/engagement/domain"
-	platformconfig "home-searcher/server/internal/platform/config"
+	engagementdomain "nido/server/internal/engagement/domain"
+	platformconfig "nido/server/internal/platform/config"
 )
 
 // Notifier delivers notifications to optional outbound channels.

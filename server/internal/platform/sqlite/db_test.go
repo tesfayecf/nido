@@ -6,13 +6,13 @@ import (
 	"path/filepath"
 	"testing"
 
-	"home-searcher/server/internal/platform/config"
+	"nido/server/internal/platform/config"
 )
 
 func TestOpenRecoversCorruptDatabaseFile(t *testing.T) {
 	t.Parallel()
 
-	databasePath := filepath.Join(t.TempDir(), "home-searcher.db")
+	databasePath := filepath.Join(t.TempDir(), "nido.db")
 	corruptContents := []byte("this is not a sqlite database")
 	if err := os.WriteFile(databasePath, corruptContents, 0o644); err != nil {
 		t.Fatalf("write corrupt database: %v", err)

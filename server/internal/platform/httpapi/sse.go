@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	platformevents "home-searcher/server/internal/platform/events"
+	platformevents "nido/server/internal/platform/events"
 )
 
 // StreamSSE writes broker events as an SSE stream until the request ends.

@@ -6,10 +6,10 @@ import (
 	"strconv"
 	"strings"
 
-	authhttp "home-searcher/server/internal/auth/transport/httpapi"
-	app "home-searcher/server/internal/engagement/application"
-	engagementdomain "home-searcher/server/internal/engagement/domain"
-	platformhttp "home-searcher/server/internal/platform/httpapi"
+	authhttp "nido/server/internal/auth/transport/httpapi"
+	app "nido/server/internal/engagement/application"
+	engagementdomain "nido/server/internal/engagement/domain"
+	platformhttp "nido/server/internal/platform/httpapi"
 )
 
 // Register binds engagement routes to the supplied mux.

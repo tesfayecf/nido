@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"home-searcher/server/internal/platform/config"
+	"nido/server/internal/platform/config"
 )
 
 // PutInput describes a raw artifact upload request.

@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"errors"
 
-	"home-searcher/server/internal/catalog/domain"
+	"nido/server/internal/catalog/domain"
 )
 
 // ErrNotFound indicates that the requested listing does not exist.

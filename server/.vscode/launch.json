@@ -11,10 +11,10 @@
             "console": "integratedTerminal",
             "env": {
                 "GOTOOLCHAIN": "local",
-                "HS_HTTP_ADDR": ":8080",
-                "HS_OBJECT_STORE_DRIVER": "memory",
-                "HS_BOOTSTRAP_ADMIN_EMAIL": "admin@local",
-                "HS_BOOTSTRAP_ADMIN_PASSWORD": "dev-password"
+                "NIDO_HTTP_ADDR": ":8080",
+                "NIDO_OBJECT_STORE_DRIVER": "memory",
+                "NIDO_BOOTSTRAP_ADMIN_EMAIL": "admin@local",
+                "NIDO_BOOTSTRAP_ADMIN_PASSWORD": "dev-password"
             },
             "preLaunchTask": "sqlite:migrate"
         }

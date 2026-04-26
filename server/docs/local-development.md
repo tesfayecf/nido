@@ -136,51 +136,51 @@ No environment variables are required for a first run. `internal/platform/config
 ### Common overrides used immediately
 
 ```bash
-export HS_HTTP_ADDR=":8080"
-export HS_DATABASE_PATH="./.sqlite/home-searcher.db"
-export HS_BOOTSTRAP_ADMIN_EMAIL="admin@local"
-export HS_BOOTSTRAP_ADMIN_NAME="Local Admin"
-export HS_BOOTSTRAP_ADMIN_PASSWORD="dev-password"
-export HS_AUTH_SESSION_TTL="24h"
+export NIDO_HTTP_ADDR=":8080"
+export NIDO_DATABASE_PATH="./.sqlite/nido.db"
+export NIDO_BOOTSTRAP_ADMIN_EMAIL="admin@local"
+export NIDO_BOOTSTRAP_ADMIN_NAME="Local Admin"
+export NIDO_BOOTSTRAP_ADMIN_PASSWORD="dev-password"
+export NIDO_AUTH_SESSION_TTL="24h"
 ```
 
 ### Active runtime controls
 
 ```bash
-export HS_SCHEDULER_TICK_INTERVAL="15s"
-export HS_SCHEDULER_LOCK_TTL="2m"
-export HS_SCHEDULER_SHUTDOWN_TIMEOUT="30s"
-export HS_FETCHER_TIMEOUT="20s"
-export HS_FETCHER_MIN_REQUEST_GAP="750ms"
-export HS_FETCHER_BREAKER_INTERVAL="30s"
-export HS_FETCHER_BREAKER_TIMEOUT="15s"
-export HS_FETCHER_TLS_PROFILE="chrome-2026"
-export HS_BROWSER_COMMAND="/usr/bin/chromium"
-export HS_BROWSER_ARGS="--headless --disable-gpu --dump-dom"
-export HS_BROWSER_TIMEOUT="20s"
-export HS_NOTIFICATION_WEBHOOK_URL="http://127.0.0.1:9098/hooks/notifications"
-export HS_SMTP_HOST="127.0.0.1"
-export HS_SMTP_PORT="1025"
-export HS_SMTP_FROM="home-searcher@example.test"
+export NIDO_SCHEDULER_TICK_INTERVAL="15s"
+export NIDO_SCHEDULER_LOCK_TTL="2m"
+export NIDO_SCHEDULER_SHUTDOWN_TIMEOUT="30s"
+export NIDO_FETCHER_TIMEOUT="20s"
+export NIDO_FETCHER_MIN_REQUEST_GAP="750ms"
+export NIDO_FETCHER_BREAKER_INTERVAL="30s"
+export NIDO_FETCHER_BREAKER_TIMEOUT="15s"
+export NIDO_FETCHER_TLS_PROFILE="chrome-2026"
+export NIDO_BROWSER_COMMAND="/usr/bin/chromium"
+export NIDO_BROWSER_ARGS="--headless --disable-gpu --dump-dom"
+export NIDO_BROWSER_TIMEOUT="20s"
+export NIDO_NOTIFICATION_WEBHOOK_URL="http://127.0.0.1:9098/hooks/notifications"
+export NIDO_SMTP_HOST="127.0.0.1"
+export NIDO_SMTP_PORT="1025"
+export NIDO_SMTP_FROM="nido@example.test"
 ```
 
 Notes:
 
-- `HS_BROWSER_ARGS` accepts either a shell-style space-separated string or a comma-separated list.
-- The runtime also accepts the legacy `HS_NOTIFICATIONS_WEBHOOK_URL` alias.
+- `NIDO_BROWSER_ARGS` accepts either a shell-style space-separated string or a comma-separated list.
+- The runtime also accepts the legacy `NIDO_NOTIFICATIONS_WEBHOOK_URL` alias.
 
 ### Parsed today but not fully wired end to end
 
 These settings exist in `platform/config`, but the active composition root does not currently turn them into mounted runtime behavior:
 
 ```bash
-export HS_OBJECT_STORE_DRIVER="s3"
-export HS_S3_ENDPOINT="http://127.0.0.1:5500"
-export HS_S3_REGION="garage"
-export HS_S3_BUCKET="home-searcher"
-export HS_BOOTSTRAP_SOURCE_URL="http://127.0.0.1:9099/feed.json"
-export HS_SCHEDULER_ENABLED="false"
-export HS_SCHEDULER_BATCH_SIZE="10"
+export NIDO_OBJECT_STORE_DRIVER="s3"
+export NIDO_S3_ENDPOINT="http://127.0.0.1:5500"
+export NIDO_S3_REGION="garage"
+export NIDO_S3_BUCKET="nido"
+export NIDO_BOOTSTRAP_SOURCE_URL="http://127.0.0.1:9099/feed.json"
+export NIDO_SCHEDULER_ENABLED="false"
+export NIDO_SCHEDULER_BATCH_SIZE="10"
 ```
 
 Do not expect object storage, bootstrap source registration, or scheduler disabling to change the running system unless `internal/app/runtime.go` is updated to consume those settings.

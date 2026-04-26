@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"home-searcher/server/internal/platform/id"
+	"nido/server/internal/platform/id"
 )
 
 // Event is the serialized payload emitted through the in-process broker.

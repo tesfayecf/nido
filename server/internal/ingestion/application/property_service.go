@@ -19,9 +19,9 @@ import (
 	"github.com/antchfx/htmlquery"
 	"golang.org/x/net/html"
 
-	"home-searcher/server/internal/fetcher"
-	ingestiondomain "home-searcher/server/internal/ingestion/domain"
-	"home-searcher/server/internal/platform/id"
+	"nido/server/internal/fetcher"
+	ingestiondomain "nido/server/internal/ingestion/domain"
+	"nido/server/internal/platform/id"
 )
 
 // ErrPropertyNotFound indicates that the requested property does not exist.

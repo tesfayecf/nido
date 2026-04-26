@@ -8,8 +8,8 @@ PNPM_BIN="${PNPM_BIN:-pnpm}"
 SERVER_DIR="${ROOT_DIR}/server"
 APP_DIR="${ROOT_DIR}/app"
 SERVER_BIN="${SERVER_BIN:-${SERVER_DIR}/.install/bin/server}"
-DATABASE_PATH="${HS_DATABASE_PATH:-${ROOT_DIR}/.sqlite/home-searcher.db}"
-BACKEND_HTTP_ADDR="${HS_HTTP_ADDR:-:8080}"
+DATABASE_PATH="${NIDO_DATABASE_PATH:-${ROOT_DIR}/.sqlite/nido.db}"
+BACKEND_HTTP_ADDR="${NIDO_HTTP_ADDR:-:8080}"
 APP_API_ORIGIN="${APP_API_ORIGIN:-${VITE_API_ORIGIN:-http://127.0.0.1:8080}}"
 APP_DEV_BACKEND_ORIGIN="${APP_DEV_BACKEND_ORIGIN:-${VITE_BACKEND_ORIGIN:-${APP_API_ORIGIN}}}"
 APP_PREVIEW_HOST="${APP_PREVIEW_HOST:-127.0.0.1}"
@@ -18,7 +18,7 @@ BACKGROUND_PID=""
 
 usage() {
 	cat <<'EOF'
-Usage: cmd/home-searcher.sh <command>
+Usage: cmd/nido.sh <command>
 
 Commands:
 	config                    Print the resolved tool and runtime configuration.
@@ -42,14 +42,14 @@ Environment:
 	GO_BIN                    Path to the Go toolchain. Default: ./third-party/go/bin/go
 	PNPM_BIN                  pnpm executable to use. Default: pnpm
 	SERVER_BIN                Backend binary output path. Default: ./server/.install/bin/server
-	HS_DATABASE_PATH          SQLite database path. Default: ./.sqlite/home-searcher.db
-	HS_HTTP_ADDR              Backend listen address. Default: :8080
+	NIDO_DATABASE_PATH          SQLite database path. Default: ./.sqlite/nido.db
+	NIDO_HTTP_ADDR              Backend listen address. Default: :8080
 	APP_API_ORIGIN            Frontend API origin baked into the build. Default: http://127.0.0.1:8080
 	APP_DEV_BACKEND_ORIGIN    Backend origin used by Vite dev proxy. Default: APP_API_ORIGIN
 	APP_PREVIEW_HOST          Host passed to vite preview. Default: 127.0.0.1
 	APP_PREVIEW_PORT          Port passed to vite preview. Default: 4173
 
-Any additional HS_* or VITE_* environment variables are forwarded to the
+Any additional NIDO_* or VITE_* environment variables are forwarded to the
 underlying backend and frontend commands.
 EOF
 }
@@ -86,15 +86,15 @@ run_go() {
 }
 
 backend_env() {
-	HS_DATABASE_PATH="${HS_DATABASE_PATH:-${DATABASE_PATH}}" \
-	HS_HTTP_ADDR="${HS_HTTP_ADDR:-${BACKEND_HTTP_ADDR}}" \
+	NIDO_DATABASE_PATH="${NIDO_DATABASE_PATH:-${DATABASE_PATH}}" \
+	NIDO_HTTP_ADDR="${NIDO_HTTP_ADDR:-${BACKEND_HTTP_ADDR}}" \
 	"$@"
 }
 
 exec_backend_command() {
 	exec env \
-		HS_DATABASE_PATH="${HS_DATABASE_PATH:-${DATABASE_PATH}}" \
-		HS_HTTP_ADDR="${HS_HTTP_ADDR:-${BACKEND_HTTP_ADDR}}" \
+		NIDO_DATABASE_PATH="${NIDO_DATABASE_PATH:-${DATABASE_PATH}}" \
+		NIDO_HTTP_ADDR="${NIDO_HTTP_ADDR:-${BACKEND_HTTP_ADDR}}" \
 		"$@"
 }
 
@@ -112,8 +112,8 @@ ROOT_DIR=${ROOT_DIR}
 GO_BIN=${GO_BIN}
 PNPM_BIN=${PNPM_BIN}
 SERVER_BIN=${SERVER_BIN}
-HS_DATABASE_PATH=${DATABASE_PATH}
-HS_HTTP_ADDR=${BACKEND_HTTP_ADDR}
+NIDO_DATABASE_PATH=${DATABASE_PATH}
+NIDO_HTTP_ADDR=${BACKEND_HTTP_ADDR}
 APP_API_ORIGIN=${APP_API_ORIGIN}
 APP_DEV_BACKEND_ORIGIN=${APP_DEV_BACKEND_ORIGIN}
 APP_PREVIEW_HOST=${APP_PREVIEW_HOST}

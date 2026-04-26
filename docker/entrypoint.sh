@@ -2,7 +2,7 @@
 
 set -eu
 
-/usr/local/bin/home-searcher &
+/usr/local/bin/nido &
 backend_pid=$!
 
 nginx -g 'daemon off;' &

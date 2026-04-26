@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"strings"
 
-	app "home-searcher/server/internal/ingestion/application"
-	ingestiondomain "home-searcher/server/internal/ingestion/domain"
-	platformhttp "home-searcher/server/internal/platform/httpapi"
+	app "nido/server/internal/ingestion/application"
+	ingestiondomain "nido/server/internal/ingestion/domain"
+	platformhttp "nido/server/internal/platform/httpapi"
 )
 
 type propertyUpsertRequest struct {

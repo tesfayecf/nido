@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	ingestiondomain "home-searcher/server/internal/ingestion/domain"
+	ingestiondomain "nido/server/internal/ingestion/domain"
 )
 
 type tagStoreStub struct {

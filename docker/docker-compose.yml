@@ -6,17 +6,17 @@ services:
       args:
         VITE_API_ORIGIN: ""
     environment:
-      HS_HTTP_ADDR: 127.0.0.1:18080
-      HS_DATABASE_PATH: /data/home-searcher.db
-      HS_BOOTSTRAP_ADMIN_EMAIL: admin@local
-      HS_BOOTSTRAP_ADMIN_NAME: Local Admin
-      HS_BOOTSTRAP_ADMIN_PASSWORD: dev-password
-      HS_AUTH_SESSION_TTL: 24h
+      NIDO_HTTP_ADDR: 127.0.0.1:18080
+      NIDO_DATABASE_PATH: /data/nido.db
+      NIDO_BOOTSTRAP_ADMIN_EMAIL: admin@local
+      NIDO_BOOTSTRAP_ADMIN_NAME: Local Admin
+      NIDO_BOOTSTRAP_ADMIN_PASSWORD: dev-password
+      NIDO_AUTH_SESSION_TTL: 24h
       TMPDIR: /tmp
     ports:
       - "3000:80"
     volumes:
-      - home_searcher_data:/data
+      - nido_data:/data
     restart: unless-stopped
     read_only: true
     tmpfs:
@@ -27,4 +27,4 @@ services:
     stop_grace_period: 15s
 
 volumes:
-  home_searcher_data:
+  nido_data:

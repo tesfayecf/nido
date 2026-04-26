@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	engagementdomain "home-searcher/server/internal/engagement/domain"
+	engagementdomain "nido/server/internal/engagement/domain"
 )
 
 type engagementStoreStub struct {

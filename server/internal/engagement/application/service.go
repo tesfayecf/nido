@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	engagementdomain "home-searcher/server/internal/engagement/domain"
-	ingestiondomain "home-searcher/server/internal/ingestion/domain"
-	"home-searcher/server/internal/platform/id"
+	engagementdomain "nido/server/internal/engagement/domain"
+	ingestiondomain "nido/server/internal/ingestion/domain"
+	"nido/server/internal/platform/id"
 )
 
 var (

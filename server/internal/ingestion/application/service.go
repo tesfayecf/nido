@@ -13,10 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"home-searcher/server/internal/engine"
-	"home-searcher/server/internal/ingestion/domain"
-	"home-searcher/server/internal/platform/id"
-	"home-searcher/server/internal/platform/objectstore"
+	"nido/server/internal/engine"
+	"nido/server/internal/ingestion/domain"
+	"nido/server/internal/platform/id"
+	"nido/server/internal/platform/objectstore"
 )
 
 // ErrSourceNotFound indicates that the requested source does not exist.

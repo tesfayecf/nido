@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"home-searcher/server/internal/ingestion/domain"
+	"nido/server/internal/ingestion/domain"
 )
 
 func TestConnectorParsesPortalListingCards(t *testing.T) {

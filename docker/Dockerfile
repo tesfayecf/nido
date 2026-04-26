@@ -50,7 +50,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 		-tags netgo,osusergo \
 		-trimpath \
 		-ldflags='-s -w' \
-		-o /out/home-searcher \
+		-o /out/nido \
 		./cmd/server
 
 FROM nginx:1.27-alpine
@@ -60,16 +60,16 @@ RUN apk add --no-cache ca-certificates dumb-init
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
 COPY docker/entrypoint.sh /entrypoint.sh
 COPY --from=frontend-build /src/app/.dist /usr/share/nginx/html
-COPY --from=backend-build /out/home-searcher /usr/local/bin/home-searcher
+COPY --from=backend-build /out/nido /usr/local/bin/nido
 
 RUN chmod +x /entrypoint.sh
 
-ENV HS_HTTP_ADDR=127.0.0.1:18080 \
-	HS_DATABASE_PATH=/data/home-searcher.db \
-	HS_BOOTSTRAP_ADMIN_EMAIL=admin@local \
-	HS_BOOTSTRAP_ADMIN_NAME="Local Admin" \
-	HS_BOOTSTRAP_ADMIN_PASSWORD=dev-password \
-	HS_AUTH_SESSION_TTL=24h \
+ENV NIDO_HTTP_ADDR=127.0.0.1:18080 \
+	NIDO_DATABASE_PATH=/data/nido.db \
+	NIDO_BOOTSTRAP_ADMIN_EMAIL=admin@local \
+	NIDO_BOOTSTRAP_ADMIN_NAME="Local Admin" \
+	NIDO_BOOTSTRAP_ADMIN_PASSWORD=dev-password \
+	NIDO_AUTH_SESSION_TTL=24h \
 	TMPDIR=/tmp
 
 EXPOSE 80

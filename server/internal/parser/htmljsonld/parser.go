@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	"home-searcher/server/internal/ingestion/domain"
-	"home-searcher/server/internal/platform/id"
+	"nido/server/internal/ingestion/domain"
+	"nido/server/internal/platform/id"
 )
 
 var jsonLDScriptPattern = regexp.MustCompile(`(?is)<script[^>]*type\s*=\s*["']application/ld\+json["'][^>]*>(.*?)</script>`)

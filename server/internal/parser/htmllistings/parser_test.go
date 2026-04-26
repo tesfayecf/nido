@@ -3,7 +3,7 @@ package htmllistings
 import (
 	"testing"
 
-	"home-searcher/server/internal/ingestion/domain"
+	"nido/server/internal/ingestion/domain"
 )
 
 func TestParsePortalListingCards(t *testing.T) {

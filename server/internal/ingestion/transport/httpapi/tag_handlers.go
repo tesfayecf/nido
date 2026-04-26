@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strings"
 
-	app "home-searcher/server/internal/ingestion/application"
-	platformhttp "home-searcher/server/internal/platform/httpapi"
+	app "nido/server/internal/ingestion/application"
+	platformhttp "nido/server/internal/platform/httpapi"
 )
 
 // RegisterTags binds tag management HTTP routes to the supplied mux.

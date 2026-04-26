@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"time"
 
-	"home-searcher/server/internal/engine"
+	"nido/server/internal/engine"
 )
 
 // Scheduler periodically triggers due ingestion sources.

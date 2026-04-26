@@ -1,8 +1,8 @@
 {
-    "name": "home-searcher",
+    "name": "nido",
     "author": "@tesfayecf",
     "license": "MIT",
-    "repository": "https://github.com/tesfayecf/home-searcher",
+    "repository": "https://github.com/tesfayecf/nido",
     "type": "commonjs",
     "private": true,
     "scripts": {

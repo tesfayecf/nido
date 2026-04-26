@@ -12,8 +12,8 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	ingestiondomain "home-searcher/server/internal/ingestion/domain"
-	"home-searcher/server/internal/platform/config"
+	ingestiondomain "nido/server/internal/ingestion/domain"
+	"nido/server/internal/platform/config"
 )
 
 // Open builds a configured SQLite handle for the backend runtime.

@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"strings"
 
-	app "home-searcher/server/internal/catalog/application"
-	"home-searcher/server/internal/catalog/domain"
-	platformhttp "home-searcher/server/internal/platform/httpapi"
+	app "nido/server/internal/catalog/application"
+	"nido/server/internal/catalog/domain"
+	platformhttp "nido/server/internal/platform/httpapi"
 )
 
 // Register binds catalog HTTP routes to the supplied mux.

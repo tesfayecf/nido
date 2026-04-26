@@ -2,7 +2,7 @@
 
 ## Goal
 
-Provide a shared component foundation for the Home Searcher frontend so product screens reuse the same tokens, controls, layouts, and state handling.
+Provide a shared component foundation for the Nido frontend so product screens reuse the same tokens, controls, layouts, and state handling.
 
 ## Foundation
 

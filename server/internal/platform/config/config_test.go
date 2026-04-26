@@ -25,7 +25,7 @@ func TestLoadParsesBrowserArgsFromCommonFormats(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			t.Setenv("HS_BROWSER_ARGS", test.raw)
+			t.Setenv("NIDO_BROWSER_ARGS", test.raw)
 
 			cfg, err := Load()
 			if err != nil {
@@ -44,8 +44,8 @@ func TestLoadAcceptsNotificationWebhookEnvAliases(t *testing.T) {
 		name    string
 		envName string
 	}{
-		{name: "canonical", envName: "HS_NOTIFICATION_WEBHOOK_URL"},
-		{name: "legacy plural", envName: "HS_NOTIFICATIONS_WEBHOOK_URL"},
+		{name: "canonical", envName: "NIDO_NOTIFICATION_WEBHOOK_URL"},
+		{name: "legacy plural", envName: "NIDO_NOTIFICATIONS_WEBHOOK_URL"},
 	}
 
 	for _, test := range tests {
@@ -65,7 +65,7 @@ func TestLoadAcceptsNotificationWebhookEnvAliases(t *testing.T) {
 }
 
 func TestLoadParsesFetcherMinRequestGap(t *testing.T) {
-	t.Setenv("HS_FETCHER_MIN_REQUEST_GAP", "1500ms")
+	t.Setenv("NIDO_FETCHER_MIN_REQUEST_GAP", "1500ms")
 
 	cfg, err := Load()
 	if err != nil {

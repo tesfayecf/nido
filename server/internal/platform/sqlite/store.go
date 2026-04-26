@@ -10,12 +10,12 @@ import (
 	"strings"
 	"time"
 
-	authdomain "home-searcher/server/internal/auth/domain"
-	"home-searcher/server/internal/catalog/domain"
-	engagementdomain "home-searcher/server/internal/engagement/domain"
-	ingestiondomain "home-searcher/server/internal/ingestion/domain"
-	"home-searcher/server/internal/platform/id"
-	platformopsdomain "home-searcher/server/internal/platformops/domain"
+	authdomain "nido/server/internal/auth/domain"
+	"nido/server/internal/catalog/domain"
+	engagementdomain "nido/server/internal/engagement/domain"
+	ingestiondomain "nido/server/internal/ingestion/domain"
+	"nido/server/internal/platform/id"
+	platformopsdomain "nido/server/internal/platformops/domain"
 )
 
 // Store implements the repository contracts needed by the backend runtime.

@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"strings"
 
-	platformhttp "home-searcher/server/internal/platform/httpapi"
-	app "home-searcher/server/internal/platformops/application"
-	platformopsdomain "home-searcher/server/internal/platformops/domain"
+	platformhttp "nido/server/internal/platform/httpapi"
+	app "nido/server/internal/platformops/application"
+	platformopsdomain "nido/server/internal/platformops/domain"
 )
 
 func Register(mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, service *app.Service) {

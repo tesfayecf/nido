@@ -1,4 +1,4 @@
-module home-searcher/server
+module nido/server
 
 go 1.24.5
 

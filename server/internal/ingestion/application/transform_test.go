@@ -3,7 +3,7 @@ package application
 import (
 	"testing"
 
-	ingestiondomain "home-searcher/server/internal/ingestion/domain"
+	ingestiondomain "nido/server/internal/ingestion/domain"
 )
 
 func TestApplyTransformVocabulary(t *testing.T) {

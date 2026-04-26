@@ -3,11 +3,11 @@ package htmljsonld
 import (
 	"context"
 
-	"home-searcher/server/internal/fetcher"
-	app "home-searcher/server/internal/ingestion/application"
-	"home-searcher/server/internal/ingestion/browser"
-	"home-searcher/server/internal/ingestion/domain"
-	parser "home-searcher/server/internal/parser/htmljsonld"
+	"nido/server/internal/fetcher"
+	app "nido/server/internal/ingestion/application"
+	"nido/server/internal/ingestion/browser"
+	"nido/server/internal/ingestion/domain"
+	parser "nido/server/internal/parser/htmljsonld"
 )
 
 // Kind identifies the HTML JSON-LD connector used for real portal pages.

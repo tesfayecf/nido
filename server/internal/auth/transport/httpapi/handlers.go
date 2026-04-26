@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"strings"
 
-	app "home-searcher/server/internal/auth/application"
-	authdomain "home-searcher/server/internal/auth/domain"
-	platformhttp "home-searcher/server/internal/platform/httpapi"
+	app "nido/server/internal/auth/application"
+	authdomain "nido/server/internal/auth/domain"
+	platformhttp "nido/server/internal/platform/httpapi"
 )
 
 type principalContextKey struct{}

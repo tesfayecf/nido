@@ -11,9 +11,9 @@ import (
 	"syscall"
 	"time"
 
-	"home-searcher/server/internal/app"
-	"home-searcher/server/internal/platform/config"
-	platformsqlite "home-searcher/server/internal/platform/sqlite"
+	"nido/server/internal/app"
+	"nido/server/internal/platform/config"
+	platformsqlite "nido/server/internal/platform/sqlite"
 )
 
 func main() {

@@ -12,7 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 
-	platformconfig "home-searcher/server/internal/platform/config"
+	platformconfig "nido/server/internal/platform/config"
 )
 
 // S3Store stores artifacts in an S3-compatible object store such as Garage.

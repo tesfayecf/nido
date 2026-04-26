@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"home-searcher/server/internal/platform/config"
+	"nido/server/internal/platform/config"
 )
 
 func TestRuntimeAllowsLoopbackCORSRequests(t *testing.T) {
@@ -315,7 +315,7 @@ func newRuntimeServer(t *testing.T) (*httptest.Server, string) {
 
 	cfg := config.Config{
 		Database: config.DatabaseConfig{
-			Path: filepath.Join(t.TempDir(), "home-searcher.db"),
+			Path: filepath.Join(t.TempDir(), "nido.db"),
 		},
 		Auth: config.AuthConfig{
 			BootstrapAdminEmail:    "admin@local",

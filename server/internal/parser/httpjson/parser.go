@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"home-searcher/server/internal/ingestion/domain"
+	"nido/server/internal/ingestion/domain"
 )
 
 // Parse normalizes the bootstrap JSON feed into candidate listings.

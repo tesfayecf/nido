@@ -27,7 +27,7 @@ export const useSessionStore = create<SessionState>()(
             },
         }),
         {
-            name: "home-searcher.session",
+            name: "nido.session",
             partialize: (state) => ({ expiresAt: state.expiresAt, token: state.token }),
         },
     ),

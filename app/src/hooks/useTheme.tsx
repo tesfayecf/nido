@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { PropsWithChildren } from "react";
 
-export const THEME_STORAGE_KEY = "home-searcher-theme";
+export const THEME_STORAGE_KEY = "nido-theme";
 
 type ResolvedTheme = "dark" | "light";
 export type ThemePreference = ResolvedTheme | "system";

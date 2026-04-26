@@ -31,7 +31,7 @@ interface NotificationPreferencesDraft {
     readonly severityFloor: string;
 }
 
-const PREFERENCE_STORAGE_KEY = "home-searcher.notification-preferences";
+const PREFERENCE_STORAGE_KEY = "nido.notification-preferences";
 const DEFAULT_PREFERENCES: NotificationPreferencesDraft = {
     channels: ["in-app", "email"],
     digestMode: true,

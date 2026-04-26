@@ -96,7 +96,7 @@ export const SelectorBuilder = ({ fieldDefinitions, fields, onChange, previewByF
                         </Button>
                     </div>
                 </div>
-                <h3 className={"selector-builder__title"}>{"Tell Home Searcher where each value lives on the page."}</h3>
+                <h3 className={"selector-builder__title"}>{"Tell Nido where each value lives on the page."}</h3>
                 <p className={"selector-builder__copy"}>
                     {"A selector points to the part of the page you want to read. Start with CSS for most pages, add a fallback if the first selector fails, and switch to XPath only when you need advanced targeting."}
                 </p>
@@ -316,7 +316,7 @@ export const SelectorBuilder = ({ fieldDefinitions, fields, onChange, previewByF
                         <h3>{"Field options"}</h3>
                         <ul className={"selector-builder__help-list"}>
                             <li><strong>{"Selector type:"}</strong>{" Use CSS first. Use Attribute when you need href, src, or content. Use XPath only when CSS cannot target the element reliably."}</li>
-                            <li><strong>{"Fallback selectors:"}</strong>{" Add one selector per line. Home Searcher tries them from top to bottom until one works."}</li>
+                            <li><strong>{"Fallback selectors:"}</strong>{" Add one selector per line. Nido tries them from top to bottom until one works."}</li>
                             <li><strong>{"Extraction type:"}</strong>{' Choose "Text" for visible page content, or "Attribute" to read an HTML attribute.'}</li>
                             <li><strong>{"Value cleanup:"}</strong>{" Use Currency or Decimal for prices, Integer for counts, and Trim when you only need whitespace cleanup."}</li>
                         </ul>

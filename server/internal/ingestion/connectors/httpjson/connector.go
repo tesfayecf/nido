@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"home-searcher/server/internal/fetcher"
-	app "home-searcher/server/internal/ingestion/application"
-	"home-searcher/server/internal/ingestion/domain"
-	parser "home-searcher/server/internal/parser/httpjson"
+	"nido/server/internal/fetcher"
+	app "nido/server/internal/ingestion/application"
+	"nido/server/internal/ingestion/domain"
+	parser "nido/server/internal/parser/httpjson"
 )
 
 // Kind identifies the bootstrap connector used in the first iteration.
