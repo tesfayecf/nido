@@ -203,7 +203,7 @@ export const DecisionStrip = ({ allSummaries, compact = false, settings, summary
             </div>
 
             <div className={"mt-3 flex flex-wrap gap-4 text-sm text-zinc-500 dark:text-zinc-400"}>
-                <span>{`${intelligence.benchmark_label === "target price" ? "Benchmark" : "Market fallback"}: ${formatPrice(intelligence.benchmark_value)}`}</span>
+                <span>{`${intelligence.benchmark_label === "target price" ? "Target price" : "Market benchmark"}: ${formatPrice(intelligence.benchmark_value)}`}</span>
                 <span>{`${intelligence.comparable_count} comparables`}</span>
             </div>
 

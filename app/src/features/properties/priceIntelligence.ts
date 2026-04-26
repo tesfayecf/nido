@@ -60,7 +60,7 @@ const readPricePerUnit = (summary: PropertySummary, settings: WorkspaceSettings)
         ?? (() => {
             const price = readCurrentPrice(summary, settings);
             const area = readMappedNumber(summary.current_values, settings.field_mappings.area_fields);
-            if (price === undefined || area === undefined || area <= 0) {
+            if (price === undefined || area === undefined || area < 0.01) {
                 return undefined;
             }
 
@@ -111,11 +111,11 @@ export const classifyPrice = (
         return "fair";
     }
 
-    if (deltaPercent <= -Math.abs(settings.thresholds.cheap_below_percent)) {
+    if (deltaPercent <= -settings.thresholds.cheap_below_percent) {
         return "cheap";
     }
 
-    if (deltaPercent >= Math.abs(settings.thresholds.expensive_above_percent)) {
+    if (deltaPercent >= settings.thresholds.expensive_above_percent) {
         return "expensive";
     }
 

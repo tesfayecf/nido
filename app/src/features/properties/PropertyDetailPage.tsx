@@ -338,6 +338,18 @@ export const PropertyDetailPage = (): JSX.Element => {
     }, [propertyQuery.data]);
 
     useEffect(() => {
+        if (!isCreateMode || url.trim() !== "" || label.trim() !== "") {
+            return;
+        }
+
+        setSourceId(workspaceSettings.operations.default_source_id);
+        setScheduleIntervalValue(workspaceSettings.operations.default_schedule_interval_value);
+        setScheduleIntervalUnit(workspaceSettings.operations.default_schedule_interval_unit);
+        setRetryMaxAttempts(workspaceSettings.operations.default_retry_max_attempts);
+        setRetryBackoffMillis(workspaceSettings.operations.default_retry_backoff_millis);
+    }, [isCreateMode, label, url, workspaceSettings]);
+
+    useEffect(() => {
         if (configQuery.data?.fields !== undefined && configQuery.data.fields.length > 0) {
             setFieldRows(configQuery.data.fields.map(selectorToDraft));
         }
@@ -348,7 +360,14 @@ export const PropertyDetailPage = (): JSX.Element => {
     const retryBackoffError = retryBackoffMillis < MIN_RETRY_BACKOFF_MS
         ? `Retry interval must be at least ${MIN_RETRY_BACKOFF_MS}ms.`
         : undefined;
-    const propertySaveError = advancedOpen ? scheduleIntervalError ?? retryBackoffError : undefined;
+    const effectiveScheduleIntervalSeconds = isCreateMode && !advancedOpen ? 0 : scheduleIntervalSeconds ?? 0;
+    const effectiveRetryBackoffMillis = isCreateMode && !advancedOpen
+        ? Math.max(retryBackoffMillis, MIN_RETRY_BACKOFF_MS)
+        : retryBackoffMillis;
+    const effectiveRetryMaxAttempts = isCreateMode && !advancedOpen
+        ? Math.max(retryMaxAttempts, 1)
+        : retryMaxAttempts;
+    const propertySaveError = (!isCreateMode || advancedOpen) ? scheduleIntervalError ?? retryBackoffError : undefined;
 
     const savePropertyMutation = useMutation({
         mutationFn: async () => {
@@ -368,9 +387,9 @@ export const PropertyDetailPage = (): JSX.Element => {
                 },
                 pause_reason: metadataDraft.pauseReason.trim() !== "" ? metadataDraft.pauseReason.trim() : undefined,
                 paused: metadataDraft.paused,
-                retry_backoff_millis: retryBackoffMillis,
-                retry_max_attempts: retryMaxAttempts,
-                schedule_interval_seconds: scheduleIntervalSeconds ?? 0,
+                retry_backoff_millis: effectiveRetryBackoffMillis,
+                retry_max_attempts: effectiveRetryMaxAttempts,
+                schedule_interval_seconds: effectiveScheduleIntervalSeconds,
                 source_id: sourceId.trim() !== "" ? sourceId.trim() : undefined,
                 url,
             };
@@ -610,7 +629,7 @@ export const PropertyDetailPage = (): JSX.Element => {
                         <Button onClick={() => { setAdvancedOpen((open) => !open); }} type={"button"} variant={"secondary"}>
                             {advancedOpen ? "Hide advanced configs" : "Show advanced configs"}
                         </Button>
-                        <p className={"muted-copy"}>{"Only the URL is required. Price fields, notes, and automation remain optional layers."}</p>
+                        <p className={"muted-copy"}>{"Only the URL is required. Price fields, notes, and automation remains optional layers."}</p>
                     </div>
                     {notesOpen ? (
                         <>

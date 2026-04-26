@@ -56,7 +56,7 @@ const buildFieldSummary = (records: AnalyticsRecord[], fieldName: string): Field
         .map((record) => readFieldValue(record, fieldName))
         .filter((value): value is string => value !== undefined && value.trim() !== "");
     const numericValues = values.map((value) => parseNumeric(value)).filter((value): value is number => value !== undefined).sort((left, right) => left - right);
-    const midpoint = Math.floor(numericValues.length / 2);
+    const medianIndex = Math.floor(numericValues.length / 2);
 
     return {
         available_count: values.length,
@@ -65,8 +65,8 @@ const buildFieldSummary = (records: AnalyticsRecord[], fieldName: string): Field
         median: numericValues.length === 0
             ? undefined
             : numericValues.length % 2 === 0
-                ? ((numericValues[midpoint - 1] ?? 0) + (numericValues[midpoint] ?? 0)) / 2
-                : numericValues[midpoint],
+                ? ((numericValues[medianIndex - 1] ?? 0) + (numericValues[medianIndex] ?? 0)) / 2
+                : numericValues[medianIndex],
         min: numericValues[0],
         missing_count: records.length - values.length,
         total_count: records.length,
@@ -84,6 +84,10 @@ const buildTrendData = (records: AnalyticsRecord[], fieldName: string, field: An
     const groupedRecords = Array.from(byDay.entries())
         .sort(([left], [right]) => left.localeCompare(right))
         .flatMap(([, items]) => items);
+
+    if (field === undefined) {
+        return buildGroupedAnalytics(groupedRecords, "observed_at", "", "count", "", buildAnalyticsFieldOptions([]));
+    }
 
     if (field?.data_type === "number") {
         return buildGroupedAnalytics(groupedRecords, "observed_at", fieldName, "average", "", [

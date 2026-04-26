@@ -145,7 +145,7 @@ export const SettingsPage = (): JSX.Element => {
 
     const savePreferences = (): void => {
         window.localStorage.setItem(PREFERENCE_STORAGE_KEY, JSON.stringify(preferences));
-        pushToast("User settings saved on this device.", "success");
+        pushToast("Notification preferences saved on this device.", "success");
     };
 
     const persistWorkspaceSettings = (): void => {

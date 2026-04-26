@@ -259,11 +259,19 @@ describe("PropertyDetailPage", () => {
     });
 
     it("creates a property from the minimal URL-first flow", async () => {
-        createPropertyMock.mockResolvedValue({ ...PROPERTY, id: "prop_new" });
+        getPropertyMock.mockImplementation(async (propertyId: string) => ({
+            ...PROPERTY,
+            id: propertyId,
+            url: "https://example.com/new-listing",
+        }));
+        createPropertyMock.mockResolvedValue({ ...PROPERTY, id: "prop_new", url: "https://example.com/new-listing" });
 
         renderPropertyCreatePage();
 
         expect(await screen.findByText("Show additional fields")).toBeInTheDocument();
+        expect(screen.queryByLabelText("Notes")).not.toBeInTheDocument();
+        expect(screen.queryByLabelText("Target price")).not.toBeInTheDocument();
+        expect(screen.queryByLabelText("Run interval")).not.toBeInTheDocument();
         fireEvent.change(screen.getByLabelText("URL"), { target: { value: "https://example.com/new-listing" } });
         fireEvent.click(screen.getByRole("button", { name: "Create property" }));
 
@@ -274,5 +282,6 @@ describe("PropertyDetailPage", () => {
                 url: "https://example.com/new-listing",
             }));
         });
+        expect(await screen.findByRole("button", { name: "Edit" })).toBeInTheDocument();
     });
 });
