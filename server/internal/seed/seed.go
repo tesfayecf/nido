@@ -139,8 +139,8 @@ func (d seedData) insert(ctx context.Context, tx *sql.Tx) error {
 
 	sources := []struct {
 		id, name, kind, endpoint, config string
-		active, browser                 bool
-		interval, freshness             int
+		active, browser                  bool
+		interval, freshness              int
 	}{
 		{d.id("src-public"), "Seed Public Listing Feed", "http-json-feed", "https://seed.local/public-feed.json", `{"items_path":"$.items","currency":"EUR"}`, true, false, 3600, 900},
 		{d.id("src-partner"), "Seed Partner Portal", "html-listings", "https://seed.local/partner/listings", `{"item_selector":".listing","requires_browser":true}`, false, true, 0, 0},
@@ -160,13 +160,13 @@ func (d seedData) insert(ctx context.Context, tx *sql.Tx) error {
 
 	properties := []struct {
 		id, label, url, sourceID, status, metadata, pauseReason string
-		paused                                                bool
-		interval                                              int
+		paused                                                  bool
+		interval                                                int
 	}{
-		{d.id("prop-bilbao-flat"), "Seed Bilbao riverside flat", "https://seed.local/properties/bilbao-flat", d.id("src-public"), "active", `{"priority_level":"high","business_stage":"due_diligence","target_price":245000,"expected_rent":1250,"expected_yield_bps":612,"acquisition_notes":"Recently renovated with stable rental comps.","deal_thesis":"Central location and below-target price.","external_references":[{"label":"CRM","value":"CRM-1001"}],"attachments":[{"label":"brochure","url":"https://seed.local/docs/bilbao-flat.pdf"}]}`, false, "", 1800},
-		{d.id("prop-getxo-house"), "Seed Getxo family house", "https://seed.local/properties/getxo-house", d.id("src-public"), "pending", `{"priority_level":"medium","business_stage":"screening","target_price":395000,"expected_rent":1800,"expected_yield_bps":547}`, false, "", 3600},
-		{d.id("prop-vitoria-loft"), "Seed Vitoria incomplete loft", "https://seed.local/properties/vitoria-loft", d.id("src-partner"), "degraded", `{"priority_level":"low","business_stage":"needs_research","target_price":175000}`, false, "", 0},
-		{d.id("prop-donostia-studio"), "Seed Donostia paused studio", "https://seed.local/properties/donostia-studio", d.id("src-partner"), "inactive", `{"priority_level":"watch","business_stage":"paused","target_price":320000}`, true, "owner requested hold", 0},
+		{d.id("prop-bilbao-flat"), "Seed Bilbao riverside flat", "https://seed.local/properties/bilbao-flat", d.id("src-public"), "active", `{"priority_level":"high","business_stage":"due_diligence","target_price":245000,"expected_rent":1250,"expected_yield_bps":612,"acquisition_notes":"Recently renovated with stable rental comps.","deal_thesis":"Central location and below-target price.","external_references":[{"label":"CRM","value":"CRM-1001"}],"attachments":[{"label":"brochure","url":"https://seed.local/docs/bilbao-flat.pdf"}]}`, "", false, 1800},
+		{d.id("prop-getxo-house"), "Seed Getxo family house", "https://seed.local/properties/getxo-house", d.id("src-public"), "pending", `{"priority_level":"medium","business_stage":"screening","target_price":395000,"expected_rent":1800,"expected_yield_bps":547}`, "", false, 3600},
+		{d.id("prop-vitoria-loft"), "Seed Vitoria incomplete loft", "https://seed.local/properties/vitoria-loft", d.id("src-partner"), "degraded", `{"priority_level":"low","business_stage":"needs_research","target_price":175000}`, "", false, 0},
+		{d.id("prop-donostia-studio"), "Seed Donostia paused studio", "https://seed.local/properties/donostia-studio", d.id("src-partner"), "inactive", `{"priority_level":"watch","business_stage":"paused","target_price":320000}`, "owner requested hold", true, 0},
 	}
 	for _, property := range properties {
 		if _, err := tx.ExecContext(ctx, `INSERT INTO properties (
