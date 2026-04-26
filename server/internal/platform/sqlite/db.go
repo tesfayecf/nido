@@ -596,6 +596,14 @@ func backfillPropertyFieldValues(ctx context.Context, db *sql.DB) error {
 		version    int
 	}
 
+	type snapshotBackfill struct {
+		snapshotID    string
+		propertyID    string
+		configVersion int
+		observedAt    string
+		valuesJSON    string
+	}
+
 	configMappings := make(map[configKey]map[string]string)
 	configRows, err := db.QueryContext(ctx, `SELECT property_id, version, fields_json FROM property_extraction_configs`)
 	if err != nil {
@@ -634,24 +642,31 @@ func backfillPropertyFieldValues(ctx context.Context, db *sql.DB) error {
 	if err != nil {
 		return fmt.Errorf("query property snapshots for field backfill: %w", err)
 	}
-	defer rows.Close()
 
+	var snapshots []snapshotBackfill
 	for rows.Next() {
-		var snapshotID string
-		var propertyID string
-		var configVersion int
-		var observedAt string
-		var valuesJSON string
-		if err := rows.Scan(&snapshotID, &propertyID, &configVersion, &observedAt, &valuesJSON); err != nil {
+		var snapshot snapshotBackfill
+		if err := rows.Scan(&snapshot.snapshotID, &snapshot.propertyID, &snapshot.configVersion, &snapshot.observedAt, &snapshot.valuesJSON); err != nil {
+			_ = rows.Close()
 			return fmt.Errorf("scan property snapshot for field backfill: %w", err)
 		}
+		snapshots = append(snapshots, snapshot)
+	}
+	if err := rows.Err(); err != nil {
+		_ = rows.Close()
+		return err
+	}
+	if err := rows.Close(); err != nil {
+		return fmt.Errorf("close property snapshot rows for field backfill: %w", err)
+	}
 
+	for _, snapshot := range snapshots {
 		values := map[string]string{}
-		if err := json.Unmarshal([]byte(normalizeJSONString(valuesJSON)), &values); err != nil {
+		if err := json.Unmarshal([]byte(normalizeJSONString(snapshot.valuesJSON)), &values); err != nil {
 			continue
 		}
 
-		mapping := configMappings[configKey{propertyID: propertyID, version: configVersion}]
+		mapping := configMappings[configKey{propertyID: snapshot.propertyID, version: snapshot.configVersion}]
 		for selectorName, value := range values {
 			fieldName := strings.TrimSpace(mapping[selectorName])
 			fieldID := ""
@@ -666,25 +681,25 @@ func backfillPropertyFieldValues(ctx context.Context, db *sql.DB) error {
 				`INSERT OR IGNORE INTO property_field_values
 					(id, property_id, snapshot_id, field_definition_id, field_name, selector_name, config_version, value_text, observed_at, validation_status, validation_message, created_at)
 				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-				fmt.Sprintf("%s:%s", snapshotID, selectorName),
-				propertyID,
-				snapshotID,
+				fmt.Sprintf("%s:%s", snapshot.snapshotID, selectorName),
+				snapshot.propertyID,
+				snapshot.snapshotID,
 				nullableString(fieldID),
 				fieldName,
 				selectorName,
-				configVersion,
+				snapshot.configVersion,
 				value,
-				observedAt,
+				snapshot.observedAt,
 				validationStatus,
 				validationMessage,
-				observedAt,
+				snapshot.observedAt,
 			); err != nil {
 				return fmt.Errorf("backfill property field value: %w", err)
 			}
 		}
 	}
 
-	return rows.Err()
+	return nil
 }
 
 func loadFieldDefinitionMap(ctx context.Context, db *sql.DB) (map[string]ingestiondomain.FieldDefinition, error) {

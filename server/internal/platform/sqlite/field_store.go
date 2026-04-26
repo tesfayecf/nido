@@ -413,7 +413,7 @@ func (s *Store) ListAnalyticsRecords(ctx context.Context) ([]ingestiondomain.Ana
 			propertyID    string
 			propertyLabel string
 			propertyURL   string
-			sourceID      string
+			sourceID      sql.NullString
 			status        string
 			observedAtRaw string
 			fieldName     sql.NullString
@@ -436,7 +436,7 @@ func (s *Store) ListAnalyticsRecords(ctx context.Context) ([]ingestiondomain.Ana
 				PropertyID:    propertyID,
 				PropertyLabel: propertyLabel,
 				PropertyURL:   propertyURL,
-				SourceID:      sourceID,
+				SourceID:      sourceID.String,
 				Status:        status,
 				Values:        map[string]string{},
 			})
