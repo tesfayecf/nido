@@ -1,6 +1,10 @@
 package domain
 
-import "time"
+import (
+	"strconv"
+	"strings"
+	"time"
+)
 
 // FieldDataType describes the canonical type enforced for a reusable field.
 type FieldDataType string
@@ -75,4 +79,16 @@ type AnalyticsPropertyRecord struct {
 	Status        string            `json:"status"`
 	ObservedAt    time.Time         `json:"observed_at"`
 	Values        map[string]string `json:"values"`
+}
+
+// ParseLooseFloat extracts a decimal number from display text that may contain currency symbols, spaces, or comma separators.
+func ParseLooseFloat(value string) float64 {
+	var builder strings.Builder
+	for _, r := range value {
+		if (r >= '0' && r <= '9') || r == '.' || r == ',' || r == '-' {
+			builder.WriteRune(r)
+		}
+	}
+	parsed, _ := strconv.ParseFloat(strings.ReplaceAll(builder.String(), ",", "."), 64)
+	return parsed
 }

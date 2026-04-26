@@ -1341,8 +1341,8 @@ func compareFieldValue(value, operator, expected string) bool {
 	case "contains":
 		return strings.Contains(strings.ToLower(value), strings.ToLower(expected))
 	case "gt", "lt":
-		left := parseLooseFloat(value)
-		right := parseLooseFloat(expected)
+		left := ingestiondomain.ParseLooseFloat(value)
+		right := ingestiondomain.ParseLooseFloat(expected)
 		if operator == "gt" {
 			return left > right
 		}
@@ -1352,13 +1352,6 @@ func compareFieldValue(value, operator, expected string) bool {
 	default:
 		return false
 	}
-}
-
-func parseLooseFloat(value string) float64 {
-	normalized := normalizeDecimalString(value)
-	var parsed float64
-	_, _ = fmt.Sscanf(normalized, "%f", &parsed)
-	return parsed
 }
 
 // supportedTransforms enumerates the transform identifiers recognised by the

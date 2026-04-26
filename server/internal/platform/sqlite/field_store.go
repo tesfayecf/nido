@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -534,8 +533,8 @@ func applyFieldDefinitionComparison(definition ingestiondomain.FieldDefinition, 
 	case "contains":
 		return fmt.Sprintf("%t", strings.Contains(strings.ToLower(value), strings.ToLower(definition.ComparisonValue)))
 	case "gt", "lt":
-		left := parseLooseFieldFloat(value)
-		right := parseLooseFieldFloat(definition.ComparisonValue)
+		left := ingestiondomain.ParseLooseFloat(value)
+		right := ingestiondomain.ParseLooseFloat(definition.ComparisonValue)
 		if strings.TrimSpace(strings.ToLower(definition.ComparisonOperator)) == "gt" {
 			return fmt.Sprintf("%t", left > right)
 		}
@@ -545,17 +544,6 @@ func applyFieldDefinitionComparison(definition ingestiondomain.FieldDefinition, 
 	default:
 		return value
 	}
-}
-
-func parseLooseFieldFloat(value string) float64 {
-	var builder strings.Builder
-	for _, r := range value {
-		if (r >= '0' && r <= '9') || r == '.' || r == ',' || r == '-' {
-			builder.WriteRune(r)
-		}
-	}
-	parsed, _ := strconv.ParseFloat(strings.ReplaceAll(builder.String(), ",", "."), 64)
-	return parsed
 }
 
 // CreatePropertyConfigVersion writes a new property config version directly.
