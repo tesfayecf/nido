@@ -74,6 +74,8 @@ type PropertyStore interface {
 	GetSource(ctx context.Context, sourceID string) (ingestiondomain.Source, error)
 	ListPropertiesByTagIDs(ctx context.Context, tagIDs []string, matchAll bool) ([]string, error)
 	ListPropertyRuns(ctx context.Context, propertyID string, limit int) ([]ingestiondomain.PropertyRun, error)
+	// GetLatestPropertySnapshots returns up to n most-recent snapshots for a property (any validity).
+	GetLatestPropertySnapshots(ctx context.Context, propertyID string, n int) ([]ingestiondomain.PropertySnapshot, error)
 }
 
 // PropertyRunProcessor reacts to completed property runs.
@@ -403,6 +405,62 @@ func (s *PropertyService) GetRun(ctx context.Context, runID string) (ingestiondo
 // ListPropertyRuns returns recent property_runs for a property.
 func (s *PropertyService) ListPropertyRuns(ctx context.Context, propertyID string, limit int) ([]ingestiondomain.PropertyRun, error) {
 	return s.store.ListPropertyRuns(ctx, propertyID, limit)
+}
+
+// GetPropertySummary builds a summary read model for one property.
+func (s *PropertyService) GetPropertySummary(ctx context.Context, propertyID string) (ingestiondomain.PropertySummary, error) {
+	property, err := s.store.GetProperty(ctx, propertyID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ingestiondomain.PropertySummary{}, ErrPropertyNotFound
+	}
+	if err != nil {
+		return ingestiondomain.PropertySummary{}, err
+	}
+	return s.buildSummary(ctx, property)
+}
+
+// ListPropertySummaries returns summary read models for all properties (respecting filters).
+func (s *PropertyService) ListPropertySummaries(ctx context.Context, tagIDs []string, matchAll bool, status, priorityLevel, businessStage string) ([]ingestiondomain.PropertySummary, error) {
+	properties, err := s.ListPropertiesFiltered(ctx, tagIDs, matchAll, status, priorityLevel, businessStage)
+	if err != nil {
+		return nil, err
+	}
+	summaries := make([]ingestiondomain.PropertySummary, 0, len(properties))
+	for _, property := range properties {
+		summary, err := s.buildSummary(ctx, property)
+		if err != nil {
+			// Non-fatal: skip broken properties
+			s.logger.Warn("failed to build property summary", "property_id", property.ID, "error", err)
+			continue
+		}
+		summaries = append(summaries, summary)
+	}
+	return summaries, nil
+}
+
+func (s *PropertyService) buildSummary(ctx context.Context, property ingestiondomain.Property) (ingestiondomain.PropertySummary, error) {
+	snapshots, err := s.store.GetLatestPropertySnapshots(ctx, property.ID, 2)
+	if err != nil {
+		return ingestiondomain.PropertySummary{}, err
+	}
+	var current, previous ingestiondomain.PropertySnapshot
+	if len(snapshots) > 0 {
+		current = snapshots[0]
+	}
+	if len(snapshots) > 1 {
+		previous = snapshots[1]
+	}
+	signals := ComputeChangeSignals(current, previous, property)
+	decision := DeriveDecisionContext(property, current)
+	currentValues := decodeSnapshotValues(current.Values)
+	changeSummary := BuildLatestChangeSummary(signals)
+	return ingestiondomain.PropertySummary{
+		Property:            property,
+		CurrentValues:       currentValues,
+		Decision:            decision,
+		Signals:             signals,
+		LatestChangeSummary: changeSummary,
+	}, nil
 }
 
 // DeleteRun removes one stored property snapshot.

@@ -10,4 +10,6 @@ export const propertyKeys = {
     list: () => ["properties", "list"] as const,
     runs: (propertyId: string) => ["properties", "runs", propertyId] as const,
     snapshots: (propertyId: string) => ["properties", "snapshots", propertyId] as const,
+    summary: (propertyId: string) => ["properties", "summary", propertyId] as const,
+    summaries: () => ["properties", "summaries"] as const,
 };

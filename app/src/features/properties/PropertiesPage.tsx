@@ -18,6 +18,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { TagBadge } from "@/components/tags/TagBadge";
 import { TagFilter } from "@/components/tags/TagFilter";
 import { parseNumeric } from "@/features/analytics/analytics.utils";
+import { DecisionStrip } from "@/features/properties/DecisionStrip";
 import { SAVED_VIEW_OPTIONS, applySavedView, buildPropertyRunSummary, mergeBulkTagIds, retainVisibleSelection, type SavedViewId } from "@/features/operators/operatorWorkflows";
 import { formatDateTime } from "@/lib/format/date";
 import { writeParam } from "@/lib/routing/searchParams";
@@ -27,8 +28,8 @@ import type { Run } from "@/services/backoffice-runs/runs.types";
 import { bookmarkKeys } from "@/services/bookmarks/bookmarks.keys";
 import { createBookmark, deleteBookmark, listBookmarks } from "@/services/bookmarks/bookmarks.service";
 import { propertyKeys } from "@/services/properties/properties.keys";
-import { deleteProperty, ingestProperty, listProperties, updateProperty } from "@/services/properties/properties.service";
-import type { Property, PropertyStatus } from "@/services/properties/properties.types";
+import { deleteProperty, ingestProperty, listProperties, listPropertySummaries, updateProperty } from "@/services/properties/properties.service";
+import type { Property, PropertyStatus, PropertySummary } from "@/services/properties/properties.types";
 import { tagKeys } from "@/services/tags/tags.keys";
 import { listPropertyTags, listTags, setPropertyTags } from "@/services/tags/tags.service";
 import type { Tag } from "@/services/tags/tags.types";
@@ -61,6 +62,7 @@ interface PropertyTableRow {
     readonly property: Property;
     readonly signals: readonly SignalBadge[];
     readonly sizeSquareMeters?: number;
+    readonly summary?: PropertySummary;
     readonly tags: readonly Tag[];
     readonly trackingLabel: string;
     readonly url: string;
@@ -123,6 +125,13 @@ export const PropertiesPage = (): JSX.Element => {
     const bookmarksQuery = useQuery({
         queryFn: listBookmarks,
         queryKey: bookmarkKeys.all(),
+    });
+    const summariesQuery = useQuery({
+        queryFn: () => listPropertySummaries({
+            tagIds: tagIdsFromUrl.length > 0 ? tagIdsFromUrl : undefined,
+            tagMatch: tagIdsFromUrl.length > 0 ? tagMatchFromUrl : undefined,
+        }),
+        queryKey: [...propertyKeys.summaries(), { tagIds: tagIdsFromUrl, tagMatch: tagMatchFromUrl }],
     });
 
     const deleteMutation = useMutation({
@@ -244,6 +253,11 @@ export const PropertiesPage = (): JSX.Element => {
     const allTags = useMemo(() => allTagsQuery.data ?? [], [allTagsQuery.data]);
     const allTagsById = useMemo(() => new Map(allTags.map((tag) => [tag.id, tag])), [allTags]);
     const bookmarkedIds = useMemo(() => new Set((bookmarksQuery.data ?? []).map((item) => item.property_id)), [bookmarksQuery.data]);
+    const summariesById = useMemo(() => {
+        const map = new Map<string, PropertySummary>();
+        (summariesQuery.data ?? []).forEach((s) => map.set(s.property.id, s));
+        return map;
+    }, [summariesQuery.data]);
     const propertyRunSummary = useMemo(() => buildPropertyRunSummary(runsQuery.data?.items ?? []), [runsQuery.data?.items]);
     const propertyTagNamesById = useMemo(() => {
         const namesById = new Map<string, readonly string[]>();
@@ -273,9 +287,9 @@ export const PropertiesPage = (): JSX.Element => {
             const latestRun = propertyRunSummary.get(property.id)?.latestRun;
             const tagIds = propertyTagsMap.get(property.id) ?? [];
             const tags = tagIds.map((tagId) => allTagsById.get(tagId)).filter((tag): tag is Tag => tag !== undefined);
-            return buildPropertyTableRow(property, latestRun, tags, bookmarkedIds.has(property.id));
+            return buildPropertyTableRow(property, latestRun, tags, bookmarkedIds.has(property.id), summariesById.get(property.id));
         });
-    }, [allTagsById, baseProperties, bookmarkedIds, propertyRunSummary, propertyTagsMap]);
+    }, [allTagsById, baseProperties, bookmarkedIds, propertyRunSummary, propertyTagsMap, summariesById]);
 
     const locationOptions = useMemo(() => {
         return Array.from(new Set(propertyRows.map((row) => row.location).filter((value): value is string => value !== undefined && value.trim() !== ""))).sort((left, right) => left.localeCompare(right));
@@ -530,6 +544,16 @@ export const PropertiesPage = (): JSX.Element => {
                             wrap: true,
                         },
                         {
+                            cell: (item) => item.summary !== undefined
+                                ? <DecisionStrip compact summary={item.summary} />
+                                : <span className={"muted-copy"}>{"—"}</span>,
+                            header: "Decision",
+                            id: "decision",
+                            sortValue: (item) => item.summary?.decision.price_gap_percent ?? 0,
+                            width: "18rem",
+                            wrap: true,
+                        },
+                        {
                             cell: (item) => (
                                 <div className={"enterprise-inline-list"}>
                                     {item.signals.map((signal) => <StatusBadge key={signal.label} tone={signal.tone} value={signal.label} />)}
@@ -691,6 +715,7 @@ const buildPropertyTableRow = (
     latestRun: Run | undefined,
     tags: readonly Tag[],
     isBookmarked: boolean,
+    summary?: PropertySummary,
 ): PropertyTableRow => {
     const price = readRunNumber(latestRun, ["price", "price_amount", "listing_price", "asking_price"]);
     const sizeSquareMeters = readRunNumber(latestRun, ["price_m2_area", "area_m2", "size_m2", "surface_m2", "m2", "area", "size"]);
@@ -745,6 +770,7 @@ const buildPropertyTableRow = (
         property,
         signals,
         sizeSquareMeters,
+        summary,
         tags,
         trackingLabel: trackingState(property),
         url: property.url,

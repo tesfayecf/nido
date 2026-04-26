@@ -124,6 +124,10 @@ func (s *propertyServiceStoreStub) ListPropertyRuns(context.Context, string, int
 	return nil, nil
 }
 
+func (s *propertyServiceStoreStub) GetLatestPropertySnapshots(_ context.Context, _ string, _ int) ([]ingestiondomain.PropertySnapshot, error) {
+	return nil, nil
+}
+
 func TestApplySelectorsSupportsStructuredSelectors(t *testing.T) {
 	t.Parallel()
 

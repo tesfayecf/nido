@@ -32,6 +32,7 @@ import { TagPicker } from "@/components/tags/TagPicker";
 import { fieldKeys } from "@/services/fields/fields.keys";
 import { listFields } from "@/services/fields/fields.service";
 import { PropertyAlertCreateDialog } from "@/features/engagement/PropertyAlertCreateDialog";
+import { DecisionStrip } from "@/features/properties/DecisionStrip";
 import {
     SCHEDULE_PRESETS,
     durationDraftFromSeconds,
@@ -66,6 +67,7 @@ import {
     deleteProperty,
     getProperty,
     getPropertyConfig,
+    getPropertySummary,
     listPropertyConfigVersions,
     ingestProperty,
     listPropertyRuns,
@@ -302,6 +304,11 @@ export const PropertyDetailPage = (): JSX.Element => {
         enabled: !isCreateMode,
         queryFn: listAlertRules,
         queryKey: alertRuleKeys.all(),
+    });
+    const summaryQuery = useQuery({
+        enabled: !isCreateMode,
+        queryFn: () => getPropertySummary(resolvedId),
+        queryKey: propertyKeys.summary(resolvedId),
     });
 
     useEffect(() => {
@@ -791,6 +798,100 @@ export const PropertyDetailPage = (): JSX.Element => {
                         </KeyValueGrid>
                     )}
                 </PageCard>
+
+                {summaryQuery.data !== undefined ? (
+                    <PageCard description={"Acquisition intelligence computed from latest snapshot data and business targets."} title={"Decision Context"}>
+                        <DecisionStrip summary={summaryQuery.data} />
+                        {summaryQuery.data.signals.length > 0 ? (
+                            <Tabs
+                                defaultTabId={"all"}
+                                items={[
+                                    {
+                                        id: "all",
+                                        label: "All signals",
+                                        panel: (
+                                            <DataTable
+                                                caption={"Change signals"}
+                                                columns={[
+                                                    { cell: (item) => item.label, header: "Signal", id: "label", sortValue: (item) => item.label },
+                                                    { cell: (item) => item.group, header: "Group", id: "group", sortValue: (item) => item.group },
+                                                    { cell: (item) => item.impact, header: "Impact", id: "impact", sortValue: (item) => item.impact },
+                                                    { cell: (item) => item.previous ?? "—", header: "Previous", id: "previous" },
+                                                    { cell: (item) => item.current ?? "—", header: "Current", id: "current" },
+                                                    { cell: (item) => formatDateTime(item.observed_at), header: "Observed at", id: "observed_at", sortValue: (item) => item.observed_at },
+                                                ]}
+                                                compact
+                                                emptyMessage={"No signals detected."}
+                                                getRowId={(item) => item.field}
+                                                items={summaryQuery.data.signals}
+                                                pageSize={10}
+                                            />
+                                        ),
+                                    },
+                                    {
+                                        id: "pricing",
+                                        label: "Pricing",
+                                        panel: (
+                                            <DataTable
+                                                caption={"Pricing signals"}
+                                                columns={[
+                                                    { cell: (item) => item.label, header: "Signal", id: "label" },
+                                                    { cell: (item) => item.impact, header: "Impact", id: "impact" },
+                                                    { cell: (item) => item.previous ?? "—", header: "Previous", id: "previous" },
+                                                    { cell: (item) => item.current ?? "—", header: "Current", id: "current" },
+                                                ]}
+                                                compact
+                                                emptyMessage={"No pricing signals."}
+                                                getRowId={(item) => item.field}
+                                                items={summaryQuery.data.signals.filter((s) => s.group === "pricing")}
+                                                pageSize={10}
+                                            />
+                                        ),
+                                    },
+                                    {
+                                        id: "status",
+                                        label: "Status",
+                                        panel: (
+                                            <DataTable
+                                                caption={"Status signals"}
+                                                columns={[
+                                                    { cell: (item) => item.label, header: "Signal", id: "label" },
+                                                    { cell: (item) => item.impact, header: "Impact", id: "impact" },
+                                                    { cell: (item) => item.previous ?? "—", header: "Previous", id: "previous" },
+                                                    { cell: (item) => item.current ?? "—", header: "Current", id: "current" },
+                                                ]}
+                                                compact
+                                                emptyMessage={"No status signals."}
+                                                getRowId={(item) => item.field}
+                                                items={summaryQuery.data.signals.filter((s) => s.group === "status")}
+                                                pageSize={10}
+                                            />
+                                        ),
+                                    },
+                                    {
+                                        id: "data_quality",
+                                        label: "Data quality",
+                                        panel: (
+                                            <DataTable
+                                                caption={"Data quality signals"}
+                                                columns={[
+                                                    { cell: (item) => item.label, header: "Signal", id: "label" },
+                                                    { cell: (item) => item.impact, header: "Impact", id: "impact" },
+                                                    { cell: (item) => item.field, header: "Field", id: "field" },
+                                                ]}
+                                                compact
+                                                emptyMessage={"No data quality signals."}
+                                                getRowId={(item) => item.field}
+                                                items={summaryQuery.data.signals.filter((s) => s.group === "data_quality" || s.group === "freshness")}
+                                                pageSize={10}
+                                            />
+                                        ),
+                                    },
+                                ]}
+                            />
+                        ) : null}
+                    </PageCard>
+                ) : null}
 
                 <PageCard description={"Auto-calculated from the latest extracted values and field defaults."} title={"Attributes"}>
                     <KeyValueGrid compact>

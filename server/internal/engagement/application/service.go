@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -18,6 +19,12 @@ import (
 var (
 	// ErrInvalidAlertRule indicates that the supplied alert rule is invalid.
 	ErrInvalidAlertRule = errors.New("invalid alert rule")
+)
+
+const (
+	// significantPriceChangeThresholdPct is the minimum percentage change that qualifies
+	// as a significant price change for the significant_price_change rule type.
+	significantPriceChangeThresholdPct = 2.0
 )
 
 // Store defines the persistence contract required by the engagement service.
@@ -212,6 +219,15 @@ func ruleMatchesSnapshot(rule engagementdomain.AlertRule, currentValues, previou
 		return !hasPreviousPrice || previousPrice < *rule.ThresholdAmount
 	case engagementdomain.RuleTypeAnyChange:
 		return hasFieldChanges(currentValues, previousValues)
+	case engagementdomain.RuleTypeSignificantPriceChange:
+		if !hasCurrentPrice || !hasPreviousPrice || previousPrice == 0 {
+			return false
+		}
+		pctChange := math.Abs(float64(currentPrice-previousPrice) / float64(previousPrice) * 100.0)
+		return pctChange >= significantPriceChangeThresholdPct
+	case engagementdomain.RuleTypeStatusChange:
+		return strings.TrimSpace(previousValues["status"]) != "" &&
+			strings.TrimSpace(currentValues["status"]) != strings.TrimSpace(previousValues["status"])
 	default:
 		return false
 	}
@@ -257,6 +273,19 @@ func buildNotification(rule engagementdomain.AlertRule, currentValues map[string
 	case engagementdomain.RuleTypeAnyChange:
 		title = "Listing changed for " + titleValue
 		body = fmt.Sprintf("%s has new field values.", titleValue)
+	case engagementdomain.RuleTypeSignificantPriceChange:
+		title = "Significant price change for " + titleValue
+		if hasCurrentPrice && hasPreviousPrice && previousPrice != 0 {
+			pct := math.Abs(float64(currentPrice-previousPrice) / float64(previousPrice) * 100.0)
+			direction := "dropped"
+			if currentPrice > previousPrice {
+				direction = "increased"
+			}
+			body = fmt.Sprintf("%s price %s by %.1f%% (from %d to %d).", titleValue, direction, pct, previousPrice, currentPrice)
+		}
+	case engagementdomain.RuleTypeStatusChange:
+		title = "Listing status changed for " + titleValue
+		body = fmt.Sprintf("%s has a new availability status.", titleValue)
 	default:
 		return engagementdomain.Notification{}, fmt.Errorf("unsupported rule type %q", rule.RuleType)
 	}

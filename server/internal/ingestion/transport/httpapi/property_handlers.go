@@ -81,6 +81,27 @@ func RegisterProperties(mux *http.ServeMux, requireAuth func(http.Handler) http.
 		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{"item": result})
 	})))
 
+	// Static-path patterns must be registered before the /{propertyID} wildcard.
+	mux.Handle("GET /api/v1/backoffice/properties/summaries", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tagIDs := r.URL.Query()["tag_id"]
+		tagMatch := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("tag_match")))
+		matchAll := tagMatch == "all"
+		status := strings.TrimSpace(r.URL.Query().Get("status"))
+		priorityLevel := strings.TrimSpace(r.URL.Query().Get("priority_level"))
+		businessStage := strings.TrimSpace(r.URL.Query().Get("business_stage"))
+
+		summaries, err := service.ListPropertySummaries(r.Context(), tagIDs, matchAll, status, priorityLevel, businessStage)
+		if err != nil {
+			platformhttp.WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{
+			"items": summaries,
+			"count": len(summaries),
+		})
+	})))
+
 	mux.Handle("GET /api/v1/backoffice/properties/{propertyID}", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		propertyID := strings.TrimSpace(r.PathValue("propertyID"))
 		if propertyID == "" {
@@ -343,6 +364,27 @@ func RegisterProperties(mux *http.ServeMux, requireAuth func(http.Handler) http.
 			"items": runs,
 			"count": len(runs),
 		})
+	})))
+
+	// Decision context + change intelligence summary for one property.
+	mux.Handle("GET /api/v1/backoffice/properties/{propertyID}/summary", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		propertyID := strings.TrimSpace(r.PathValue("propertyID"))
+		if propertyID == "" {
+			platformhttp.WriteError(w, http.StatusBadRequest, "property id is required")
+			return
+		}
+
+		summary, err := service.GetPropertySummary(r.Context(), propertyID)
+		if err != nil {
+			if errors.Is(err, app.ErrPropertyNotFound) {
+				platformhttp.WriteError(w, http.StatusNotFound, err.Error())
+				return
+			}
+			platformhttp.WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{"item": summary})
 	})))
 }
 

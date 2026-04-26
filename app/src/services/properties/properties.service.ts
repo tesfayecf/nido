@@ -9,6 +9,7 @@ import type {
     PropertyPreviewResult,
     PropertyRun,
     PropertySnapshot,
+    PropertySummary,
     PropertyUpsertRequest,
 } from "@/services/properties/properties.types";
 
@@ -273,6 +274,65 @@ export const listPropertyRuns = async (propertyId: string, limit?: number): Prom
     const response = await apiRequest<ListEnvelope<PropertyRun>>({
         auth: true,
         path: `/api/v1/backoffice/properties/${propertyId}/runs${params}`,
+    });
+
+    return response.items;
+};
+
+/**
+ * Loads the decision context + change intelligence summary for one property.
+ *
+ * @param propertyId The property identifier.
+ * @returns The property summary.
+ */
+export const getPropertySummary = async (propertyId: string): Promise<PropertySummary> => {
+    const response = await apiRequest<ItemEnvelope<PropertySummary>>({
+        auth: true,
+        path: `/api/v1/backoffice/properties/${propertyId}/summary`,
+    });
+
+    return response.item;
+};
+
+/**
+ * Loads decision context + change intelligence summaries for all properties.
+ *
+ * @param filter Optional filter criteria.
+ * @returns The property summary collection.
+ */
+export const listPropertySummaries = async (filter?: PropertyListFilter): Promise<PropertySummary[]> => {
+    const params = new URLSearchParams();
+
+    if (filter?.tagIds !== undefined && filter.tagIds.length > 0) {
+        filter.tagIds.forEach((tagId) => {
+            params.append("tag_id", tagId);
+        });
+    }
+
+    if (filter?.tagMatch !== undefined) {
+        params.append("tag_match", filter.tagMatch);
+    }
+
+    if (filter?.status !== undefined) {
+        params.append("status", filter.status);
+    }
+
+    if (filter?.priorityLevel !== undefined && filter.priorityLevel.trim() !== "") {
+        params.append("priority_level", filter.priorityLevel);
+    }
+
+    if (filter?.businessStage !== undefined && filter.businessStage.trim() !== "") {
+        params.append("business_stage", filter.businessStage);
+    }
+
+    const queryString = params.toString();
+    const path = queryString !== ""
+        ? `/api/v1/backoffice/properties/summaries?${queryString}`
+        : "/api/v1/backoffice/properties/summaries";
+
+    const response = await apiRequest<ListEnvelope<PropertySummary>>({
+        auth: true,
+        path,
     });
 
     return response.items;
