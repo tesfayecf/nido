@@ -57,15 +57,19 @@ If you want one root-level entrypoint for the common backend and frontend flows,
 
 ```bash
 ./cmd/nido.sh help
+./cmd/nido.sh seed
 ./cmd/nido.sh app-start
 ```
 
-The helper exposes backend build and run commands, frontend build and preview commands, and forwards the usual `NIDO_*` and `VITE_*` environment variables. For example:
+The helper exposes backend build and run commands, a deterministic local seed command, frontend build and preview commands, and forwards the usual `NIDO_*` and `VITE_*` environment variables. For example:
 
 ```bash
 NIDO_DATABASE_PATH="./server/.sqlite/local.db" ./cmd/nido.sh backend-run
+NIDO_DATABASE_PATH="./server/.sqlite/local.db" ./cmd/nido.sh seed
 APP_API_ORIGIN="http://127.0.0.1:8080" ./cmd/nido.sh frontend-build
 ```
+
+`seed` migrates the SQLite schema and loads deterministic development-only data (sources, properties, tags, snapshots, alerts, and notifications). It is idempotent and refuses to run when `NIDO_ENV`, `APP_ENV`, `ENVIRONMENT`, or `GO_ENV` is set to `production` or `prod`.
 
 ## Verification Commands
 

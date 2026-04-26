@@ -3,7 +3,11 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-GO_BIN="${GO_BIN:-${ROOT_DIR}/third-party/go/bin/go}"
+DEFAULT_GO_BIN="${ROOT_DIR}/third-party/go/bin/go"
+if [[ -z "${GO_BIN:-}" && ! -x "${DEFAULT_GO_BIN}" ]]; then
+	DEFAULT_GO_BIN="go"
+fi
+GO_BIN="${GO_BIN:-${DEFAULT_GO_BIN}}"
 PNPM_BIN="${PNPM_BIN:-pnpm}"
 SERVER_DIR="${ROOT_DIR}/server"
 APP_DIR="${ROOT_DIR}/app"
@@ -26,6 +30,7 @@ Commands:
 	backend-run               Run the built backend binary.
 	backend-dev               Build and run the backend development binary.
 	backend-migrate           Run backend migrations.
+	seed [variant]            Populate the local database with deterministic dummy data.
 	backend-test              Run backend tests.
 	frontend-install          Install frontend dependencies.
 	frontend-dev              Run the frontend Vite dev server.
@@ -165,6 +170,16 @@ backend_migrate() {
 	)
 }
 
+seed_database() {
+	local variant="${1:-}"
+	log "Seeding local backend database"
+	ensure_path_parent "${DATABASE_PATH}"
+	(
+		cd "${SERVER_DIR}"
+		backend_env run_go run ./cmd/server seed "${variant}"
+	)
+}
+
 backend_test() {
 	log "Running backend tests"
 	(
@@ -279,6 +294,9 @@ case "${command_name}" in
 		;;
 	backend-migrate)
 		backend_migrate
+		;;
+	seed)
+		seed_database "${2:-}"
 		;;
 	backend-test)
 		backend_test
