@@ -395,6 +395,7 @@ export const PropertiesPage = (): JSX.Element => {
                                                         void navigate(`/properties/${row.id}`);
                                                     }
                                                 }}
+                                                role={"button"}
                                                 tabIndex={0}
                                             >
                                                 {visibleColumns.map((column) => (

@@ -164,7 +164,7 @@ export const SettingsPage = (): JSX.Element => {
     return (
         <PageStack>
             <PageCard
-                description={"Keep price evaluation defaults, property intake behavior, and account controls clearly separated."}
+                description={"Keep price evaluation defaults, property intake behavior, recovery, and data movement controls clearly separated."}
                 title={"Settings"}
             >
                 <Tabs

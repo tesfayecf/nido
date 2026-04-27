@@ -243,6 +243,12 @@ const validateOptionalPropertyURL = (value: string): string | undefined => {
     }
 };
 
+const validateSourceTemplate = (isCreateMode: boolean, manualEntryMode: boolean, sourceId: string): string | undefined => {
+    return isCreateMode && !manualEntryMode && sourceId.trim() === ""
+        ? "Source template is required for URL-based acquisition."
+        : undefined;
+};
+
 const getCreateURLHint = (
     url: string,
     autofillStatus: "error" | "idle" | "loading" | "success",
@@ -254,7 +260,7 @@ const getCreateURLHint = (
     }
 
     if (url.trim() === "") {
-        return "Required for URL-based acquisition. Nido will use it as the primary source for price tracking.";
+        return "Required for URL-based acquisition. Nido will use this as the primary source for price tracking.";
     }
 
     if (autofillStatus === "loading") {
@@ -482,7 +488,7 @@ export const PropertyDetailPage = (): JSX.Element => {
             ? "Enter a valid price."
             : undefined;
     const urlError = manualEntryMode ? undefined : (url.trim() === "" ? "URL is required unless this is a manual exception." : validateOptionalPropertyURL(url));
-    const sourceError = isCreateMode && !manualEntryMode && sourceId.trim() === "" ? "Source template is required for URL-based acquisition." : undefined;
+    const sourceError = validateSourceTemplate(isCreateMode, manualEntryMode, sourceId);
     const propertySaveError = (!isCreateMode || advancedOpen) ? scheduleIntervalError ?? retryBackoffError : undefined;
     const selectedSource = useMemo(
         () => (sourcesQuery.data ?? []).find((source) => source.id === sourceId),

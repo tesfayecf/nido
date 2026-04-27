@@ -32,7 +32,8 @@ const readBookmarkGroups = (): BookmarkGroupsState => {
             assignments: parsed.assignments ?? {},
             groups: parsed.groups ?? [],
         };
-    } catch {
+    } catch (error) {
+        console.warn("Failed to parse bookmark groups.", error);
         return { assignments: {}, groups: [] };
     }
 };
