@@ -464,13 +464,14 @@ export const PropertyDetailPage = (): JSX.Element => {
             ? "Checking the URL for available details..."
             : autofillMessage !== ""
                 ? autofillMessage
-                : "Optional reference. If a source template is linked, Nido can auto-fill details without blocking creation."
-    ;
+                : "Optional reference. If a source template is linked, Nido can auto-fill details without blocking creation.";
+
     const updateManualDataField = (field: PropertyManualDataDraftKey, value: string): void => {
         manualOverrideFieldsRef.current.add(field);
         autofilledFieldsRef.current.delete(field);
         setManualDataDraft((current) => ({ ...current, [field]: value }));
     };
+
     const handlePropertySubmit = (event: FormEvent<HTMLFormElement>): void => {
         event.preventDefault();
         if (savePropertyMutation.isPending || propertySaveError !== undefined || manualPriceError !== undefined || urlError !== undefined) {
@@ -482,20 +483,20 @@ export const PropertyDetailPage = (): JSX.Element => {
 
     useEffect(() => {
         if (!isCreateMode) {
-            return;
+            return undefined;
         }
 
         const trimmedURL = url.trim();
         if (trimmedURL === "") {
             setAutofillStatus("idle");
             setAutofillMessage("");
-            return;
+            return undefined;
         }
 
         if (urlError !== undefined) {
             setAutofillStatus("error");
             setAutofillMessage("Fix the URL to enable optional autofill.");
-            return;
+            return undefined;
         }
 
         if (sourceTemplateFields.length === 0) {
@@ -503,7 +504,7 @@ export const PropertyDetailPage = (): JSX.Element => {
             setAutofillMessage(sourceId.trim() === ""
                 ? "URL will be saved as a reference. Add details to link a source template for autofill."
                 : "This source template can store the URL, but it does not expose autofill fields yet.");
-            return;
+            return undefined;
         }
 
         let cancelled = false;
@@ -535,6 +536,7 @@ export const PropertyDetailPage = (): JSX.Element => {
                                 autofilledFieldsRef.current.add(key);
                                 filledCount += 1;
                             }
+
                             continue;
                         }
 
