@@ -87,13 +87,13 @@ export const ContextualHelp = ({ className, content, title }: ContextualHelpProp
         <span
             className={classNames("contextual-help", className)}
             onBlur={handleBlur}
-            onFocus={openPopover}
             onMouseEnter={openPopover}
             onMouseLeave={closePopover}
             ref={rootRef}
         >
             <button
                 aria-controls={popoverId}
+                aria-describedby={open ? popoverId : undefined}
                 aria-expanded={open}
                 aria-haspopup={"true"}
                 aria-label={`Show help for ${title}`}
@@ -106,6 +106,7 @@ export const ContextualHelp = ({ className, content, title }: ContextualHelpProp
 
                     openPopover();
                 }}
+                onFocus={openPopover}
                 type={"button"}
             >
                 <Icon className={"contextual-help__icon"} name={"info"} />
