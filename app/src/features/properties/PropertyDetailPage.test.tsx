@@ -173,6 +173,7 @@ const renderPropertyCreatePage = (): ReturnType<typeof render> => {
     });
     const router = createMemoryRouter(
         [
+            { path: "/properties", element: <div>{"Properties list"}</div> },
             { path: "/properties/new", element: <PropertyDetailPage /> },
             { path: "/properties/:propertyId", element: <PropertyDetailPage /> },
         ],
@@ -190,6 +191,7 @@ const renderPropertyCreatePage = (): ReturnType<typeof render> => {
 
 describe("PropertyDetailPage", () => {
     beforeEach(() => {
+        window.localStorage.clear();
         createPropertyMock.mockReset();
         deletePropertyMock.mockReset();
         getPropertyMock.mockReset();
@@ -260,23 +262,17 @@ describe("PropertyDetailPage", () => {
     });
 
     it("creates a property from the minimal price-first flow", async () => {
-        getPropertyMock.mockImplementation(async (propertyId: string) => ({
-            ...PROPERTY,
-            id: propertyId,
-            label: "Manual property",
-            url: "",
-        }));
         createPropertyMock.mockResolvedValue({ ...PROPERTY, id: "prop_new", label: "Manual property", url: "" });
 
         renderPropertyCreatePage();
 
-        expect(await screen.findByText("Show additional fields")).toBeInTheDocument();
+        expect(await screen.findByRole("button", { name: "Add details" })).toBeInTheDocument();
         expect(screen.queryByLabelText("Notes")).not.toBeInTheDocument();
         expect(screen.queryByLabelText("Target price")).not.toBeInTheDocument();
         expect(screen.queryByLabelText("Run interval")).not.toBeInTheDocument();
-        expect(screen.getByRole("button", { name: "Create property" })).toBeDisabled();
+        expect(screen.getByRole("button", { name: "Create Property" })).toBeDisabled();
         fireEvent.change(screen.getByRole("spinbutton"), { target: { value: "275000" } });
-        fireEvent.click(screen.getByRole("button", { name: "Create property" }));
+        fireEvent.click(screen.getByRole("button", { name: "Create Property" }));
 
         await waitFor(() => {
             expect(createPropertyMock).toHaveBeenCalledWith(expect.objectContaining({
@@ -288,6 +284,112 @@ describe("PropertyDetailPage", () => {
                 url: "",
             }));
         });
-        expect(await screen.findByRole("button", { name: "Edit" })).toBeInTheDocument();
+        expect(await screen.findByText("Properties list")).toBeInTheDocument();
+    });
+
+    it("blocks submission when the optional URL is invalid", async () => {
+        renderPropertyCreatePage();
+
+        fireEvent.change(await screen.findByRole("spinbutton"), { target: { value: "275000" } });
+        fireEvent.change(screen.getByRole("textbox", { name: /URL/ }), { target: { value: "notaurl" } });
+
+        expect(await screen.findByText("Enter a valid http:// or https:// URL.")).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Create Property" })).toBeDisabled();
+        expect(createPropertyMock).not.toHaveBeenCalled();
+    });
+
+    it("auto-fills structured details from a linked source template without overwriting price", async () => {
+        listSourcesMock.mockResolvedValue([{
+            config_json: JSON.stringify({
+                fields: [
+                    { extraction_mode: "text", name: "price", required: true, selector_type: "css", selector_value: ".price" },
+                    { extraction_mode: "text", name: "rooms", required: false, selector_type: "css", selector_value: ".rooms" },
+                    { extraction_mode: "text", name: "bathrooms", required: false, selector_type: "css", selector_value: ".bathrooms" },
+                    { extraction_mode: "text", name: "area_m2", required: false, selector_type: "css", selector_value: ".area" },
+                ],
+            }),
+            id: "source_1",
+            name: "Idealista template",
+        }]);
+        previewExtractionMock.mockResolvedValue({
+            failures: [],
+            fields: [],
+            success: true,
+            values: {
+                area_m2: "120",
+                bathrooms: "2",
+                price: "350000",
+                rooms: "4",
+            },
+        });
+
+        renderPropertyCreatePage();
+
+        fireEvent.change(await screen.findByRole("spinbutton"), { target: { value: "275000" } });
+        fireEvent.click(screen.getByRole("button", { name: "Add details" }));
+        fireEvent.change(screen.getByRole("combobox", { name: /Source template/ }), { target: { value: "source_1" } });
+        fireEvent.change(screen.getByRole("textbox", { name: /URL/ }), { target: { value: "https://example.com/listing" } });
+
+        await waitFor(() => {
+            expect(previewExtractionMock).toHaveBeenCalledWith(expect.objectContaining({
+                url: "https://example.com/listing",
+            }));
+        });
+        expect(await screen.findByDisplayValue("4")).toBeInTheDocument();
+        expect(screen.getByDisplayValue("2")).toBeInTheDocument();
+        expect(screen.getByDisplayValue("120")).toBeInTheDocument();
+    });
+
+    it("preserves manual overrides when URL autofill runs again", async () => {
+        listSourcesMock.mockResolvedValue([{
+            config_json: JSON.stringify({
+                fields: [
+                    { extraction_mode: "text", name: "rooms", required: false, selector_type: "css", selector_value: ".rooms" },
+                    { extraction_mode: "text", name: "bathrooms", required: false, selector_type: "css", selector_value: ".bathrooms" },
+                ],
+            }),
+            id: "source_1",
+            name: "Idealista template",
+        }]);
+        previewExtractionMock
+            .mockResolvedValueOnce({
+                failures: [],
+                fields: [],
+                success: true,
+                values: {
+                    bathrooms: "2",
+                    rooms: "4",
+                },
+            })
+            .mockResolvedValueOnce({
+                failures: [],
+                fields: [],
+                success: true,
+                values: {
+                    bathrooms: "3",
+                    rooms: "6",
+                },
+            });
+
+        renderPropertyCreatePage();
+
+        fireEvent.click(await screen.findByRole("button", { name: "Add details" }));
+        fireEvent.change(screen.getByRole("combobox", { name: /Source template/ }), { target: { value: "source_1" } });
+        fireEvent.change(screen.getByRole("textbox", { name: /URL/ }), { target: { value: "https://example.com/listing" } });
+
+        const roomsInput = await screen.findByRole("spinbutton", { name: "Rooms" });
+        await waitFor(() => {
+            expect(previewExtractionMock).toHaveBeenCalledTimes(1);
+            expect(roomsInput).toHaveValue(4);
+        });
+
+        fireEvent.change(roomsInput, { target: { value: "5" } });
+        fireEvent.change(screen.getByRole("textbox", { name: /URL/ }), { target: { value: "https://example.com/listing?refresh=1" } });
+
+        await waitFor(() => {
+            expect(previewExtractionMock).toHaveBeenCalledTimes(2);
+        });
+        expect(screen.getByRole("spinbutton", { name: "Rooms" })).toHaveValue(5);
+        expect(screen.getByRole("spinbutton", { name: "Bathrooms" })).toHaveValue(3);
     });
 });

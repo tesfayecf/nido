@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -60,6 +60,7 @@ import {
     createDefaultSelectorDrafts,
     createEmptySelectorDraft,
     draftToSelector,
+    parseSelectorConfigJson,
     selectorToDraft,
     validateSelectorDrafts,
     type SelectorFieldDraft,
@@ -110,6 +111,8 @@ interface PropertyManualDataDraft {
     readonly propertyAge: string;
     readonly rooms: string;
 }
+
+type PropertyManualDataDraftKey = keyof PropertyManualDataDraft;
 
 const EMPTY_METADATA_DRAFT: PropertyMetadataDraft = {
     acquisitionNotes: "",
@@ -223,6 +226,22 @@ const parseOptionalNumber = (value: string): number | undefined => {
     return Number.isFinite(parsed) ? parsed : undefined;
 };
 
+const validateOptionalPropertyURL = (value: string): string | undefined => {
+    const trimmed = value.trim();
+    if (trimmed === "") {
+        return undefined;
+    }
+
+    try {
+        const parsed = new URL(trimmed);
+        return parsed.protocol === "http:" || parsed.protocol === "https:"
+            ? undefined
+            : "Enter a valid http:// or https:// URL.";
+    } catch {
+        return "Enter a valid http:// or https:// URL.";
+    }
+};
+
 const snapshotValuesToManualDataDraft = (values: Record<string, string>): PropertyManualDataDraft => ({
     areaSqm: values.area_m2 ?? values.surface_area ?? values.area ?? "",
     bathrooms: values.bathrooms ?? "",
@@ -231,6 +250,15 @@ const snapshotValuesToManualDataDraft = (values: Record<string, string>): Proper
     propertyAge: values.property_age ?? "",
     rooms: values.rooms ?? values.bedrooms ?? "",
 });
+
+const MANUAL_AUTOFILL_KEYS: readonly PropertyManualDataDraftKey[] = [
+    "areaSqm",
+    "bathrooms",
+    "location",
+    "price",
+    "propertyAge",
+    "rooms",
+];
 
 const buildManualDataPayload = (draft: PropertyManualDataDraft): PropertyManualData | undefined => {
     const payload: PropertyManualData = {
@@ -304,6 +332,10 @@ export const PropertyDetailPage = (): JSX.Element => {
     const [advancedOpen, setAdvancedOpen] = useState(false);
     const [notesOpen, setNotesOpen] = useState(false);
     const [decisionContextOpen, setDecisionContextOpen] = useState(false);
+    const [autofillStatus, setAutofillStatus] = useState<"error" | "idle" | "loading" | "success">("idle");
+    const [autofillMessage, setAutofillMessage] = useState("");
+    const manualOverrideFieldsRef = useRef<Set<PropertyManualDataDraftKey>>(new Set());
+    const autofilledFieldsRef = useRef<Set<PropertyManualDataDraftKey>>(new Set());
 
     const propertyQuery = useQuery({
         enabled: !isCreateMode,
@@ -366,6 +398,8 @@ export const PropertyDetailPage = (): JSX.Element => {
 
     useEffect(() => {
         if (propertyQuery.data !== undefined) {
+            manualOverrideFieldsRef.current.clear();
+            autofilledFieldsRef.current.clear();
             setUrl(propertyQuery.data.url);
             setLabel(propertyQuery.data.label);
             setSourceId(propertyQuery.data.source_id ?? "");
@@ -414,7 +448,126 @@ export const PropertyDetailPage = (): JSX.Element => {
         : manualPrice === undefined
             ? "Enter a valid price."
             : undefined;
+    const urlError = validateOptionalPropertyURL(url);
     const propertySaveError = (!isCreateMode || advancedOpen) ? scheduleIntervalError ?? retryBackoffError : undefined;
+    const selectedSource = useMemo(
+        () => (sourcesQuery.data ?? []).find((source) => source.id === sourceId),
+        [sourceId, sourcesQuery.data],
+    );
+    const sourceTemplateFields = useMemo(
+        () => parseSelectorConfigJson(selectedSource?.config_json),
+        [selectedSource?.config_json],
+    );
+    const createURLHint = url.trim() === ""
+        ? "Optional reference. If a source template is linked, Nido can auto-fill details without blocking creation."
+        : autofillStatus === "loading"
+            ? "Checking the URL for available details..."
+            : autofillMessage !== ""
+                ? autofillMessage
+                : "Optional reference. If a source template is linked, Nido can auto-fill details without blocking creation."
+    ;
+    const updateManualDataField = (field: PropertyManualDataDraftKey, value: string): void => {
+        manualOverrideFieldsRef.current.add(field);
+        autofilledFieldsRef.current.delete(field);
+        setManualDataDraft((current) => ({ ...current, [field]: value }));
+    };
+    const handlePropertySubmit = (event: FormEvent<HTMLFormElement>): void => {
+        event.preventDefault();
+        if (savePropertyMutation.isPending || propertySaveError !== undefined || manualPriceError !== undefined || urlError !== undefined) {
+            return;
+        }
+
+        savePropertyMutation.mutate();
+    };
+
+    useEffect(() => {
+        if (!isCreateMode) {
+            return;
+        }
+
+        const trimmedURL = url.trim();
+        if (trimmedURL === "") {
+            setAutofillStatus("idle");
+            setAutofillMessage("");
+            return;
+        }
+
+        if (urlError !== undefined) {
+            setAutofillStatus("error");
+            setAutofillMessage("Fix the URL to enable optional autofill.");
+            return;
+        }
+
+        if (sourceTemplateFields.length === 0) {
+            setAutofillStatus("idle");
+            setAutofillMessage(sourceId.trim() === ""
+                ? "URL will be saved as a reference. Add details to link a source template for autofill."
+                : "This source template can store the URL, but it does not expose autofill fields yet.");
+            return;
+        }
+
+        let cancelled = false;
+        const timer = window.setTimeout(async () => {
+            setAutofillStatus("loading");
+            setAutofillMessage("Checking the URL for available details...");
+            try {
+                const result = await previewExtraction({
+                    fields: sourceTemplateFields,
+                    url: trimmedURL,
+                });
+                if (cancelled) {
+                    return;
+                }
+
+                let filledCount = 0;
+                const previewDraft = snapshotValuesToManualDataDraft(result.values);
+                setManualDataDraft((current) => {
+                    const next = { ...current };
+                    for (const key of MANUAL_AUTOFILL_KEYS) {
+                        if (manualOverrideFieldsRef.current.has(key)) {
+                            continue;
+                        }
+
+                        const nextValue = previewDraft[key].trim();
+                        if (nextValue !== "") {
+                            if (next[key].trim() !== nextValue || autofilledFieldsRef.current.has(key)) {
+                                next[key] = previewDraft[key];
+                                autofilledFieldsRef.current.add(key);
+                                filledCount += 1;
+                            }
+                            continue;
+                        }
+
+                        if (autofilledFieldsRef.current.has(key)) {
+                            next[key] = "";
+                            autofilledFieldsRef.current.delete(key);
+                        }
+                    }
+
+                    return next;
+                });
+
+                setAutofillStatus(result.success ? "success" : "error");
+                setAutofillMessage(result.success
+                    ? filledCount > 0
+                        ? `Auto-filled ${filledCount} ${filledCount === 1 ? "detail" : "details"} from the URL. You can edit any value.`
+                        : "URL checked. No empty details needed updating."
+                    : "Could not auto-fill from the URL. You can still create the property with price and URL.");
+            } catch {
+                if (cancelled) {
+                    return;
+                }
+
+                setAutofillStatus("error");
+                setAutofillMessage("Could not auto-fill from the URL. You can still create the property with price and URL.");
+            }
+        }, 300);
+
+        return () => {
+            cancelled = true;
+            window.clearTimeout(timer);
+        };
+    }, [isCreateMode, sourceId, sourceTemplateFields, url, urlError]);
 
     const savePropertyMutation = useMutation({
         mutationFn: async () => {
@@ -464,15 +617,21 @@ export const PropertyDetailPage = (): JSX.Element => {
             }
 
             queryClient.setQueryData(propertyKeys.detail(data.id), data);
-            void queryClient.invalidateQueries({ queryKey: propertyKeys.list() });
-            void queryClient.invalidateQueries({ queryKey: propertyKeys.configVersions(data.id) });
+            await Promise.all([
+                queryClient.invalidateQueries({ queryKey: propertyKeys.list() }),
+                queryClient.invalidateQueries({ queryKey: propertyKeys.summaries() }),
+                queryClient.invalidateQueries({ queryKey: propertyKeys.configVersions(data.id) }),
+            ]);
             pushToast(isCreateMode ? "Property created." : "Property updated.", "success");
             if (isCreateMode) {
-                void navigate(`/properties/${data.id}`, { replace: true });
+                void navigate("/properties", { replace: true });
                 return;
             }
 
-            void queryClient.invalidateQueries({ queryKey: propertyKeys.detail(resolvedId) });
+            await Promise.all([
+                queryClient.invalidateQueries({ queryKey: propertyKeys.detail(resolvedId) }),
+                queryClient.invalidateQueries({ queryKey: propertyKeys.summary(resolvedId) }),
+            ]);
             setEditOpen(false);
         },
     });
@@ -658,70 +817,147 @@ export const PropertyDetailPage = (): JSX.Element => {
         <PageStack>
             <PageCard
                 action={!isCreateMode ? <Button as={Link} to={"/properties"} variant={"secondary"}>{"Back to properties"}</Button> : undefined}
-                description={isCreateMode ? "Create a property with price first, then optionally add manual attributes, a source URL, or scraping configuration later." : "Update the latest manual property data first, then expand optional sections for source details, notes, and automation controls."}
+                description={isCreateMode ? "Create a property in one pass with price first, an optional URL, and details revealed only when you need them." : "Update the latest manual property data first, then expand optional sections for source details, notes, and automation controls."}
                 title={isCreateMode ? "Add Property" : "Edit Property"}
             >
                 {propertyQuery.isError ? <ErrorBanner>{"Could not load property."}</ErrorBanner> : null}
-                <FormGrid as={"div"} variant={"two-column"}>
-                    <Field error={manualPriceError} fullWidth hint={"Mandatory for both manual and scraped properties."} label={"Price"}>
+                <FormGrid as={"form"} id={isCreateMode ? "property-create-form" : "property-edit-form"} onSubmit={handlePropertySubmit} variant={"two-column"}>
+                    <Field error={manualPriceError} fullWidth hint={"Required. Press Enter to create instantly."} label={"Price"}>
                         <Input
+                            autoFocus={isCreateMode}
                             id={"prop-price"}
                             invalid={manualPriceError !== undefined}
                             min={0}
-                            onChange={(event) => { setManualDataDraft((current) => ({ ...current, price: event.target.value })); }}
+                            onChange={(event) => {
+                                if (isCreateMode) {
+                                    updateManualDataField("price", event.target.value);
+                                    return;
+                                }
+
+                                setManualDataDraft((current) => ({ ...current, price: event.target.value }));
+                            }}
                             placeholder={"250000"}
+                            prefix={"€"}
+                            size={isCreateMode ? "large" : "medium"}
                             type={"number"}
                             value={manualDataDraft.price}
                         />
                     </Field>
-                    <div style={{ display: "grid", gap: "0.5rem", gridColumn: "1 / -1" }}>
-                        <Button onClick={() => { setAdditionalFieldsOpen((open) => !open); }} type={"button"} variant={"secondary"}>
-                            {additionalFieldsOpen ? "Hide additional fields" : "Show additional fields"}
-                        </Button>
-                        <Button onClick={() => { setNotesOpen((open) => !open); }} type={"button"} variant={"secondary"}>
-                            {notesOpen ? "Hide notes and thesis" : "Show notes and thesis"}
-                        </Button>
-                        <Button onClick={() => { setDecisionContextOpen((open) => !open); }} type={"button"} variant={"secondary"}>
-                            {decisionContextOpen ? "Hide decision context" : "Show decision context"}
-                        </Button>
-                        <Button onClick={() => { setAdvancedOpen((open) => !open); }} type={"button"} variant={"secondary"}>
-                            {advancedOpen ? "Hide advanced configs" : "Show advanced configs"}
-                        </Button>
-                        <p className={"muted-copy"}>{"Only price is required. Everything else stays optional and can be added later."}</p>
-                    </div>
-                    {additionalFieldsOpen ? (
+                    {isCreateMode ? (
                         <>
-                            <Field label={"Location"}>
-                                <Input onChange={(event) => { setManualDataDraft((current) => ({ ...current, location: event.target.value })); }} placeholder={"Optional location"} type={"text"} value={manualDataDraft.location} />
+                            <Field error={urlError} fullWidth hint={createURLHint} label={"URL"}>
+                                <Input
+                                    id={"prop-url"}
+                                    invalid={urlError !== undefined}
+                                    onChange={(event) => { setUrl(event.target.value); }}
+                                    placeholder={"https://example.com/property/123"}
+                                    type={"url"}
+                                    value={url}
+                                />
                             </Field>
-                            <Field label={"Area (m²)"}>
-                                <Input min={0} onChange={(event) => { setManualDataDraft((current) => ({ ...current, areaSqm: event.target.value })); }} type={"number"} value={manualDataDraft.areaSqm} />
-                            </Field>
-                            <Field label={"Rooms"}>
-                                <Input min={0} onChange={(event) => { setManualDataDraft((current) => ({ ...current, rooms: event.target.value })); }} step={"0.5"} type={"number"} value={manualDataDraft.rooms} />
-                            </Field>
-                            <Field label={"Bathrooms"}>
-                                <Input min={0} onChange={(event) => { setManualDataDraft((current) => ({ ...current, bathrooms: event.target.value })); }} step={"0.5"} type={"number"} value={manualDataDraft.bathrooms} />
-                            </Field>
-                            <Field label={"Property age"}>
-                                <Input min={0} onChange={(event) => { setManualDataDraft((current) => ({ ...current, propertyAge: event.target.value })); }} type={"number"} value={manualDataDraft.propertyAge} />
-                            </Field>
-                            <Field label={"Label"}>
-                                <Input id={"prop-label"} onChange={(event) => { setLabel(event.target.value); }} placeholder={"Optional display name"} type={"text"} value={label} />
-                            </Field>
-                            <Field fullWidth label={"Source URL"}>
-                                <Input id={"prop-url"} onChange={(event) => { setUrl(event.target.value); }} placeholder={"https://example.com/property/123"} type={"url"} value={url} />
-                            </Field>
-                            <Field label={"Source template"}>
-                                <Select id={"prop-source"} onChange={(event) => { setSourceId(event.target.value); }} value={sourceId}>
-                                    <option value={""}>{"No template"}</option>
-                                    {(sourcesQuery.data ?? []).map((source) => {
-                                        return <option key={source.id} value={source.id}>{source.name}</option>;
-                                    })}
-                                </Select>
-                            </Field>
+                            <div style={{ display: "grid", gap: "0.75rem", gridColumn: "1 / -1" }}>
+                                <Button onClick={() => { setAdditionalFieldsOpen((open) => !open); }} type={"button"} variant={"secondary"}>
+                                    {additionalFieldsOpen ? "Hide details" : "Add details"}
+                                </Button>
+                                <p className={"muted-copy"}>{"Only price is required. URL and every other field stay optional and editable later."}</p>
+                            </div>
+                            {additionalFieldsOpen ? (
+                                <>
+                                    <Field label={"Rooms"}>
+                                        <Input min={0} onChange={(event) => { updateManualDataField("rooms", event.target.value); }} step={"0.5"} type={"number"} value={manualDataDraft.rooms} />
+                                    </Field>
+                                    <Field label={"Bathrooms"}>
+                                        <Input min={0} onChange={(event) => { updateManualDataField("bathrooms", event.target.value); }} step={"0.5"} type={"number"} value={manualDataDraft.bathrooms} />
+                                    </Field>
+                                    <Field label={"Area (m²)"}>
+                                        <Input min={0} onChange={(event) => { updateManualDataField("areaSqm", event.target.value); }} type={"number"} value={manualDataDraft.areaSqm} />
+                                    </Field>
+                                    <Field label={"Property age"}>
+                                        <Input min={0} onChange={(event) => { updateManualDataField("propertyAge", event.target.value); }} type={"number"} value={manualDataDraft.propertyAge} />
+                                    </Field>
+                                    <Field label={"Location"}>
+                                        <Input onChange={(event) => { updateManualDataField("location", event.target.value); }} placeholder={"Optional location"} type={"text"} value={manualDataDraft.location} />
+                                    </Field>
+                                    <Field label={"Label"}>
+                                        <Input id={"prop-label"} onChange={(event) => { setLabel(event.target.value); }} placeholder={"Optional display name"} type={"text"} value={label} />
+                                    </Field>
+                                    <Field label={"Source template"}>
+                                        <Select id={"prop-source"} onChange={(event) => { setSourceId(event.target.value); }} value={sourceId}>
+                                            <option value={""}>{"No template"}</option>
+                                            {(sourcesQuery.data ?? []).map((source) => {
+                                                return <option key={source.id} value={source.id}>{source.name}</option>;
+                                            })}
+                                        </Select>
+                                    </Field>
+                                    <Field label={"Target price"}>
+                                        <Input min={0} onChange={(event) => { setMetadataDraft((current) => ({ ...current, targetPrice: event.target.value })); }} type={"number"} value={metadataDraft.targetPrice} />
+                                    </Field>
+                                    <div style={{ display: "grid", gap: "0.5rem", gridColumn: "1 / -1" }}>
+                                        <Button onClick={() => { setNotesOpen((open) => !open); }} type={"button"} variant={"secondary"}>
+                                            {notesOpen ? "Hide notes and thesis" : "Show notes and thesis"}
+                                        </Button>
+                                        <Button onClick={() => { setDecisionContextOpen((open) => !open); }} type={"button"} variant={"secondary"}>
+                                            {decisionContextOpen ? "Hide decision context" : "Show decision context"}
+                                        </Button>
+                                        <Button onClick={() => { setAdvancedOpen((open) => !open); }} type={"button"} variant={"secondary"}>
+                                            {advancedOpen ? "Hide advanced configs" : "Show advanced configs"}
+                                        </Button>
+                                    </div>
+                                </>
+                            ) : null}
                         </>
-                    ) : null}
+                    ) : (
+                        <>
+                            <div style={{ display: "grid", gap: "0.5rem", gridColumn: "1 / -1" }}>
+                                <Button onClick={() => { setAdditionalFieldsOpen((open) => !open); }} type={"button"} variant={"secondary"}>
+                                    {additionalFieldsOpen ? "Hide additional fields" : "Show additional fields"}
+                                </Button>
+                                <Button onClick={() => { setNotesOpen((open) => !open); }} type={"button"} variant={"secondary"}>
+                                    {notesOpen ? "Hide notes and thesis" : "Show notes and thesis"}
+                                </Button>
+                                <Button onClick={() => { setDecisionContextOpen((open) => !open); }} type={"button"} variant={"secondary"}>
+                                    {decisionContextOpen ? "Hide decision context" : "Show decision context"}
+                                </Button>
+                                <Button onClick={() => { setAdvancedOpen((open) => !open); }} type={"button"} variant={"secondary"}>
+                                    {advancedOpen ? "Hide advanced configs" : "Show advanced configs"}
+                                </Button>
+                                <p className={"muted-copy"}>{"Only price is required. Everything else stays optional and can be added later."}</p>
+                            </div>
+                            {additionalFieldsOpen ? (
+                                <>
+                                    <Field label={"Location"}>
+                                        <Input onChange={(event) => { setManualDataDraft((current) => ({ ...current, location: event.target.value })); }} placeholder={"Optional location"} type={"text"} value={manualDataDraft.location} />
+                                    </Field>
+                                    <Field label={"Area (m²)"}>
+                                        <Input min={0} onChange={(event) => { setManualDataDraft((current) => ({ ...current, areaSqm: event.target.value })); }} type={"number"} value={manualDataDraft.areaSqm} />
+                                    </Field>
+                                    <Field label={"Rooms"}>
+                                        <Input min={0} onChange={(event) => { setManualDataDraft((current) => ({ ...current, rooms: event.target.value })); }} step={"0.5"} type={"number"} value={manualDataDraft.rooms} />
+                                    </Field>
+                                    <Field label={"Bathrooms"}>
+                                        <Input min={0} onChange={(event) => { setManualDataDraft((current) => ({ ...current, bathrooms: event.target.value })); }} step={"0.5"} type={"number"} value={manualDataDraft.bathrooms} />
+                                    </Field>
+                                    <Field label={"Property age"}>
+                                        <Input min={0} onChange={(event) => { setManualDataDraft((current) => ({ ...current, propertyAge: event.target.value })); }} type={"number"} value={manualDataDraft.propertyAge} />
+                                    </Field>
+                                    <Field label={"Label"}>
+                                        <Input id={"prop-label"} onChange={(event) => { setLabel(event.target.value); }} placeholder={"Optional display name"} type={"text"} value={label} />
+                                    </Field>
+                                    <Field fullWidth label={"Source URL"}>
+                                        <Input id={"prop-url"} onChange={(event) => { setUrl(event.target.value); }} placeholder={"https://example.com/property/123"} type={"url"} value={url} />
+                                    </Field>
+                                    <Field label={"Source template"}>
+                                        <Select id={"prop-source"} onChange={(event) => { setSourceId(event.target.value); }} value={sourceId}>
+                                            <option value={""}>{"No template"}</option>
+                                            {(sourcesQuery.data ?? []).map((source) => {
+                                                return <option key={source.id} value={source.id}>{source.name}</option>;
+                                            })}
+                                        </Select>
+                                    </Field>
+                                </>
+                            ) : null}
+                        </>
+                    )}
                     {notesOpen ? (
                         <>
                             <Field fullWidth label={"Notes"}>
@@ -750,18 +986,32 @@ export const PropertyDetailPage = (): JSX.Element => {
                                     ))}
                                 </div>
                             </div>
-                            <Field label={"Target price"}>
-                                <Input min={0} onChange={(event) => { setMetadataDraft((current) => ({ ...current, targetPrice: event.target.value })); }} type={"number"} value={metadataDraft.targetPrice} />
-                            </Field>
-                            <Field label={"Priority"}>
-                                <Select onChange={(event) => { setMetadataDraft((current) => ({ ...current, priorityLevel: event.target.value })); }} value={metadataDraft.priorityLevel}>
-                                    <option value={""}>{"Not set"}</option>
-                                    <option value={"low"}>{"Low"}</option>
-                                    <option value={"medium"}>{"Medium"}</option>
-                                    <option value={"high"}>{"High"}</option>
-                                    <option value={"critical"}>{"Critical"}</option>
-                                </Select>
-                            </Field>
+                            {!isCreateMode ? (
+                                <>
+                                    <Field label={"Target price"}>
+                                        <Input min={0} onChange={(event) => { setMetadataDraft((current) => ({ ...current, targetPrice: event.target.value })); }} type={"number"} value={metadataDraft.targetPrice} />
+                                    </Field>
+                                    <Field label={"Priority"}>
+                                        <Select onChange={(event) => { setMetadataDraft((current) => ({ ...current, priorityLevel: event.target.value })); }} value={metadataDraft.priorityLevel}>
+                                            <option value={""}>{"Not set"}</option>
+                                            <option value={"low"}>{"Low"}</option>
+                                            <option value={"medium"}>{"Medium"}</option>
+                                            <option value={"high"}>{"High"}</option>
+                                            <option value={"critical"}>{"Critical"}</option>
+                                        </Select>
+                                    </Field>
+                                </>
+                            ) : (
+                                <Field label={"Priority"}>
+                                    <Select onChange={(event) => { setMetadataDraft((current) => ({ ...current, priorityLevel: event.target.value })); }} value={metadataDraft.priorityLevel}>
+                                        <option value={""}>{"Not set"}</option>
+                                        <option value={"low"}>{"Low"}</option>
+                                        <option value={"medium"}>{"Medium"}</option>
+                                        <option value={"high"}>{"High"}</option>
+                                        <option value={"critical"}>{"Critical"}</option>
+                                    </Select>
+                                </Field>
+                            )}
                         </>
                     ) : null}
                     {advancedOpen ? (
@@ -853,49 +1103,49 @@ export const PropertyDetailPage = (): JSX.Element => {
                 ) : null}
                 {savePropertyMutation.isError ? <ErrorBanner>{"Could not save property. Check the price, source details, and any optional URL."}</ErrorBanner> : null}
                 <ActionGroup>
-                    <Button disabled={savePropertyMutation.isPending || propertySaveError !== undefined || manualPriceError !== undefined} onClick={() => { savePropertyMutation.mutate(); }}>
-                        {savePropertyMutation.isPending ? "Saving..." : isCreateMode ? "Create property" : "Save changes"}
+                    <Button
+                        disabled={savePropertyMutation.isPending || propertySaveError !== undefined || manualPriceError !== undefined || urlError !== undefined}
+                        form={isCreateMode ? "property-create-form" : "property-edit-form"}
+                        type={"submit"}
+                    >
+                        {savePropertyMutation.isPending ? "Saving..." : isCreateMode ? "Create Property" : "Save changes"}
                     </Button>
                     {!isCreateMode ? (
-                        <Button disabled={bookmarkMutation.isPending} onClick={() => { bookmarkMutation.mutate(); }} variant={"secondary"}>
+                        <Button disabled={bookmarkMutation.isPending} onClick={() => { bookmarkMutation.mutate(); }} type={"button"} variant={"secondary"}>
                             {isBookmarked ? "Remove bookmark" : "Bookmark"}
                         </Button>
                     ) : null}
                 </ActionGroup>
             </PageCard>
 
-            {isCreateMode ? (
+            {isCreateMode && additionalFieldsOpen ? (
                 <PageCard description={"Add source-backed scraping selectors only if this property should ingest from a listing URL later."} title={"Source & scraping configuration"}>
-                    {!additionalFieldsOpen ? <EmptyState message={"Additional fields are hidden by default so property intake stays fast."} /> : (
-                        <>
-                            <SelectorBuilder fieldDefinitions={fieldDefinitionsQuery.data} fields={fieldRows} onChange={setFieldRows} previewByFieldName={previewMap} />
-                            {fieldRows.length === 0 ? <EmptyState message={"No fields defined yet. Add a field to start extracting data."} /> : null}
-                            <ActionGroup>
-                                <Button onClick={() => { setFieldRows((rows) => [...rows, createEmptySelectorDraft()]); }} type={"button"} variant={"secondary"}>{"Add field"}</Button>
-                                <Button disabled={previewMutation.isPending || url.trim() === "" || validationMessages.length > 0} onClick={() => { previewMutation.mutate(); }} type={"button"} variant={"secondary"}>{previewMutation.isPending ? "Previewing..." : "Preview extraction"}</Button>
-                            </ActionGroup>
-                            {validationMessages.length > 0 ? (
-                                <div className={"selector-builder__validation-list"}>
-                                    {validationMessages.map((message) => <ErrorBanner key={message}>{message}</ErrorBanner>)}
-                                </div>
-                            ) : null}
-                            {previewFailures.length > 0 ? (
-                                <div className={"selector-builder__validation-list"}>
-                                    {previewFailures.map((failure) => <ErrorBanner key={failure}>{failure}</ErrorBanner>)}
-                                </div>
-                            ) : null}
-                            {Object.keys(previewValues).length > 0 ? (
-                                <div className={"selector-builder__results"}>
-                                    {Object.entries(previewValues).map(([fieldName, value]) => (
-                                        <article className={"selector-builder__result-card"} key={fieldName}>
-                                            <span className={"selector-builder__result-label"}>{fieldName}</span>
-                                            <strong className={"selector-builder__result-value"}>{value}</strong>
-                                        </article>
-                                    ))}
-                                </div>
-                            ) : null}
-                        </>
-                    )}
+                    <SelectorBuilder fieldDefinitions={fieldDefinitionsQuery.data} fields={fieldRows} onChange={setFieldRows} previewByFieldName={previewMap} />
+                    {fieldRows.length === 0 ? <EmptyState message={"No fields defined yet. Add a field to start extracting data."} /> : null}
+                    <ActionGroup>
+                        <Button onClick={() => { setFieldRows((rows) => [...rows, createEmptySelectorDraft()]); }} type={"button"} variant={"secondary"}>{"Add field"}</Button>
+                        <Button disabled={previewMutation.isPending || url.trim() === "" || validationMessages.length > 0} onClick={() => { previewMutation.mutate(); }} type={"button"} variant={"secondary"}>{previewMutation.isPending ? "Previewing..." : "Preview extraction"}</Button>
+                    </ActionGroup>
+                    {validationMessages.length > 0 ? (
+                        <div className={"selector-builder__validation-list"}>
+                            {validationMessages.map((message) => <ErrorBanner key={message}>{message}</ErrorBanner>)}
+                        </div>
+                    ) : null}
+                    {previewFailures.length > 0 ? (
+                        <div className={"selector-builder__validation-list"}>
+                            {previewFailures.map((failure) => <ErrorBanner key={failure}>{failure}</ErrorBanner>)}
+                        </div>
+                    ) : null}
+                    {Object.keys(previewValues).length > 0 ? (
+                        <div className={"selector-builder__results"}>
+                            {Object.entries(previewValues).map(([fieldName, value]) => (
+                                <article className={"selector-builder__result-card"} key={fieldName}>
+                                    <span className={"selector-builder__result-label"}>{fieldName}</span>
+                                    <strong className={"selector-builder__result-value"}>{value}</strong>
+                                </article>
+                            ))}
+                        </div>
+                    ) : null}
                 </PageCard>
             ) : null}
         </PageStack>
