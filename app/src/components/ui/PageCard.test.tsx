@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 
 import { PageCard } from "@/components/ui/PageCard";
 
@@ -10,7 +11,7 @@ describe("PageCard", () => {
             </PageCard>,
         );
 
-        expect(screen.queryByText("Operators can review the page purpose here.")).not.toBeInTheDocument();
+        expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
 
         fireEvent.mouseEnter(screen.getByRole("button", { name: "Show help for Dashboard" }));
         expect(screen.getByRole("tooltip")).toHaveTextContent("Operators can review the page purpose here.");
@@ -34,12 +35,12 @@ describe("PageCard", () => {
         const firstTrigger = screen.getByRole("button", { name: "Show help for First title" });
         const secondTrigger = screen.getByRole("button", { name: "Show help for Second title" });
 
-        firstTrigger.focus();
+        fireEvent.focus(firstTrigger);
         expect(screen.getByRole("tooltip")).toHaveTextContent("First subtitle");
 
-        secondTrigger.focus();
+        fireEvent.focus(secondTrigger);
         expect(screen.getByRole("tooltip")).toHaveTextContent("Second subtitle");
-        expect(screen.queryByText("First subtitle")).not.toBeInTheDocument();
+        expect(screen.getByRole("tooltip")).not.toHaveTextContent("First subtitle");
 
         fireEvent.keyDown(document, { key: "Escape" });
         expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
