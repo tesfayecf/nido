@@ -15,7 +15,6 @@ import { AnalyticsPage } from "@/features/analytics/AnalyticsPage";
 import { FieldAnalyticsPage } from "@/features/fields/FieldAnalyticsPage";
 import { FieldsPage } from "@/features/fields/FieldsPage";
 import { DashboardPage } from "@/features/operators/DashboardPage";
-import { AdminPage } from "@/features/platform/AdminPage";
 import { TriageInboxPage } from "@/features/operators/TriageInboxPage";
 import { PropertiesPage } from "@/features/properties/PropertiesPage";
 import { PropertyDetailPage } from "@/features/properties/PropertyDetailPage";
@@ -116,10 +115,6 @@ export const router = createBrowserRouter([
                     {
                         path: "settings",
                         element: <SettingsPage />,
-                    },
-                    {
-                        path: "admin",
-                        element: <AdminPage />,
                     },
                 ],
             },
