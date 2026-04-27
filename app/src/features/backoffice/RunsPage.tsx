@@ -5,13 +5,12 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { DataTable } from "@/components/ui/DataTable";
 import { Dialog } from "@/components/ui/Dialog";
-import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Field } from "@/components/ui/Field";
 import { FormGrid } from "@/components/ui/FormGrid";
 import { Input } from "@/components/ui/Input";
 import { PageCard } from "@/components/ui/PageCard";
+import { QueryDataTable } from "@/components/ui/QueryDataTable";
 import { Select } from "@/components/ui/Select";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -148,76 +147,76 @@ export const RunsPage = (): JSX.Element => {
             </PageCard>
 
             <PageCard description={"Select a row to inspect the full snapshot payload."} title={"Recent Runs"}>
-                {runsQuery.isLoading ? <p className={"state-message state-message--loading"}>{"Loading runs..."}</p> : null}
-                {runsQuery.isError ? <ErrorBanner>{"Could not load runs."}</ErrorBanner> : null}
-                {!runsQuery.isLoading && !runsQuery.isError ? (
-                    <DataTable
-                        caption={"Recent runs"}
-                        columns={[
-                            {
-                                cell: (item) => item.id,
-                                header: "Run",
-                                id: "id",
-                                sortValue: (item) => item.id,
-                            },
-                            {
-                                cell: (item) => item.property_id,
-                                header: "Property",
-                                id: "property_id",
-                                sortValue: (item) => item.property_id,
-                            },
-                            {
-                                cell: (item) => <StatusBadge tone={statusTone(item)} value={item.is_valid ? "valid" : "invalid"} />,
-                                header: "Status",
-                                id: "status",
-                                sortValue: (item) => item.is_valid ? "valid" : "invalid",
-                            },
-                            {
-                                cell: (item) => formatDateTime(item.observed_at),
-                                header: "Observed",
-                                id: "observed_at",
-                                sortValue: (item) => item.observed_at,
-                            },
-                            {
-                                align: "right",
-                                cell: (item) => `${Object.keys(item.values).length}`,
-                                header: "Fields",
-                                id: "fields",
-                                sortValue: (item) => Object.keys(item.values).length,
-                            },
-                            {
-                                cell: (item) => item.error_message === undefined || item.error_message === "" ? "Completed" : item.error_message,
-                                header: "Message",
-                                id: "message",
-                            },
-                            {
-                                cell: (item) => (
-                                    <div className={"action-group"} onClick={(event) => { event.stopPropagation(); }}>
-                                        <Button
-                                            onClick={() => {
-                                                void navigate(`/runs/${item.id}`);
-                                            }}
-                                            size={"small"}
-                                            variant={"secondary"}
-                                        >
-                                            {"Open"}
-                                        </Button>
-                                        <Button onClick={() => { setDeleteTarget(item); }} size={"small"} variant={"secondary"}>{"Delete"}</Button>
-                                    </div>
-                                ),
-                                header: "Actions",
-                                id: "actions",
-                            },
-                        ]}
-                        compact
-                        emptyMessage={"No runs matched the current filters."}
-                        getRowId={(item) => item.id}
-                        items={runsQuery.data?.items ?? []}
-                        onRowClick={(item) => { void navigate(`/runs/${item.id}`); }}
-                        pageSize={12}
-                        rowLabel={(item) => `Open run ${item.id}`}
-                    />
-                ) : null}
+                <QueryDataTable
+                    caption={"Recent runs"}
+                    columns={[
+                        {
+                            cell: (item) => item.id,
+                            header: "Run",
+                            id: "id",
+                            sortValue: (item) => item.id,
+                        },
+                        {
+                            cell: (item) => item.property_id,
+                            header: "Property",
+                            id: "property_id",
+                            sortValue: (item) => item.property_id,
+                        },
+                        {
+                            cell: (item) => <StatusBadge tone={statusTone(item)} value={item.is_valid ? "valid" : "invalid"} />,
+                            header: "Status",
+                            id: "status",
+                            sortValue: (item) => item.is_valid ? "valid" : "invalid",
+                        },
+                        {
+                            cell: (item) => formatDateTime(item.observed_at),
+                            header: "Observed",
+                            id: "observed_at",
+                            sortValue: (item) => item.observed_at,
+                        },
+                        {
+                            align: "right",
+                            cell: (item) => `${Object.keys(item.values).length}`,
+                            header: "Fields",
+                            id: "fields",
+                            sortValue: (item) => Object.keys(item.values).length,
+                        },
+                        {
+                            cell: (item) => item.error_message === undefined || item.error_message === "" ? "Completed" : item.error_message,
+                            header: "Message",
+                            id: "message",
+                        },
+                        {
+                            cell: (item) => (
+                                <div className={"action-group"} onClick={(event) => { event.stopPropagation(); }}>
+                                    <Button
+                                        onClick={() => {
+                                            void navigate(`/runs/${item.id}`);
+                                        }}
+                                        size={"small"}
+                                        variant={"secondary"}
+                                    >
+                                        {"Open"}
+                                    </Button>
+                                    <Button onClick={() => { setDeleteTarget(item); }} size={"small"} variant={"secondary"}>{"Delete"}</Button>
+                                </div>
+                            ),
+                            header: "Actions",
+                            id: "actions",
+                        },
+                    ]}
+                    compact
+                    emptyMessage={"No runs matched the current filters."}
+                    errorMessage={"Could not load runs."}
+                    getRowId={(item) => item.id}
+                    isError={runsQuery.isError}
+                    isLoading={runsQuery.isLoading}
+                    items={runsQuery.data?.items ?? []}
+                    loadingMessage={"Loading runs..."}
+                    onRowClick={(item) => { void navigate(`/runs/${item.id}`); }}
+                    pageSize={12}
+                    rowLabel={(item) => `Open run ${item.id}`}
+                />
             </PageCard>
 
             <Dialog

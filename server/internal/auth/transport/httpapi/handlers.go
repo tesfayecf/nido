@@ -2,7 +2,6 @@ package httpapi
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"strings"
 
@@ -52,8 +51,7 @@ func Register(mux *http.ServeMux, service *app.Service) {
 			Password string `json:"password"`
 		}
 
-		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-			platformhttp.WriteError(w, http.StatusBadRequest, "invalid request body")
+		if !platformhttp.DecodeJSON(w, r, &request) {
 			return
 		}
 
@@ -105,8 +103,7 @@ func Register(mux *http.ServeMux, service *app.Service) {
 		var request struct {
 			DisplayName string `json:"display_name"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-			platformhttp.WriteError(w, http.StatusBadRequest, "invalid request body")
+		if !platformhttp.DecodeJSON(w, r, &request) {
 			return
 		}
 
@@ -134,8 +131,7 @@ func Register(mux *http.ServeMux, service *app.Service) {
 			CurrentPassword string `json:"current_password"`
 			NewPassword     string `json:"new_password"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-			platformhttp.WriteError(w, http.StatusBadRequest, "invalid request body")
+		if !platformhttp.DecodeJSON(w, r, &request) {
 			return
 		}
 

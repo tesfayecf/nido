@@ -4,13 +4,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { DataTable } from "@/components/ui/DataTable";
 import { Dialog } from "@/components/ui/Dialog";
-import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Field } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/Input";
 import { PageCard } from "@/components/ui/PageCard";
+import { QueryDataTable } from "@/components/ui/QueryDataTable";
 import { useToast } from "@/components/ui/ToastProvider";
 import { formatDateTime } from "@/lib/format/date";
 import { tagKeys } from "@/services/tags/tags.keys";
@@ -80,74 +79,74 @@ export const TagsPage = (): JSX.Element => {
                 title={"Tags"}
             />
 
-            {tagsQuery.isLoading ? <p className={"state-message state-message--loading"}>{"Loading tags..."}</p> : null}
-            {tagsQuery.isError ? <ErrorBanner>{"Could not load tags."}</ErrorBanner> : null}
-            {!tagsQuery.isLoading && !tagsQuery.isError ? (
-                <DataTable
-                    caption={"Available tags"}
-                    columns={[
-                        {
-                            cell: (item) => (
-                                <div style={{ alignItems: "center", display: "flex", gap: "0.5rem" }}>
-                                    <span
-                                        aria-hidden
-                                        style={{
-                                            backgroundColor: item.color !== "" ? item.color : "#6b7280",
-                                            borderRadius: "50%",
-                                            display: "inline-block",
-                                            height: "1rem",
-                                            width: "1rem",
-                                        }}
-                                    />
-                                    <strong>{item.name}</strong>
-                                </div>
-                            ),
-                            header: "Tag",
-                            id: "name",
-                            sortValue: (item) => item.name,
-                        },
-                        {
-                            cell: (item) => item.color !== "" ? item.color : "—",
-                            header: "Color",
-                            id: "color",
-                            width: "10rem",
-                        },
-                        {
-                            cell: (item) => formatDateTime(item.created_at),
-                            header: "Created",
-                            id: "created_at",
-                            sortValue: (item) => item.created_at,
-                            width: "11rem",
-                        },
-                        {
-                            align: "right",
-                            cell: (item) => (
-                                <button
-                                    aria-label={"Delete tag"}
-                                    className={"icon-button icon-button--danger"}
-                                    onClick={(event) => {
-                                        event.stopPropagation();
-                                        setDeleteTarget(item);
+            <QueryDataTable
+                caption={"Available tags"}
+                columns={[
+                    {
+                        cell: (item) => (
+                            <div style={{ alignItems: "center", display: "flex", gap: "0.5rem" }}>
+                                <span
+                                    aria-hidden
+                                    style={{
+                                        backgroundColor: item.color !== "" ? item.color : "#6b7280",
+                                        borderRadius: "50%",
+                                        display: "inline-block",
+                                        height: "1rem",
+                                        width: "1rem",
                                     }}
-                                    title={"Delete"}
-                                    type={"button"}
-                                >
-                                    <Icon name={"trash"} />
-                                </button>
-                            ),
-                            header: "Actions",
-                            id: "actions",
-                            width: "6rem",
-                        },
-                    ]}
-                    compact
-                    emptyMessage={"No tags yet. Create your first tag to start organizing properties."}
-                    getRowId={(item) => item.id}
-                    items={tagsQuery.data ?? []}
-                    pageSize={20}
-                    rowLabel={(item) => `Tag: ${item.name}`}
-                />
-            ) : null}
+                                />
+                                <strong>{item.name}</strong>
+                            </div>
+                        ),
+                        header: "Tag",
+                        id: "name",
+                        sortValue: (item) => item.name,
+                    },
+                    {
+                        cell: (item) => item.color !== "" ? item.color : "—",
+                        header: "Color",
+                        id: "color",
+                        width: "10rem",
+                    },
+                    {
+                        cell: (item) => formatDateTime(item.created_at),
+                        header: "Created",
+                        id: "created_at",
+                        sortValue: (item) => item.created_at,
+                        width: "11rem",
+                    },
+                    {
+                        align: "right",
+                        cell: (item) => (
+                            <button
+                                aria-label={"Delete tag"}
+                                className={"icon-button icon-button--danger"}
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    setDeleteTarget(item);
+                                }}
+                                title={"Delete"}
+                                type={"button"}
+                            >
+                                <Icon name={"trash"} />
+                            </button>
+                        ),
+                        header: "Actions",
+                        id: "actions",
+                        width: "6rem",
+                    },
+                ]}
+                compact
+                emptyMessage={"No tags yet. Create your first tag to start organizing properties."}
+                errorMessage={"Could not load tags."}
+                getRowId={(item) => item.id}
+                isError={tagsQuery.isError}
+                isLoading={tagsQuery.isLoading}
+                items={tagsQuery.data ?? []}
+                loadingMessage={"Loading tags..."}
+                pageSize={20}
+                rowLabel={(item) => `Tag: ${item.name}`}
+            />
 
             <Dialog
                 actions={(
