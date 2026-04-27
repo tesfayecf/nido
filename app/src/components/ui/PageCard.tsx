@@ -1,5 +1,7 @@
 import type { PropsWithChildren, ReactNode } from "react";
 
+import { ContextualHelp } from "@/components/ui/ContextualHelp";
+
 interface PageCardProps extends PropsWithChildren {
     readonly action?: ReactNode;
     readonly description?: string;
@@ -17,9 +19,11 @@ export const PageCard = ({ action, children, description, title, titleId }: Page
     return (
         <section className={"page-card"}>
             <header className={"page-card__header"}>
-                <div>
-                    <h2 className={"page-card__title"} id={titleId}>{title}</h2>
-                    {description !== undefined ? <p className={"page-card__description"}>{description}</p> : null}
+                <div className={"page-card__heading"}>
+                    <div className={"page-card__title-row"}>
+                        <h2 className={"page-card__title"} id={titleId}>{title}</h2>
+                        {description !== undefined ? <ContextualHelp content={description} title={title} /> : null}
+                    </div>
                 </div>
                 {action !== undefined ? <div className={"page-card__action"}>{action}</div> : null}
             </header>
