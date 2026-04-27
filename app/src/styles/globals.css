@@ -2696,6 +2696,21 @@ body {
     min-width: 0;
 }
 
+.properties-table__filters-row th {
+    background: color-mix(in srgb, var(--color-surface) 82%, transparent);
+    padding-bottom: 0.5rem;
+    padding-top: 0.5rem;
+}
+
+.properties-table__row--interactive {
+    cursor: pointer;
+}
+
+.properties-table__row--interactive:hover td,
+.properties-table__row--interactive:focus-visible td {
+    background: color-mix(in srgb, var(--color-accent-soft) 72%, var(--color-surface));
+}
+
 .properties-table__sort {
     align-items: center;
     background: transparent;
