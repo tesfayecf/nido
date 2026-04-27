@@ -390,6 +390,10 @@ export const PropertiesPage = (): JSX.Element => {
                                                     }
                                                 }}
                                                 onKeyDown={(event) => {
+                                                    if (isEventFromInteractiveElement(event.target)) {
+                                                        return;
+                                                    }
+
                                                     if (event.key === "Enter" || event.key === " ") {
                                                         event.preventDefault();
                                                         void navigate(`/properties/${row.id}`);
@@ -407,7 +411,6 @@ export const PropertiesPage = (): JSX.Element => {
                                                 ))}
                                                 <td>
                                                     <RowActions>
-                                                        <Button as={Link} size={"small"} to={`/properties/${row.id}`} variant={"ghost"}>{"Open"}</Button>
                                                         <button
                                                             aria-label={isBookmarked ? "Remove bookmark" : "Bookmark property"}
                                                             className={"icon-button"}
