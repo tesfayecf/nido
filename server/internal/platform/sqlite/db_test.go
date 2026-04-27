@@ -328,6 +328,69 @@ func TestMigrateRepairsLegacyRoomsFieldDefinitionIDs(t *testing.T) {
 	}
 }
 
+func TestMigratePreservesPropertyHistoryStateOnRerun(t *testing.T) {
+	t.Parallel()
+
+	databasePath := filepath.Join(t.TempDir(), "nido.db")
+	db, err := Open(context.Background(), config.DatabaseConfig{Path: databasePath})
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
+	defer db.Close()
+
+	if err := Migrate(context.Background(), db); err != nil {
+		t.Fatalf("initial migrate database: %v", err)
+	}
+
+	store := NewStore(db)
+	observedAt := time.Now().UTC().Format(time.RFC3339Nano)
+	execTestStatement(t, db, `
+		INSERT INTO properties (id, url, label, status, last_run_at, next_run_at, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+	`, "property-history", "https://example.test/property/history", "History Property", "active", observedAt, observedAt, observedAt, observedAt)
+	execTestStatement(t, db, `
+		INSERT INTO property_snapshots (id, property_id, config_version, observed_at, values_json, change_flags_json, is_valid, error_message)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+	`, "snapshot-history", "property-history", 2, observedAt, `{"price":"199000","rooms":"3"}`, `{"price":true}`, 1, sql.NullString{})
+	execTestStatement(t, db, `
+		INSERT INTO property_runs (id, property_id, status, trigger_kind, attempt_count, max_attempts, started_at, finished_at, error_message, snapshot_id, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, "run-history", "property-history", "success", ingestiondomain.TriggerKindManual, 1, 1, observedAt, observedAt, "", "snapshot-history", observedAt)
+
+	if err := Migrate(context.Background(), db); err != nil {
+		t.Fatalf("rerun migrate database: %v", err)
+	}
+
+	assertTableCount(t, db, "properties", 1)
+	assertTableCount(t, db, "property_snapshots", 1)
+	assertTableCount(t, db, "property_runs", 1)
+
+	snapshots, err := store.ListPropertySnapshots(context.Background(), "property-history", 10)
+	if err != nil {
+		t.Fatalf("list property snapshots after rerun migrate: %v", err)
+	}
+	if len(snapshots) != 1 {
+		t.Fatalf("expected one property snapshot after rerun migrate, got %d", len(snapshots))
+	}
+	if got := decodeSnapshotValues(string(snapshots[0].Values))["price"]; got != "199000" {
+		t.Fatalf("expected preserved snapshot price 199000, got %q", got)
+	}
+
+	runs, err := store.ListPropertyRuns(context.Background(), "property-history", 10)
+	if err != nil {
+		t.Fatalf("list property runs after rerun migrate: %v", err)
+	}
+	if len(runs) != 1 {
+		t.Fatalf("expected one property run after rerun migrate, got %d", len(runs))
+	}
+	if runs[0].TriggerKind != ingestiondomain.TriggerKindManual {
+		t.Fatalf("expected preserved trigger kind %q, got %q", ingestiondomain.TriggerKindManual, runs[0].TriggerKind)
+	}
+	if runs[0].SnapshotID != "snapshot-history" {
+		t.Fatalf("expected preserved snapshot id snapshot-history, got %q", runs[0].SnapshotID)
+	}
+}
+
 func assertTableCount(t *testing.T, db *sql.DB, tableName string, want int) {
 	t.Helper()
 

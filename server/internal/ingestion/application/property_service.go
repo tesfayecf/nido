@@ -60,6 +60,7 @@ type PropertyStore interface {
 	GetProperty(ctx context.Context, propertyID string) (ingestiondomain.Property, error)
 	DeleteProperty(ctx context.Context, propertyID string) error
 	UpdatePropertyRunState(ctx context.Context, propertyID string, status ingestiondomain.PropertyStatus, lastRunAt, nextRunAt *time.Time) error
+	CreatePropertyRun(ctx context.Context, run ingestiondomain.PropertyRun) error
 	UpsertPropertyConfig(ctx context.Context, config ingestiondomain.PropertyExtractionConfig) error
 	GetLatestPropertyConfig(ctx context.Context, propertyID string) (ingestiondomain.PropertyExtractionConfig, error)
 	ListPropertyConfigs(ctx context.Context, propertyID string) ([]ingestiondomain.PropertyExtractionConfig, error)
@@ -146,6 +147,33 @@ func (s *PropertyService) EnsureProperty(ctx context.Context, property ingestion
 	}
 
 	return normalized, nil
+}
+
+// UpsertPropertyWithManualData stores property metadata and optionally appends a
+// manual snapshot/run so manual entries behave like scraped history.
+func (s *PropertyService) UpsertPropertyWithManualData(
+	ctx context.Context,
+	property ingestiondomain.Property,
+	manualValues map[string]string,
+) (ingestiondomain.Property, error) {
+	saved, err := s.EnsureProperty(ctx, property)
+	if err != nil {
+		return ingestiondomain.Property{}, err
+	}
+	if len(manualValues) == 0 {
+		return saved, nil
+	}
+
+	if _, err := s.recordManualSnapshot(ctx, saved, manualValues); err != nil {
+		return ingestiondomain.Property{}, err
+	}
+
+	refreshed, err := s.store.GetProperty(ctx, saved.ID)
+	if err != nil {
+		return ingestiondomain.Property{}, err
+	}
+
+	return refreshed, nil
 }
 
 // ListPropertiesFiltered returns properties with optional tag and status filtering.
@@ -753,8 +781,15 @@ func (s *PropertyService) IngestPropertyOnce(ctx context.Context, propertyID str
 
 // normalizeAndValidateProperty applies defaults and validates the property before save.
 func (s *PropertyService) normalizeAndValidateProperty(ctx context.Context, property ingestiondomain.Property) (ingestiondomain.Property, error) {
-	if err := validatePropertyURL(property.URL); err != nil {
-		return ingestiondomain.Property{}, err
+	trimmedURL := strings.TrimSpace(property.URL)
+	if trimmedURL != "" {
+		if err := validatePropertyURL(trimmedURL); err != nil {
+			return ingestiondomain.Property{}, err
+		}
+	}
+	property.URL = trimmedURL
+	if trimmedURL == "" && strings.TrimSpace(property.Label) == "" {
+		property.Label = "Manual property"
 	}
 	normalizedHeaders, err := normalizePropertyRequestHeaders(property.RequestHeaders)
 	if err != nil {
@@ -826,6 +861,115 @@ func (s *PropertyService) normalizeAndValidateProperty(ctx context.Context, prop
 	}
 
 	return property, nil
+}
+
+func (s *PropertyService) recordManualSnapshot(
+	ctx context.Context,
+	property ingestiondomain.Property,
+	manualValues map[string]string,
+) (ingestiondomain.PropertySnapshot, error) {
+	now := s.clock.Now().UTC()
+	previous, err := s.store.GetLastValidPropertySnapshot(ctx, property.ID)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return ingestiondomain.PropertySnapshot{}, err
+	}
+
+	values := decodeSnapshotValues(previous.Values)
+	if values == nil {
+		values = map[string]string{}
+	}
+	for key, value := range manualValues {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			continue
+		}
+		values[key] = trimmed
+	}
+	if strings.TrimSpace(values["price"]) == "" {
+		return ingestiondomain.PropertySnapshot{}, fmt.Errorf("price is required")
+	}
+
+	changeFlags := map[string]bool{}
+	previousValues := decodeSnapshotValues(previous.Values)
+	for key, value := range values {
+		if previousValues[key] != value {
+			changeFlags[key] = true
+		}
+	}
+
+	valuesJSON, _ := json.Marshal(values)
+	changeFlagsJSON, _ := json.Marshal(changeFlags)
+	snapshot := ingestiondomain.PropertySnapshot{
+		ID:            id.New("run"),
+		PropertyID:    property.ID,
+		ConfigVersion: max(readManualConfigVersion(ctx, s.store, property.ID), 1),
+		ObservedAt:    now,
+		Values:        json.RawMessage(valuesJSON),
+		ChangeFlags:   json.RawMessage(changeFlagsJSON),
+		IsValid:       true,
+	}
+
+	if err := s.store.CreatePropertySnapshot(ctx, snapshot); err != nil {
+		return ingestiondomain.PropertySnapshot{}, err
+	}
+	if err := s.store.UpsertPropertyFieldValues(ctx, snapshot, buildManualFieldSelectors(values)); err != nil {
+		return ingestiondomain.PropertySnapshot{}, err
+	}
+
+	nextRun := nextPropertyRunAt(now, property.ScheduleInterval())
+	if err := s.store.UpdatePropertyRunState(ctx, property.ID, ingestiondomain.PropertyStatusActive, &now, nextRun); err != nil {
+		return ingestiondomain.PropertySnapshot{}, err
+	}
+	if err := s.store.CreatePropertyRun(ctx, ingestiondomain.PropertyRun{
+		ID:           id.New("prun"),
+		PropertyID:   property.ID,
+		Status:       ingestiondomain.PropertyRunStatusSuccess,
+		TriggerKind:  ingestiondomain.TriggerKindManual,
+		AttemptCount: 1,
+		MaxAttempts:  1,
+		StartedAt:    &now,
+		FinishedAt:   &now,
+		SnapshotID:   snapshot.ID,
+		CreatedAt:    now,
+	}); err != nil {
+		return ingestiondomain.PropertySnapshot{}, err
+	}
+
+	if s.changes != nil {
+		if _, err := s.changes.ProcessPropertyRun(ctx, property.ID, snapshot, previous); err != nil {
+			return ingestiondomain.PropertySnapshot{}, err
+		}
+	}
+
+	s.emit("property.run.completed", map[string]any{
+		"property_id":  property.ID,
+		"is_valid":     true,
+		"change_count": len(changeFlags),
+		"trigger_kind": ingestiondomain.TriggerKindManual,
+	})
+
+	return snapshot, nil
+}
+
+func buildManualFieldSelectors(values map[string]string) []ingestiondomain.FieldSelector {
+	fields := make([]ingestiondomain.FieldSelector, 0, len(values))
+	for key := range values {
+		fields = append(fields, ingestiondomain.FieldSelector{
+			FieldName: key,
+			Name:      key,
+			Required:  key == "price",
+		})
+	}
+	return fields
+}
+
+func readManualConfigVersion(ctx context.Context, store PropertyStore, propertyID string) int {
+	config, err := store.GetLatestPropertyConfig(ctx, propertyID)
+	if err != nil {
+		return 1
+	}
+
+	return config.Version
 }
 
 func (s *PropertyService) resolveFields(ctx context.Context, sourceID string, customFields []ingestiondomain.FieldSelector) ([]ingestiondomain.FieldSelector, error) {

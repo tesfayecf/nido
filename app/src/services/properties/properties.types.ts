@@ -87,6 +87,15 @@ export interface PropertySnapshot {
     readonly error_message?: string;
 }
 
+export interface PropertyManualData {
+    readonly area_sqm?: number;
+    readonly bathrooms?: number;
+    readonly location?: string;
+    readonly price?: number;
+    readonly property_age?: number;
+    readonly rooms?: number;
+}
+
 export interface PropertyPreviewRequest {
     readonly url: string;
     readonly fields: FieldSelector[];
@@ -133,6 +142,7 @@ export interface PropertyUpsertRequest {
     readonly paused?: boolean;
     readonly pause_reason?: string;
     readonly metadata?: PropertyMetadata;
+    readonly manual_data?: PropertyManualData;
 }
 
 export type PropertyRunStatus = "pending" | "running" | "success" | "failed";

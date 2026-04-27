@@ -239,6 +239,7 @@ describe("PropertyDetailPage", () => {
         renderPropertyDetailPage();
 
         fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+        fireEvent.change(screen.getByRole("spinbutton"), { target: { value: "220000" } });
         fireEvent.click(screen.getByRole("button", { name: "Show advanced configs" }));
 
         const scheduleInput = document.querySelector<HTMLInputElement>("#prop-schedule-value");
@@ -258,13 +259,14 @@ describe("PropertyDetailPage", () => {
         });
     });
 
-    it("creates a property from the minimal URL-first flow", async () => {
+    it("creates a property from the minimal price-first flow", async () => {
         getPropertyMock.mockImplementation(async (propertyId: string) => ({
             ...PROPERTY,
             id: propertyId,
-            url: "https://example.com/new-listing",
+            label: "Manual property",
+            url: "",
         }));
-        createPropertyMock.mockResolvedValue({ ...PROPERTY, id: "prop_new", url: "https://example.com/new-listing" });
+        createPropertyMock.mockResolvedValue({ ...PROPERTY, id: "prop_new", label: "Manual property", url: "" });
 
         renderPropertyCreatePage();
 
@@ -272,14 +274,18 @@ describe("PropertyDetailPage", () => {
         expect(screen.queryByLabelText("Notes")).not.toBeInTheDocument();
         expect(screen.queryByLabelText("Target price")).not.toBeInTheDocument();
         expect(screen.queryByLabelText("Run interval")).not.toBeInTheDocument();
-        fireEvent.change(screen.getByLabelText("URL"), { target: { value: "https://example.com/new-listing" } });
+        expect(screen.getByRole("button", { name: "Create property" })).toBeDisabled();
+        fireEvent.change(screen.getByRole("spinbutton"), { target: { value: "275000" } });
         fireEvent.click(screen.getByRole("button", { name: "Create property" }));
 
         await waitFor(() => {
             expect(createPropertyMock).toHaveBeenCalledWith(expect.objectContaining({
                 label: "",
+                manual_data: expect.objectContaining({
+                    price: 275000,
+                }),
                 schedule_interval_seconds: 0,
-                url: "https://example.com/new-listing",
+                url: "",
             }));
         });
         expect(await screen.findByRole("button", { name: "Edit" })).toBeInTheDocument();

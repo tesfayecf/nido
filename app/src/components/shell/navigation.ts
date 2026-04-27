@@ -38,7 +38,7 @@ export const AUTHENTICATED_SECTIONS: readonly NavSection[] = [
     },
     {
         items: [
-            { icon: "home", label: "Overview", to: "/dashboard" },
+            { icon: "home", label: "Portfolio Dashboard", to: "/dashboard" },
             { icon: "inbox", label: "Review Queue", to: "/triage" },
             { icon: "bell", label: "Notifications", to: "/notifications" },
         ],
@@ -63,7 +63,7 @@ export const AUTHENTICATED_SECTIONS: readonly NavSection[] = [
 ];
 
 const routeMeta: readonly [RegExp, RouteMeta][] = [
-    [/^\/dashboard$/, { section: "Operations", title: "Overview" }],
+    [/^\/dashboard$/, { section: "Operations", title: "Portfolio Dashboard" }],
     [/^\/triage$/, { section: "Operations", title: "Review Queue" }],
     [/^\/properties\/new$/, { section: "Properties", title: "New property" }],
     [/^\/properties\/[^/]+\/fields\/[^/]+\/analysis$/, { section: "Market Analysis", title: "Field analysis" }],

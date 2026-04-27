@@ -22,6 +22,16 @@ type propertyUpsertRequest struct {
 	Paused                  *bool                             `json:"paused,omitempty"`
 	PauseReason             *string                           `json:"pause_reason,omitempty"`
 	Metadata                *ingestiondomain.PropertyMetadata `json:"metadata,omitempty"`
+	ManualData              *propertyManualDataRequest        `json:"manual_data,omitempty"`
+}
+
+type propertyManualDataRequest struct {
+	AreaSqm     *float64 `json:"area_sqm,omitempty"`
+	Bathrooms   *float64 `json:"bathrooms,omitempty"`
+	Location    *string  `json:"location,omitempty"`
+	Price       *int64   `json:"price,omitempty"`
+	PropertyAge *int64   `json:"property_age,omitempty"`
+	Rooms       *float64 `json:"rooms,omitempty"`
 }
 
 // RegisterProperties binds property tracking HTTP routes to the supplied mux.
@@ -54,7 +64,13 @@ func RegisterProperties(mux *http.ServeMux, requireAuth func(http.Handler) http.
 			return
 		}
 
-		property, err := service.EnsureProperty(r.Context(), propertyFromUpsertRequest(request))
+		manualValues := manualDataFromRequest(request.ManualData)
+		if _, ok := manualValues["price"]; !ok {
+			platformhttp.WriteError(w, http.StatusBadRequest, "price is required")
+			return
+		}
+
+		property, err := service.UpsertPropertyWithManualData(r.Context(), propertyFromUpsertRequest(request), manualValues)
 		if err != nil {
 			platformhttp.WriteError(w, http.StatusBadRequest, err.Error())
 			return
@@ -146,7 +162,7 @@ func RegisterProperties(mux *http.ServeMux, requireAuth func(http.Handler) http.
 			return
 		}
 
-		property, err := service.EnsureProperty(r.Context(), mergePropertyUpsertRequest(existing, request))
+		property, err := service.UpsertPropertyWithManualData(r.Context(), mergePropertyUpsertRequest(existing, request), manualDataFromRequest(request.ManualData))
 		if err != nil {
 			platformhttp.WriteError(w, http.StatusBadRequest, err.Error())
 			return
@@ -443,4 +459,38 @@ func mergePropertyUpsertRequest(existing ingestiondomain.Property, request prope
 		property.Metadata = *request.Metadata
 	}
 	return property
+}
+
+func manualDataFromRequest(request *propertyManualDataRequest) map[string]string {
+	if request == nil {
+		return nil
+	}
+
+	values := map[string]string{}
+	if request.Price != nil {
+		values["price"] = strconv.FormatInt(*request.Price, 10)
+	}
+	if request.AreaSqm != nil {
+		values["area_m2"] = strconv.FormatFloat(*request.AreaSqm, 'f', -1, 64)
+	}
+	if request.Rooms != nil {
+		values["rooms"] = strconv.FormatFloat(*request.Rooms, 'f', -1, 64)
+	}
+	if request.Bathrooms != nil {
+		values["bathrooms"] = strconv.FormatFloat(*request.Bathrooms, 'f', -1, 64)
+	}
+	if request.PropertyAge != nil {
+		values["property_age"] = strconv.FormatInt(*request.PropertyAge, 10)
+	}
+	if request.Location != nil {
+		trimmed := strings.TrimSpace(*request.Location)
+		if trimmed != "" {
+			values["location"] = trimmed
+		}
+	}
+	if len(values) == 0 {
+		return nil
+	}
+
+	return values
 }
