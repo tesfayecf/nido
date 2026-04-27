@@ -95,7 +95,7 @@ export const ContextualHelp = ({ className, content, title }: ContextualHelpProp
             <button
                 aria-controls={popoverId}
                 aria-expanded={open}
-                aria-haspopup={"dialog"}
+                aria-haspopup={"true"}
                 aria-label={`Show help for ${title}`}
                 className={"contextual-help__trigger"}
                 onClick={() => {
@@ -109,7 +109,6 @@ export const ContextualHelp = ({ className, content, title }: ContextualHelpProp
                 type={"button"}
             >
                 <Icon className={"contextual-help__icon"} name={"info"} />
-                <span className={"sr-only"}>{content}</span>
             </button>
             {open ? (
                 <span className={"contextual-help__popover"} id={popoverId} role={"tooltip"}>

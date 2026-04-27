@@ -429,8 +429,8 @@ textarea {
 }
 
 .contextual-help__popover {
-    background: color-mix(in srgb, var(--color-text) 96%, transparent);
-    border: 1px solid color-mix(in srgb, var(--color-text) 18%, transparent);
+    background: var(--color-text);
+    border: 1px solid var(--color-border-strong);
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-overlay);
     color: var(--color-surface-strong);
