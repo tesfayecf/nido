@@ -1566,6 +1566,15 @@ textarea {
 
 .input-control__input--select {
     appearance: none;
+    background-color: var(--color-surface-strong);
+    color: var(--color-text);
+    color-scheme: light dark;
+}
+
+.input-control__input--select option,
+.field__control option {
+    background-color: var(--color-surface-strong);
+    color: var(--color-text);
 }
 
 .input-control__prefix,
@@ -2766,6 +2775,36 @@ body {
     align-items: center;
     display: flex;
     gap: 0.5rem;
+}
+
+.property-detail-nav {
+    align-items: center;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    display: flex;
+    gap: var(--space-2);
+    overflow-x: auto;
+    padding: var(--space-2);
+    position: sticky;
+    top: calc(var(--shell-header-height) + var(--space-2));
+    z-index: 2;
+}
+
+.property-detail-nav__link {
+    border-radius: var(--radius-pill);
+    color: var(--color-text-secondary);
+    flex: 0 0 auto;
+    font-size: var(--text-sm);
+    font-weight: 700;
+    padding: 0.45rem 0.75rem;
+    text-decoration: none;
+}
+
+.property-detail-nav__link:hover,
+.property-detail-nav__link:focus-visible {
+    background: var(--color-accent-soft);
+    color: var(--color-text);
 }
 
 .dashboard-grid {

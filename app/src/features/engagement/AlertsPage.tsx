@@ -3,11 +3,12 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/Button";
+import { DataTable } from "@/components/ui/DataTable";
 import { Field } from "@/components/ui/Field";
 import { FormGrid } from "@/components/ui/FormGrid";
+import { Dialog } from "@/components/ui/Dialog";
+import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/Input";
-import { ItemList } from "@/components/ui/ItemList";
-import { ListRow, ListRowFooter, ListRowMain } from "@/components/ui/ListRow";
 import { AsyncContent } from "@/components/ui/AsyncContent";
 import { PageCard } from "@/components/ui/PageCard";
 import { PageStack } from "@/components/ui/PageStack";
@@ -24,6 +25,7 @@ export const AlertsPage = (): JSX.Element => {
     const [propertyId, setPropertyId] = useState("");
     const [ruleType, setRuleType] = useState("price_drop");
     const [thresholdAmount, setThresholdAmount] = useState("");
+    const [createOpen, setCreateOpen] = useState(false);
     const propertiesQuery = useQuery({
         queryFn: () => listProperties(),
         queryKey: propertyKeys.list(),
@@ -36,6 +38,7 @@ export const AlertsPage = (): JSX.Element => {
         mutationFn: createAlertRule,
         onSuccess() {
             setThresholdAmount("");
+            setCreateOpen(false);
             void queryClient.invalidateQueries({ queryKey: alertRuleKeys.all() });
         },
     });
@@ -53,20 +56,65 @@ export const AlertsPage = (): JSX.Element => {
     const submitDisabled = propertyId === "" || (thresholdNeeded && parsedThreshold === undefined);
 
     return (
-        <PageStack>
-            <PageCard description={"Alert rules are evaluated per property after each new run."} title={"Create Alert Rule"}>
+        <>
+            <PageStack>
+            <PageCard
+                action={(
+                    <Button iconBefore={<Icon name={"plus"} />} onClick={() => { setCreateOpen(true); }}>
+                        {"Create"}
+                    </Button>
+                )}
+                description={"Active rules stay attached to their property until you delete them."}
+                title={"Alerts"}
+            >
+                <AsyncContent
+                    emptyMessage={"No alert rules have been created yet."}
+                    errorMessage={"Could not load alert rules."}
+                    isEmpty={alertRulesQuery.isSuccess && alertRules.length === 0}
+                    isError={alertRulesQuery.isError}
+                    isLoading={alertRulesQuery.isLoading}
+                    loadingMessage={"Loading alert rules..."}
+                >
+                    <DataTable
+                        caption={"Current alert rules"}
+                        columns={[
+                            { cell: (item) => getRuleTypeLabel(item.rule_type), header: "Rule", id: "rule", sortValue: (item) => item.rule_type },
+                            { cell: (item) => propertyLabelById.get(item.property_id) ?? item.property_id, header: "Property", id: "property" },
+                            { cell: (item) => getRuleTypeLogic(item.rule_type, item.threshold_amount), header: "Condition", id: "condition", wrap: true },
+                            { cell: (item) => item.threshold_amount === undefined ? "No threshold" : `${item.threshold_amount}`, header: "Threshold", id: "threshold" },
+                            { cell: (item) => item.enabled ? "Active" : "Inactive", header: "Status", id: "status" },
+                            {
+                                align: "right",
+                                cell: (item) => (
+                                    <button aria-label={"Delete alert rule"} className={"icon-button icon-button--danger"} disabled={deleteMutation.isPending} onClick={() => { deleteMutation.mutate(item.id); }} title={"Delete"} type={"button"}>
+                                        <Icon name={"trash"} />
+                                    </button>
+                                ),
+                                header: "Actions",
+                                id: "actions",
+                                width: "6rem",
+                            },
+                        ]}
+                        compact
+                        emptyMessage={"No alert rules have been created yet."}
+                        getRowId={(item) => item.id}
+                        items={alertRules}
+                        pageSize={12}
+                    />
+                </AsyncContent>
+            </PageCard>
+            </PageStack>
+            <Dialog onOpenChange={setCreateOpen} open={createOpen} title={"Create alert rule"}>
                 <FormGrid
                     onSubmit={(event) => {
                         event.preventDefault();
-                        if (submitDisabled) {
-                            return;
+                        if (!submitDisabled) {
+                            createMutation.mutate({
+                                property_id: propertyId,
+                                rule_type: ruleType,
+                                threshold_amount: thresholdNeeded ? parsedThreshold : undefined,
+                            });
                         }
-
-                        createMutation.mutate({
-                            property_id: propertyId,
-                            rule_type: ruleType,
-                            threshold_amount: thresholdNeeded ? parsedThreshold : undefined,
-                        });
                     }}
                 >
                     <Field label={"Property"}>
@@ -89,48 +137,12 @@ export const AlertsPage = (): JSX.Element => {
                             <Input min={0} onChange={(event) => { setThresholdAmount(event.target.value); }} step={1} type={"number"} value={thresholdAmount} />
                         </Field>
                     ) : null}
-                    <Field as={"div"} variant={"actions"}>
-                        <Button disabled={submitDisabled} isLoading={createMutation.isPending} loadingLabel={"Saving rule"} type={"submit"}>
-                            {"Create rule"}
-                        </Button>
-                    </Field>
+                    <div className={"action-group"}>
+                        <Button onClick={() => { setCreateOpen(false); }} type={"button"} variant={"secondary"}>{"Cancel"}</Button>
+                        <Button disabled={submitDisabled} isLoading={createMutation.isPending} loadingLabel={"Saving rule"} type={"submit"}>{"Create rule"}</Button>
+                    </div>
                 </FormGrid>
-            </PageCard>
-
-            <PageCard description={"Active rules stay attached to their property until you delete them."} title={"Current Alert Rules"}>
-                <AsyncContent
-                    emptyMessage={"No alert rules have been created yet."}
-                    errorMessage={"Could not load alert rules."}
-                    isEmpty={alertRulesQuery.isSuccess && alertRules.length === 0}
-                    isError={alertRulesQuery.isError}
-                    isLoading={alertRulesQuery.isLoading}
-                    loadingMessage={"Loading alert rules..."}
-                >
-                    <ItemList>
-                        {alertRules.map((item) => {
-                            return (
-                                <ListRow key={item.id}>
-                                    <ListRowMain>
-                                        <div>
-                                            <h3 className={"list-row__title"}>{getRuleTypeLabel(item.rule_type)}</h3>
-                                            <p className={"list-row__meta"}>
-                                                {"When "}
-                                                <strong>{propertyLabelById.get(item.property_id) ?? item.property_id}</strong>
-                                                {" "}{getRuleTypeLogic(item.rule_type, item.threshold_amount)}
-                                            </p>
-                                        </div>
-                                        <strong className={"list-row__price"}>{item.threshold_amount === undefined ? "No threshold" : `${item.threshold_amount}`}</strong>
-                                    </ListRowMain>
-                                    <ListRowFooter>
-                                        <span>{item.enabled ? "Active" : "Inactive"}</span>
-                                        <Button disabled={deleteMutation.isPending} onClick={() => { deleteMutation.mutate(item.id); }} variant={"secondary"}>{"Delete"}</Button>
-                                    </ListRowFooter>
-                                </ListRow>
-                            );
-                        })}
-                    </ItemList>
-                </AsyncContent>
-            </PageCard>
-        </PageStack>
+            </Dialog>
+        </>
     );
 };
