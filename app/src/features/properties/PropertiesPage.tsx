@@ -23,7 +23,6 @@ import { tagKeys } from "@/services/tags/tags.keys";
 import { listPropertyTags } from "@/services/tags/tags.service";
 import { buildPriceIntelligence } from "@/features/properties/priceIntelligence";
 import {
-    createDefaultPropertiesTableState,
     readPropertiesTableState,
     writePropertiesTableState,
     type NumericRangeFilter,
@@ -86,8 +85,8 @@ export const PropertiesPage = (): JSX.Element => {
     const [tableState, setTableState] = useState<PropertiesTableState>(() => readPropertiesTableState(TABLE_STORAGE_KEY, COLUMN_IDS));
     const resizeStateRef = useRef<{ readonly columnId: string; readonly startWidth: number; readonly startX: number; } | null>(null);
 
-    const propertiesQuery = useQuery({
-        queryFn: listProperties,
+    const propertiesQuery = useQuery<Property[]>({
+        queryFn: () => listProperties(),
         queryKey: propertyKeys.list(),
     });
     const summariesQuery = useQuery({
@@ -167,7 +166,8 @@ export const PropertiesPage = (): JSX.Element => {
     const summariesById = useMemo(() => new Map((summariesQuery.data ?? []).map((summary) => [summary.property.id, summary])), [summariesQuery.data]);
     const bookmarkedIds = useMemo(() => new Set((bookmarksQuery.data ?? []).map((bookmark) => bookmark.property_id)), [bookmarksQuery.data]);
     const rows = useMemo(() => {
-        return (propertiesQuery.data ?? []).map((property, index) => {
+        const properties = propertiesQuery.data ?? [];
+        return properties.map((property, index): PropertyRow => {
             const summary = summariesById.get(property.id);
             const price = readSummaryNumber(summary, ["price"]);
             const sizeSquareMeters = readSummaryNumber(summary, ["area_m2", "surface_area", "area"]);
@@ -219,7 +219,11 @@ export const PropertiesPage = (): JSX.Element => {
     }, [rows, tableState.filters]);
 
     const sortedRows = useMemo(() => {
-        const column = COLUMNS.find((candidate) => candidate.id === sortColumnId) ?? COLUMNS[1];
+        const column = COLUMNS.find((candidate) => candidate.id === sortColumnId);
+        if (column === undefined) {
+            return filteredRows;
+        }
+
         return [...filteredRows].sort((left, right) => {
             const leftValue = column.sortValue(left);
             const rightValue = column.sortValue(right);
@@ -241,7 +245,13 @@ export const PropertiesPage = (): JSX.Element => {
 
     const roomOptions = useMemo(() => buildDiscreteOptions(rows.map((row) => row.rooms)), [rows]);
     const bathroomOptions = useMemo(() => buildDiscreteOptions(rows.map((row) => row.bathrooms)), [rows]);
-    const locationOptions = useMemo(() => Array.from(new Set(rows.map((row) => row.location).filter((value): value is string => value !== undefined && value !== ""))).sort((left, right) => left.localeCompare(right)), [rows]);
+    const locationOptions = useMemo(() => {
+        const locations = rows
+            .map((row) => row.location)
+            .filter((value): value is string => value !== undefined && value !== "");
+
+        return Array.from(new Set(locations)).sort((left, right) => left.localeCompare(right));
+    }, [rows]);
 
     return (
         <PageStack>

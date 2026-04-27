@@ -598,12 +598,17 @@ export const PropertyDetailPage = (): JSX.Element => {
     }, [fieldDefinitionsQuery.data, fieldRows, latestSnapshot?.values]);
     const latestValues = useMemo(() => Object.fromEntries(extractedValueRows.map((item) => [item.field, item.value])), [extractedValueRows]);
     useEffect(() => {
-        if (isCreateMode || editOpen || Object.keys(latestValues).length === 0) {
+        if (isCreateMode || editOpen) {
             return;
         }
 
-        setManualDataDraft(snapshotValuesToManualDataDraft(latestValues));
-    }, [editOpen, isCreateMode, latestValues]);
+        const sourceValues = Object.keys(latestValues).length > 0 ? latestValues : summaryQuery.data?.current_values;
+        if (sourceValues === undefined || Object.keys(sourceValues).length === 0) {
+            return;
+        }
+
+        setManualDataDraft(snapshotValuesToManualDataDraft(sourceValues));
+    }, [editOpen, isCreateMode, latestValues, summaryQuery.data?.current_values]);
     const attributes = useMemo(() => buildPropertyAttributes(latestValues), [latestValues]);
     const recentRuns = useMemo(() => {
         const snapshots = snapshotsQuery.data ?? [];

@@ -150,7 +150,7 @@ const DashboardBarChart = ({
                         borderRadius: 8,
                         data: values,
                     }],
-                    labels,
+                    labels: [...labels],
                 }}
                 options={createBaseChartOptions<"bar">(theme, { hideLegend: true })}
             />

@@ -239,6 +239,7 @@ describe("PropertyDetailPage", () => {
         renderPropertyDetailPage();
 
         fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+        fireEvent.change(screen.getByRole("spinbutton"), { target: { value: "220000" } });
         fireEvent.click(screen.getByRole("button", { name: "Show advanced configs" }));
 
         const scheduleInput = document.querySelector<HTMLInputElement>("#prop-schedule-value");
@@ -274,7 +275,7 @@ describe("PropertyDetailPage", () => {
         expect(screen.queryByLabelText("Target price")).not.toBeInTheDocument();
         expect(screen.queryByLabelText("Run interval")).not.toBeInTheDocument();
         expect(screen.getByRole("button", { name: "Create property" })).toBeDisabled();
-        fireEvent.change(screen.getByLabelText("Price"), { target: { value: "275000" } });
+        fireEvent.change(screen.getByRole("spinbutton"), { target: { value: "275000" } });
         fireEvent.click(screen.getByRole("button", { name: "Create property" }));
 
         await waitFor(() => {
