@@ -25,7 +25,12 @@ export const DashboardPage = (): JSX.Element => {
     return (
         <PageStack>
             <PageCard
-                action={<Button as={Link} to={"/properties"}>{"Open properties table"}</Button>}
+                action={(
+                    <div className={"action-group"}>
+                        <Button as={Link} to={"/properties/new"}>{"Add Property"}</Button>
+                        <Button as={Link} to={"/properties"} variant={"secondary"}>{"Open properties table"}</Button>
+                    </div>
+                )}
                 description={"Price-first portfolio view for movement, ranking, and stagnation in a single screen."}
                 title={"Portfolio dashboard"}
             >

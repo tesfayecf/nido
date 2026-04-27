@@ -289,7 +289,7 @@ export const PropertiesPage = (): JSX.Element => {
                             ) : null}
                         </div>
                         <Button as={Link} iconBefore={<Icon name={"plus"} />} to={"/properties/new"}>
-                            {"New property"}
+                            {"Add Property"}
                         </Button>
                     </div>
                 )}
