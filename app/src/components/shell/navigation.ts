@@ -30,29 +30,28 @@ export const AUTHENTICATED_SECTIONS: readonly NavSection[] = [
     {
         items: [
             { icon: "search", label: "Properties", to: "/properties" },
+            { icon: "home", label: "Dashboard", to: "/dashboard" },
             { icon: "history", label: "Market Analysis", to: "/analytics" },
-            { icon: "bookmark", label: "Saved / Shortlist", to: "/bookmarks" },
-            { icon: "play", label: "Alerts", to: "/alerts" },
+            { icon: "bookmark", label: "Bookmarks", to: "/bookmarks" },
         ],
-        title: "Core workflow",
+        title: "Core",
     },
     {
         items: [
-            { icon: "home", label: "Portfolio Dashboard", to: "/dashboard" },
             { icon: "inbox", label: "Review Queue", to: "/triage" },
+            { icon: "play", label: "Alerts", to: "/alerts" },
             { icon: "bell", label: "Notifications", to: "/notifications" },
         ],
         title: "Operations",
     },
     {
         items: [
-            { icon: "settings", label: "Admin Console", to: "/admin" },
             { icon: "sources", label: "Sources", to: "/sources" },
             { icon: "history", label: "Runs", to: "/runs" },
             { icon: "bookmark", label: "Fields", to: "/fields" },
             { icon: "bookmark", label: "Tags", to: "/tags" },
         ],
-        title: "Admin / Advanced",
+        title: "Advanced",
     },
     {
         items: [
@@ -63,25 +62,24 @@ export const AUTHENTICATED_SECTIONS: readonly NavSection[] = [
 ];
 
 const routeMeta: readonly [RegExp, RouteMeta][] = [
-    [/^\/dashboard$/, { section: "Operations", title: "Portfolio Dashboard" }],
+    [/^\/dashboard$/, { section: "Core", title: "Dashboard" }],
     [/^\/triage$/, { section: "Operations", title: "Review Queue" }],
     [/^\/properties\/new$/, { section: "Properties", title: "New property" }],
     [/^\/properties\/[^/]+\/fields\/[^/]+\/analysis$/, { section: "Market Analysis", title: "Field analysis" }],
     [/^\/properties\/[^/]+$/, { section: "Properties", title: "Property detail" }],
     [/^\/properties$/, { section: "Properties", title: "Properties" }],
-    [/^\/analytics$/, { section: "Market Analysis", title: "Market Analysis" }],
-    [/^\/bookmarks$/, { section: "Saved / Shortlist", title: "Saved / Shortlist" }],
-    [/^\/alerts$/, { section: "Alerts", title: "Alerts" }],
+    [/^\/analytics$/, { section: "Core", title: "Market Analysis" }],
+    [/^\/bookmarks$/, { section: "Core", title: "Bookmarks" }],
+    [/^\/alerts$/, { section: "Operations", title: "Alerts" }],
     [/^\/notifications$/, { section: "Operations", title: "Notifications" }],
-    [/^\/fields$/, { section: "Admin / Advanced", title: "Fields" }],
-    [/^\/sources\/new$/, { section: "Admin / Advanced", title: "New source" }],
-    [/^\/sources\/[^/]+$/, { section: "Admin / Advanced", title: "Source detail" }],
-    [/^\/sources$/, { section: "Admin / Advanced", title: "Sources" }],
-    [/^\/runs\/[^/]+$/, { section: "Admin / Advanced", title: "Run detail" }],
-    [/^\/runs$/, { section: "Admin / Advanced", title: "Runs" }],
-    [/^\/tags$/, { section: "Admin / Advanced", title: "Tags" }],
+    [/^\/fields$/, { section: "Advanced", title: "Fields" }],
+    [/^\/sources\/new$/, { section: "Advanced", title: "New source" }],
+    [/^\/sources\/[^/]+$/, { section: "Advanced", title: "Source detail" }],
+    [/^\/sources$/, { section: "Advanced", title: "Sources" }],
+    [/^\/runs\/[^/]+$/, { section: "Advanced", title: "Run detail" }],
+    [/^\/runs$/, { section: "Advanced", title: "Runs" }],
+    [/^\/tags$/, { section: "Advanced", title: "Tags" }],
     [/^\/settings$/, { section: "Account", title: "Settings" }],
-    [/^\/admin$/, { section: "Admin / Advanced", title: "Admin Console" }],
     [/^\/login$/, { section: "Access", title: "Sign In" }],
 ];
 

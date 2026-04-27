@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
 
 import { ThemeToggle } from "@/components/shell/ThemeToggle";
 import { ActionGroup } from "@/components/ui/ActionGroup";
@@ -20,8 +19,8 @@ import { Textarea } from "@/components/ui/Textarea";
 import { useToast } from "@/components/ui/ToastProvider";
 import { authKeys } from "@/services/auth/auth.keys";
 import { changePassword, getCurrentUser, updateProfile } from "@/services/auth/auth.service";
-import { propertyKeys } from "@/services/properties/properties.keys";
-import { listProperties } from "@/services/properties/properties.service";
+import { sourceKeys } from "@/services/backoffice-sources/sources.keys";
+import { listSources } from "@/services/backoffice-sources/sources.service";
 import { tagKeys } from "@/services/tags/tags.keys";
 import { listTags } from "@/services/tags/tags.service";
 
@@ -36,7 +35,6 @@ import {
 interface NotificationPreferencesDraft {
     readonly channels: string[];
     readonly digestMode: boolean;
-    readonly mutedPropertyIds: string[];
     readonly mutedTagIds: string[];
     readonly quietHoursEnd: string;
     readonly quietHoursStart: string;
@@ -47,7 +45,6 @@ const PREFERENCE_STORAGE_KEY = "nido.notification-preferences";
 const DEFAULT_PREFERENCES: NotificationPreferencesDraft = {
     channels: ["in-app", "email"],
     digestMode: true,
-    mutedPropertyIds: [],
     mutedTagIds: [],
     quietHoursEnd: "07:00",
     quietHoursStart: "22:00",
@@ -61,9 +58,9 @@ export const SettingsPage = (): JSX.Element => {
         queryFn: getCurrentUser,
         queryKey: authKeys.me(),
     });
-    const propertiesQuery = useQuery({
-        queryFn: () => listProperties(),
-        queryKey: propertyKeys.list(),
+    const sourcesQuery = useQuery({
+        queryFn: listSources,
+        queryKey: sourceKeys.list(),
     });
     const tagsQuery = useQuery({
         queryFn: listTags,
@@ -167,7 +164,7 @@ export const SettingsPage = (): JSX.Element => {
     return (
         <PageStack>
             <PageCard
-                description={"Keep price evaluation defaults, property intake behavior, and admin controls clearly separated."}
+                description={"Keep price evaluation defaults, property intake behavior, and recovery/data movement controls clearly separated."}
                 title={"Settings"}
             >
                 <Tabs
@@ -291,17 +288,6 @@ export const SettingsPage = (): JSX.Element => {
                                                     values={preferences.channels}
                                                 />
                                             </Field>
-                                            <Field fullWidth label={"Muted properties"}>
-                                                <MultiSelect
-                                                    onChange={(values) => { setPreferences((current) => ({ ...current, mutedPropertyIds: values })); }}
-                                                    options={(propertiesQuery.data ?? []).map((property) => ({
-                                                        label: property.label !== "" ? property.label : property.url,
-                                                        value: property.id,
-                                                    }))}
-                                                    placeholder={"Mute selected properties"}
-                                                    values={preferences.mutedPropertyIds}
-                                                />
-                                            </Field>
                                             <Field fullWidth label={"Muted tags"}>
                                                 <MultiSelect
                                                     onChange={(values) => { setPreferences((current) => ({ ...current, mutedTagIds: values })); }}
@@ -337,7 +323,7 @@ export const SettingsPage = (): JSX.Element => {
                                             <Field label={"Default source"}>
                                                 <Select onChange={(event) => { setWorkspaceSettings((current) => ({ ...current, operations: { ...current.operations, default_source_id: event.target.value } })); }} value={workspaceSettings.operations.default_source_id}>
                                                     <option value={""}>{"No default source"}</option>
-                                                    {(propertiesQuery.data ?? []).map((property) => <option key={property.id} value={property.source_id ?? ""}>{property.source_id ?? "No source"}</option>)}
+                                                    {(sourcesQuery.data ?? []).map((source) => <option key={source.id} value={source.id}>{source.name}</option>)}
                                                 </Select>
                                             </Field>
                                             <Field label={"Default interval value"}>
@@ -377,6 +363,22 @@ export const SettingsPage = (): JSX.Element => {
                                             <Field fullWidth label={"Type fields"}>
                                                 <Textarea onChange={(event) => { setTypeFieldsText(event.target.value); }} rows={4} value={typeFieldsText} />
                                             </Field>
+                                            <Field fullWidth hint={"Pause automation by source only; property-level pauses are intentionally avoided."} label={"Paused sources"}>
+                                                <MultiSelect
+                                                    onChange={(values) => { setWorkspaceSettings((current) => ({ ...current, operations: { ...current.operations, paused_source_ids: values } })); }}
+                                                    options={(sourcesQuery.data ?? []).map((source) => ({ label: source.name, value: source.id }))}
+                                                    placeholder={"Pause selected sources"}
+                                                    values={workspaceSettings.operations.paused_source_ids}
+                                                />
+                                            </Field>
+                                            <Field fullWidth hint={"Pause automation by tag for operational control across related properties."} label={"Paused tags"}>
+                                                <MultiSelect
+                                                    onChange={(values) => { setWorkspaceSettings((current) => ({ ...current, operations: { ...current.operations, paused_tag_ids: values } })); }}
+                                                    options={(tagsQuery.data ?? []).map((tag) => ({ label: tag.name, value: tag.id }))}
+                                                    placeholder={"Pause selected tags"}
+                                                    values={workspaceSettings.operations.paused_tag_ids}
+                                                />
+                                            </Field>
                                             <ActionGroup>
                                                 <Button type={"submit"}>{"Save operations settings"}</Button>
                                             </ActionGroup>
@@ -386,19 +388,16 @@ export const SettingsPage = (): JSX.Element => {
                             ),
                         },
                         {
-                            id: "admin",
-                            label: "Admin settings",
+                            id: "data",
+                            label: "Recovery & Data Movement",
                             panel: (
                                 <PageStack>
-                                    <PageCard description={"System-wide controls stay isolated from day-to-day user preferences."} title={"Admin console"}>
+                                    <PageCard description={"Recovery and data movement controls live in Settings and stay separate from daily workflows."} title={"Recovery & Data Movement"}>
                                         <KeyValueGrid compact>
-                                            <KeyValuePair label={"System-wide integrations"} value={"Managed in Admin Console"} />
-                                            <KeyValuePair label={"Data reset and seeding"} value={"Managed in Admin Console"} />
-                                            <KeyValuePair label={"Access and platform controls"} value={"Managed in Admin Console"} />
+                                            <KeyValuePair label={"Exports"} value={"Use backend-supported exports when available."} />
+                                            <KeyValuePair label={"Imports"} value={"Validate data before importing into tracked properties."} />
+                                            <KeyValuePair label={"Recovery"} value={"Keep recovery actions behind explicit confirmations."} />
                                         </KeyValueGrid>
-                                        <ActionGroup>
-                                            <Button as={Link} to={"/admin"}>{"Open Admin Console"}</Button>
-                                        </ActionGroup>
                                     </PageCard>
                                 </PageStack>
                             ),

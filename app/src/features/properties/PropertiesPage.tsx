@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/Button";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
@@ -76,6 +76,7 @@ const COLUMNS: readonly PropertyColumn[] = [
 const COLUMN_IDS = COLUMNS.map((column) => column.id);
 
 export const PropertiesPage = (): JSX.Element => {
+    const navigate = useNavigate();
     const workspaceSettings = useMemo(() => readWorkspaceSettings(), []);
     const queryClient = useQueryClient();
     const { pushToast } = useToast();
@@ -83,6 +84,7 @@ export const PropertiesPage = (): JSX.Element => {
     const [sortColumnId, setSortColumnId] = useState<string>("price");
     const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
     const [dragColumnId, setDragColumnId] = useState<string | null>(null);
+    const [filtersOpen, setFiltersOpen] = useState(false);
     const [tableState, setTableState] = useState<PropertiesTableState>(() => readPropertiesTableState(TABLE_STORAGE_KEY, COLUMN_IDS));
     const resizeStateRef = useRef<{ readonly columnId: string; readonly startWidth: number; readonly startX: number; } | null>(null);
 
@@ -288,12 +290,15 @@ export const PropertiesPage = (): JSX.Element => {
                                 </div>
                             ) : null}
                         </div>
+                        <Button onClick={() => { setFiltersOpen((open) => !open); }} variant={"secondary"}>
+                            {filtersOpen ? "Hide filters" : "Filters"}
+                        </Button>
                         <Button as={Link} iconBefore={<Icon name={"plus"} />} to={"/properties/new"}>
                             {"Add Property"}
                         </Button>
                     </div>
                 )}
-                description={"Table-only operational view with persistent column layout, filters, and price-first comparison controls."}
+                description={"Price-first table view with filters tucked away until needed."}
                 title={"Properties"}
             >
                 {propertiesQuery.isError || summariesQuery.isError ? <ErrorBanner>{"Could not load the portfolio table."}</ErrorBanner> : null}
@@ -356,24 +361,43 @@ export const PropertiesPage = (): JSX.Element => {
                                         })}
                                         <th scope={"col"} style={{ width: 132 }}>{"Actions"}</th>
                                     </tr>
-                                    <tr>
-                                        {visibleColumns.map((column) => (
-                                            <th key={`${column.id}-filter`} style={{ width: tableState.widths[column.id] ?? column.width }}>
-                                                {renderFilter(column.id, tableState, setTableState, {
-                                                    bathroomOptions,
-                                                    locationOptions,
-                                                    roomOptions,
-                                                })}
-                                            </th>
-                                        ))}
-                                        <th />
-                                    </tr>
+                                    {filtersOpen ? (
+                                        <tr className={"properties-table__filters-row"}>
+                                            {visibleColumns.map((column) => (
+                                                <th key={`${column.id}-filter`} style={{ width: tableState.widths[column.id] ?? column.width }}>
+                                                    {renderFilter(column.id, tableState, setTableState, {
+                                                        bathroomOptions,
+                                                        locationOptions,
+                                                        roomOptions,
+                                                    })}
+                                                </th>
+                                            ))}
+                                            <th />
+                                        </tr>
+                                    ) : null}
                                 </thead>
                                 <tbody>
                                     {sortedRows.map((row) => {
                                         const isBookmarked = bookmarkedIds.has(row.id);
                                         return (
-                                            <tr key={row.id}>
+                                            <tr
+                                                aria-label={`Open property ${row.label.trim() !== "" ? row.label : row.url.trim() !== "" ? row.url : row.id}`}
+                                                className={"properties-table__row properties-table__row--interactive"}
+                                                key={row.id}
+                                                onClick={(event) => {
+                                                    if (!isEventFromInteractiveElement(event.target)) {
+                                                        void navigate(`/properties/${row.id}`);
+                                                    }
+                                                }}
+                                                onKeyDown={(event) => {
+                                                    if (event.key === "Enter" || event.key === " ") {
+                                                        event.preventDefault();
+                                                        void navigate(`/properties/${row.id}`);
+                                                    }
+                                                }}
+                                                role={"button"}
+                                                tabIndex={0}
+                                            >
                                                 {visibleColumns.map((column) => (
                                                     <td key={`${row.id}-${column.id}`}>
                                                         <div className={"properties-table__cell"}>
@@ -576,6 +600,24 @@ const matchesNumericRange = (value: number | undefined, filter: NumericRangeFilt
 
 const matchesExactNumber = (value: number | undefined, filter: string): boolean => {
     return filter === "" || (value !== undefined && `${formatNumber(value)}` === filter);
+};
+
+const INTERACTIVE_SELECTOR = [
+    "button",
+    "a",
+    "input",
+    "select",
+    "textarea",
+    "[role='button']",
+    "[role='checkbox']",
+    "[role='link']",
+    "[role='menuitem']",
+    "[role='radio']",
+    "[role='switch']",
+].join(", ");
+
+const isEventFromInteractiveElement = (target: EventTarget | null): boolean => {
+    return target instanceof HTMLElement && target.closest(INTERACTIVE_SELECTOR) !== null;
 };
 
 const matchesSelectFilter = (value: string, filter: string): boolean => {

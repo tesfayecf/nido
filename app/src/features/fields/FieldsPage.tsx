@@ -261,9 +261,15 @@ export const FieldsPage = (): JSX.Element => {
                                                 align: "right",
                                                 cell: (item) => (
                                                     <div className={"action-group"}>
-                                                        <Button as={Link} size={"small"} to={`/fields/${encodeURIComponent(item.name)}/analytics`} variant={"secondary"}>{"Analyze"}</Button>
-                                                        <Button onClick={() => { openEdit(item); }} size={"small"} variant={"secondary"}>{"Edit"}</Button>
-                                                        <Button onClick={() => { setDeleteTarget(item); }} size={"small"} variant={"secondary"}>{"Delete"}</Button>
+                                                        <Link aria-label={`Analyze ${item.display_name}`} className={"icon-button"} title={"Analyze"} to={`/fields/${encodeURIComponent(item.name)}/analytics`}>
+                                                            <Icon name={"history"} />
+                                                        </Link>
+                                                        <button aria-label={`Edit ${item.display_name}`} className={"icon-button"} onClick={() => { openEdit(item); }} title={"Edit"} type={"button"}>
+                                                            <Icon name={"edit"} />
+                                                        </button>
+                                                        <button aria-label={`Delete ${item.display_name}`} className={"icon-button icon-button--danger"} onClick={() => { setDeleteTarget(item); }} title={"Delete"} type={"button"}>
+                                                            <Icon name={"trash"} />
+                                                        </button>
                                                     </div>
                                                 ),
                                                 header: "Actions",
@@ -385,12 +391,14 @@ export const FieldsPage = (): JSX.Element => {
                     <Field label={"Unit"}>
                         <Input onChange={(event) => { setForm((current) => ({ ...current, unit: event.target.value })); }} placeholder={"€, m²"} value={form.unit} />
                     </Field>
-                    <Field hint={"Returned when the field is missing or empty."} label={"Default value"}>
-                        <Input onChange={(event) => { setForm((current) => ({ ...current, defaultValue: event.target.value })); }} value={form.defaultValue} />
-                    </Field>
                     <Field label={"Use default if missing"} variant={"checkbox"}>
                         <input checked={form.useDefaultWhenMissing} onChange={(event) => { setForm((current) => ({ ...current, useDefaultWhenMissing: event.target.checked })); }} type={"checkbox"} />
                     </Field>
+                    {form.useDefaultWhenMissing ? (
+                        <Field hint={"Returned when the field is missing or empty."} label={"Default value"}>
+                            <Input onChange={(event) => { setForm((current) => ({ ...current, defaultValue: event.target.value })); }} value={form.defaultValue} />
+                        </Field>
+                    ) : null}
                     {form.dataType === "boolean" ? (
                         <>
                             <Field label={"Comparison rule"}>
@@ -402,9 +410,11 @@ export const FieldsPage = (): JSX.Element => {
                                     <option value={"contains"}>{"Contains"}</option>
                                 </Select>
                             </Field>
-                            <Field label={"Comparison value"}>
-                                <Input disabled={form.comparisonOperator === ""} onChange={(event) => { setForm((current) => ({ ...current, comparisonValue: event.target.value })); }} value={form.comparisonValue} />
-                            </Field>
+                            {form.comparisonOperator !== "" ? (
+                                <Field label={"Comparison value"}>
+                                    <Input onChange={(event) => { setForm((current) => ({ ...current, comparisonValue: event.target.value })); }} value={form.comparisonValue} />
+                                </Field>
+                            ) : null}
                         </>
                     ) : null}
                     <Field label={"Description"}>

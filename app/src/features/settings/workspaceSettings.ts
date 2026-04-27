@@ -19,6 +19,8 @@ export interface WorkspaceOperationSettings {
     readonly default_schedule_interval_unit: "hours" | "minutes" | "seconds";
     readonly default_schedule_interval_value: string;
     readonly default_source_id: string;
+    readonly paused_source_ids: string[];
+    readonly paused_tag_ids: string[];
 }
 
 export interface WorkspacePreferenceSettings {
@@ -53,6 +55,8 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
         default_schedule_interval_unit: "minutes",
         default_schedule_interval_value: "",
         default_source_id: "",
+        paused_source_ids: [],
+        paused_tag_ids: [],
     },
     preferences: {
         default_field_mappings_text: "price -> price\ntotal_price -> price\nasking_price -> price\narea_m2 -> area",
@@ -117,6 +121,8 @@ const normalizeWorkspaceSettings = (value: unknown): WorkspaceSettings => {
             ) as WorkspaceOperationSettings["default_schedule_interval_unit"],
             default_schedule_interval_value: readString(operations.default_schedule_interval_value, DEFAULT_WORKSPACE_SETTINGS.operations.default_schedule_interval_value),
             default_source_id: readString(operations.default_source_id, DEFAULT_WORKSPACE_SETTINGS.operations.default_source_id),
+            paused_source_ids: readStringArray(operations.paused_source_ids, DEFAULT_WORKSPACE_SETTINGS.operations.paused_source_ids),
+            paused_tag_ids: readStringArray(operations.paused_tag_ids, DEFAULT_WORKSPACE_SETTINGS.operations.paused_tag_ids),
         },
         preferences: {
             default_field_mappings_text: readString(preferences.default_field_mappings_text, DEFAULT_WORKSPACE_SETTINGS.preferences.default_field_mappings_text),
