@@ -23,6 +23,7 @@ type propertyServiceStoreStub struct {
 	property            ingestiondomain.Property
 	propertyErr         error
 	config              ingestiondomain.PropertyExtractionConfig
+	propertyRuns        []ingestiondomain.PropertyRun
 	upserted            ingestiondomain.Property
 	updateRunStateCalls []updateRunStateCall
 	snapshots           []ingestiondomain.PropertySnapshot
@@ -35,6 +36,7 @@ func (client *stubFetchClient) Fetch(_ context.Context, request fetcher.Request)
 
 func (s *propertyServiceStoreStub) UpsertProperty(_ context.Context, property ingestiondomain.Property) error {
 	s.property = property
+	s.propertyErr = nil
 	s.upserted = property
 	return nil
 }
@@ -64,6 +66,11 @@ func (s *propertyServiceStoreStub) UpdatePropertyRunState(_ context.Context, pro
 	s.property.Status = status
 	s.property.LastRunAt = lastRunAt
 	s.property.NextRunAt = nextRunAt
+	return nil
+}
+
+func (s *propertyServiceStoreStub) CreatePropertyRun(_ context.Context, run ingestiondomain.PropertyRun) error {
+	s.propertyRuns = append(s.propertyRuns, run)
 	return nil
 }
 
@@ -109,7 +116,12 @@ func (s *propertyServiceStoreStub) DeletePropertySnapshot(context.Context, strin
 }
 
 func (s *propertyServiceStoreStub) GetLastValidPropertySnapshot(context.Context, string) (ingestiondomain.PropertySnapshot, error) {
-	return ingestiondomain.PropertySnapshot{}, nil
+	for index := len(s.snapshots) - 1; index >= 0; index -= 1 {
+		if s.snapshots[index].IsValid {
+			return s.snapshots[index], nil
+		}
+	}
+	return ingestiondomain.PropertySnapshot{}, sql.ErrNoRows
 }
 
 func (s *propertyServiceStoreStub) GetSource(context.Context, string) (ingestiondomain.Source, error) {
@@ -481,6 +493,131 @@ func TestEnsurePropertyReschedulesExistingPropertyWithoutResettingRunState(t *te
 	expectedNextRun := lastRun.Add(1 * time.Hour)
 	if !property.NextRunAt.Equal(expectedNextRun) {
 		t.Fatalf("expected next run %v, got %v", expectedNextRun, *property.NextRunAt)
+	}
+}
+
+func TestUpsertPropertyWithManualDataRequiresPriceWhenCreatingSnapshot(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2024, time.January, 2, 9, 0, 0, 0, time.UTC)
+	store := &propertyServiceStoreStub{propertyErr: sql.ErrNoRows}
+	service := NewPropertyService(nil, store, nil, fixedClock{now: now}, nil, nil)
+
+	_, err := service.UpsertPropertyWithManualData(context.Background(), ingestiondomain.Property{
+		Label: "Manual listing",
+	}, map[string]string{
+		"location": "Bilbao",
+	})
+	if err == nil {
+		t.Fatal("expected manual save without price to fail")
+	}
+	if got := err.Error(); got != "price is required" {
+		t.Fatalf("expected price validation error, got %q", got)
+	}
+}
+
+func TestUpsertPropertyWithManualDataCreatesSnapshotAndRun(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2024, time.January, 2, 9, 30, 0, 0, time.UTC)
+	store := &propertyServiceStoreStub{
+		propertyErr: sql.ErrNoRows,
+		config: ingestiondomain.PropertyExtractionConfig{
+			PropertyID: "prop_1",
+			Version:    3,
+		},
+	}
+	service := NewPropertyService(nil, store, nil, fixedClock{now: now}, nil, nil)
+
+	property, err := service.UpsertPropertyWithManualData(context.Background(), ingestiondomain.Property{
+		Label: "Manual listing",
+	}, map[string]string{
+		"area_m2":   "88",
+		"bathrooms": "2",
+		"price":     "320000",
+		"rooms":     "4",
+	})
+	if err != nil {
+		t.Fatalf("expected manual save to succeed, got %v", err)
+	}
+
+	if property.Status != ingestiondomain.PropertyStatusActive {
+		t.Fatalf("expected active status, got %q", property.Status)
+	}
+	if property.LastRunAt == nil || !property.LastRunAt.Equal(now) {
+		t.Fatalf("expected last run at %v, got %v", now, property.LastRunAt)
+	}
+	if len(store.snapshots) != 1 {
+		t.Fatalf("expected one snapshot, got %d", len(store.snapshots))
+	}
+	if len(store.propertyRuns) != 1 {
+		t.Fatalf("expected one property run, got %d", len(store.propertyRuns))
+	}
+
+	values := decodeSnapshotValues(store.snapshots[0].Values)
+	if values["price"] != "320000" || values["area_m2"] != "88" {
+		t.Fatalf("expected manual values to be persisted, got %+v", values)
+	}
+	if store.propertyRuns[0].TriggerKind != ingestiondomain.TriggerKindManual {
+		t.Fatalf("expected manual run trigger, got %q", store.propertyRuns[0].TriggerKind)
+	}
+	if store.propertyRuns[0].SnapshotID != store.snapshots[0].ID {
+		t.Fatalf("expected run snapshot id %q, got %q", store.snapshots[0].ID, store.propertyRuns[0].SnapshotID)
+	}
+}
+
+func TestUpsertPropertyWithManualDataAppendsToExistingSnapshotValues(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2024, time.January, 2, 10, 0, 0, 0, time.UTC)
+	lastRun := now.Add(-2 * time.Hour)
+	store := &propertyServiceStoreStub{
+		property: ingestiondomain.Property{
+			ID:                      "prop_1",
+			Label:                   "Manual listing",
+			LastRunAt:               &lastRun,
+			RetryBackoffMillis:      500,
+			RetryMaxAttempts:        1,
+			ScheduleIntervalSeconds: 0,
+			Status:                  ingestiondomain.PropertyStatusActive,
+		},
+		snapshots: []ingestiondomain.PropertySnapshot{
+			{
+				ID:         "run_prev",
+				PropertyID: "prop_1",
+				ObservedAt: now.Add(-24 * time.Hour),
+				Values:     []byte(`{"price":"300000","rooms":"3"}`),
+				IsValid:    true,
+			},
+		},
+	}
+	service := NewPropertyService(nil, store, nil, fixedClock{now: now}, nil, nil)
+
+	_, err := service.UpsertPropertyWithManualData(context.Background(), ingestiondomain.Property{
+		ID:    "prop_1",
+		Label: "Manual listing",
+	}, map[string]string{
+		"bathrooms": "2",
+		"price":     "295000",
+	})
+	if err != nil {
+		t.Fatalf("expected manual update to succeed, got %v", err)
+	}
+
+	if len(store.snapshots) != 2 {
+		t.Fatalf("expected appended snapshot, got %d snapshots", len(store.snapshots))
+	}
+	latest := store.snapshots[len(store.snapshots)-1]
+	values := decodeSnapshotValues(latest.Values)
+	changeFlags := map[string]bool{}
+	if err := json.Unmarshal(latest.ChangeFlags, &changeFlags); err != nil {
+		t.Fatalf("expected change flags json, got %v", err)
+	}
+	if values["rooms"] != "3" || values["bathrooms"] != "2" || values["price"] != "295000" {
+		t.Fatalf("expected merged manual values, got %+v", values)
+	}
+	if !changeFlags["price"] || !changeFlags["bathrooms"] {
+		t.Fatalf("expected manual changes to be flagged, got %+v", changeFlags)
 	}
 }
 

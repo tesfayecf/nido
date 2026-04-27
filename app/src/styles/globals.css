@@ -2601,6 +2601,120 @@ body {
     line-height: var(--line-height-tight);
 }
 
+.properties-table__shell {
+    overflow: auto;
+}
+
+.properties-table {
+    border-collapse: separate;
+    border-spacing: 0;
+    min-width: 100%;
+    width: max-content;
+}
+
+.properties-table th,
+.properties-table td {
+    border-bottom: 1px solid var(--color-border);
+    padding: 0.75rem;
+    text-align: left;
+    vertical-align: top;
+}
+
+.properties-table thead th {
+    background: var(--color-surface);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.properties-table__cell {
+    min-width: 0;
+}
+
+.properties-table__sort {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    color: var(--color-text-secondary);
+    display: inline-flex;
+    font-size: var(--text-xs);
+    font-weight: 700;
+    gap: 0.25rem;
+    letter-spacing: 0.06em;
+    padding: 0;
+    text-transform: uppercase;
+}
+
+.properties-table__sort--active {
+    color: var(--color-text);
+}
+
+.properties-table__resize-handle {
+    cursor: col-resize;
+    display: inline-block;
+    float: right;
+    height: 1.25rem;
+    margin-left: 0.5rem;
+    width: 0.5rem;
+}
+
+.properties-table__numeric-filter {
+    display: grid;
+    gap: 0.35rem;
+}
+
+.properties-table__column-menu {
+    position: relative;
+}
+
+.properties-table__column-menu-popover {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    display: grid;
+    gap: 0.5rem;
+    min-width: 12rem;
+    padding: 0.75rem;
+    position: absolute;
+    right: 0;
+    top: calc(100% + 0.5rem);
+    z-index: 3;
+}
+
+.properties-table__column-toggle {
+    align-items: center;
+    display: flex;
+    gap: 0.5rem;
+}
+
+.dashboard-grid {
+    display: grid;
+    gap: var(--space-4);
+}
+
+.dashboard-grid--summary {
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+}
+
+.dashboard-grid--double {
+    grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+}
+
+.dashboard-list {
+    display: grid;
+    gap: var(--space-3);
+}
+
+.dashboard-list__item {
+    background: color-mix(in srgb, var(--color-surface-muted) 84%, var(--color-surface));
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    display: grid;
+    gap: var(--space-1);
+    padding: var(--space-3);
+}
+
 .enterprise-chart {
     height: 20rem;
     min-height: 20rem;
