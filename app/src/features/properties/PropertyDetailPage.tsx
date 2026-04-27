@@ -86,6 +86,7 @@ import { tagKeys } from "@/services/tags/tags.keys";
 import { listPropertyTags, setPropertyTags } from "@/services/tags/tags.service";
 
 const PROPERTY_RUNS_REFETCH_INTERVAL_MS = 5000;
+const AUTOFILL_DEBOUNCE_MS = 300;
 const MIN_RETRY_BACKOFF_MS = 500;
 const BASIS_POINTS_PER_PERCENT = 100;
 
@@ -563,7 +564,7 @@ export const PropertyDetailPage = (): JSX.Element => {
                 setAutofillStatus("error");
                 setAutofillMessage("Could not auto-fill from the URL. You can still create the property with price and URL.");
             }
-        }, 300);
+        }, AUTOFILL_DEBOUNCE_MS);
 
         return () => {
             cancelled = true;
@@ -619,7 +620,7 @@ export const PropertyDetailPage = (): JSX.Element => {
             }
 
             queryClient.setQueryData(propertyKeys.detail(data.id), data);
-            await Promise.all([
+            void Promise.all([
                 queryClient.invalidateQueries({ queryKey: propertyKeys.list() }),
                 queryClient.invalidateQueries({ queryKey: propertyKeys.summaries() }),
                 queryClient.invalidateQueries({ queryKey: propertyKeys.configVersions(data.id) }),
@@ -630,7 +631,7 @@ export const PropertyDetailPage = (): JSX.Element => {
                 return;
             }
 
-            await Promise.all([
+            void Promise.all([
                 queryClient.invalidateQueries({ queryKey: propertyKeys.detail(resolvedId) }),
                 queryClient.invalidateQueries({ queryKey: propertyKeys.summary(resolvedId) }),
             ]);
@@ -823,7 +824,13 @@ export const PropertyDetailPage = (): JSX.Element => {
                 title={isCreateMode ? "Add Property" : "Edit Property"}
             >
                 {propertyQuery.isError ? <ErrorBanner>{"Could not load property."}</ErrorBanner> : null}
-                <FormGrid as={"form"} id={isCreateMode ? "property-create-form" : "property-edit-form"} onSubmit={handlePropertySubmit} variant={"two-column"}>
+                <FormGrid
+                    aria-label={isCreateMode ? "Create property form" : "Edit property form"}
+                    as={"form"}
+                    id={isCreateMode ? "property-create-form" : "property-edit-form"}
+                    onSubmit={handlePropertySubmit}
+                    variant={"two-column"}
+                >
                     <Field error={manualPriceError} fullWidth hint={"Required. Press Enter to create instantly."} label={"Price"}>
                         <Input
                             autoFocus={isCreateMode}
