@@ -17,6 +17,7 @@ type IconName =
     | "home"
     | "history"
     | "inbox"
+    | "info"
     | "more-horizontal"
     | "moon"
     | "play"
@@ -48,6 +49,13 @@ const paths: Record<IconName, JSX.Element> = {
     home: <path d={"M4 11.5 12 5l8 6.5V20H4v-8.5Zm5 8.5v-5h6v5"} fill={"none"} stroke={"currentColor"} strokeLinecap={"round"} strokeLinejoin={"round"} strokeWidth={1.75} />,
     history: <path d={"M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 2"} fill={"none"} stroke={"currentColor"} strokeLinecap={"round"} strokeLinejoin={"round"} strokeWidth={1.75} />,
     inbox: <path d={"M4 6h16v10h-4l-2 3h-4l-2-3H4V6Zm0 7h4m8 0h4"} fill={"none"} stroke={"currentColor"} strokeLinecap={"round"} strokeLinejoin={"round"} strokeWidth={1.75} />,
+    info: (
+        <>
+            <path d={"M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z"} fill={"none"} stroke={"currentColor"} strokeLinecap={"round"} strokeLinejoin={"round"} strokeWidth={1.75} />
+            <path d={"M12 10.5v5"} fill={"none"} stroke={"currentColor"} strokeLinecap={"round"} strokeLinejoin={"round"} strokeWidth={1.75} />
+            <path d={"M12 7.75h.01"} fill={"none"} stroke={"currentColor"} strokeLinecap={"round"} strokeLinejoin={"round"} strokeWidth={2.5} />
+        </>
+    ),
     "more-horizontal": <path d={"M6 12h.01M12 12h.01M18 12h.01"} fill={"none"} stroke={"currentColor"} strokeLinecap={"round"} strokeLinejoin={"round"} strokeWidth={2.5} />,
     moon: <path d={"M15.5 3.5A7 7 0 1 0 20.5 16 8 8 0 1 1 15.5 3.5Z"} fill={"none"} stroke={"currentColor"} strokeLinecap={"round"} strokeLinejoin={"round"} strokeWidth={1.75} />,
     play: <path d={"M7 5v14l11-7L7 5Z"} fill={"none"} stroke={"currentColor"} strokeLinecap={"round"} strokeLinejoin={"round"} strokeWidth={1.75} />,

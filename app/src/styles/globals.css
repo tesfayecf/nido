@@ -367,6 +367,17 @@ textarea {
     padding: var(--space-5);
 }
 
+.page-card__heading {
+    min-width: 0;
+}
+
+.page-card__title-row {
+    align-items: center;
+    display: flex;
+    gap: var(--space-2);
+    min-width: 0;
+}
+
 .page-card__title {
     font-size: var(--text-xl);
     line-height: var(--line-height-tight);
@@ -378,6 +389,60 @@ textarea {
     color: var(--color-text-secondary);
     line-height: var(--line-height-body);
     margin: var(--space-2) 0 0;
+}
+
+.contextual-help {
+    display: inline-flex;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.contextual-help__trigger {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    border-radius: var(--radius-pill);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    display: inline-flex;
+    height: 1.75rem;
+    justify-content: center;
+    margin: -0.25rem;
+    padding: 0.25rem;
+    width: 1.75rem;
+}
+
+.contextual-help__trigger:hover,
+.contextual-help__trigger:focus-visible,
+.contextual-help__trigger[aria-expanded="true"] {
+    background: var(--color-primary-soft);
+    color: var(--color-primary);
+}
+
+.contextual-help__trigger:focus-visible {
+    box-shadow: 0 0 0 0.2rem var(--color-focus-ring);
+}
+
+.contextual-help__icon {
+    height: 1rem;
+    width: 1rem;
+}
+
+.contextual-help__popover {
+    background: color-mix(in srgb, var(--color-text) 96%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-text) 18%, transparent);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-overlay);
+    color: var(--color-surface-strong);
+    left: 0;
+    line-height: var(--line-height-body);
+    max-width: min(24rem, calc(100vw - 2rem));
+    padding: var(--space-3) var(--space-4);
+    position: absolute;
+    top: calc(100% + var(--space-2));
+    width: max-content;
+    word-break: break-word;
+    z-index: var(--z-index-overlay);
 }
 
 .button {

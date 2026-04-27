@@ -24,12 +24,12 @@ export const TagsPage = (): JSX.Element => {
     const [deleteTarget, setDeleteTarget] = useState<Tag | null>(null);
     const [newTagName, setNewTagName] = useState("");
     const [newTagColor, setNewTagColor] = useState("#3b82f6");
-    
+
     const tagsQuery = useQuery({
         queryFn: listTags,
         queryKey: tagKeys.list(),
     });
-    
+
     const createMutation = useMutation({
         mutationFn: createTag,
         onError() {
@@ -43,7 +43,7 @@ export const TagsPage = (): JSX.Element => {
             pushToast("Tag created.", "success");
         },
     });
-    
+
     const deleteMutation = useMutation({
         mutationFn: deleteTag,
         onError() {
@@ -61,13 +61,13 @@ export const TagsPage = (): JSX.Element => {
         if (newTagName.trim() === "") {
             return;
         }
-        
+
         createMutation.mutate({
             color: newTagColor,
             name: newTagName.trim(),
         });
     };
-    
+
     return (
         <>
             <PageCard
@@ -76,11 +76,10 @@ export const TagsPage = (): JSX.Element => {
                         {"New tag"}
                     </Button>
                 )}
+                description={"Manage tags for organizing and filtering properties."}
                 title={"Tags"}
-            >
-                <p className={"muted-copy"}>{"Manage tags for organizing and filtering properties."}</p>
-            </PageCard>
-            
+            />
+
             {tagsQuery.isLoading ? <p className={"state-message state-message--loading"}>{"Loading tags..."}</p> : null}
             {tagsQuery.isError ? <ErrorBanner>{"Could not load tags."}</ErrorBanner> : null}
             {!tagsQuery.isLoading && !tagsQuery.isError ? (
@@ -149,7 +148,7 @@ export const TagsPage = (): JSX.Element => {
                     rowLabel={(item) => `Tag: ${item.name}`}
                 />
             ) : null}
-            
+
             <Dialog
                 actions={(
                     <>
