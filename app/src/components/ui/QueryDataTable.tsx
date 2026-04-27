@@ -10,11 +10,22 @@ interface QueryDataTableProps<TItem> extends DataTableProps<TItem> {
 }
 
 export const QueryDataTable = <TItem,>({
+    caption,
+    className,
+    columns,
+    compact,
+    emptyMessage,
     errorMessage,
+    getRowId,
+    initialSortColumnId,
+    initialSortDirection,
     isError,
     isLoading,
+    items,
     loadingMessage,
-    ...dataTableProps
+    onRowClick,
+    pageSize,
+    rowLabel,
 }: QueryDataTableProps<TItem>): JSX.Element => {
     if (isLoading) {
         return <p className={"state-message state-message--loading"}>{loadingMessage}</p>;
@@ -24,5 +35,20 @@ export const QueryDataTable = <TItem,>({
         return <ErrorBanner>{errorMessage}</ErrorBanner>;
     }
 
-    return <DataTable {...dataTableProps} />;
+    return (
+        <DataTable
+            caption={caption}
+            className={className}
+            columns={columns}
+            compact={compact}
+            emptyMessage={emptyMessage}
+            getRowId={getRowId}
+            initialSortColumnId={initialSortColumnId}
+            initialSortDirection={initialSortDirection}
+            items={items}
+            onRowClick={onRowClick}
+            pageSize={pageSize}
+            rowLabel={rowLabel}
+        />
+    );
 };

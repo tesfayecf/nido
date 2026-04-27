@@ -17,20 +17,16 @@ const columns = [
 
 describe("QueryDataTable", () => {
     it("shows loading and error states before rendering the table", () => {
-        const props = {
-            columns,
-            emptyMessage: "No rows",
-            errorMessage: "Could not load rows.",
-            getRowId: (item: Row) => item.id,
-            items: [{ id: "row-1" }],
-            loadingMessage: "Loading rows...",
-        };
-
         const { rerender } = render(
             <QueryDataTable<Row>
-                {...props}
+                columns={columns}
+                emptyMessage={"No rows"}
+                errorMessage={"Could not load rows."}
+                getRowId={(item) => item.id}
                 isError={false}
                 isLoading
+                items={[{ id: "row-1" }]}
+                loadingMessage={"Loading rows..."}
             />,
         );
 
@@ -38,9 +34,14 @@ describe("QueryDataTable", () => {
 
         rerender(
             <QueryDataTable<Row>
-                {...props}
+                columns={columns}
+                emptyMessage={"No rows"}
+                errorMessage={"Could not load rows."}
+                getRowId={(item) => item.id}
                 isError
                 isLoading={false}
+                items={[{ id: "row-1" }]}
+                loadingMessage={"Loading rows..."}
             />,
         );
 
@@ -48,9 +49,14 @@ describe("QueryDataTable", () => {
 
         rerender(
             <QueryDataTable<Row>
-                {...props}
+                columns={columns}
+                emptyMessage={"No rows"}
+                errorMessage={"Could not load rows."}
+                getRowId={(item) => item.id}
                 isError={false}
                 isLoading={false}
+                items={[{ id: "row-1" }]}
+                loadingMessage={"Loading rows..."}
             />,
         );
 
