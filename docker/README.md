@@ -22,6 +22,16 @@ From the repository root:
 docker buildx build --platform linux/arm64 -t tesfayecf/nido:latest-arm64 -f ./docker/Dockerfile . --load
 ```
 
+## GitHub Actions Publish
+
+The repository workflow at `.github/workflows/docker-publish.yml` builds and publishes a multi-platform image to GitHub Container Registry:
+
+- image: `ghcr.io/tesfayecf/nido`
+- platforms: `linux/amd64`, `linux/arm64`
+- push triggers: version tags matching `v*`
+
+Authentication uses the workflow `GITHUB_TOKEN`, so no extra registry secret is required as long as the workflow keeps `packages: write` permission. If you want anonymous pulls for a public repository, set the package visibility to public in the GitHub Packages settings after the first publish.
+
 ## Run
 
 From the repository root:

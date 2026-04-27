@@ -20,11 +20,14 @@ The frontend is a React single-page application for authenticated operators. It 
 
 Read this set in order when you are new to the frontend:
 
-1. [UI Architecture](./ui-architecture.md)
-2. [State Management](./state-management.md)
-3. [Components](./components.md)
-4. [Interaction Patterns](./interaction-patterns.md)
-5. Feature guides under [features](./features)
+1. [Design Brief](./design-brief.md)
+2. [Page Inventory & Wireframes](./page-inventory.md)
+3. [Design System Brief](./design-system-brief.md)
+4. [UI Architecture](./ui-architecture.md)
+5. [State Management](./state-management.md)
+6. [Components](./components.md)
+7. [Interaction Patterns](./interaction-patterns.md)
+8. Feature guides under [features](./features)
 
 Frontend responsibilities today:
 
@@ -45,6 +48,9 @@ Frontend truth sources:
 
 ## Related Docs
 
+- [Design Brief](./design-brief.md)
+- [Page Inventory & Wireframes](./page-inventory.md)
+- [Design System Brief](./design-system-brief.md)
 - [UI Architecture](./ui-architecture.md)
 - [State Management](./state-management.md)
 - [Interaction Patterns](./interaction-patterns.md)
