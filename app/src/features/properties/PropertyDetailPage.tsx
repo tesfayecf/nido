@@ -243,6 +243,34 @@ const validateOptionalPropertyURL = (value: string): string | undefined => {
     }
 };
 
+const getCreateURLHint = (
+    url: string,
+    autofillStatus: "error" | "idle" | "loading" | "success",
+    autofillMessage: string,
+): string => {
+    if (url.trim() === "") {
+        return "Optional reference. If a source template is linked, Nido can auto-fill details without blocking creation.";
+    }
+
+    if (autofillStatus === "loading") {
+        return "Checking the URL for available details...";
+    }
+
+    if (autofillMessage !== "") {
+        return autofillMessage;
+    }
+
+    return "Optional reference. If a source template is linked, Nido can auto-fill details without blocking creation.";
+};
+
+const getSavePropertyLabel = (isCreateMode: boolean, isPending: boolean): string => {
+    if (isPending) {
+        return "Saving...";
+    }
+
+    return isCreateMode ? "Create Property" : "Save changes";
+};
+
 const snapshotValuesToManualDataDraft = (values: Record<string, string>): PropertyManualDataDraft => ({
     areaSqm: values.area_m2 ?? values.surface_area ?? values.area ?? "",
     bathrooms: values.bathrooms ?? "",
@@ -459,13 +487,7 @@ export const PropertyDetailPage = (): JSX.Element => {
         () => parseSelectorConfigJson(selectedSource?.config_json),
         [selectedSource?.config_json],
     );
-    const createURLHint = url.trim() === ""
-        ? "Optional reference. If a source template is linked, Nido can auto-fill details without blocking creation."
-        : autofillStatus === "loading"
-            ? "Checking the URL for available details..."
-            : autofillMessage !== ""
-                ? autofillMessage
-                : "Optional reference. If a source template is linked, Nido can auto-fill details without blocking creation.";
+    const createURLHint = getCreateURLHint(url, autofillStatus, autofillMessage);
 
     const updateManualDataField = (field: PropertyManualDataDraftKey, value: string): void => {
         manualOverrideFieldsRef.current.add(field);
@@ -831,7 +853,7 @@ export const PropertyDetailPage = (): JSX.Element => {
                     onSubmit={handlePropertySubmit}
                     variant={"two-column"}
                 >
-                    <Field error={manualPriceError} fullWidth hint={"Required. Press Enter to create instantly."} label={"Price"}>
+                    <Field error={manualPriceError} fullWidth hint={"Required. Press Enter to submit when the form is valid."} label={"Price"}>
                         <Input
                             autoFocus={isCreateMode}
                             id={"prop-price"}
@@ -1117,7 +1139,7 @@ export const PropertyDetailPage = (): JSX.Element => {
                         form={isCreateMode ? "property-create-form" : "property-edit-form"}
                         type={"submit"}
                     >
-                        {savePropertyMutation.isPending ? "Saving..." : isCreateMode ? "Create Property" : "Save changes"}
+                        {getSavePropertyLabel(isCreateMode, savePropertyMutation.isPending)}
                     </Button>
                     {!isCreateMode ? (
                         <Button disabled={bookmarkMutation.isPending} onClick={() => { bookmarkMutation.mutate(); }} type={"button"} variant={"secondary"}>
