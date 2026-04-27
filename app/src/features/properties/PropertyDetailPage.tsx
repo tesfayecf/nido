@@ -542,7 +542,7 @@ export const PropertyDetailPage = (): JSX.Element => {
         [selectedSource?.config_json],
     );
     const createURLHint = getCreateURLHint(url, autofillStatus, autofillMessage, sourceId.trim() !== "", manualEntryMode);
-    const fieldMetadataById = useMemo(() => {
+    const fieldMetadataById = useMemo<Record<string, { origin: "manual" | "template"; status: "linked" | "manual" | "modified"; }>>(() => {
         return Object.fromEntries(fieldRows.map((field) => {
             if (field.templateFieldName === undefined || field.templateSignature === undefined) {
                 return [field.id, { origin: "manual", status: "manual" }] as const;
@@ -585,6 +585,7 @@ export const PropertyDetailPage = (): JSX.Element => {
                 if (previousTemplateId !== "") {
                     setFieldRows((currentFields) => currentFields.map(stripTemplateFieldMetadata));
                 }
+
                 previousTemplateIdRef.current = "";
                 return;
             }
@@ -596,6 +597,7 @@ export const PropertyDetailPage = (): JSX.Element => {
                     setAdditionalFieldsOpen(true);
                 }
             }
+
             return;
         }
 
@@ -1355,57 +1357,57 @@ export const PropertyDetailPage = (): JSX.Element => {
                 </nav>
                 {activeSection === "overview" ? (
                     <PageCard
-                    action={(
-                        <ActionGroup>
-                            <Button as={Link} to={"/properties"} variant={"secondary"}>{"Back"}</Button>
-                            <Button onClick={() => { setEditOpen(true); }} variant={"secondary"}>{"Edit"}</Button>
-                            <Button onClick={() => { setDeleteOpen(true); }} variant={"secondary"}>{"Delete"}</Button>
-                        </ActionGroup>
-                    )}
-                    description={"Read the latest tracked state first, then open the modal editor only when you need to make changes."}
-                    title={propertyQuery.data?.label !== undefined && propertyQuery.data.label !== "" ? propertyQuery.data.label : propertyQuery.data?.url !== undefined && propertyQuery.data.url !== "" ? propertyQuery.data.url : "Manual property"}
-                    titleId={"overview"}
-                >
-                    {propertyQuery.isError ? <ErrorBanner>{"Could not load property."}</ErrorBanner> : null}
-                    {propertyQuery.data !== undefined ? (
-                        <KeyValueGrid compact>
-                            <KeyValuePair
-                                label={"Automation"}
-                                value={(
-                                    <span className={"status-with-copy"}>
-                                        <StatusBadge tone={automationStatusTone} value={automationStatus} />
-                                        <CopyButton label={"Copy property URL"} value={propertyQuery.data.url} />
-                                    </span>
-                                )}
-                            />
-                            <KeyValuePair label={"Property status"} value={<StatusBadge tone={propertyQuery.data.status === "active" ? "success" : propertyQuery.data.status === "degraded" ? "warning" : propertyQuery.data.status === "inactive" ? "danger" : "neutral"} value={propertyQuery.data.status} />} />
-                            <KeyValuePair label={"Source"} value={sourcesQuery.data?.find((source) => source.id === propertyQuery.data?.source_id)?.name ?? "No template"} />
-                            <KeyValuePair label={"Price"} value={attributes.totalPrice ?? "Not captured"} />
-                            <KeyValuePair label={"Location"} value={latestValues.location ?? "Not captured"} />
-                            <KeyValuePair label={"Runs every"} value={formatDurationFromSeconds(propertyQuery.data.schedule_interval_seconds)} />
-                            <KeyValuePair label={"Next run"} value={propertyQuery.data.next_run_at === undefined ? "Not scheduled yet" : formatDateTime(propertyQuery.data.next_run_at)} />
-                            <KeyValuePair label={"Updated"} value={propertyQuery.data.updated_at === undefined ? "—" : formatDateTime(propertyQuery.data.updated_at)} />
-                            <KeyValuePair label={"Last run"} value={propertyQuery.data.last_run_at === undefined ? "No runs yet" : formatDateTime(propertyQuery.data.last_run_at)} />
-                            <KeyValuePair label={"Bookmark"} value={isBookmarked ? "Bookmarked" : "Not bookmarked"} />
-                        </KeyValueGrid>
-                    ) : null}
+                        action={(
+                            <ActionGroup>
+                                <Button as={Link} to={"/properties"} variant={"secondary"}>{"Back"}</Button>
+                                <Button onClick={() => { setEditOpen(true); }} variant={"secondary"}>{"Edit"}</Button>
+                                <Button onClick={() => { setDeleteOpen(true); }} variant={"secondary"}>{"Delete"}</Button>
+                            </ActionGroup>
+                        )}
+                        description={"Read the latest tracked state first, then open the modal editor only when you need to make changes."}
+                        title={propertyQuery.data?.label !== undefined && propertyQuery.data.label !== "" ? propertyQuery.data.label : propertyQuery.data?.url !== undefined && propertyQuery.data.url !== "" ? propertyQuery.data.url : "Manual property"}
+                        titleId={"overview"}
+                    >
+                        {propertyQuery.isError ? <ErrorBanner>{"Could not load property."}</ErrorBanner> : null}
+                        {propertyQuery.data !== undefined ? (
+                            <KeyValueGrid compact>
+                                <KeyValuePair
+                                    label={"Automation"}
+                                    value={(
+                                        <span className={"status-with-copy"}>
+                                            <StatusBadge tone={automationStatusTone} value={automationStatus} />
+                                            <CopyButton label={"Copy property URL"} value={propertyQuery.data.url} />
+                                        </span>
+                                    )}
+                                />
+                                <KeyValuePair label={"Property status"} value={<StatusBadge tone={propertyQuery.data.status === "active" ? "success" : propertyQuery.data.status === "degraded" ? "warning" : propertyQuery.data.status === "inactive" ? "danger" : "neutral"} value={propertyQuery.data.status} />} />
+                                <KeyValuePair label={"Source"} value={sourcesQuery.data?.find((source) => source.id === propertyQuery.data?.source_id)?.name ?? "No template"} />
+                                <KeyValuePair label={"Price"} value={attributes.totalPrice ?? "Not captured"} />
+                                <KeyValuePair label={"Location"} value={latestValues.location ?? "Not captured"} />
+                                <KeyValuePair label={"Runs every"} value={formatDurationFromSeconds(propertyQuery.data.schedule_interval_seconds)} />
+                                <KeyValuePair label={"Next run"} value={propertyQuery.data.next_run_at === undefined ? "Not scheduled yet" : formatDateTime(propertyQuery.data.next_run_at)} />
+                                <KeyValuePair label={"Updated"} value={propertyQuery.data.updated_at === undefined ? "—" : formatDateTime(propertyQuery.data.updated_at)} />
+                                <KeyValuePair label={"Last run"} value={propertyQuery.data.last_run_at === undefined ? "No runs yet" : formatDateTime(propertyQuery.data.last_run_at)} />
+                                <KeyValuePair label={"Bookmark"} value={isBookmarked ? "Bookmarked" : "Not bookmarked"} />
+                            </KeyValueGrid>
+                        ) : null}
                     </PageCard>
                 ) : null}
 
                 {activeSection === "notes-decisions" ? (
                     <PageCard description={"Decision status and qualitative notes remain optional so they never block the core property workflow."} title={"Notes & Decisions"} titleId={"notes-decisions"}>
-                    {propertyQuery.data?.metadata === undefined ? <EmptyState message={"No metadata has been added yet. Use Edit to capture priority, pricing context, and deal notes."} /> : (
-                        <KeyValueGrid compact>
-                            <KeyValuePair label={"Decision status"} value={formatDecisionStatus(propertyQuery.data.metadata.business_stage)} />
-                            <KeyValuePair label={"Priority"} value={propertyQuery.data.metadata.priority_level ?? "Not set"} />
-                            <KeyValuePair label={"Target price"} value={propertyQuery.data.metadata.target_price !== undefined ? `${propertyQuery.data.metadata.target_price}` : "Not set"} />
-                            <KeyValuePair label={"Expected rent"} value={propertyQuery.data.metadata.expected_rent !== undefined ? `${propertyQuery.data.metadata.expected_rent}` : "Not set"} />
-                            <KeyValuePair label={"Expected yield"} value={propertyQuery.data.metadata.expected_yield_bps !== undefined ? `${(propertyQuery.data.metadata.expected_yield_bps / BASIS_POINTS_PER_PERCENT).toFixed(1)}%` : "Not set"} />
-                            <KeyValuePair label={"Automation paused"} value={propertyQuery.data.paused ? `Yes${propertyQuery.data.pause_reason !== undefined && propertyQuery.data.pause_reason !== "" ? ` · ${propertyQuery.data.pause_reason}` : ""}` : "No"} />
-                            <KeyValuePair label={"Notes"} value={propertyQuery.data.metadata.acquisition_notes ?? "—"} />
-                            <KeyValuePair label={"Thesis"} value={propertyQuery.data.metadata.deal_thesis ?? "—"} />
-                        </KeyValueGrid>
-                    )}
+                        {propertyQuery.data?.metadata === undefined ? <EmptyState message={"No metadata has been added yet. Use Edit to capture priority, pricing context, and deal notes."} /> : (
+                            <KeyValueGrid compact>
+                                <KeyValuePair label={"Decision status"} value={formatDecisionStatus(propertyQuery.data.metadata.business_stage)} />
+                                <KeyValuePair label={"Priority"} value={propertyQuery.data.metadata.priority_level ?? "Not set"} />
+                                <KeyValuePair label={"Target price"} value={propertyQuery.data.metadata.target_price !== undefined ? `${propertyQuery.data.metadata.target_price}` : "Not set"} />
+                                <KeyValuePair label={"Expected rent"} value={propertyQuery.data.metadata.expected_rent !== undefined ? `${propertyQuery.data.metadata.expected_rent}` : "Not set"} />
+                                <KeyValuePair label={"Expected yield"} value={propertyQuery.data.metadata.expected_yield_bps !== undefined ? `${(propertyQuery.data.metadata.expected_yield_bps / BASIS_POINTS_PER_PERCENT).toFixed(1)}%` : "Not set"} />
+                                <KeyValuePair label={"Automation paused"} value={propertyQuery.data.paused ? `Yes${propertyQuery.data.pause_reason !== undefined && propertyQuery.data.pause_reason !== "" ? ` · ${propertyQuery.data.pause_reason}` : ""}` : "No"} />
+                                <KeyValuePair label={"Notes"} value={propertyQuery.data.metadata.acquisition_notes ?? "—"} />
+                                <KeyValuePair label={"Thesis"} value={propertyQuery.data.metadata.deal_thesis ?? "—"} />
+                            </KeyValueGrid>
+                        )}
                     </PageCard>
                 ) : null}
 
@@ -1514,324 +1516,324 @@ export const PropertyDetailPage = (): JSX.Element => {
 
                 {activeSection === "overview" ? (
                     <PageCard description={"Auto-calculated from the latest extracted values and field defaults."} title={"Attributes"}>
-                    <KeyValueGrid compact>
-                        <KeyValuePair label={"€/m²"} value={attributes.pricePerSquareMeter ?? "Needs price and surface"} />
-                        <KeyValuePair label={"Total price"} value={attributes.totalPrice ?? "Not captured"} />
-                        <KeyValuePair label={"Surface area"} value={attributes.surfaceArea ?? "Not captured"} />
-                        <KeyValuePair label={"Rooms"} value={attributes.rooms ?? "Not captured"} />
-                    </KeyValueGrid>
+                        <KeyValueGrid compact>
+                            <KeyValuePair label={"€/m²"} value={attributes.pricePerSquareMeter ?? "Needs price and surface"} />
+                            <KeyValuePair label={"Total price"} value={attributes.totalPrice ?? "Not captured"} />
+                            <KeyValuePair label={"Surface area"} value={attributes.surfaceArea ?? "Not captured"} />
+                            <KeyValuePair label={"Rooms"} value={attributes.rooms ?? "Not captured"} />
+                        </KeyValueGrid>
                     </PageCard>
                 ) : null}
 
                 {activeSection === "url-source-fields" ? (
                     <PageCard description={"Review the URL and template summary, then manage field configuration from a compact, expandable table."} title={"URL, Source & Fields"} titleId={"url-source-fields"}>
-                    <KeyValueGrid compact>
-                        <KeyValuePair label={"URL"} value={propertyQuery.data?.url !== undefined && propertyQuery.data.url !== "" ? propertyQuery.data.url : "Manual property"} />
-                        <KeyValuePair label={"Source template"} value={sourcesQuery.data?.find((source) => source.id === propertyQuery.data?.source_id)?.name ?? "No template"} />
-                    </KeyValueGrid>
-                    {isTemplateDetached && !detachmentAlertDismissed ? (
-                        <div className={"state-message state-message--warning"} role={"status"}>
-                            <div className={"property-config-alert"}>
-                                <div>
-                                    <strong>{"Template link removed for this property."}</strong>
-                                    <p className={"muted-copy"} style={{ margin: "0.35rem 0 0" }}>
-                                        {"This field setup no longer matches the selected template, so future template updates will not apply automatically."}
-                                    </p>
+                        <KeyValueGrid compact>
+                            <KeyValuePair label={"URL"} value={propertyQuery.data?.url !== undefined && propertyQuery.data.url !== "" ? propertyQuery.data.url : "Manual property"} />
+                            <KeyValuePair label={"Source template"} value={sourcesQuery.data?.find((source) => source.id === propertyQuery.data?.source_id)?.name ?? "No template"} />
+                        </KeyValueGrid>
+                        {isTemplateDetached && !detachmentAlertDismissed ? (
+                            <div className={"state-message state-message--warning"} role={"status"}>
+                                <div className={"property-config-alert"}>
+                                    <div>
+                                        <strong>{"Template link removed for this property."}</strong>
+                                        <p className={"muted-copy"} style={{ margin: "0.35rem 0 0" }}>
+                                            {"This field setup no longer matches the selected template, so future template updates will not apply automatically."}
+                                        </p>
+                                    </div>
+                                    <Button onClick={() => { setDetachmentAlertDismissed(true); }} size={"small"} variant={"ghost"}>
+                                        {"Dismiss"}
+                                    </Button>
                                 </div>
-                                <Button onClick={() => { setDetachmentAlertDismissed(true); }} size={"small"} variant={"ghost"}>
-                                    {"Dismiss"}
-                                </Button>
                             </div>
-                        </div>
-                    ) : null}
-                    <SelectorBuilder fieldDefinitions={fieldDefinitionsQuery.data} fieldMetadataById={fieldMetadataById} fields={fieldRows} onChange={setFieldRows} previewByFieldName={previewMap} />
-                    <ActionGroup>
-                        <Button onClick={() => { setFieldRows((rows) => [...rows, createEmptySelectorDraft()]); }} variant={"secondary"}>{"Add field"}</Button>
-                        <Button disabled={previewMutation.isPending || url.trim() === "" || validationMessages.length > 0} onClick={() => { previewMutation.mutate(); }} variant={"secondary"}>{previewMutation.isPending ? "Previewing..." : "Preview extraction"}</Button>
-                        <Button disabled={saveConfigMutation.isPending || validationMessages.length > 0} onClick={() => { saveConfigMutation.mutate(); }}>{saveConfigMutation.isPending ? "Saving..." : "Save configuration"}</Button>
-                    </ActionGroup>
-                    {validationMessages.length > 0 ? (
-                        <div className={"selector-builder__validation-list"}>
-                            {validationMessages.map((message) => <ErrorBanner key={message}>{message}</ErrorBanner>)}
-                        </div>
-                    ) : null}
-                    {saveConfigMutation.isError ? <ErrorBanner>{"Could not save configuration."}</ErrorBanner> : null}
+                        ) : null}
+                        <SelectorBuilder fieldDefinitions={fieldDefinitionsQuery.data} fieldMetadataById={fieldMetadataById} fields={fieldRows} onChange={setFieldRows} previewByFieldName={previewMap} />
+                        <ActionGroup>
+                            <Button onClick={() => { setFieldRows((rows) => [...rows, createEmptySelectorDraft()]); }} variant={"secondary"}>{"Add field"}</Button>
+                            <Button disabled={previewMutation.isPending || url.trim() === "" || validationMessages.length > 0} onClick={() => { previewMutation.mutate(); }} variant={"secondary"}>{previewMutation.isPending ? "Previewing..." : "Preview extraction"}</Button>
+                            <Button disabled={saveConfigMutation.isPending || validationMessages.length > 0} onClick={() => { saveConfigMutation.mutate(); }}>{saveConfigMutation.isPending ? "Saving..." : "Save configuration"}</Button>
+                        </ActionGroup>
+                        {validationMessages.length > 0 ? (
+                            <div className={"selector-builder__validation-list"}>
+                                {validationMessages.map((message) => <ErrorBanner key={message}>{message}</ErrorBanner>)}
+                            </div>
+                        ) : null}
+                        {saveConfigMutation.isError ? <ErrorBanner>{"Could not save configuration."}</ErrorBanner> : null}
                     </PageCard>
                 ) : null}
 
                 {activeSection === "run-configuration" ? (
                     <PageCard
-                    action={(
-                        <ActionGroup>
-                            <Button disabled={bookmarkMutation.isPending} onClick={() => { bookmarkMutation.mutate(); }} variant={"secondary"}>
-                                {isBookmarked ? "Remove bookmark" : "Bookmark"}
-                            </Button>
-                            <Tooltip content={persistedRetrySummary}>
-                                <Button disabled={ingestMutation.isPending} onClick={() => { ingestMutation.mutate(); }}>
-                                    {ingestMutation.isPending ? "Running..." : "Run now"}
+                        action={(
+                            <ActionGroup>
+                                <Button disabled={bookmarkMutation.isPending} onClick={() => { bookmarkMutation.mutate(); }} variant={"secondary"}>
+                                    {isBookmarked ? "Remove bookmark" : "Bookmark"}
                                 </Button>
-                            </Tooltip>
-                            <Button as={Link} to={`/runs?property_id=${resolvedId}`} variant={"secondary"}>{"View history"}</Button>
-                        </ActionGroup>
-                    )}
-                    description={`${persistedScheduleSummary}. ${persistedRetrySummary}`}
-                    title={"Run Configuration"}
-                    titleId={"run-configuration"}
-                >
-                    {latestSnapshot === undefined ? <EmptyState message={"No runs have been recorded for this property yet."} /> : (
-                        <>
-                            <KeyValueGrid compact>
-                                <KeyValuePair label={"Snapshot status"} value={<StatusBadge tone={latestSnapshot.is_valid ? "success" : "warning"} value={latestSnapshot.is_valid ? "valid" : "invalid"} />} />
-                                <KeyValuePair label={"Observed at"} value={formatDateTime(latestSnapshot.observed_at)} />
-                            </KeyValueGrid>
-                            {latestSnapshot.error_message !== undefined && latestSnapshot.error_message !== "" ? <ErrorBanner>{latestSnapshot.error_message}</ErrorBanner> : null}
-                            <DataTable
-                                caption={"Current extracted values"}
-                                columns={[
-                                    { cell: (item) => item.field, header: "Field", id: "field", sortValue: (item) => item.field },
-                                    { cell: (item) => item.value, header: "Value", id: "value" },
-                                    {
-                                        align: "right",
-                                        cell: (item) => (
-                                            <RowActions>
-                                                <Button as={Link} size={"small"} to={`/properties/${resolvedId}/fields/${encodeURIComponent(item.field)}/analysis`} variant={"ghost"}>
-                                                    {"View Analysis"}
-                                                </Button>
-                                            </RowActions>
-                                        ),
-                                        header: "Actions",
-                                        id: "actions",
-                                    },
-                                ]}
-                                compact
-                                emptyMessage={"No extracted values are available for the latest run."}
-                                getRowId={(item) => item.field}
-                                items={extractedValueRows}
-                                pageSize={8}
-                            />
-                        </>
-                    )}
+                                <Tooltip content={persistedRetrySummary}>
+                                    <Button disabled={ingestMutation.isPending} onClick={() => { ingestMutation.mutate(); }}>
+                                        {ingestMutation.isPending ? "Running..." : "Run now"}
+                                    </Button>
+                                </Tooltip>
+                                <Button as={Link} to={`/runs?property_id=${resolvedId}`} variant={"secondary"}>{"View history"}</Button>
+                            </ActionGroup>
+                        )}
+                        description={`${persistedScheduleSummary}. ${persistedRetrySummary}`}
+                        title={"Run Configuration"}
+                        titleId={"run-configuration"}
+                    >
+                        {latestSnapshot === undefined ? <EmptyState message={"No runs have been recorded for this property yet."} /> : (
+                            <>
+                                <KeyValueGrid compact>
+                                    <KeyValuePair label={"Snapshot status"} value={<StatusBadge tone={latestSnapshot.is_valid ? "success" : "warning"} value={latestSnapshot.is_valid ? "valid" : "invalid"} />} />
+                                    <KeyValuePair label={"Observed at"} value={formatDateTime(latestSnapshot.observed_at)} />
+                                </KeyValueGrid>
+                                {latestSnapshot.error_message !== undefined && latestSnapshot.error_message !== "" ? <ErrorBanner>{latestSnapshot.error_message}</ErrorBanner> : null}
+                                <DataTable
+                                    caption={"Current extracted values"}
+                                    columns={[
+                                        { cell: (item) => item.field, header: "Field", id: "field", sortValue: (item) => item.field },
+                                        { cell: (item) => item.value, header: "Value", id: "value" },
+                                        {
+                                            align: "right",
+                                            cell: (item) => (
+                                                <RowActions>
+                                                    <Button as={Link} size={"small"} to={`/properties/${resolvedId}/fields/${encodeURIComponent(item.field)}/analysis`} variant={"ghost"}>
+                                                        {"View Analysis"}
+                                                    </Button>
+                                                </RowActions>
+                                            ),
+                                            header: "Actions",
+                                            id: "actions",
+                                        },
+                                    ]}
+                                    compact
+                                    emptyMessage={"No extracted values are available for the latest run."}
+                                    getRowId={(item) => item.field}
+                                    items={extractedValueRows}
+                                    pageSize={8}
+                                />
+                            </>
+                        )}
                     </PageCard>
                 ) : null}
 
                 {activeSection === "notes-decisions" ? (
                     <PageCard
-                    action={(
-                        <Button onClick={() => { setTagsOpen(true); }} variant={"secondary"}>{"Edit tags"}</Button>
-                    )}
-                    description={"Organize properties with tags for filtering and categorization."}
-                    title={"Tags"}
-                >
-                    {propertyTagsQuery.isLoading ? <p className={"muted-copy"}>{"Loading tags..."}</p> : null}
-                    {(propertyTagsQuery.data ?? []).length === 0 && !propertyTagsQuery.isLoading ? 
-                        <EmptyState message={"No tags assigned. Click 'Edit tags' to add tags."} />
-                        : (
-                            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
-                                {(propertyTagsQuery.data ?? []).map((tag) => <TagBadge key={tag.id} tag={tag} />)}
-                            </div>
+                        action={(
+                            <Button onClick={() => { setTagsOpen(true); }} variant={"secondary"}>{"Edit tags"}</Button>
                         )}
+                        description={"Organize properties with tags for filtering and categorization."}
+                        title={"Tags"}
+                    >
+                        {propertyTagsQuery.isLoading ? <p className={"muted-copy"}>{"Loading tags..."}</p> : null}
+                        {(propertyTagsQuery.data ?? []).length === 0 && !propertyTagsQuery.isLoading ? 
+                            <EmptyState message={"No tags assigned. Click 'Edit tags' to add tags."} />
+                            : (
+                                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+                                    {(propertyTagsQuery.data ?? []).map((tag) => <TagBadge key={tag.id} tag={tag} />)}
+                                </div>
+                            )}
                     </PageCard>
                 ) : null}
 
                 {activeSection === "run-configuration" ? (
                     <PageCard description={"Recent automation runs with auto-refresh every 5 seconds."} title={"Automation Runs"}>
-                    <DataTable
-                        caption={"Property automation runs"}
-                        columns={[
-                            { cell: (item) => <StatusBadge tone={runStatusTone(item.status)} value={item.status} />, header: "Status", id: "status", width: "8rem" },
-                            { cell: (item) => item.trigger_kind, header: "Trigger", id: "trigger", width: "8rem" },
-                            { cell: (item) => `${item.attempt_count} / ${item.max_attempts}`, header: "Attempts", id: "attempts", width: "8rem" },
-                            { cell: (item) => item.started_at !== undefined ? formatDateTime(item.started_at) : "—", header: "Started", id: "started_at", sortValue: (item) => item.started_at ?? "", width: "11rem" },
-                            { cell: (item) => item.finished_at !== undefined ? formatDateTime(item.finished_at) : "—", header: "Finished", id: "finished_at", width: "11rem" },
-                            {
-                                cell: (item) => {
-                                    if (item.error_message === undefined || item.error_message === "") {
-                                        return "—";
-                                    }
+                        <DataTable
+                            caption={"Property automation runs"}
+                            columns={[
+                                { cell: (item) => <StatusBadge tone={runStatusTone(item.status)} value={item.status} />, header: "Status", id: "status", width: "8rem" },
+                                { cell: (item) => item.trigger_kind, header: "Trigger", id: "trigger", width: "8rem" },
+                                { cell: (item) => `${item.attempt_count} / ${item.max_attempts}`, header: "Attempts", id: "attempts", width: "8rem" },
+                                { cell: (item) => item.started_at !== undefined ? formatDateTime(item.started_at) : "—", header: "Started", id: "started_at", sortValue: (item) => item.started_at ?? "", width: "11rem" },
+                                { cell: (item) => item.finished_at !== undefined ? formatDateTime(item.finished_at) : "—", header: "Finished", id: "finished_at", width: "11rem" },
+                                {
+                                    cell: (item) => {
+                                        if (item.error_message === undefined || item.error_message === "") {
+                                            return "—";
+                                        }
 
-                                    const truncated = item.error_message.length > 50 ? `${item.error_message.slice(0, 50)}...` : item.error_message;
-                                    return (
-                                        <Tooltip content={item.error_message}>
-                                            <span style={{ color: "#dc2626" }}>{truncated}</span>
-                                        </Tooltip>
-                                    );
+                                        const truncated = item.error_message.length > 50 ? `${item.error_message.slice(0, 50)}...` : item.error_message;
+                                        return (
+                                            <Tooltip content={item.error_message}>
+                                                <span style={{ color: "#dc2626" }}>{truncated}</span>
+                                            </Tooltip>
+                                        );
+                                    },
+                                    header: "Error",
+                                    id: "error",
                                 },
-                                header: "Error",
-                                id: "error",
-                            },
-                        ]}
-                        compact
-                        emptyMessage={"No automation runs recorded yet."}
-                        getRowId={(item) => item.id}
-                        items={propertyRunsQuery.data ?? []}
-                        pageSize={10}
-                        rowLabel={(item) => `Run ${item.id}`}
-                    />
+                            ]}
+                            compact
+                            emptyMessage={"No automation runs recorded yet."}
+                            getRowId={(item) => item.id}
+                            items={propertyRunsQuery.data ?? []}
+                            pageSize={10}
+                            rowLabel={(item) => `Run ${item.id}`}
+                        />
                     </PageCard>
                 ) : null}
 
                 {activeSection === "run-configuration" ? (
                     <PageCard description={"Recent runs stay directly attached to the property for fast scanning."} title={"Recent Snapshots"}>
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: "0.75rem", marginBottom: "0.75rem" }}>
-                        <div>
-                            <strong>{"Config filter"}</strong>
-                            <p className={"muted-copy"}>{"Filter snapshots by the config version that produced them."}</p>
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: "0.75rem", marginBottom: "0.75rem" }}>
+                            <div>
+                                <strong>{"Config filter"}</strong>
+                                <p className={"muted-copy"}>{"Filter snapshots by the config version that produced them."}</p>
+                            </div>
+                            <Select onChange={(event) => { setSnapshotConfigFilter(Number(event.target.value)); }} value={`${snapshotConfigFilter}`}>
+                                <option value={"0"}>{"All versions"}</option>
+                                {configVersions.map((config) => <option key={config.id} value={`${config.version}`}>{`Version ${config.version}`}</option>)}
+                            </Select>
                         </div>
-                        <Select onChange={(event) => { setSnapshotConfigFilter(Number(event.target.value)); }} value={`${snapshotConfigFilter}`}>
-                            <option value={"0"}>{"All versions"}</option>
-                            {configVersions.map((config) => <option key={config.id} value={`${config.version}`}>{`Version ${config.version}`}</option>)}
-                        </Select>
-                    </div>
-                    <DataTable
-                        caption={"Recent property snapshots"}
-                        columns={[
-                            { cell: (item) => item.id, header: "Snapshot", id: "id", sortValue: (item) => item.id },
-                            { cell: (item) => formatDateTime(item.observed_at), header: "Observed", id: "observed_at", sortValue: (item) => item.observed_at },
-                            { cell: (item) => <StatusBadge tone={item.is_valid ? "success" : "warning"} value={item.is_valid ? "valid" : "invalid"} />, header: "Status", id: "status" },
-                            { align: "right", cell: (item) => `${Object.keys(item.values).length}`, header: "Fields", id: "fields", sortValue: (item) => Object.keys(item.values).length },
-                        ]}
-                        compact
-                        emptyMessage={"No runs have been recorded for this property yet."}
-                        getRowId={(item) => item.id}
-                        items={recentRuns}
-                        onRowClick={(item) => { void navigate(`/runs/${item.id}`); }}
-                        pageSize={8}
-                        rowLabel={(item) => `Open run ${item.id}`}
-                    />
+                        <DataTable
+                            caption={"Recent property snapshots"}
+                            columns={[
+                                { cell: (item) => item.id, header: "Snapshot", id: "id", sortValue: (item) => item.id },
+                                { cell: (item) => formatDateTime(item.observed_at), header: "Observed", id: "observed_at", sortValue: (item) => item.observed_at },
+                                { cell: (item) => <StatusBadge tone={item.is_valid ? "success" : "warning"} value={item.is_valid ? "valid" : "invalid"} />, header: "Status", id: "status" },
+                                { align: "right", cell: (item) => `${Object.keys(item.values).length}`, header: "Fields", id: "fields", sortValue: (item) => Object.keys(item.values).length },
+                            ]}
+                            compact
+                            emptyMessage={"No runs have been recorded for this property yet."}
+                            getRowId={(item) => item.id}
+                            items={recentRuns}
+                            onRowClick={(item) => { void navigate(`/runs/${item.id}`); }}
+                            pageSize={8}
+                            rowLabel={(item) => `Open run ${item.id}`}
+                        />
                     </PageCard>
                 ) : null}
 
                 {activeSection === "run-configuration" ? (
                     <PageCard
-                    description={"Compare any two saved configs, review the selector diff, and restore a previous version without losing history."}
-                    title={"Config History"}
-                >
-                    {configVersions.length === 0 ? <EmptyState message={"No config versions have been saved yet."} /> : (
-                        <Tabs
-                            defaultTabId={"history"}
-                            items={[
-                                {
-                                    id: "history",
-                                    label: "Versions",
-                                    panel: (
-                                        <DataTable
-                                            caption={"Property config versions"}
-                                            columns={[
-                                                { cell: (item) => `v${item.version}`, header: "Version", id: "version", sortValue: (item) => item.version },
-                                                { cell: (item) => formatDateTime(item.created_at), header: "Created", id: "created_at", sortValue: (item) => item.created_at },
-                                                { cell: (item) => item.change_summary ?? "Saved configuration.", header: "Summary", id: "summary" },
-                                                {
-                                                    align: "right",
-                                                    cell: (item) => (
-                                                        <ActionGroup>
-                                                            <Button onClick={() => { setCompareLeftVersion(item.version); }} size={"small"} variant={"secondary"}>{"Compare from"}</Button>
-                                                            <Button onClick={() => { setCompareRightVersion(item.version); }} size={"small"} variant={"secondary"}>{"Compare to"}</Button>
-                                                            <Button onClick={() => { setRollbackTargetVersion(item.version); }} size={"small"} variant={"ghost"}>{"Rollback"}</Button>
-                                                        </ActionGroup>
-                                                    ),
-                                                    header: "Actions",
-                                                    id: "actions",
-                                                },
-                                            ]}
-                                            compact
-                                            emptyMessage={"No config versions have been saved yet."}
-                                            getRowId={(item) => item.id}
-                                            items={configVersions}
-                                            pageSize={6}
-                                        />
-                                    ),
-                                },
-                                {
-                                    id: "diff",
-                                    label: "Structured diff",
-                                    panel: (
-                                        <div style={{ display: "grid", gap: "1rem" }}>
-                                            <div style={{ display: "grid", gap: "0.75rem", gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
-                                                <Field label={"Compare from"}>
-                                                    <Select onChange={(event) => { setCompareLeftVersion(Number(event.target.value)); }} value={`${selectedLeftConfig?.version ?? 0}`}>
-                                                        {configVersions.map((config) => <option key={`left-${config.id}`} value={`${config.version}`}>{`Version ${config.version}`}</option>)}
-                                                    </Select>
-                                                </Field>
-                                                <Field label={"Compare to"}>
-                                                    <Select onChange={(event) => { setCompareRightVersion(Number(event.target.value)); }} value={`${selectedRightConfig?.version ?? 0}`}>
-                                                        {configVersions.map((config) => <option key={`right-${config.id}`} value={`${config.version}`}>{`Version ${config.version}`}</option>)}
-                                                    </Select>
-                                                </Field>
+                        description={"Compare any two saved configs, review the selector diff, and restore a previous version without losing history."}
+                        title={"Config History"}
+                    >
+                        {configVersions.length === 0 ? <EmptyState message={"No config versions have been saved yet."} /> : (
+                            <Tabs
+                                defaultTabId={"history"}
+                                items={[
+                                    {
+                                        id: "history",
+                                        label: "Versions",
+                                        panel: (
+                                            <DataTable
+                                                caption={"Property config versions"}
+                                                columns={[
+                                                    { cell: (item) => `v${item.version}`, header: "Version", id: "version", sortValue: (item) => item.version },
+                                                    { cell: (item) => formatDateTime(item.created_at), header: "Created", id: "created_at", sortValue: (item) => item.created_at },
+                                                    { cell: (item) => item.change_summary ?? "Saved configuration.", header: "Summary", id: "summary" },
+                                                    {
+                                                        align: "right",
+                                                        cell: (item) => (
+                                                            <ActionGroup>
+                                                                <Button onClick={() => { setCompareLeftVersion(item.version); }} size={"small"} variant={"secondary"}>{"Compare from"}</Button>
+                                                                <Button onClick={() => { setCompareRightVersion(item.version); }} size={"small"} variant={"secondary"}>{"Compare to"}</Button>
+                                                                <Button onClick={() => { setRollbackTargetVersion(item.version); }} size={"small"} variant={"ghost"}>{"Rollback"}</Button>
+                                                            </ActionGroup>
+                                                        ),
+                                                        header: "Actions",
+                                                        id: "actions",
+                                                    },
+                                                ]}
+                                                compact
+                                                emptyMessage={"No config versions have been saved yet."}
+                                                getRowId={(item) => item.id}
+                                                items={configVersions}
+                                                pageSize={6}
+                                            />
+                                        ),
+                                    },
+                                    {
+                                        id: "diff",
+                                        label: "Structured diff",
+                                        panel: (
+                                            <div style={{ display: "grid", gap: "1rem" }}>
+                                                <div style={{ display: "grid", gap: "0.75rem", gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+                                                    <Field label={"Compare from"}>
+                                                        <Select onChange={(event) => { setCompareLeftVersion(Number(event.target.value)); }} value={`${selectedLeftConfig?.version ?? 0}`}>
+                                                            {configVersions.map((config) => <option key={`left-${config.id}`} value={`${config.version}`}>{`Version ${config.version}`}</option>)}
+                                                        </Select>
+                                                    </Field>
+                                                    <Field label={"Compare to"}>
+                                                        <Select onChange={(event) => { setCompareRightVersion(Number(event.target.value)); }} value={`${selectedRightConfig?.version ?? 0}`}>
+                                                            {configVersions.map((config) => <option key={`right-${config.id}`} value={`${config.version}`}>{`Version ${config.version}`}</option>)}
+                                                        </Select>
+                                                    </Field>
+                                                </div>
+                                                <KeyValueGrid compact>
+                                                    <KeyValuePair label={"Changed fields"} value={`${configDiff.changedCount}`} />
+                                                    <KeyValuePair label={"From summary"} value={selectedLeftConfig?.change_summary ?? "Saved configuration."} />
+                                                    <KeyValuePair label={"To summary"} value={selectedRightConfig?.change_summary ?? "Saved configuration."} />
+                                                </KeyValueGrid>
+                                                {configDiff.changes.length === 0 ? <EmptyState message={"The selected versions use the same selector definitions."} /> : (
+                                                    <DataTable
+                                                        caption={"Config diff"}
+                                                        columns={[
+                                                            { cell: (item) => item.field, header: "Field", id: "field", sortValue: (item) => item.field },
+                                                            { cell: (item) => item.type, header: "Change", id: "type", sortValue: (item) => item.type },
+                                                            { cell: (item) => item.previous?.selector_value ?? "—", header: "Previous selector", id: "previous" },
+                                                            { cell: (item) => item.next?.selector_value ?? "—", header: "Current selector", id: "current" },
+                                                        ]}
+                                                        compact
+                                                        emptyMessage={"No selector-level changes found."}
+                                                        getRowId={(item) => `${item.type}-${item.field}`}
+                                                        items={configDiff.changes}
+                                                        pageSize={8}
+                                                    />
+                                                )}
                                             </div>
-                                            <KeyValueGrid compact>
-                                                <KeyValuePair label={"Changed fields"} value={`${configDiff.changedCount}`} />
-                                                <KeyValuePair label={"From summary"} value={selectedLeftConfig?.change_summary ?? "Saved configuration."} />
-                                                <KeyValuePair label={"To summary"} value={selectedRightConfig?.change_summary ?? "Saved configuration."} />
-                                            </KeyValueGrid>
-                                            {configDiff.changes.length === 0 ? <EmptyState message={"The selected versions use the same selector definitions."} /> : (
-                                                <DataTable
-                                                    caption={"Config diff"}
-                                                    columns={[
-                                                        { cell: (item) => item.field, header: "Field", id: "field", sortValue: (item) => item.field },
-                                                        { cell: (item) => item.type, header: "Change", id: "type", sortValue: (item) => item.type },
-                                                        { cell: (item) => item.previous?.selector_value ?? "—", header: "Previous selector", id: "previous" },
-                                                        { cell: (item) => item.next?.selector_value ?? "—", header: "Current selector", id: "current" },
-                                                    ]}
-                                                    compact
-                                                    emptyMessage={"No selector-level changes found."}
-                                                    getRowId={(item) => `${item.type}-${item.field}`}
-                                                    items={configDiff.changes}
-                                                    pageSize={8}
-                                                />
-                                            )}
-                                        </div>
-                                    ),
-                                },
-                            ]}
-                        />
-                    )}
+                                        ),
+                                    },
+                                ]}
+                            />
+                        )}
                     </PageCard>
                 ) : null}
 
                 {activeSection === "notes-decisions" ? (
                     <PageCard
-                    action={(
-                        <Button onClick={() => { setCreateAlertOpen(true); }} variant={"secondary"}>{"Create alert"}</Button>
-                    )}
-                    description={"Alerts trigger when new runs meet property-level conditions."}
-                    title={"Alerts"}
-                >
-                    {propertyAlerts.length === 0 ? <EmptyState message={"No alerts are linked to this property yet."} /> : (
-                        <ItemList>
-                            {propertyAlerts.map((rule) => {
-                                return (
-                                    <ListRow key={rule.id}>
-                                        <ListRowMain>
-                                            <div>
-                                                <h3 className={"list-row__title"}>{getRuleTypeLabel(rule.rule_type)}</h3>
-                                                <p className={"list-row__meta"}>{getRuleTypeLogic(rule.rule_type, rule.threshold_amount)}</p>
-                                            </div>
-                                            <strong className={"list-row__price"}>{rule.enabled ? "Active" : "Inactive"}</strong>
-                                        </ListRowMain>
-                                    </ListRow>
-                                );
-                            })}
-                        </ItemList>
-                    )}
+                        action={(
+                            <Button onClick={() => { setCreateAlertOpen(true); }} variant={"secondary"}>{"Create alert"}</Button>
+                        )}
+                        description={"Alerts trigger when new runs meet property-level conditions."}
+                        title={"Alerts"}
+                    >
+                        {propertyAlerts.length === 0 ? <EmptyState message={"No alerts are linked to this property yet."} /> : (
+                            <ItemList>
+                                {propertyAlerts.map((rule) => {
+                                    return (
+                                        <ListRow key={rule.id}>
+                                            <ListRowMain>
+                                                <div>
+                                                    <h3 className={"list-row__title"}>{getRuleTypeLabel(rule.rule_type)}</h3>
+                                                    <p className={"list-row__meta"}>{getRuleTypeLogic(rule.rule_type, rule.threshold_amount)}</p>
+                                                </div>
+                                                <strong className={"list-row__price"}>{rule.enabled ? "Active" : "Inactive"}</strong>
+                                            </ListRowMain>
+                                        </ListRow>
+                                    );
+                                })}
+                            </ItemList>
+                        )}
                     </PageCard>
                 ) : null}
                 {activeSection === "property-settings" ? (
                     <PageCard
-                    action={(
-                        <ActionGroup>
-                            <Button onClick={() => { setEditOpen(true); }} variant={"secondary"}>{"Edit label & color"}</Button>
-                            <Button onClick={() => { setDeleteOpen(true); }} variant={"secondary"}>{"Delete"}</Button>
-                        </ActionGroup>
-                    )}
-                    description={"Property-specific settings are separated from price intelligence and run configuration."}
-                    title={"Property Settings"}
-                    titleId={"property-settings"}
-                >
-                    <KeyValueGrid compact>
-                        <KeyValuePair label={"Label"} value={propertyQuery.data?.label !== undefined && propertyQuery.data.label !== "" ? propertyQuery.data.label : "Not set"} />
-                        <KeyValuePair label={"Color"} value={"Use tags to color-code properties."} />
-                        <KeyValuePair label={"Delete"} value={"Requires confirmation before removal."} />
-                    </KeyValueGrid>
+                        action={(
+                            <ActionGroup>
+                                <Button onClick={() => { setEditOpen(true); }} variant={"secondary"}>{"Edit label & color"}</Button>
+                                <Button onClick={() => { setDeleteOpen(true); }} variant={"secondary"}>{"Delete"}</Button>
+                            </ActionGroup>
+                        )}
+                        description={"Property-specific settings are separated from price intelligence and run configuration."}
+                        title={"Property Settings"}
+                        titleId={"property-settings"}
+                    >
+                        <KeyValueGrid compact>
+                            <KeyValuePair label={"Label"} value={propertyQuery.data?.label !== undefined && propertyQuery.data.label !== "" ? propertyQuery.data.label : "Not set"} />
+                            <KeyValuePair label={"Color"} value={"Use tags to color-code properties."} />
+                            <KeyValuePair label={"Delete"} value={"Requires confirmation before removal."} />
+                        </KeyValueGrid>
                     </PageCard>
                 ) : null}
             </PageStack>

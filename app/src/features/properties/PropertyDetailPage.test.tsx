@@ -42,7 +42,43 @@ vi.mock("@/features/engagement/PropertyAlertCreateDialog", () => {
 
 vi.mock("@/components/selectors/SelectorBuilder", () => {
     const mockedModule: Record<string, unknown> = {};
-    mockedModule["SelectorBuilder"] = () => <div>{"Selector builder"}</div>;
+    mockedModule["SelectorBuilder"] = ({ fieldMetadataById, fields, onChange }: {
+        readonly fieldMetadataById?: Record<string, { readonly origin: string; readonly status: string; }>;
+        readonly fields: { readonly id: string; readonly name: string; }[];
+        readonly onChange: (updater: (currentFields: { readonly id: string; readonly name: string; }[]) => { readonly id: string; readonly name: string; }[]) => void;
+    }) => (
+        <div>
+            <div>{"Selector builder"}</div>
+            {fields.map((field) => (
+                <div key={field.id}>
+                    <span>{field.name === "" ? "Untitled field" : field.name}</span>
+                    <span>{`${fieldMetadataById?.[field.id]?.origin ?? "manual"}:${fieldMetadataById?.[field.id]?.status ?? "manual"}`}</span>
+                    <button
+                        onClick={() => {
+                            onChange((currentFields) => currentFields.filter((item) => item.id !== field.id));
+                        }}
+                        type={"button"}
+                    >
+                        {`Remove ${field.name === "" ? field.id : field.name}`}
+                    </button>
+                </div>
+            ))}
+            <button
+                onClick={() => {
+                    onChange((currentFields) => currentFields.map((field, index) => {
+                        if (index !== 0) {
+                            return field;
+                        }
+
+                        return { ...field, name: `${field.name}_modified` };
+                    }));
+                }}
+                type={"button"}
+            >
+                {"Modify first field"}
+            </button>
+        </div>
+    );
     return mockedModule;
 });
 
@@ -237,6 +273,19 @@ describe("PropertyDetailPage", () => {
         expect(screen.getByText("Jan 1, 2024, 11:55 AM")).toBeInTheDocument();
     });
 
+    it("switches sections without scrolling and only renders the active panel", async () => {
+        renderPropertyDetailPage();
+
+        await screen.findByText("Sunny flat");
+        expect(screen.queryByText("Selector builder")).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole("button", { name: "URL, Source & Fields" }));
+
+        expect(window.location.hash).toBe("");
+        expect(screen.getByText("Selector builder")).toBeInTheDocument();
+        expect(screen.queryByText("Automation Runs")).not.toBeInTheDocument();
+    });
+
     it("saves structured duration controls as schedule seconds", async () => {
         renderPropertyDetailPage();
 
@@ -303,6 +352,16 @@ describe("PropertyDetailPage", () => {
         expect(createPropertyMock).not.toHaveBeenCalled();
     });
 
+    it("requires a configured price field when creating without a template", async () => {
+        renderPropertyCreatePage();
+
+        fireEvent.click(await screen.findByRole("button", { name: "Configure price selector" }));
+        fireEvent.click(screen.getByRole("button", { name: /Remove price/i }));
+
+        expect(await screen.findByText("Add at least one field configured as Price before creating a property without a template.")).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Create Property" })).toBeDisabled();
+    });
+
     it("auto-fills structured details from a linked source template without overwriting price", async () => {
         listSourcesMock.mockResolvedValue([{
             config_json: JSON.stringify({
@@ -342,6 +401,33 @@ describe("PropertyDetailPage", () => {
         });
         expect(document.querySelector("#prop-price")).toHaveValue(275000);
         expect(screen.queryByRole("spinbutton", { name: "Rooms" })).not.toBeInTheDocument();
+    });
+
+    it("auto-loads template fields and warns when a template-derived field is modified", async () => {
+        listSourcesMock.mockResolvedValue([{
+            config_json: JSON.stringify({
+                fields: [
+                    { extraction_mode: "text", name: "price", required: true, selector_type: "css", selector_value: ".price" },
+                    { extraction_mode: "text", name: "rooms", required: false, selector_type: "css", selector_value: ".rooms" },
+                ],
+            }),
+            id: "source_1",
+            name: "Idealista template",
+        }]);
+
+        renderPropertyCreatePage();
+
+        fireEvent.click(await screen.findByRole("button", { name: "Configure price selector" }));
+        fireEvent.change(document.querySelector("#prop-source") as HTMLSelectElement, { target: { value: "source_1" } });
+
+        await waitFor(() => {
+            expect(screen.getByText("rooms")).toBeInTheDocument();
+            expect(screen.getAllByText("template:linked").length).toBeGreaterThan(0);
+        });
+
+        fireEvent.click(screen.getByRole("button", { name: "Modify first field" }));
+
+        expect(await screen.findByText("Template link removed for this property.")).toBeInTheDocument();
     });
 
     it("preserves manual price overrides when URL autofill runs again", async () => {
