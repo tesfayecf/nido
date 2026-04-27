@@ -270,15 +270,6 @@ export const SelectorBuilder = ({ fieldDefinitions, fields, onChange, previewByF
                                     </Select>
                                 </Field>
 
-                                <Field hint={"Used when the field is missing or empty."} label={"Default value"}>
-                                    <Input
-                                        onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { defaultValue: event.target.value })); }}
-                                        placeholder={"Fallback value"}
-                                        type={"text"}
-                                        value={field.defaultValue}
-                                    />
-                                </Field>
-
                                 <Field label={"Use default if missing"} variant={"checkbox"}>
                                     <input
                                         checked={field.useDefaultWhenMissing}
@@ -286,6 +277,17 @@ export const SelectorBuilder = ({ fieldDefinitions, fields, onChange, previewByF
                                         type={"checkbox"}
                                     />
                                 </Field>
+
+                                {field.useDefaultWhenMissing ? (
+                                    <Field hint={"Used when the field is missing or empty."} label={"Default value"}>
+                                        <Input
+                                            onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { defaultValue: event.target.value })); }}
+                                            placeholder={"Fallback value"}
+                                            type={"text"}
+                                            value={field.defaultValue}
+                                        />
+                                    </Field>
+                                ) : null}
 
                                 <Field hint={"Capture the first regex match or group."} label={"Regex extraction"}>
                                     <Input
@@ -335,15 +337,16 @@ export const SelectorBuilder = ({ fieldDefinitions, fields, onChange, previewByF
                                     </Select>
                                 </Field>
 
-                                <Field label={"Comparison value"}>
-                                    <Input
-                                        disabled={field.comparisonOperator === ""}
-                                        onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { comparisonValue: event.target.value })); }}
-                                        placeholder={"500000"}
-                                        type={"text"}
-                                        value={field.comparisonValue}
-                                    />
-                                </Field>
+                                {field.comparisonOperator !== "" ? (
+                                    <Field label={"Comparison value"}>
+                                        <Input
+                                            onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { comparisonValue: event.target.value })); }}
+                                            placeholder={"500000"}
+                                            type={"text"}
+                                            value={field.comparisonValue}
+                                        />
+                                    </Field>
+                                ) : null}
                             </div>
 
                             <div className={`selector-builder__preview ${previewTone(preview)}`}>

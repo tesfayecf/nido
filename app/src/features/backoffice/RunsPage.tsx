@@ -22,6 +22,10 @@ import { deleteRun, listRuns } from "@/services/backoffice-runs/runs.service";
 import type { Run, RunFilters } from "@/services/backoffice-runs/runs.types";
 import { propertyKeys } from "@/services/properties/properties.keys";
 import { ingestProperty, listProperties } from "@/services/properties/properties.service";
+import { sourceKeys } from "@/services/backoffice-sources/sources.keys";
+import { listSources } from "@/services/backoffice-sources/sources.service";
+import { tagKeys } from "@/services/tags/tags.keys";
+import { listPropertyTags, listTags } from "@/services/tags/tags.service";
 
 export const RunsPage = (): JSX.Element => {
     const navigate = useNavigate();
@@ -35,7 +39,10 @@ export const RunsPage = (): JSX.Element => {
     const [draftPropertyId, setDraftPropertyId] = useState(filters.property_id);
     const [draftLimit, setDraftLimit] = useState(`${filters.limit}`);
     const [triggerOpen, setTriggerOpen] = useState(false);
+    const [triggerMode, setTriggerMode] = useState<"property" | "source" | "tag">("property");
     const [triggerPropertyId, setTriggerPropertyId] = useState(filters.property_id);
+    const [triggerSourceId, setTriggerSourceId] = useState("");
+    const [triggerTagId, setTriggerTagId] = useState("");
     const [deleteTarget, setDeleteTarget] = useState<Run | null>(null);
     const runsQuery = useQuery({
         placeholderData: keepPreviousData,
@@ -46,8 +53,36 @@ export const RunsPage = (): JSX.Element => {
         queryFn: () => listProperties(),
         queryKey: propertyKeys.list(),
     });
+    const sourcesQuery = useQuery({
+        queryFn: listSources,
+        queryKey: sourceKeys.list(),
+    });
+    const tagsQuery = useQuery({
+        queryFn: listTags,
+        queryKey: tagKeys.list(),
+    });
     const triggerMutation = useMutation({
-        mutationFn: (propertyId: string) => ingestProperty(propertyId),
+        mutationFn: async () => {
+            const properties = propertiesQuery.data ?? [];
+            if (triggerMode === "property") {
+                await ingestProperty(triggerPropertyId);
+                return 1;
+            }
+
+            if (triggerMode === "source") {
+                const sourceMatches = properties.filter((property) => property.source_id === triggerSourceId);
+                await Promise.all(sourceMatches.map((property) => ingestProperty(property.id)));
+                return sourceMatches.length;
+            }
+
+            const taggedProperties = await Promise.all(properties.map(async (property) => ({
+                property,
+                tags: await listPropertyTags(property.id),
+            })));
+            const tagMatches = taggedProperties.filter((item) => item.tags.some((tag) => tag.id === triggerTagId));
+            await Promise.all(tagMatches.map((item) => ingestProperty(item.property.id)));
+            return tagMatches.length;
+        },
         onError() {
             pushToast("Could not trigger the run.", "error");
         },
@@ -77,6 +112,11 @@ export const RunsPage = (): JSX.Element => {
     }, [filters.limit, filters.property_id]);
 
     const propertyOptions = useMemo(() => propertiesQuery.data ?? [], [propertiesQuery.data]);
+    const triggerDisabled = triggerMode === "property"
+        ? triggerPropertyId.trim() === ""
+        : triggerMode === "source"
+            ? triggerSourceId.trim() === ""
+            : triggerTagId.trim() === "";
 
     return (
         <>
@@ -188,24 +228,49 @@ export const RunsPage = (): JSX.Element => {
                 <FormGrid
                     onSubmit={(event) => {
                         event.preventDefault();
-                        if (triggerPropertyId.trim() !== "") {
-                            triggerMutation.mutate(triggerPropertyId.trim());
+                        if (!triggerDisabled) {
+                            triggerMutation.mutate();
                         }
                     }}
                 >
-                    <Field label={"Property"}>
-                        <Select onChange={(event) => { setTriggerPropertyId(event.target.value); }} value={triggerPropertyId}>
-                            <option value={""}>{"Select a property"}</option>
-                            {propertyOptions.map((property) => (
-                                <option key={property.id} value={property.id}>
-                                    {property.label !== "" ? property.label : property.url}
-                                </option>
-                            ))}
+                    <Field label={"Run by"}>
+                        <Select onChange={(event) => { setTriggerMode(event.target.value as "property" | "source" | "tag"); }} value={triggerMode}>
+                            <option value={"property"}>{"Property"}</option>
+                            <option value={"source"}>{"Source"}</option>
+                            <option value={"tag"}>{"Tag"}</option>
                         </Select>
                     </Field>
+                    {triggerMode === "property" ? (
+                        <Field label={"Property"}>
+                            <Select onChange={(event) => { setTriggerPropertyId(event.target.value); }} value={triggerPropertyId}>
+                                <option value={""}>{"Select a property"}</option>
+                                {propertyOptions.map((property) => (
+                                    <option key={property.id} value={property.id}>
+                                        {property.label !== "" ? property.label : property.url}
+                                    </option>
+                                ))}
+                            </Select>
+                        </Field>
+                    ) : null}
+                    {triggerMode === "source" ? (
+                        <Field label={"Source"}>
+                            <Select onChange={(event) => { setTriggerSourceId(event.target.value); }} value={triggerSourceId}>
+                                <option value={""}>{"Select a source"}</option>
+                                {(sourcesQuery.data ?? []).map((source) => <option key={source.id} value={source.id}>{source.name}</option>)}
+                            </Select>
+                        </Field>
+                    ) : null}
+                    {triggerMode === "tag" ? (
+                        <Field label={"Tag"}>
+                            <Select onChange={(event) => { setTriggerTagId(event.target.value); }} value={triggerTagId}>
+                                <option value={""}>{"Select a tag"}</option>
+                                {(tagsQuery.data ?? []).map((tag) => <option key={tag.id} value={tag.id}>{tag.name}</option>)}
+                            </Select>
+                        </Field>
+                    ) : null}
                     <div className={"action-group"}>
                         <Button onClick={() => { setTriggerOpen(false); }} variant={"secondary"}>{"Cancel"}</Button>
-                        <Button disabled={triggerPropertyId.trim() === ""} isLoading={triggerMutation.isPending} type={"submit"}>
+                        <Button disabled={triggerDisabled} isLoading={triggerMutation.isPending} type={"submit"}>
                             {"Trigger run"}
                         </Button>
                     </div>
