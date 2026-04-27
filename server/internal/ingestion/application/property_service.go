@@ -781,13 +781,14 @@ func (s *PropertyService) IngestPropertyOnce(ctx context.Context, propertyID str
 
 // normalizeAndValidateProperty applies defaults and validates the property before save.
 func (s *PropertyService) normalizeAndValidateProperty(ctx context.Context, property ingestiondomain.Property) (ingestiondomain.Property, error) {
-	if strings.TrimSpace(property.URL) != "" {
-		if err := validatePropertyURL(property.URL); err != nil {
+	trimmedURL := strings.TrimSpace(property.URL)
+	if trimmedURL != "" {
+		if err := validatePropertyURL(trimmedURL); err != nil {
 			return ingestiondomain.Property{}, err
 		}
 	}
-	property.URL = strings.TrimSpace(property.URL)
-	if strings.TrimSpace(property.URL) == "" && strings.TrimSpace(property.Label) == "" {
+	property.URL = trimmedURL
+	if trimmedURL == "" && strings.TrimSpace(property.Label) == "" {
 		property.Label = "Manual property"
 	}
 	normalizedHeaders, err := normalizePropertyRequestHeaders(property.RequestHeaders)

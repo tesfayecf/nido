@@ -172,7 +172,7 @@ const rankOpportunities = (
                 score: Math.round(weightedScore * 100),
             };
         })
-        .sort((left, right) => right.score - left.score || (left.price ?? Number.MAX_SAFE_INTEGER) - (right.price ?? Number.MAX_SAFE_INTEGER));
+        .sort((left, right) => right.score - left.score || (left.price ?? 0) - (right.price ?? 0));
 };
 
 const buildPriceBuckets = (prices: readonly number[]): readonly { readonly count: number; readonly label: string; }[] => {

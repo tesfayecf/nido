@@ -22,6 +22,7 @@ import type { Property, PropertyStatus, PropertySummary } from "@/services/prope
 import { tagKeys } from "@/services/tags/tags.keys";
 import { listPropertyTags } from "@/services/tags/tags.service";
 import { buildPriceIntelligence } from "@/features/properties/priceIntelligence";
+import { formatCurrency } from "@/lib/format/currency";
 import {
     readPropertiesTableState,
     writePropertiesTableState,
@@ -585,15 +586,19 @@ const buildDiscreteOptions = (values: readonly (number | undefined)[]): string[]
     return Array.from(new Set(values.filter((value): value is number => value !== undefined).map((value) => formatNumber(value)))).sort((left, right) => Number(left) - Number(right));
 };
 
-const formatMoney = (value: number): string => new Intl.NumberFormat("en", {
-    currency: "EUR",
-    maximumFractionDigits: 0,
-    style: "currency",
-}).format(value);
-
-const formatNumber = (value: number): string => value.toLocaleString("en", {
-    maximumFractionDigits: value % 1 === 0 ? 0 : 1,
+const decimalNumberFormatter = new Intl.NumberFormat("en", {
+    maximumFractionDigits: 1,
 });
+
+const integerNumberFormatter = new Intl.NumberFormat("en", {
+    maximumFractionDigits: 0,
+});
+
+const formatMoney = (value: number): string => formatCurrency(value, "EUR");
+
+const formatNumber = (value: number): string => value % 1 === 0
+    ? integerNumberFormatter.format(value)
+    : decimalNumberFormatter.format(value);
 
 const opportunityTone = (value: PropertyRow["opportunity"]): "danger" | "neutral" | "success" | "warning" => {
     switch (value) {

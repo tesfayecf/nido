@@ -37,7 +37,6 @@ func (client *stubFetchClient) Fetch(_ context.Context, request fetcher.Request)
 
 func (s *propertyServiceStoreStub) UpsertProperty(_ context.Context, property ingestiondomain.Property) error {
 	s.property = property
-	s.propertyErr = nil
 	s.upserted = property
 	return nil
 }
@@ -47,6 +46,9 @@ func (s *propertyServiceStoreStub) ListProperties(context.Context) ([]ingestiond
 }
 
 func (s *propertyServiceStoreStub) GetProperty(context.Context, string) (ingestiondomain.Property, error) {
+	if s.property.ID != "" {
+		return s.property, nil
+	}
 	if s.propertyErr != nil {
 		return ingestiondomain.Property{}, s.propertyErr
 	}

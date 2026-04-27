@@ -8,6 +8,7 @@ import { createBaseChartOptions, isChartJsdom, useChartTheme } from "@/component
 import { PageCard } from "@/components/ui/PageCard";
 import { PageStack } from "@/components/ui/PageStack";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { formatCurrency } from "@/lib/format/currency";
 import { formatDateTime } from "@/lib/format/date";
 import { propertyKeys } from "@/services/properties/properties.keys";
 import { listPropertySummaries } from "@/services/properties/properties.service";
@@ -165,11 +166,7 @@ const MetricCard = ({ label, value }: { readonly label: string; readonly value: 
     </div>
 );
 
-const formatMoney = (value: number): string => new Intl.NumberFormat("en", {
-    currency: "EUR",
-    maximumFractionDigits: 0,
-    style: "currency",
-}).format(value);
+const formatMoney = (value: number): string => formatCurrency(value, "EUR");
 
 const formatSignedMoney = (value: number): string => `${value >= 0 ? "+" : "−"}${formatMoney(Math.abs(value))}`;
 
