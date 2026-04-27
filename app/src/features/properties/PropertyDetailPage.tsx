@@ -376,6 +376,10 @@ const isPriceFieldDraft = (field: SelectorFieldDraft): boolean => {
     return field.name.trim().toLowerCase() === "price" || field.fieldName.trim().toLowerCase() === "price";
 };
 
+const isConfiguredFieldDraft = (field: SelectorFieldDraft): boolean => {
+    return field.name.trim() !== "" && (field.selectorValue.trim() !== "" || field.fallbackSelectorsRaw.trim() !== "");
+};
+
 export const PropertyDetailPage = (): JSX.Element => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
@@ -418,7 +422,7 @@ export const PropertyDetailPage = (): JSX.Element => {
     const manualOverrideFieldsRef = useRef<Set<PropertyManualDataDraftKey>>(new Set());
     const autofilledFieldsRef = useRef<Set<PropertyManualDataDraftKey>>(new Set());
     const previousDetachedRef = useRef(false);
-    const previousTemplateIdRef = useRef(sourceId.trim());
+    const previousTemplateIdRef = useRef("");
 
     const propertyQuery = useQuery({
         enabled: !isCreateMode,
@@ -573,8 +577,11 @@ export const PropertyDetailPage = (): JSX.Element => {
         }
 
         const metadataValues = Object.values(fieldMetadataById);
-        return missingTemplateField || metadataValues.some((metadata) => metadata.origin === "template" && metadata.status === "modified")
-            || metadataValues.some((metadata) => metadata.origin === "manual");
+        const hasMissingTemplateField = missingTemplateField;
+        const hasModifiedTemplateField = metadataValues.some((metadata) => metadata.origin === "template" && metadata.status === "modified");
+        const hasManualFields = metadataValues.some((metadata) => metadata.origin === "manual");
+
+        return hasMissingTemplateField || hasModifiedTemplateField || hasManualFields;
     }, [fieldMetadataById, missingTemplateField, sourceId, sourceTemplateFields.length]);
 
     useEffect(() => {
@@ -783,7 +790,7 @@ export const PropertyDetailPage = (): JSX.Element => {
         async onSuccess(data) {
             if (isCreateMode) {
                 const configuredFields = fieldRows
-                    .filter((row) => row.name.trim() !== "" && row.selectorValue.trim() !== "")
+                    .filter(isConfiguredFieldDraft)
                     .map(draftToSelector);
                 if (configuredFields.length > 0) {
                     try {

@@ -624,6 +624,10 @@ const INTERACTIVE_SELECTOR = [
     "[role='switch']",
 ].join(", ");
 
+/**
+ * Returns true when the event started from an interactive child, excluding the
+ * row element itself so row clicks still navigate.
+ */
 const isEventFromInteractiveElement = (target: EventTarget | null, currentTarget?: HTMLElement): boolean => {
     if (!(target instanceof HTMLElement)) {
         return false;
