@@ -381,7 +381,7 @@ export const PropertiesPage = (): JSX.Element => {
                                         const isBookmarked = bookmarkedIds.has(row.id);
                                         return (
                                             <tr
-                                                aria-label={`Open property ${row.label}`}
+                                                aria-label={`Open property ${row.label.trim() !== "" ? row.label : row.url.trim() !== "" ? row.url : row.id}`}
                                                 className={"properties-table__row properties-table__row--interactive"}
                                                 key={row.id}
                                                 onClick={(event) => {

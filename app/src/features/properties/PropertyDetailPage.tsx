@@ -249,6 +249,16 @@ const validateSourceTemplate = (isCreateMode: boolean, manualEntryMode: boolean,
         : undefined;
 };
 
+const validateCreateURL = (url: string, manualEntryMode: boolean): string | undefined => {
+    if (manualEntryMode) {
+        return undefined;
+    }
+
+    return url.trim() === ""
+        ? "URL is required unless this is a manual exception."
+        : validateOptionalPropertyURL(url);
+};
+
 const getCreateURLHint = (
     url: string,
     autofillStatus: "error" | "idle" | "loading" | "success",
@@ -487,7 +497,7 @@ export const PropertyDetailPage = (): JSX.Element => {
         : manualPrice === undefined
             ? "Enter a valid price."
             : undefined;
-    const urlError = manualEntryMode ? undefined : (url.trim() === "" ? "URL is required unless this is a manual exception." : validateOptionalPropertyURL(url));
+    const urlError = validateCreateURL(url, manualEntryMode);
     const sourceError = validateSourceTemplate(isCreateMode, manualEntryMode, sourceId);
     const propertySaveError = (!isCreateMode || advancedOpen) ? scheduleIntervalError ?? retryBackoffError : undefined;
     const selectedSource = useMemo(
