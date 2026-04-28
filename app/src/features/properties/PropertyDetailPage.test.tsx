@@ -286,12 +286,23 @@ describe("PropertyDetailPage", () => {
         expect(screen.queryByText("Automation Runs")).not.toBeInTheDocument();
     });
 
+    it("orders attributes before price intelligence in the property navigation", async () => {
+        renderPropertyDetailPage();
+
+        await screen.findByText("Sunny flat");
+        const navLabels = screen.getAllByRole("button")
+            .map((button) => button.textContent)
+            .filter((label): label is string => label !== null);
+
+        expect(navLabels.indexOf("Attributes")).toBeGreaterThan(-1);
+        expect(navLabels.indexOf("Price Intelligence")).toBeGreaterThan(-1);
+        expect(navLabels.indexOf("Attributes")).toBeLessThan(navLabels.indexOf("Price Intelligence"));
+    });
+
     it("saves structured duration controls as schedule seconds", async () => {
         renderPropertyDetailPage();
 
-        fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
-        fireEvent.change(screen.getByRole("spinbutton"), { target: { value: "220000" } });
-        fireEvent.click(screen.getByRole("button", { name: "Show advanced configs" }));
+        fireEvent.click(await screen.findByRole("button", { name: "Run Configuration" }));
 
         const scheduleInput = document.querySelector<HTMLInputElement>("#prop-schedule-value");
         const scheduleUnit = document.querySelector<HTMLSelectElement>("#prop-schedule-unit");
@@ -301,7 +312,7 @@ describe("PropertyDetailPage", () => {
         fireEvent.change(scheduleInput as HTMLInputElement, { target: { value: "1" } });
         fireEvent.change(scheduleUnit as HTMLSelectElement, { target: { value: "hours" } });
 
-        fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+        fireEvent.click(screen.getByRole("button", { name: "Save run configuration" }));
 
         await waitFor(() => {
             expect(updatePropertyMock).toHaveBeenCalledWith("prop_1", expect.objectContaining({
@@ -360,6 +371,25 @@ describe("PropertyDetailPage", () => {
 
         expect(await screen.findByText("Add at least one field configured as Price before creating a property without a template.")).toBeInTheDocument();
         expect(screen.getByRole("button", { name: "Create Property" })).toBeDisabled();
+    });
+
+    it("shows tags inside property settings instead of notes and decisions", async () => {
+        listPropertyTagsMock.mockResolvedValue([{
+            color: "#3b82f6",
+            created_at: "2025-01-01",
+            id: "tag_1",
+            name: "High Priority",
+            updated_at: "2025-01-01",
+        }]);
+
+        renderPropertyDetailPage();
+
+        fireEvent.click(await screen.findByRole("button", { name: "Property Settings" }));
+        expect(await screen.findByText("Tags")).toBeInTheDocument();
+        expect(screen.getByLabelText("Tag: High Priority")).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole("button", { name: "Notes & Decisions" }));
+        expect(screen.queryByLabelText("Tag: High Priority")).not.toBeInTheDocument();
     });
 
     it("auto-fills structured details from a linked source template without overwriting price", async () => {

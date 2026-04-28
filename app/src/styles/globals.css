@@ -1002,11 +1002,61 @@ textarea {
     color: var(--color-text);
 }
 
-.property-config-alert {
-    align-items: flex-start;
+.property-inline-alert {
+    align-items: center;
+    background: color-mix(in srgb, var(--color-warning-soft) 24%, var(--color-surface));
+    border: 1px solid color-mix(in srgb, var(--color-warning) 16%, var(--color-border));
+    border-radius: var(--radius-md);
+    color: var(--color-text-secondary);
     display: flex;
     gap: var(--space-3);
     justify-content: space-between;
+    margin-bottom: var(--space-4);
+    padding: var(--space-3);
+}
+
+.property-inline-alert__copy {
+    display: grid;
+    gap: var(--space-1);
+}
+
+.property-inline-note {
+    display: grid;
+    gap: var(--space-1);
+    margin-bottom: var(--space-4);
+}
+
+.property-section-stack {
+    display: grid;
+    gap: var(--space-4);
+}
+
+.property-detail-group-grid {
+    display: grid;
+    gap: var(--space-4);
+    grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+}
+
+.property-detail-group {
+    background: color-mix(in srgb, var(--color-surface) 88%, var(--color-background));
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    display: grid;
+    gap: var(--space-3);
+    padding: var(--space-4);
+}
+
+.property-toggle-row {
+    align-items: center;
+    display: inline-flex;
+    gap: var(--space-3);
+}
+
+.property-toggle-row__state {
+    color: var(--color-text-secondary);
+    font-size: var(--text-sm);
+    font-weight: 700;
+    min-width: 2rem;
 }
 
 .key-value-grid {
@@ -1708,19 +1758,19 @@ textarea {
 
 .switch__track {
     align-items: center;
-    background: var(--color-surface-muted);
-    border: 1px solid var(--color-border);
+    background: color-mix(in srgb, var(--color-surface-muted) 88%, var(--color-surface));
+    border: 1px solid color-mix(in srgb, var(--color-border) 88%, var(--color-text-muted));
     border-radius: var(--radius-pill);
     display: inline-flex;
-    height: 1.65rem;
+    height: 1.75rem;
     padding: 0.12rem;
     transition: background-color var(--duration-fast) ease;
-    width: 2.8rem;
+    width: 3rem;
 }
 
 .switch__track--checked {
-    background: var(--color-accent-soft);
-    border-color: color-mix(in srgb, var(--color-accent) 28%, var(--color-border));
+    background: color-mix(in srgb, var(--color-accent) 18%, var(--color-accent-soft));
+    border-color: color-mix(in srgb, var(--color-accent) 40%, var(--color-border));
 }
 
 .switch__thumb {
@@ -1728,13 +1778,13 @@ textarea {
     border-radius: 50%;
     box-shadow: var(--shadow-card);
     display: block;
-    height: 1.15rem;
+    height: 1.2rem;
     transition: transform var(--duration-fast) ease;
-    width: 1.15rem;
+    width: 1.2rem;
 }
 
 .switch__thumb--checked {
-    transform: translateX(1.15rem);
+    transform: translateX(1.2rem);
 }
 
 .toolbar--stacked {
@@ -2888,7 +2938,7 @@ body {
 
 .property-detail-nav {
     align-items: center;
-    background: var(--color-surface);
+    background: color-mix(in srgb, var(--color-surface) 92%, transparent);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
     display: flex;

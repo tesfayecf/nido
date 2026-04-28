@@ -156,10 +156,6 @@ export const SourcesPage = (): JSX.Element => {
                             <RowActions
                                 menuItems={[
                                     {
-                                        label: "Open",
-                                        onSelect: () => { void navigate(`/sources/${item.id}`); },
-                                    },
-                                    {
                                         disabled: (propertiesQuery.data ?? []).filter((property) => property.source_id === item.id).length === 0,
                                         label: "Run all properties",
                                         onSelect: () => { setBulkTarget(item); },
@@ -167,10 +163,10 @@ export const SourcesPage = (): JSX.Element => {
                                 ]}
                             >
                                 <button
-                                    aria-label={"Edit source"}
+                                    aria-label={"Open source"}
                                     className={"icon-button"}
                                     onClick={() => { void navigate(`/sources/${item.id}`); }}
-                                    title={"Edit"}
+                                    title={"Open source"}
                                     type={"button"}
                                 >
                                     <Icon name={"edit"} />
