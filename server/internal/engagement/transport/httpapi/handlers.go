@@ -1,7 +1,6 @@
 package httpapi
 
 import (
-	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
@@ -40,8 +39,7 @@ func Register(mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, s
 		var request struct {
 			PropertyID string `json:"property_id"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-			platformhttp.WriteError(w, http.StatusBadRequest, "invalid request body")
+		if !platformhttp.DecodeJSON(w, r, &request) {
 			return
 		}
 
@@ -96,8 +94,7 @@ func Register(mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, s
 			RuleType        string `json:"rule_type"`
 			ThresholdAmount *int64 `json:"threshold_amount"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-			platformhttp.WriteError(w, http.StatusBadRequest, "invalid request body")
+		if !platformhttp.DecodeJSON(w, r, &request) {
 			return
 		}
 

@@ -1,7 +1,6 @@
 package httpapi
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
@@ -28,8 +27,7 @@ func Register(mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, s
 
 	mux.Handle("POST /api/v1/backoffice/sources", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var request ingestiondomain.Source
-		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-			platformhttp.WriteError(w, http.StatusBadRequest, "invalid request body")
+		if !platformhttp.DecodeJSON(w, r, &request) {
 			return
 		}
 

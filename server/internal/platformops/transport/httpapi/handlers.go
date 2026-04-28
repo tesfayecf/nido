@@ -1,7 +1,6 @@
 package httpapi
 
 import (
-	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
@@ -23,8 +22,7 @@ func Register(mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, s
 
 	mux.Handle("PUT /api/v1/backoffice/platform/settings", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var request platformopsdomain.PlatformSettings
-		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-			platformhttp.WriteError(w, http.StatusBadRequest, "invalid request body")
+		if !platformhttp.DecodeJSON(w, r, &request) {
 			return
 		}
 		request.Webhook.URL = app.NormalizeWebhookURL(request.Webhook.URL)

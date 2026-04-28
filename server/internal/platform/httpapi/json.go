@@ -21,3 +21,13 @@ func WriteJSON(w http.ResponseWriter, statusCode int, payload any) {
 func WriteError(w http.ResponseWriter, statusCode int, message string) {
 	WriteJSON(w, statusCode, ErrorResponse{Error: message})
 }
+
+// DecodeJSON decodes a request body into the supplied destination or writes a standard error.
+func DecodeJSON(w http.ResponseWriter, r *http.Request, destination any) bool {
+	if err := json.NewDecoder(r.Body).Decode(destination); err != nil {
+		WriteError(w, http.StatusBadRequest, "invalid request body")
+		return false
+	}
+
+	return true
+}

@@ -1,7 +1,6 @@
 package httpapi
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
@@ -59,8 +58,7 @@ func RegisterProperties(mux *http.ServeMux, requireAuth func(http.Handler) http.
 
 	mux.Handle("POST /api/v1/backoffice/properties", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var request propertyUpsertRequest
-		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-			platformhttp.WriteError(w, http.StatusBadRequest, "invalid request body")
+		if !platformhttp.DecodeJSON(w, r, &request) {
 			return
 		}
 
@@ -83,8 +81,7 @@ func RegisterProperties(mux *http.ServeMux, requireAuth func(http.Handler) http.
 	// the /{propertyID}/preview pattern so that the static segment wins.
 	mux.Handle("POST /api/v1/backoffice/properties/preview", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var request ingestiondomain.PropertyPreviewRequest
-		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-			platformhttp.WriteError(w, http.StatusBadRequest, "invalid request body")
+		if !platformhttp.DecodeJSON(w, r, &request) {
 			return
 		}
 
@@ -157,8 +154,7 @@ func RegisterProperties(mux *http.ServeMux, requireAuth func(http.Handler) http.
 		}
 
 		var request propertyUpsertRequest
-		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-			platformhttp.WriteError(w, http.StatusBadRequest, "invalid request body")
+		if !platformhttp.DecodeJSON(w, r, &request) {
 			return
 		}
 
@@ -201,8 +197,7 @@ func RegisterProperties(mux *http.ServeMux, requireAuth func(http.Handler) http.
 		var body struct {
 			Fields []ingestiondomain.FieldSelector `json:"fields"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			platformhttp.WriteError(w, http.StatusBadRequest, "invalid request body")
+		if !platformhttp.DecodeJSON(w, r, &body) {
 			return
 		}
 
@@ -274,8 +269,7 @@ func RegisterProperties(mux *http.ServeMux, requireAuth func(http.Handler) http.
 		var body struct {
 			Version int `json:"version"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			platformhttp.WriteError(w, http.StatusBadRequest, "invalid request body")
+		if !platformhttp.DecodeJSON(w, r, &body) {
 			return
 		}
 		if body.Version <= 0 {
@@ -300,8 +294,7 @@ func RegisterProperties(mux *http.ServeMux, requireAuth func(http.Handler) http.
 		}
 
 		var request ingestiondomain.PropertyPreviewRequest
-		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-			platformhttp.WriteError(w, http.StatusBadRequest, "invalid request body")
+		if !platformhttp.DecodeJSON(w, r, &request) {
 			return
 		}
 

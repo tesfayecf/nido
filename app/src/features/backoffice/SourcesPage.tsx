@@ -5,10 +5,9 @@ import { useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { DataTable } from "@/components/ui/DataTable";
-import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Icon } from "@/components/ui/Icon";
 import { PageCard } from "@/components/ui/PageCard";
+import { QueryDataTable } from "@/components/ui/QueryDataTable";
 import { RowActions } from "@/components/ui/RowActions";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -108,102 +107,102 @@ export const SourcesPage = (): JSX.Element => {
                 </div>
             </PageCard>
 
-            {sourcesQuery.isLoading ? <p className={"state-message state-message--loading"}>{"Loading sources..."}</p> : null}
-            {sourcesQuery.isError ? <ErrorBanner>{"Could not load sources."}</ErrorBanner> : null}
-            {!sourcesQuery.isLoading && !sourcesQuery.isError ? (
-                <DataTable
-                    caption={"Source templates"}
-                    columns={[
-                        {
-                            cell: (item) => (
-                                <div className={"data-table__primary"}>
-                                    <strong>{item.name}</strong>
-                                    <span className={"table-subcopy"}>{item.id}</span>
-                                </div>
-                            ),
-                            header: "Template",
-                            id: "name",
-                            sortValue: (item) => item.name,
-                        },
-                        {
-                            cell: (item) => <StatusBadge tone={item.active === false ? "danger" : "success"} value={item.active === false ? "inactive" : "active"} />,
-                            header: "Status",
-                            id: "status",
-                            sortValue: (item) => item.active === false ? "inactive" : "active",
-                            width: "8rem",
-                        },
-                        {
-                            align: "right",
-                            cell: (item) => `${item.fieldCount}`,
-                            header: "Fields",
-                            id: "fields",
-                            sortValue: (item) => item.fieldCount,
-                            width: "6rem",
-                        },
-                        {
-                            cell: (item) => item.updated_at === undefined ? "—" : formatDateTime(item.updated_at),
-                            header: "Updated",
-                            id: "updated",
-                            sortValue: (item) => item.updated_at ?? "",
-                            width: "11rem",
-                        },
-                        {
-                            cell: (item) => item.created_at === undefined ? "—" : formatDateTime(item.created_at),
-                            header: "Created",
-                            id: "created",
-                            sortValue: (item) => item.created_at ?? "",
-                            width: "11rem",
-                        },
-                        {
-                            align: "right",
-                            cell: (item) => (
-                                <RowActions
-                                    menuItems={[
-                                        {
-                                            label: "Open",
-                                            onSelect: () => { void navigate(`/sources/${item.id}`); },
-                                        },
-                                        {
-                                            disabled: (propertiesQuery.data ?? []).filter((property) => property.source_id === item.id).length === 0,
-                                            label: "Run all properties",
-                                            onSelect: () => { setBulkTarget(item); },
-                                        },
-                                    ]}
+            <QueryDataTable
+                caption={"Source templates"}
+                columns={[
+                    {
+                        cell: (item) => (
+                            <div className={"data-table__primary"}>
+                                <strong>{item.name}</strong>
+                                <span className={"table-subcopy"}>{item.id}</span>
+                            </div>
+                        ),
+                        header: "Template",
+                        id: "name",
+                        sortValue: (item) => item.name,
+                    },
+                    {
+                        cell: (item) => <StatusBadge tone={item.active === false ? "danger" : "success"} value={item.active === false ? "inactive" : "active"} />,
+                        header: "Status",
+                        id: "status",
+                        sortValue: (item) => item.active === false ? "inactive" : "active",
+                        width: "8rem",
+                    },
+                    {
+                        align: "right",
+                        cell: (item) => `${item.fieldCount}`,
+                        header: "Fields",
+                        id: "fields",
+                        sortValue: (item) => item.fieldCount,
+                        width: "6rem",
+                    },
+                    {
+                        cell: (item) => item.updated_at === undefined ? "—" : formatDateTime(item.updated_at),
+                        header: "Updated",
+                        id: "updated",
+                        sortValue: (item) => item.updated_at ?? "",
+                        width: "11rem",
+                    },
+                    {
+                        cell: (item) => item.created_at === undefined ? "—" : formatDateTime(item.created_at),
+                        header: "Created",
+                        id: "created",
+                        sortValue: (item) => item.created_at ?? "",
+                        width: "11rem",
+                    },
+                    {
+                        align: "right",
+                        cell: (item) => (
+                            <RowActions
+                                menuItems={[
+                                    {
+                                        label: "Open",
+                                        onSelect: () => { void navigate(`/sources/${item.id}`); },
+                                    },
+                                    {
+                                        disabled: (propertiesQuery.data ?? []).filter((property) => property.source_id === item.id).length === 0,
+                                        label: "Run all properties",
+                                        onSelect: () => { setBulkTarget(item); },
+                                    },
+                                ]}
+                            >
+                                <button
+                                    aria-label={"Edit source"}
+                                    className={"icon-button"}
+                                    onClick={() => { void navigate(`/sources/${item.id}`); }}
+                                    title={"Edit"}
+                                    type={"button"}
                                 >
-                                    <button
-                                        aria-label={"Edit source"}
-                                        className={"icon-button"}
-                                        onClick={() => { void navigate(`/sources/${item.id}`); }}
-                                        title={"Edit"}
-                                        type={"button"}
-                                    >
-                                        <Icon name={"edit"} />
-                                    </button>
-                                    <button
-                                        aria-label={"Delete source"}
-                                        className={"icon-button icon-button--danger"}
-                                        onClick={() => { setDeleteTarget(item); }}
-                                        title={"Delete"}
-                                        type={"button"}
-                                    >
-                                        <Icon name={"trash"} />
-                                    </button>
-                                </RowActions>
-                            ),
-                            header: "Actions",
-                            id: "actions",
-                            width: "9rem",
-                        },
-                    ]}
-                    compact
-                    emptyMessage={"No sources are configured yet."}
-                    getRowId={(item) => item.id}
-                    items={rows}
-                    onRowClick={(item) => { void navigate(`/sources/${item.id}`); }}
-                    pageSize={20}
-                    rowLabel={(item) => `Open source ${item.name}`}
-                />
-            ) : null}
+                                    <Icon name={"edit"} />
+                                </button>
+                                <button
+                                    aria-label={"Delete source"}
+                                    className={"icon-button icon-button--danger"}
+                                    onClick={() => { setDeleteTarget(item); }}
+                                    title={"Delete"}
+                                    type={"button"}
+                                >
+                                    <Icon name={"trash"} />
+                                </button>
+                            </RowActions>
+                        ),
+                        header: "Actions",
+                        id: "actions",
+                        width: "9rem",
+                    },
+                ]}
+                compact
+                emptyMessage={"No sources are configured yet."}
+                errorMessage={"Could not load sources."}
+                getRowId={(item) => item.id}
+                isError={sourcesQuery.isError}
+                isLoading={sourcesQuery.isLoading}
+                items={rows}
+                loadingMessage={"Loading sources..."}
+                onRowClick={(item) => { void navigate(`/sources/${item.id}`); }}
+                pageSize={20}
+                rowLabel={(item) => `Open source ${item.name}`}
+            />
 
             <ConfirmDialog
                 confirmLabel={"Delete source"}
