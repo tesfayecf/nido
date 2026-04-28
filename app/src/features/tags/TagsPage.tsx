@@ -16,6 +16,10 @@ import { tagKeys } from "@/services/tags/tags.keys";
 import { createTag, deleteTag, listTags } from "@/services/tags/tags.service";
 import type { Tag } from "@/services/tags/tags.types";
 
+const formatCreationDate = (value: string): string => {
+    return new Intl.DateTimeFormat("en", { dateStyle: "medium" }).format(new Date(value));
+};
+
 export const TagsPage = (): JSX.Element => {
     const queryClient = useQueryClient();
     const { pushToast } = useToast();
@@ -81,6 +85,7 @@ export const TagsPage = (): JSX.Element => {
 
             <QueryDataTable
                 caption={"Available tags"}
+                className={"tags-table"}
                 columns={[
                     {
                         cell: (item) => (
@@ -101,19 +106,21 @@ export const TagsPage = (): JSX.Element => {
                         header: "Tag",
                         id: "name",
                         sortValue: (item) => item.name,
+                        width: "40%",
                     },
                     {
                         cell: (item) => item.color !== "" ? item.color : "—",
                         header: "Color",
                         id: "color",
-                        width: "10rem",
+                        width: "20%",
                     },
                     {
-                        cell: (item) => formatDateTime(item.created_at),
-                        header: "Created",
+                        cell: (item) => formatCreationDate(item.created_at),
+                        header: "Creation date",
                         id: "created_at",
                         sortValue: (item) => item.created_at,
-                        width: "11rem",
+                        width: "24%",
+                        wrap: true,
                     },
                     {
                         align: "right",
@@ -133,10 +140,9 @@ export const TagsPage = (): JSX.Element => {
                         ),
                         header: "Actions",
                         id: "actions",
-                        width: "6rem",
+                        width: "16%",
                     },
                 ]}
-                compact
                 emptyMessage={"No tags yet. Create your first tag to start organizing properties."}
                 errorMessage={"Could not load tags."}
                 getRowId={(item) => item.id}

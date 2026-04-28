@@ -26,7 +26,7 @@ export const AppRouteError = (): JSX.Element => {
     return (
         <PageStack>
             <PageCard
-                action={<Button as={Link} to={"/properties"} variant={"secondary"}>{"Back to properties"}</Button>}
+                action={<Button as={Link} to={"/dashboard"} variant={"secondary"}>{"Back to dashboard"}</Button>}
                 description={description}
                 title={title}
             >

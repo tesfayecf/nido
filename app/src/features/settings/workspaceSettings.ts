@@ -88,7 +88,7 @@ const readString = (value: unknown, fallback: string): string => {
     return typeof value === "string" ? value : fallback;
 };
 
-const normalizeWorkspaceSettings = (value: unknown): WorkspaceSettings => {
+export const normalizeWorkspaceSettings = (value: unknown): WorkspaceSettings => {
     if (!isObject(value)) {
         return DEFAULT_WORKSPACE_SETTINGS;
     }

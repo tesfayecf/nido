@@ -32,7 +32,7 @@ export const LoginPage = (): JSX.Element => {
     const token = useSessionStore((state) => state.token);
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const redirectTarget = searchParams.get("redirect") ?? "/properties";
+    const redirectTarget = searchParams.get("redirect") ?? "/dashboard";
     const loginMutation = useMutation({
         mutationFn: login,
         onSuccess(response) {

@@ -350,16 +350,12 @@ const buildPropertyAttributes = (values: Record<string, string>): { pricePerSqua
 
 const createPriceSelectorDrafts = (): SelectorFieldDraft[] => createDefaultSelectorDrafts().filter((field) => field.name === "price");
 
-type PropertySectionId = "attributes" | "notes-decisions" | "overview" | "price-intelligence" | "property-settings" | "run-configuration" | "url-source-fields";
+type PropertySectionId = "configuration" | "insights" | "notes-decisions";
 
 const PROPERTY_SECTIONS: { readonly id: PropertySectionId; readonly label: string; }[] = [
-    { id: "overview", label: "Overview" },
-    { id: "attributes", label: "Attributes" },
-    { id: "price-intelligence", label: "Price Intelligence" },
+    { id: "insights", label: "Property Insights" },
+    { id: "configuration", label: "Configuration" },
     { id: "notes-decisions", label: "Notes & Decisions" },
-    { id: "property-settings", label: "Property Settings" },
-    { id: "url-source-fields", label: "URL, Source & Fields" },
-    { id: "run-configuration", label: "Run Configuration" },
 ];
 
 const toTemplateFieldDraft = (field: ReturnType<typeof parseSelectorConfigJson>[number]): SelectorFieldDraft => ({
@@ -414,7 +410,7 @@ export const PropertyDetailPage = (): JSX.Element => {
     const [manualEntryMode, setManualEntryMode] = useState(false);
     const [autofillStatus, setAutofillStatus] = useState<"error" | "idle" | "loading" | "success">("idle");
     const [autofillMessage, setAutofillMessage] = useState("");
-    const [activeSection, setActiveSection] = useState<PropertySectionId>("overview");
+    const [activeSection, setActiveSection] = useState<PropertySectionId>("insights");
     const [detachmentAlertDismissed, setDetachmentAlertDismissed] = useState(false);
     const manualOverrideFieldsRef = useRef<Set<PropertyManualDataDraftKey>>(new Set());
     const autofilledFieldsRef = useRef<Set<PropertyManualDataDraftKey>>(new Set());
@@ -497,7 +493,7 @@ export const PropertyDetailPage = (): JSX.Element => {
     }, [propertyQuery.data]);
 
     useEffect(() => {
-        setActiveSection("overview");
+        setActiveSection("insights");
     }, [resolvedId]);
 
     useEffect(() => {
@@ -1056,19 +1052,25 @@ export const PropertyDetailPage = (): JSX.Element => {
                     <Button onClick={() => { setAdditionalFieldsOpen((open) => !open); }} type={"button"} variant={"secondary"}>
                         {additionalFieldsOpen ? "Hide field configuration" : "Configure price selector"}
                     </Button>
-                    <p className={"muted-copy"}>{"Only the Price field is mandatory during creation. Add notes, decisions, and automation details after the property exists."}</p>
+                    <p className={"muted-copy"}>
+                        {additionalFieldsOpen
+                            ? "Finish the selector setup below, then create the property from the configuration block."
+                            : "Only the Price field is mandatory during creation. Add notes, decisions, and automation details after the property exists."}
+                    </p>
                 </div>
                 {createPriceFieldError !== undefined ? <ErrorBanner>{createPriceFieldError}</ErrorBanner> : null}
                 {savePropertyMutation.isError ? <ErrorBanner>{"Could not save property. Check the price, source details, and any optional URL."}</ErrorBanner> : null}
-                <ActionGroup>
-                    <Button
-                        disabled={savePropertyMutation.isPending || manualPriceError !== undefined || urlError !== undefined || createPriceFieldError !== undefined}
-                        form={"property-create-form"}
-                        type={"submit"}
-                    >
-                        {getSavePropertyLabel(true, savePropertyMutation.isPending)}
-                    </Button>
-                </ActionGroup>
+                {!additionalFieldsOpen ? (
+                    <ActionGroup>
+                        <Button
+                            disabled={savePropertyMutation.isPending || manualPriceError !== undefined || urlError !== undefined || createPriceFieldError !== undefined}
+                            form={"property-create-form"}
+                            type={"submit"}
+                        >
+                            {getSavePropertyLabel(true, savePropertyMutation.isPending)}
+                        </Button>
+                    </ActionGroup>
+                ) : null}
             </PageCard>
 
             {additionalFieldsOpen ? (
@@ -1088,7 +1090,7 @@ export const PropertyDetailPage = (): JSX.Element => {
                     <ActionGroup>
                         <Button onClick={() => { setFieldRows((rows) => [...rows, createEmptySelectorDraft()]); }} variant={"secondary"}>{"Add field"}</Button>
                         <Button disabled={previewMutation.isPending || url.trim() === "" || validationMessages.length > 0} onClick={() => { previewMutation.mutate(); }} variant={"secondary"}>{previewMutation.isPending ? "Previewing..." : "Preview extraction"}</Button>
-                        <Button disabled={isPropertySaveDisabled || validationMessages.length > 0} form={"property-create-form"} type={"submit"}>{savePropertyMutation.isPending ? "Creating..." : "Create property with selectors"}</Button>
+                        <Button disabled={isPropertySaveDisabled || validationMessages.length > 0} form={"property-create-form"} type={"submit"}>{savePropertyMutation.isPending ? "Creating..." : "Create Property"}</Button>
                     </ActionGroup>
                     {validationMessages.length > 0 ? (
                         <div className={"selector-builder__validation-list"}>
@@ -1125,7 +1127,7 @@ export const PropertyDetailPage = (): JSX.Element => {
                         </button>
                     ))}
                 </nav>
-                {activeSection === "overview" ? (
+                {activeSection === "insights" ? (
                     <PageCard
                         action={(
                             <ActionGroup>
@@ -1135,7 +1137,7 @@ export const PropertyDetailPage = (): JSX.Element => {
                         )}
                         description={"Review the latest tracked state, then edit directly inside each section without leaving this page."}
                         title={propertyQuery.data?.label !== undefined && propertyQuery.data.label !== "" ? propertyQuery.data.label : propertyQuery.data?.url !== undefined && propertyQuery.data.url !== "" ? propertyQuery.data.url : "Manual property"}
-                        titleId={"overview"}
+                        titleId={"insights"}
                     >
                         {propertyQuery.isError ? <ErrorBanner>{"Could not load property."}</ErrorBanner> : null}
                         {propertyQuery.data !== undefined ? (
@@ -1163,7 +1165,7 @@ export const PropertyDetailPage = (): JSX.Element => {
                     </PageCard>
                 ) : null}
 
-                {activeSection === "attributes" ? (
+                {activeSection === "insights" ? (
                     <>
                         <PageCard description={"Auto-calculated from the latest extracted values and field defaults."} title={"Attributes"} titleId={"attributes"}>
                             <KeyValueGrid compact>
@@ -1199,7 +1201,7 @@ export const PropertyDetailPage = (): JSX.Element => {
                     </>
                 ) : null}
 
-                {activeSection === "price-intelligence" ? (
+                {activeSection === "insights" ? (
                     <PageCard description={"Separates price inputs, computed metrics, and history so pricing signals are easy to scan."} title={"Price Intelligence"} titleId={"price-intelligence"}>
                         {summaryQuery.data === undefined || pricingInsight === undefined ? <EmptyState message={"Price intelligence will appear after the first property summary is available."} /> : (
                             <div className={"property-section-stack"}>
@@ -1321,89 +1323,62 @@ export const PropertyDetailPage = (): JSX.Element => {
                 ) : null}
 
                 {activeSection === "notes-decisions" ? (
-                    <>
-                        <PageCard description={"Edit decision context, notes, and thesis directly within the section."} title={"Notes & Decisions"} titleId={"notes-decisions"}>
-                            <FormGrid variant={"two-column"}>
-                                <div style={{ display: "grid", gap: "0.25rem", gridColumn: "1 / -1" }}>
-                                    <strong>{"Decision status"}</strong>
-                                    <div className={"action-group"}>
-                                        {["candidate", "shortlisted", "rejected"].map((value) => (
-                                            <Button
-                                                key={value}
-                                                onClick={() => { setMetadataDraft((current) => ({ ...current, businessStage: current.businessStage === value ? "" : value })); }}
-                                                size={"small"}
-                                                type={"button"}
-                                                variant={metadataDraft.businessStage === value ? "primary" : "secondary"}
-                                            >
-                                                {formatDecisionStatus(value)}
-                                            </Button>
-                                        ))}
-                                    </div>
+                    <PageCard description={"Edit decision context, notes, and thesis directly within the section."} title={"Notes & Decisions"} titleId={"notes-decisions"}>
+                        <FormGrid variant={"two-column"}>
+                            <div style={{ display: "grid", gap: "0.25rem", gridColumn: "1 / -1" }}>
+                                <strong>{"Decision status"}</strong>
+                                <div className={"action-group"}>
+                                    {["candidate", "shortlisted", "rejected"].map((value) => (
+                                        <Button
+                                            key={value}
+                                            onClick={() => { setMetadataDraft((current) => ({ ...current, businessStage: current.businessStage === value ? "" : value })); }}
+                                            size={"small"}
+                                            type={"button"}
+                                            variant={metadataDraft.businessStage === value ? "primary" : "secondary"}
+                                        >
+                                            {formatDecisionStatus(value)}
+                                        </Button>
+                                    ))}
                                 </div>
-                                <Field label={"Target price"}>
-                                    <Input min={0} onChange={(event) => { setMetadataDraft((current) => ({ ...current, targetPrice: event.target.value })); }} prefix={"€"} type={"number"} value={metadataDraft.targetPrice} />
-                                </Field>
-                                <Field label={"Priority"}>
-                                    <Select onChange={(event) => { setMetadataDraft((current) => ({ ...current, priorityLevel: event.target.value })); }} value={metadataDraft.priorityLevel}>
-                                        <option value={""}>{"Not set"}</option>
-                                        <option value={"low"}>{"Low"}</option>
-                                        <option value={"medium"}>{"Medium"}</option>
-                                        <option value={"high"}>{"High"}</option>
-                                        <option value={"critical"}>{"Critical"}</option>
-                                    </Select>
-                                </Field>
-                                <Field label={"Expected rent"}>
-                                    <Input min={0} onChange={(event) => { setMetadataDraft((current) => ({ ...current, expectedRent: event.target.value })); }} prefix={"€"} type={"number"} value={metadataDraft.expectedRent} />
-                                </Field>
-                                <Field label={"Expected yield (%)"}>
-                                    <Input min={0} onChange={(event) => { setMetadataDraft((current) => ({ ...current, expectedYieldPercent: event.target.value })); }} step={"0.1"} type={"number"} value={metadataDraft.expectedYieldPercent} />
-                                </Field>
-                                <Field fullWidth label={"Notes"}>
-                                    <Textarea onChange={(event) => { setMetadataDraft((current) => ({ ...current, acquisitionNotes: event.target.value })); }} rows={4} value={metadataDraft.acquisitionNotes} />
-                                </Field>
-                                <Field fullWidth label={"Thesis"}>
-                                    <Textarea onChange={(event) => { setMetadataDraft((current) => ({ ...current, dealThesis: event.target.value })); }} rows={4} value={metadataDraft.dealThesis} />
-                                </Field>
-                            </FormGrid>
-                            <ActionGroup>
-                                <Button disabled={isPropertySaveDisabled} onClick={handlePropertySave}>{savePropertyMutation.isPending ? "Saving..." : "Save notes & decisions"}</Button>
-                            </ActionGroup>
-                            {savePropertyMutation.isError ? <ErrorBanner>{"Could not save property. Check the price, source details, and any optional URL."}</ErrorBanner> : null}
-                        </PageCard>
-                        <PageCard
-                            action={(
-                                <Button onClick={() => { setCreateAlertOpen(true); }} variant={"secondary"}>{"Create alert"}</Button>
-                            )}
-                            description={"Alerts remain visible but lightweight, supporting decisions without dominating the page."}
-                            title={"Alerts"}
-                        >
-                            {propertyAlerts.length === 0 ? <EmptyState message={"No alerts are linked to this property yet."} /> : (
-                                <ItemList>
-                                    {propertyAlerts.map((rule) => {
-                                        return (
-                                            <ListRow key={rule.id}>
-                                                <ListRowMain>
-                                                    <div>
-                                                        <h3 className={"list-row__title"}>{getRuleTypeLabel(rule.rule_type)}</h3>
-                                                        <p className={"list-row__meta"}>{getRuleTypeLogic(rule.rule_type, rule.threshold_amount)}</p>
-                                                    </div>
-                                                    <StatusBadge tone={rule.enabled ? "success" : "neutral"} value={rule.enabled ? "on" : "off"} />
-                                                </ListRowMain>
-                                            </ListRow>
-                                        );
-                                    })}
-                                </ItemList>
-                            )}
-                        </PageCard>
-                    </>
+                            </div>
+                            <Field label={"Target price"}>
+                                <Input min={0} onChange={(event) => { setMetadataDraft((current) => ({ ...current, targetPrice: event.target.value })); }} prefix={"€"} type={"number"} value={metadataDraft.targetPrice} />
+                            </Field>
+                            <Field label={"Priority"}>
+                                <Select onChange={(event) => { setMetadataDraft((current) => ({ ...current, priorityLevel: event.target.value })); }} value={metadataDraft.priorityLevel}>
+                                    <option value={""}>{"Not set"}</option>
+                                    <option value={"low"}>{"Low"}</option>
+                                    <option value={"medium"}>{"Medium"}</option>
+                                    <option value={"high"}>{"High"}</option>
+                                    <option value={"critical"}>{"Critical"}</option>
+                                </Select>
+                            </Field>
+                            <Field label={"Expected rent"}>
+                                <Input min={0} onChange={(event) => { setMetadataDraft((current) => ({ ...current, expectedRent: event.target.value })); }} prefix={"€"} type={"number"} value={metadataDraft.expectedRent} />
+                            </Field>
+                            <Field label={"Expected yield (%)"}>
+                                <Input min={0} onChange={(event) => { setMetadataDraft((current) => ({ ...current, expectedYieldPercent: event.target.value })); }} step={"0.1"} type={"number"} value={metadataDraft.expectedYieldPercent} />
+                            </Field>
+                            <Field fullWidth label={"Notes"}>
+                                <Textarea onChange={(event) => { setMetadataDraft((current) => ({ ...current, acquisitionNotes: event.target.value })); }} rows={4} value={metadataDraft.acquisitionNotes} />
+                            </Field>
+                            <Field fullWidth label={"Thesis"}>
+                                <Textarea onChange={(event) => { setMetadataDraft((current) => ({ ...current, dealThesis: event.target.value })); }} rows={4} value={metadataDraft.dealThesis} />
+                            </Field>
+                        </FormGrid>
+                        <ActionGroup>
+                            <Button disabled={isPropertySaveDisabled} onClick={handlePropertySave}>{savePropertyMutation.isPending ? "Saving..." : "Save notes & decisions"}</Button>
+                        </ActionGroup>
+                        {savePropertyMutation.isError ? <ErrorBanner>{"Could not save property. Check the price, source details, and any optional URL."}</ErrorBanner> : null}
+                    </PageCard>
                 ) : null}
 
-                {activeSection === "property-settings" ? (
+                {activeSection === "configuration" ? (
                     <>
                         <PageCard
                             description={"Manage property identity and template linkage inline without opening a separate editor."}
-                            title={"Property Settings"}
-                            titleId={"property-settings"}
+                            title={"Configuration"}
+                            titleId={"configuration"}
                         >
                             <FormGrid variant={"two-column"}>
                                 <Field label={"Label"}>
@@ -1443,11 +1418,7 @@ export const PropertyDetailPage = (): JSX.Element => {
                                     </div>
                                 )}
                         </PageCard>
-                    </>
-                ) : null}
-
-                {activeSection === "url-source-fields" ? (
-                    <PageCard description={"Review the URL and template summary, then manage field configuration from a compact, expandable table."} title={"URL, Source & Fields"} titleId={"url-source-fields"}>
+                        <PageCard description={"Review the URL and template summary, then manage field configuration from a compact, expandable table."} title={"Fields & Source Extraction"}>
                         <KeyValueGrid compact>
                             <KeyValuePair label={"URL"} value={propertyQuery.data?.url !== undefined && propertyQuery.data.url !== "" ? propertyQuery.data.url : "Manual property"} />
                             <KeyValuePair label={"Source template"} value={sourcesQuery.data?.find((source) => source.id === propertyQuery.data?.source_id)?.name ?? "No template"} />
@@ -1476,10 +1447,6 @@ export const PropertyDetailPage = (): JSX.Element => {
                         ) : null}
                         {saveConfigMutation.isError ? <ErrorBanner>{"Could not save configuration."}</ErrorBanner> : null}
                     </PageCard>
-                ) : null}
-
-                {activeSection === "run-configuration" ? (
-                    <>
                         <PageCard
                             action={(
                                 <ActionGroup>
@@ -1495,8 +1462,7 @@ export const PropertyDetailPage = (): JSX.Element => {
                                 </ActionGroup>
                             )}
                             description={`${persistedScheduleSummary}. ${persistedRetrySummary}`}
-                            title={"Run Configuration"}
-                            titleId={"run-configuration"}
+                            title={"Automation"}
                         >
                             <FormGrid variant={"two-column"}>
                                 <Field
@@ -1617,6 +1583,31 @@ export const PropertyDetailPage = (): JSX.Element => {
                                         pageSize={8}
                                     />
                                 </>
+                            )}
+                        </PageCard>
+                        <PageCard
+                            action={(
+                                <Button onClick={() => { setCreateAlertOpen(true); }} variant={"secondary"}>{"Create alert"}</Button>
+                            )}
+                            description={"Alert configuration stays with the rest of the operational setup so thresholds and automations stay together."}
+                            title={"Alerts"}
+                        >
+                            {propertyAlerts.length === 0 ? <EmptyState message={"No alerts are linked to this property yet."} /> : (
+                                <ItemList>
+                                    {propertyAlerts.map((rule) => {
+                                        return (
+                                            <ListRow key={rule.id}>
+                                                <ListRowMain>
+                                                    <div>
+                                                        <h3 className={"list-row__title"}>{getRuleTypeLabel(rule.rule_type)}</h3>
+                                                        <p className={"list-row__meta"}>{getRuleTypeLogic(rule.rule_type, rule.threshold_amount)}</p>
+                                                    </div>
+                                                    <StatusBadge tone={rule.enabled ? "success" : "neutral"} value={rule.enabled ? "on" : "off"} />
+                                                </ListRowMain>
+                                            </ListRow>
+                                        );
+                                    })}
+                                </ItemList>
                             )}
                         </PageCard>
                         <PageCard description={"Recent automation runs with auto-refresh every 5 seconds."} title={"Automation Runs"}>

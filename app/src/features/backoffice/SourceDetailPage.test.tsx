@@ -82,8 +82,8 @@ describe("SourceDetailPage", () => {
             expect(screen.getByLabelText("Template id")).toHaveValue("");
             expect(screen.getByLabelText("Template name")).toHaveValue("");
             expect(screen.getByRole("button", { name: /price/i })).toBeInTheDocument();
-            expect(screen.getByRole("button", { name: /title/i })).toBeInTheDocument();
-            expect(screen.getByRole("button", { name: /location/i })).toBeInTheDocument();
+            expect(screen.queryByRole("button", { name: /title/i })).not.toBeInTheDocument();
+            expect(screen.queryByRole("button", { name: /location/i })).not.toBeInTheDocument();
         });
     });
 
