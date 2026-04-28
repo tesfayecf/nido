@@ -15,7 +15,7 @@ import { tagKeys } from "@/services/tags/tags.keys";
 import { createTag, deleteTag, listTags } from "@/services/tags/tags.service";
 import type { Tag } from "@/services/tags/tags.types";
 
-const formatCreationDate = (value: string): string => {
+const formatMediumDate = (value: string): string => {
     return new Intl.DateTimeFormat("en", { dateStyle: "medium" }).format(new Date(value));
 };
 
@@ -114,7 +114,7 @@ export const TagsPage = (): JSX.Element => {
                         width: "20%",
                     },
                     {
-                        cell: (item) => formatCreationDate(item.created_at),
+                        cell: (item) => formatMediumDate(item.created_at),
                         header: "Created",
                         id: "created_at",
                         sortValue: (item) => item.created_at,

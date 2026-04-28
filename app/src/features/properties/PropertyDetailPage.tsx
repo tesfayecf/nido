@@ -1055,7 +1055,7 @@ export const PropertyDetailPage = (): JSX.Element => {
                     <p className={"muted-copy"}>
                         {additionalFieldsOpen
                             ? "Finish the selector setup below, then create the property from the configuration block."
-                            : "Only the Price field is mandatory during creation. Add notes, decisions, and automation details after the property exists."}
+                            : "Only the price field is mandatory during creation. Add notes, decisions, and automation details after the property exists."}
                     </p>
                 </div>
                 {createPriceFieldError !== undefined ? <ErrorBanner>{createPriceFieldError}</ErrorBanner> : null}
