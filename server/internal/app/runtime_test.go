@@ -90,6 +90,160 @@ func TestRuntimeAllowsLoopbackCORSRequests(t *testing.T) {
 	}
 }
 
+func TestRuntimeBackupExportAndRestoreFlow(t *testing.T) {
+	t.Parallel()
+
+	server, token := newRuntimeServer(t)
+	defer server.Close()
+
+	createSource(t, server.URL, token, map[string]any{
+		"id":          "backup-template",
+		"name":        "Backup template",
+		"config_json": `[{"name":"price","selectors":[".price"],"required":true,"field_name":"price"}]`,
+	})
+	property := createProperty(t, server.URL, token, map[string]any{
+		"label":     "Backup property",
+		"source_id": "backup-template",
+		"url":       "https://example.com/properties/backup",
+		"manual_data": map[string]any{
+			"price":    320000,
+			"location": "Bilbao",
+		},
+	})
+	var tagResponse struct {
+		Item struct {
+			ID string `json:"id"`
+		} `json:"item"`
+	}
+	mustJSONRequest(t, http.MethodPost, server.URL+"/api/v1/backoffice/tags", token, map[string]any{
+		"name":  "Priority",
+		"color": "#ff7a59",
+	}, http.StatusCreated, &tagResponse)
+	mustJSONRequest(t, http.MethodPut, server.URL+"/api/v1/backoffice/properties/"+property.ID+"/tags", token, map[string]any{
+		"tag_ids": []string{tagResponse.Item.ID},
+	}, http.StatusOK, nil)
+	mustJSONRequest(t, http.MethodPut, server.URL+"/api/v1/backoffice/platform/settings", token, map[string]any{
+		"id":                         "platform",
+		"scheduler_enabled":          false,
+		"maintenance_window_enabled": true,
+		"maintenance_window_start":   "22:00",
+		"maintenance_window_end":     "06:00",
+		"webhook":                    map[string]any{"events": []string{"property.created"}},
+		"slack":                      map[string]any{},
+		"spreadsheet":                map[string]any{},
+		"task_system":                map[string]any{},
+		"email_digest":               map[string]any{"enabled": false, "schedule": "09:00", "events": []string{}},
+	}, http.StatusOK, nil)
+
+	var backupEnvelope struct {
+		Item json.RawMessage `json:"item"`
+	}
+	mustJSONRequest(t, http.MethodGet, server.URL+"/api/v1/backoffice/platform/backup", token, nil, http.StatusOK, &backupEnvelope)
+	var backup struct {
+		SchemaVersion int `json:"schema_version"`
+		Sources       []struct {
+			ID string `json:"id"`
+		} `json:"sources"`
+		Properties []struct {
+			ID string `json:"id"`
+		} `json:"properties"`
+		PropertyRuns []struct {
+			ID string `json:"id"`
+		} `json:"property_runs"`
+		PropertySnapshots []struct {
+			ID string `json:"id"`
+		} `json:"property_snapshots"`
+		Tags []struct {
+			ID string `json:"id"`
+		} `json:"tags"`
+		PropertyTags []struct {
+			PropertyID string `json:"property_id"`
+			TagID      string `json:"tag_id"`
+		} `json:"property_tags"`
+		PlatformSettings struct {
+			SchedulerEnabled bool `json:"scheduler_enabled"`
+		} `json:"platform_settings"`
+	}
+	if err := json.Unmarshal(backupEnvelope.Item, &backup); err != nil {
+		t.Fatalf("decode backup payload: %v", err)
+	}
+	if backup.SchemaVersion != 1 {
+		t.Fatalf("unexpected backup schema version: %d", backup.SchemaVersion)
+	}
+	if len(backup.Sources) != 1 || backup.Sources[0].ID != "backup-template" {
+		t.Fatalf("unexpected backup sources: %+v", backup.Sources)
+	}
+	if len(backup.Properties) != 1 || backup.Properties[0].ID != property.ID {
+		t.Fatalf("unexpected backup properties: %+v", backup.Properties)
+	}
+	if len(backup.PropertyRuns) == 0 || len(backup.PropertySnapshots) == 0 {
+		t.Fatalf("expected backup to include manual property history: %+v", backup)
+	}
+	if len(backup.Tags) != 1 || len(backup.PropertyTags) != 1 {
+		t.Fatalf("unexpected backup tag state: %+v", backup)
+	}
+	if backup.PropertyTags[0].PropertyID != property.ID || backup.PropertyTags[0].TagID != tagResponse.Item.ID {
+		t.Fatalf("unexpected backup property-tag relationship: %+v", backup.PropertyTags[0])
+	}
+	if backup.PlatformSettings.SchedulerEnabled {
+		t.Fatalf("expected exported platform settings to preserve scheduler toggle")
+	}
+
+	createSource(t, server.URL, token, map[string]any{
+		"id":   "extra-template",
+		"name": "Extra template",
+	})
+	mustJSONRequest(t, http.MethodPost, server.URL+"/api/v1/backoffice/tags", token, map[string]any{
+		"name":  "Temporary",
+		"color": "#123456",
+	}, http.StatusCreated, nil)
+	mustJSONRequest(t, http.MethodDelete, server.URL+"/api/v1/backoffice/properties/"+property.ID, token, nil, http.StatusOK, nil)
+
+	mustJSONRequest(t, http.MethodPost, server.URL+"/api/v1/backoffice/platform/restore", token, json.RawMessage(backupEnvelope.Item), http.StatusOK, nil)
+
+	var restoredSources struct {
+		Count int `json:"count"`
+		Items []struct {
+			ID string `json:"id"`
+		} `json:"items"`
+	}
+	mustJSONRequest(t, http.MethodGet, server.URL+"/api/v1/backoffice/sources", token, nil, http.StatusOK, &restoredSources)
+	if restoredSources.Count != 1 || restoredSources.Items[0].ID != "backup-template" {
+		t.Fatalf("expected restore to overwrite sources, got %+v", restoredSources)
+	}
+
+	var restoredProperty struct {
+		Item struct {
+			ID string `json:"id"`
+		} `json:"item"`
+	}
+	mustJSONRequest(t, http.MethodGet, server.URL+"/api/v1/backoffice/properties/"+property.ID, token, nil, http.StatusOK, &restoredProperty)
+	if restoredProperty.Item.ID != property.ID {
+		t.Fatalf("unexpected restored property: %+v", restoredProperty)
+	}
+
+	var restoredTags struct {
+		Count int `json:"count"`
+		Items []struct {
+			ID string `json:"id"`
+		} `json:"items"`
+	}
+	mustJSONRequest(t, http.MethodGet, server.URL+"/api/v1/backoffice/properties/"+property.ID+"/tags", token, nil, http.StatusOK, &restoredTags)
+	if restoredTags.Count != 1 || restoredTags.Items[0].ID != tagResponse.Item.ID {
+		t.Fatalf("expected property tags to be restored, got %+v", restoredTags)
+	}
+
+	var restoredSettings struct {
+		Item struct {
+			SchedulerEnabled bool `json:"scheduler_enabled"`
+		} `json:"item"`
+	}
+	mustJSONRequest(t, http.MethodGet, server.URL+"/api/v1/backoffice/platform/settings", token, nil, http.StatusOK, &restoredSettings)
+	if restoredSettings.Item.SchedulerEnabled {
+		t.Fatalf("expected platform settings to be restored, got %+v", restoredSettings)
+	}
+}
+
 func TestRuntimePropertyTrackingFlow(t *testing.T) {
 	t.Parallel()
 

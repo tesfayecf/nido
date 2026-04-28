@@ -87,6 +87,7 @@ export const MultiSelect = ({
             {open ? (
                 <div className={"multi-select__panel"}>
                     <Input
+                        autoFocus
                         onChange={(event) => {
                             setSearch(event.target.value);
                         }}

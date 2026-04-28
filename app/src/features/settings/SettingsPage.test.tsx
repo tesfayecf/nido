@@ -8,9 +8,16 @@ import { DEFAULT_WORKSPACE_SETTINGS, WORKSPACE_SETTINGS_STORAGE_KEY } from "@/fe
 import { ThemeProvider, THEME_STORAGE_KEY } from "@/hooks/useTheme";
 
 const PREFERENCE_STORAGE_KEY = "nido.notification-preferences";
+const downloadWorkspaceBackupDataMock = vi.fn();
+const restoreWorkspaceBackupDataMock = vi.fn();
 const getCurrentUserMock = vi.fn();
 const listSourcesMock = vi.fn();
 const listTagsMock = vi.fn();
+
+vi.mock("@/services/backup/backup.service", () => ({
+    downloadWorkspaceBackupData: () => downloadWorkspaceBackupDataMock(),
+    restoreWorkspaceBackupData: (backup: unknown) => restoreWorkspaceBackupDataMock(backup),
+}));
 
 vi.mock("@/services/auth/auth.service", () => ({
     changePassword: vi.fn(),
@@ -48,6 +55,8 @@ const renderSettingsPage = (): ReturnType<typeof render> => {
 describe("SettingsPage", () => {
     beforeEach(() => {
         window.localStorage.clear();
+        downloadWorkspaceBackupDataMock.mockReset();
+        restoreWorkspaceBackupDataMock.mockReset();
         getCurrentUserMock.mockReset();
         listSourcesMock.mockReset();
         listTagsMock.mockReset();
@@ -67,18 +76,20 @@ describe("SettingsPage", () => {
         }
     });
 
-    it("labels export, recovery, and reset actions clearly in the data movement tab", async () => {
+    it("labels download, upload, overwrite strategy, and reset actions clearly in the data movement tab", async () => {
         renderSettingsPage();
 
         fireEvent.click(screen.getByRole("tab", { name: "Recovery & Data Movement" }));
 
-        expect(await screen.findByText("Export local settings")).toBeInTheDocument();
-        expect(screen.getByText("Recover from backup")).toBeInTheDocument();
+        expect(await screen.findByRole("heading", { name: "Download backup" })).toBeInTheDocument();
+        expect(screen.getByRole("heading", { name: "Upload backup" })).toBeInTheDocument();
+        expect(screen.getByText("Conflict strategy")).toBeInTheDocument();
         expect(screen.getAllByText("Reset local settings").length).toBeGreaterThan(0);
-        expect(screen.getByText("Download a JSON backup of local settings, notification preferences, and the current theme.")).toBeInTheDocument();
+        expect(screen.getByText("Export properties, sources, tags, relationships, field definitions, platform settings, and this device’s local settings into one versioned JSON file.")).toBeInTheDocument();
     });
 
-    it("restores local settings from a backup file after confirmation", async () => {
+    it("restores a full workspace backup after confirmation", async () => {
+        restoreWorkspaceBackupDataMock.mockResolvedValue(undefined);
         renderSettingsPage();
         fireEvent.click(screen.getByRole("tab", { name: "Recovery & Data Movement" }));
 
@@ -87,26 +98,50 @@ describe("SettingsPage", () => {
 
         const backup = {
             exported_at: "2026-04-28T18:31:37.329Z",
-            notification_preferences: {
-                channels: ["email"],
-                digestMode: false,
-                mutedTagIds: ["tag_1"],
-                quietHoursEnd: "08:00",
-                quietHoursStart: "21:00",
-                severityFloor: "high",
-            },
-            theme_preference: "dark",
-            version: 1,
-            workspace_settings: {
-                ...DEFAULT_WORKSPACE_SETTINGS,
-                preferences: {
-                    ...DEFAULT_WORKSPACE_SETTINGS.preferences,
-                    display_currency: "USD",
+            local_settings: {
+                notification_preferences: {
+                    channels: ["email"],
+                    digestMode: false,
+                    mutedTagIds: ["tag_1"],
+                    quietHoursEnd: "08:00",
+                    quietHoursStart: "21:00",
+                    severityFloor: "high",
                 },
+                theme_preference: "dark",
+                workspace_settings: {
+                    ...DEFAULT_WORKSPACE_SETTINGS,
+                    preferences: {
+                        ...DEFAULT_WORKSPACE_SETTINGS.preferences,
+                        display_currency: "USD",
+                    },
+                },
+            },
+            version: 2,
+            workspace_data: {
+                field_definitions: [],
+                platform_settings: {
+                    email_digest: { enabled: false, events: [], schedule: "09:00" },
+                    id: "platform",
+                    maintenance_window_enabled: false,
+                    scheduler_enabled: true,
+                    slack: {},
+                    spreadsheet: {},
+                    task_system: {},
+                    webhook: {},
+                },
+                properties: [],
+                property_configs: [],
+                property_field_values: [],
+                property_runs: [],
+                property_snapshots: [],
+                property_tags: [],
+                schema_version: 1,
+                sources: [],
+                tags: [],
             },
         };
 
-        const backupFile = new File([JSON.stringify(backup)], "settings-backup.json", { type: "application/json" });
+        const backupFile = new File([JSON.stringify(backup)], "workspace-backup.json", { type: "application/json" });
         Object.defineProperty(backupFile, "text", {
             configurable: true,
             value: vi.fn().mockResolvedValue(JSON.stringify(backup)),
@@ -117,13 +152,64 @@ describe("SettingsPage", () => {
         });
         fireEvent.change(fileInput as HTMLInputElement);
 
-        expect(await screen.findByText("Restore settings backup")).toBeInTheDocument();
-        fireEvent.click(screen.getByRole("button", { name: "Restore backup" }));
+        expect(await screen.findByRole("dialog", { name: "Restore workspace backup" })).toBeInTheDocument();
+        fireEvent.click(screen.getAllByRole("button", { name: "Restore workspace backup" }).at(-1) as HTMLElement);
 
         await waitFor(() => {
+            expect(restoreWorkspaceBackupDataMock).toHaveBeenCalledWith(backup.workspace_data);
             expect(window.localStorage.getItem(PREFERENCE_STORAGE_KEY)).toContain('"severityFloor":"high"');
             expect(window.localStorage.getItem(WORKSPACE_SETTINGS_STORAGE_KEY)).toContain('"display_currency":"USD"');
             expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe("dark");
+        });
+    });
+
+    it("restores a legacy settings-only backup without calling the workspace restore API", async () => {
+        renderSettingsPage();
+        fireEvent.click(screen.getByRole("tab", { name: "Recovery & Data Movement" }));
+
+        const fileInput = document.querySelector<HTMLInputElement>('input[type="file"]');
+        expect(fileInput).not.toBeNull();
+
+        const legacyBackup = {
+            exported_at: "2026-04-28T18:31:37.329Z",
+            notification_preferences: {
+                channels: ["chat"],
+                digestMode: false,
+                mutedTagIds: ["tag_legacy"],
+                quietHoursEnd: "06:30",
+                quietHoursStart: "23:30",
+                severityFloor: "critical",
+            },
+            theme_preference: "light",
+            version: 1,
+            workspace_settings: {
+                ...DEFAULT_WORKSPACE_SETTINGS,
+                preferences: {
+                    ...DEFAULT_WORKSPACE_SETTINGS.preferences,
+                    display_locale: "es-ES",
+                },
+            },
+        };
+
+        const backupFile = new File([JSON.stringify(legacyBackup)], "legacy-settings-backup.json", { type: "application/json" });
+        Object.defineProperty(backupFile, "text", {
+            configurable: true,
+            value: vi.fn().mockResolvedValue(JSON.stringify(legacyBackup)),
+        });
+        Object.defineProperty(fileInput as HTMLInputElement, "files", {
+            configurable: true,
+            value: [backupFile],
+        });
+        fireEvent.change(fileInput as HTMLInputElement);
+
+        expect(await screen.findByRole("dialog", { name: "Restore settings backup" })).toBeInTheDocument();
+        fireEvent.click(screen.getAllByRole("button", { name: "Restore settings backup" }).at(-1) as HTMLElement);
+
+        await waitFor(() => {
+            expect(restoreWorkspaceBackupDataMock).not.toHaveBeenCalled();
+            expect(window.localStorage.getItem(PREFERENCE_STORAGE_KEY)).toContain('"severityFloor":"critical"');
+            expect(window.localStorage.getItem(WORKSPACE_SETTINGS_STORAGE_KEY)).toContain('"display_locale":"es-ES"');
+            expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe("light");
         });
     });
 

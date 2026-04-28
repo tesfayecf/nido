@@ -9,6 +9,7 @@ interface DialogProps extends PropsWithChildren {
     readonly actions?: ReactNode;
     readonly className?: string;
     readonly description?: ReactNode;
+    readonly initialFocusSelector?: string;
     readonly onOpenChange: (open: boolean) => void;
     readonly open: boolean;
     readonly title: ReactNode;
@@ -28,6 +29,7 @@ export const Dialog = ({
     children,
     className,
     description,
+    initialFocusSelector,
     onOpenChange,
     open,
     title,
@@ -47,13 +49,16 @@ export const Dialog = ({
         const previousOverflow = document.body.style.overflow;
         document.body.style.overflow = "hidden";
 
+        const primaryTarget = initialFocusSelector !== undefined && contentRef.current !== null
+            ? contentRef.current.querySelector<HTMLElement>(initialFocusSelector)
+            : null;
         const focusableElements = contentRef.current?.querySelectorAll<HTMLElement>(focusableSelector);
-        focusableElements?.[0]?.focus();
+        (primaryTarget ?? focusableElements?.[0])?.focus();
 
         return () => {
             document.body.style.overflow = previousOverflow;
         };
-    }, [open]);
+    }, [initialFocusSelector, open]);
 
     // Keep the keyboard handler up-to-date with the latest `onOpenChange` reference.
     useEffect(() => {

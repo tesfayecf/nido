@@ -364,7 +364,13 @@ textarea {
 }
 
 .page-card__body {
+    display: grid;
+    gap: var(--space-4);
     padding: var(--space-5);
+}
+
+.page-card__body > * {
+    min-width: 0;
 }
 
 .page-card__heading {

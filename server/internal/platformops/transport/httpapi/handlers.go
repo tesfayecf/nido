@@ -37,6 +37,27 @@ func Register(mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, s
 		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{"item": settings})
 	})))
 
+	mux.Handle("GET /api/v1/backoffice/platform/backup", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		backup, err := service.ExportWorkspaceBackup(r.Context())
+		if err != nil {
+			platformhttp.WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{"item": backup})
+	})))
+
+	mux.Handle("POST /api/v1/backoffice/platform/restore", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var request platformopsdomain.WorkspaceBackup
+		if !platformhttp.DecodeJSON(w, r, &request) {
+			return
+		}
+		if err := service.RestoreWorkspaceBackup(r.Context(), request); err != nil {
+			platformhttp.WriteError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		platformhttp.WriteJSON(w, http.StatusOK, map[string]string{"status": "restored"})
+	})))
+
 	mux.Handle("GET /api/v1/backoffice/platform/summary", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		summary, err := service.Summary(r.Context())
 		if err != nil {
