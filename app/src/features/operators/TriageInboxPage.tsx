@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
@@ -34,6 +34,8 @@ export const TriageInboxPage = (): JSX.Element => {
     const queryClient = useQueryClient();
     const { pushToast } = useToast();
     const [searchParams, setSearchParams] = useSearchParams();
+    const [pendingNotificationId, setPendingNotificationId] = useState<string | null>(null);
+    const [pendingPropertyId, setPendingPropertyId] = useState<string | null>(null);
     const severityFilter = (searchParams.get("severity") ?? "") as "" | OperatorSeverity;
 
     const propertiesQuery = useQuery({
@@ -59,12 +61,21 @@ export const TriageInboxPage = (): JSX.Element => {
             void queryClient.invalidateQueries({ queryKey: propertyKeys.list() });
             pushToast("Run started.", "success");
         },
+        onSettled() {
+            setPendingPropertyId(null);
+        },
     });
     const markReviewedMutation = useMutation({
         mutationFn: markNotificationRead,
+        onError() {
+            pushToast("Could not mark the notification reviewed.", "error");
+        },
         onSuccess() {
             void queryClient.invalidateQueries({ queryKey: notificationKeys.all() });
             pushToast("Notification marked reviewed.", "success");
+        },
+        onSettled() {
+            setPendingNotificationId(null);
         },
     });
 
@@ -117,6 +128,9 @@ export const TriageInboxPage = (): JSX.Element => {
                     <div style={{ display: "grid", gap: "0.75rem" }}>
                         {triageItems.map((item) => {
                             const propertyId = item.propertyId;
+                            const notificationId = item.kind === "notification" ? item.id.replace("notification-", "") : null;
+                            const isReviewPending = notificationId !== null && pendingNotificationId === notificationId && markReviewedMutation.isPending;
+                            const isRunPending = propertyId !== undefined && pendingPropertyId === propertyId && runNowMutation.isPending;
 
                             return (
                                 <article key={item.id} style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-md)", display: "grid", gap: "0.75rem", padding: "1rem" }}>
@@ -132,12 +146,36 @@ export const TriageInboxPage = (): JSX.Element => {
                                         {propertyId !== undefined ? <Link className={"text-link"} to={`/properties/${propertyId}`}>{"Open property"}</Link> : null}
                                         {item.runId !== undefined ? <Link className={"text-link"} to={`/runs/${item.runId}`}>{"Open run"}</Link> : null}
                                         {item.kind === "notification" ? (
-                                            <Button disabled={markReviewedMutation.isPending} onClick={() => { markReviewedMutation.mutate(item.id.replace("notification-", "")); }} variant={"secondary"}>
+                                            <Button
+                                                isLoading={isReviewPending}
+                                                loadingLabel={"Marking reviewed"}
+                                                onClick={() => {
+                                                    if (notificationId === null) {
+                                                        return;
+                                                    }
+
+                                                    setPendingNotificationId(notificationId);
+                                                    markReviewedMutation.mutate(notificationId);
+                                                }}
+                                                variant={"secondary"}
+                                            >
                                                 {item.actionLabel}
                                             </Button>
                                         ) : null}
                                         {propertyId !== undefined && item.kind !== "notification"
-                                            ? <Button disabled={runNowMutation.isPending} onClick={() => { runNowMutation.mutate(propertyId); }} variant={"secondary"}>{"Run now"}</Button>
+                                            ? (
+                                                <Button
+                                                    isLoading={isRunPending}
+                                                    loadingLabel={"Starting run"}
+                                                    onClick={() => {
+                                                        setPendingPropertyId(propertyId);
+                                                        runNowMutation.mutate(propertyId);
+                                                    }}
+                                                    variant={"secondary"}
+                                                >
+                                                    {"Run now"}
+                                                </Button>
+                                            )
                                             : null}
                                         {item.kind === "configuration" && propertyId !== undefined
                                             ? <Button onClick={() => { void navigate(`/properties/${propertyId}`); }}>{item.actionLabel}</Button>

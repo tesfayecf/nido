@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/Button";
 import { DataTable } from "@/components/ui/DataTable";
+import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Field } from "@/components/ui/Field";
 import { FormGrid } from "@/components/ui/FormGrid";
 import { Dialog } from "@/components/ui/Dialog";
@@ -13,6 +14,7 @@ import { AsyncContent } from "@/components/ui/AsyncContent";
 import { PageCard } from "@/components/ui/PageCard";
 import { PageStack } from "@/components/ui/PageStack";
 import { Select } from "@/components/ui/Select";
+import { useToast } from "@/components/ui/ToastProvider";
 import { parseOptionalNonNegativeInteger } from "@/lib/forms/number";
 import { ALERT_RULE_TYPES, getRuleTypeLabel, getRuleTypeLogic, ruleRequiresThreshold } from "@/services/alert-rules/alert-rules.constants";
 import { alertRuleKeys } from "@/services/alert-rules/alert-rules.keys";
@@ -22,6 +24,7 @@ import { listProperties } from "@/services/properties/properties.service";
 
 export const AlertsPage = (): JSX.Element => {
     const queryClient = useQueryClient();
+    const { pushToast } = useToast();
     const [propertyId, setPropertyId] = useState("");
     const [ruleType, setRuleType] = useState("price_drop");
     const [thresholdAmount, setThresholdAmount] = useState("");
@@ -36,16 +39,26 @@ export const AlertsPage = (): JSX.Element => {
     });
     const createMutation = useMutation({
         mutationFn: createAlertRule,
+        onError() {
+            pushToast("Could not create alert.", "error");
+        },
         onSuccess() {
+            setPropertyId("");
+            setRuleType("price_drop");
             setThresholdAmount("");
             setCreateOpen(false);
             void queryClient.invalidateQueries({ queryKey: alertRuleKeys.all() });
+            pushToast("Alert created.", "success");
         },
     });
     const deleteMutation = useMutation({
         mutationFn: deleteAlertRule,
+        onError() {
+            pushToast("Could not delete alert.", "error");
+        },
         onSuccess() {
             void queryClient.invalidateQueries({ queryKey: alertRuleKeys.all() });
+            pushToast("Alert deleted.", "success");
         },
     });
     const alertRules = alertRulesQuery.data ?? [];
@@ -61,7 +74,7 @@ export const AlertsPage = (): JSX.Element => {
             <PageCard
                 action={(
                     <Button iconBefore={<Icon name={"plus"} />} onClick={() => { setCreateOpen(true); }}>
-                        {"Create"}
+                        {"New alert"}
                     </Button>
                 )}
                 description={"Active rules stay attached to their property until you delete them."}
@@ -104,7 +117,19 @@ export const AlertsPage = (): JSX.Element => {
                 </AsyncContent>
             </PageCard>
             </PageStack>
-            <Dialog onOpenChange={setCreateOpen} open={createOpen} title={"Create alert rule"}>
+            <Dialog
+                description={propertyId === ""
+                    ? "Alerts run automatically after each new snapshot for the selected property."
+                    : `Alerts run automatically after each new snapshot for ${propertyLabelById.get(propertyId) ?? "the selected property"}.`}
+                onOpenChange={(open) => {
+                    setCreateOpen(open);
+                    if (!open) {
+                        createMutation.reset();
+                    }
+                }}
+                open={createOpen}
+                title={"Create alert"}
+            >
                 <FormGrid
                     onSubmit={(event) => {
                         event.preventDefault();
@@ -133,13 +158,14 @@ export const AlertsPage = (): JSX.Element => {
                         </Select>
                     </Field>
                     {thresholdNeeded ? (
-                        <Field hint={"Whole number, in the same unit as the tracked field."} label={"Threshold amount"}>
+                        <Field hint={"Whole number, in the same unit as the tracked field."} label={"Threshold"}>
                             <Input min={0} onChange={(event) => { setThresholdAmount(event.target.value); }} step={1} type={"number"} value={thresholdAmount} />
                         </Field>
                     ) : null}
+                    {createMutation.isError ? <ErrorBanner>{"Could not save the alert rule."}</ErrorBanner> : null}
                     <div className={"action-group"}>
                         <Button onClick={() => { setCreateOpen(false); }} type={"button"} variant={"secondary"}>{"Cancel"}</Button>
-                        <Button disabled={submitDisabled} isLoading={createMutation.isPending} loadingLabel={"Saving rule"} type={"submit"}>{"Create rule"}</Button>
+                        <Button disabled={submitDisabled} isLoading={createMutation.isPending} loadingLabel={"Creating alert"} type={"submit"}>{"Create alert"}</Button>
                     </div>
                 </FormGrid>
             </Dialog>
