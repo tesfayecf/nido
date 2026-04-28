@@ -1419,34 +1419,34 @@ export const PropertyDetailPage = (): JSX.Element => {
                                 )}
                         </PageCard>
                         <PageCard description={"Review the URL and template summary, then manage field configuration from a compact, expandable table."} title={"Fields & Source Extraction"}>
-                        <KeyValueGrid compact>
-                            <KeyValuePair label={"URL"} value={propertyQuery.data?.url !== undefined && propertyQuery.data.url !== "" ? propertyQuery.data.url : "Manual property"} />
-                            <KeyValuePair label={"Source template"} value={sourcesQuery.data?.find((source) => source.id === propertyQuery.data?.source_id)?.name ?? "No template"} />
-                        </KeyValueGrid>
-                        {isTemplateDetached && !detachmentAlertDismissed ? (
-                            <div className={"property-inline-alert"} role={"status"}>
-                                <span className={"property-inline-alert__copy"}>
-                                    <strong>{"Template link removed for this property."}</strong>
-                                    <span>{"This field setup no longer matches the selected template, so future template updates will not apply automatically."}</span>
-                                </span>
-                                <Button onClick={() => { setDetachmentAlertDismissed(true); }} size={"small"} variant={"ghost"}>
-                                    {"Dismiss"}
-                                </Button>
-                            </div>
-                        ) : null}
-                        <SelectorBuilder fieldDefinitions={fieldDefinitionsQuery.data} fieldMetadataById={fieldMetadataById} fields={fieldRows} onChange={setFieldRows} previewByFieldName={previewMap} />
-                        <ActionGroup>
-                            <Button onClick={() => { setFieldRows((rows) => [...rows, createEmptySelectorDraft()]); }} variant={"secondary"}>{"Add field"}</Button>
-                            <Button disabled={previewMutation.isPending || url.trim() === "" || validationMessages.length > 0} onClick={() => { previewMutation.mutate(); }} variant={"secondary"}>{previewMutation.isPending ? "Previewing..." : "Preview extraction"}</Button>
-                            <Button disabled={saveConfigMutation.isPending || validationMessages.length > 0} onClick={() => { saveConfigMutation.mutate(); }}>{saveConfigMutation.isPending ? "Saving..." : "Save configuration"}</Button>
-                        </ActionGroup>
-                        {validationMessages.length > 0 ? (
-                            <div className={"selector-builder__validation-list"}>
-                                {validationMessages.map((message) => <ErrorBanner key={message}>{message}</ErrorBanner>)}
-                            </div>
-                        ) : null}
-                        {saveConfigMutation.isError ? <ErrorBanner>{"Could not save configuration."}</ErrorBanner> : null}
-                    </PageCard>
+                            <KeyValueGrid compact>
+                                <KeyValuePair label={"URL"} value={propertyQuery.data?.url !== undefined && propertyQuery.data.url !== "" ? propertyQuery.data.url : "Manual property"} />
+                                <KeyValuePair label={"Source template"} value={sourcesQuery.data?.find((source) => source.id === propertyQuery.data?.source_id)?.name ?? "No template"} />
+                            </KeyValueGrid>
+                            {isTemplateDetached && !detachmentAlertDismissed ? (
+                                <div className={"property-inline-alert"} role={"status"}>
+                                    <span className={"property-inline-alert__copy"}>
+                                        <strong>{"Template link removed for this property."}</strong>
+                                        <span>{"This field setup no longer matches the selected template, so future template updates will not apply automatically."}</span>
+                                    </span>
+                                    <Button onClick={() => { setDetachmentAlertDismissed(true); }} size={"small"} variant={"ghost"}>
+                                        {"Dismiss"}
+                                    </Button>
+                                </div>
+                            ) : null}
+                            <SelectorBuilder fieldDefinitions={fieldDefinitionsQuery.data} fieldMetadataById={fieldMetadataById} fields={fieldRows} onChange={setFieldRows} previewByFieldName={previewMap} />
+                            <ActionGroup>
+                                <Button onClick={() => { setFieldRows((rows) => [...rows, createEmptySelectorDraft()]); }} variant={"secondary"}>{"Add field"}</Button>
+                                <Button disabled={previewMutation.isPending || url.trim() === "" || validationMessages.length > 0} onClick={() => { previewMutation.mutate(); }} variant={"secondary"}>{previewMutation.isPending ? "Previewing..." : "Preview extraction"}</Button>
+                                <Button disabled={saveConfigMutation.isPending || validationMessages.length > 0} onClick={() => { saveConfigMutation.mutate(); }}>{saveConfigMutation.isPending ? "Saving..." : "Save configuration"}</Button>
+                            </ActionGroup>
+                            {validationMessages.length > 0 ? (
+                                <div className={"selector-builder__validation-list"}>
+                                    {validationMessages.map((message) => <ErrorBanner key={message}>{message}</ErrorBanner>)}
+                                </div>
+                            ) : null}
+                            {saveConfigMutation.isError ? <ErrorBanner>{"Could not save configuration."}</ErrorBanner> : null}
+                        </PageCard>
                         <PageCard
                             action={(
                                 <ActionGroup>

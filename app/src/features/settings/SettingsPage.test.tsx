@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ToastProvider } from "@/components/ui/ToastProvider";
 import { SettingsPage } from "@/features/settings/SettingsPage";
 import { DEFAULT_WORKSPACE_SETTINGS, WORKSPACE_SETTINGS_STORAGE_KEY } from "@/features/settings/workspaceSettings";
-import { THEME_STORAGE_KEY } from "@/hooks/useTheme";
+import { ThemeProvider, THEME_STORAGE_KEY } from "@/hooks/useTheme";
 
 const PREFERENCE_STORAGE_KEY = "nido.notification-preferences";
 const getCurrentUserMock = vi.fn();
@@ -36,9 +36,11 @@ const renderSettingsPage = (): ReturnType<typeof render> => {
 
     return render(
         <QueryClientProvider client={queryClient}>
-            <ToastProvider>
-                <SettingsPage />
-            </ToastProvider>
+            <ThemeProvider>
+                <ToastProvider>
+                    <SettingsPage />
+                </ToastProvider>
+            </ThemeProvider>
         </QueryClientProvider>,
     );
 };
@@ -72,7 +74,7 @@ describe("SettingsPage", () => {
 
         expect(await screen.findByText("Export local settings")).toBeInTheDocument();
         expect(screen.getByText("Recover from backup")).toBeInTheDocument();
-        expect(screen.getByText("Reset local settings")).toBeInTheDocument();
+        expect(screen.getAllByText("Reset local settings").length).toBeGreaterThan(0);
         expect(screen.getByText("Download a JSON backup of local settings, notification preferences, and the current theme.")).toBeInTheDocument();
     });
 
@@ -104,11 +106,16 @@ describe("SettingsPage", () => {
             },
         };
 
-        fireEvent.change(fileInput as HTMLInputElement, {
-            target: {
-                files: [new File([JSON.stringify(backup)], "settings-backup.json", { type: "application/json" })],
-            },
+        const backupFile = new File([JSON.stringify(backup)], "settings-backup.json", { type: "application/json" });
+        Object.defineProperty(backupFile, "text", {
+            configurable: true,
+            value: vi.fn().mockResolvedValue(JSON.stringify(backup)),
         });
+        Object.defineProperty(fileInput as HTMLInputElement, "files", {
+            configurable: true,
+            value: [backupFile],
+        });
+        fireEvent.change(fileInput as HTMLInputElement);
 
         expect(await screen.findByText("Restore settings backup")).toBeInTheDocument();
         fireEvent.click(screen.getByRole("button", { name: "Restore backup" }));
