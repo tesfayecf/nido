@@ -239,7 +239,7 @@ export const SettingsPage = (): JSX.Element => {
         const url = URL.createObjectURL(blob);
         const anchor = document.createElement("a");
         anchor.href = url;
-        anchor.download = `nido-settings-backup-${backup.exported_at.replace(/[:.]/gu, "-")}.json`;
+        anchor.download = `nido-settings-backup-${backup.exported_at.replace(/[:.TZ]/gu, "-")}.json`;
         anchor.click();
         URL.revokeObjectURL(url);
         pushToast("Settings backup exported.", "success");
@@ -255,7 +255,6 @@ export const SettingsPage = (): JSX.Element => {
 
     const handleBackupFileChange = async (event: ChangeEvent<HTMLInputElement>): Promise<void> => {
         const file = event.target.files?.[0];
-        event.target.value = "";
         if (file === undefined) {
             return;
         }
@@ -263,12 +262,14 @@ export const SettingsPage = (): JSX.Element => {
         try {
             const parsed = parseSettingsBackup(JSON.parse(await file.text()));
             if (parsed === null) {
+                event.target.value = "";
                 pushToast("Backup file is not a supported Nido settings export.", "error");
                 return;
             }
 
             setPendingBackupImport({ backup: parsed, fileName: file.name });
         } catch {
+            event.target.value = "";
             pushToast("Could not read the selected backup file.", "error");
         }
     };
@@ -280,6 +281,9 @@ export const SettingsPage = (): JSX.Element => {
 
         applySettingsBackup(pendingBackupImport.backup);
         setPendingBackupImport(null);
+        if (backupFileInputRef.current !== null) {
+            backupFileInputRef.current.value = "";
+        }
         pushToast("Settings backup restored on this device.", "success");
     };
 
@@ -579,6 +583,9 @@ export const SettingsPage = (): JSX.Element => {
                 onOpenChange={(open) => {
                     if (!open) {
                         setPendingBackupImport(null);
+                        if (backupFileInputRef.current !== null) {
+                            backupFileInputRef.current.value = "";
+                        }
                     }
                 }}
                 open={pendingBackupImport !== null}

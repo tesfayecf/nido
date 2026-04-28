@@ -115,7 +115,7 @@ export const TagsPage = (): JSX.Element => {
                     },
                     {
                         cell: (item) => formatCreationDate(item.created_at),
-                        header: "Creation date",
+                        header: "Created",
                         id: "created_at",
                         sortValue: (item) => item.created_at,
                         width: "24%",
