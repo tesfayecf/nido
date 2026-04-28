@@ -399,7 +399,6 @@ export const PropertyDetailPage = (): JSX.Element => {
     const [retryMaxAttempts, setRetryMaxAttempts] = useState(() => workspaceSettings.operations.default_retry_max_attempts);
     const [retryBackoffMillis, setRetryBackoffMillis] = useState(() => workspaceSettings.operations.default_retry_backoff_millis);
     const [fieldRows, setFieldRows] = useState<SelectorFieldDraft[]>(() => isCreateMode ? createPriceSelectorDrafts() : createDefaultSelectorDrafts());
-    const [previewValues, setPreviewValues] = useState<Record<string, string>>({});
     const [previewMap, setPreviewMap] = useState<Map<string, PropertyPreviewFieldResult>>(new Map());
     const [previewFailures, setPreviewFailures] = useState<string[]>([]);
     const [deleteOpen, setDeleteOpen] = useState(false);
@@ -660,6 +659,7 @@ export const PropertyDetailPage = (): JSX.Element => {
 
         savePropertyMutation.mutate();
     };
+
     const handlePropertySubmit = (event: FormEvent<HTMLFormElement>): void => {
         event.preventDefault();
         handlePropertySave();
@@ -853,12 +853,10 @@ export const PropertyDetailPage = (): JSX.Element => {
             url,
         }),
         onSuccess(data) {
-            setPreviewValues(data.values);
             setPreviewMap(buildPreviewFieldMap(data.fields));
             setPreviewFailures(data.failures ?? []);
         },
         onError() {
-            setPreviewValues({});
             setPreviewMap(new Map());
             setPreviewFailures(["Extraction preview failed. Check the URL and selectors."]);
         },
@@ -1034,9 +1032,9 @@ export const PropertyDetailPage = (): JSX.Element => {
                     <Field label={"Label"}>
                         <Input id={"prop-label"} onChange={(event) => { setLabel(event.target.value); }} placeholder={"Optional display name"} type={"text"} value={label} />
                     </Field>
-                    <Field hint={"Use only when no URL/source exists yet."} label={"Manual entry exception"}>
+                    <Field hint={"Use only when no URL/source exists yet."} label={"Enable manual entry"}>
                         <div className={"property-toggle-row"}>
-                            <Toggle checked={manualEntryMode} label={"Manual entry exception"} onCheckedChange={setManualEntryMode} />
+                            <Toggle checked={manualEntryMode} label={"Enable manual entry"} onCheckedChange={setManualEntryMode} />
                             <span className={"property-toggle-row__state"}>{manualEntryMode ? "On" : "Off"}</span>
                         </div>
                     </Field>
@@ -1090,7 +1088,7 @@ export const PropertyDetailPage = (): JSX.Element => {
                     <ActionGroup>
                         <Button onClick={() => { setFieldRows((rows) => [...rows, createEmptySelectorDraft()]); }} variant={"secondary"}>{"Add field"}</Button>
                         <Button disabled={previewMutation.isPending || url.trim() === "" || validationMessages.length > 0} onClick={() => { previewMutation.mutate(); }} variant={"secondary"}>{previewMutation.isPending ? "Previewing..." : "Preview extraction"}</Button>
-                        <Button disabled={validationMessages.length > 0} form={"property-create-form"} type={"submit"}>{savePropertyMutation.isPending ? "Creating..." : "Create property with selectors"}</Button>
+                        <Button disabled={isPropertySaveDisabled || validationMessages.length > 0} form={"property-create-form"} type={"submit"}>{savePropertyMutation.isPending ? "Creating..." : "Create property with selectors"}</Button>
                     </ActionGroup>
                     {validationMessages.length > 0 ? (
                         <div className={"selector-builder__validation-list"}>
@@ -1202,7 +1200,7 @@ export const PropertyDetailPage = (): JSX.Element => {
                 ) : null}
 
                 {activeSection === "price-intelligence" ? (
-                    <PageCard description={"Separate price inputs, computed metrics, and history so pricing signals stay easy to scan."} title={"Price Intelligence"} titleId={"price-intelligence"}>
+                    <PageCard description={"Separates price inputs, computed metrics, and history so pricing signals are easy to scan."} title={"Price Intelligence"} titleId={"price-intelligence"}>
                         {summaryQuery.data === undefined || pricingInsight === undefined ? <EmptyState message={"Price intelligence will appear after the first property summary is available."} /> : (
                             <div className={"property-section-stack"}>
                                 <DecisionStrip allSummaries={summariesQuery.data} settings={workspaceSettings} summary={summaryQuery.data} />
@@ -1376,7 +1374,7 @@ export const PropertyDetailPage = (): JSX.Element => {
                             action={(
                                 <Button onClick={() => { setCreateAlertOpen(true); }} variant={"secondary"}>{"Create alert"}</Button>
                             )}
-                            description={"Alerts stay visible but lightweight so they support decisions without dominating the page."}
+                            description={"Alerts remain visible but lightweight, supporting decisions without dominating the page."}
                             title={"Alerts"}
                         >
                             {propertyAlerts.length === 0 ? <EmptyState message={"No alerts are linked to this property yet."} /> : (
