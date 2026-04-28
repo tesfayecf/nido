@@ -27,4 +27,15 @@ describe("Dialog", () => {
         expect(screen.getByRole("dialog", { name: "Filters" })).toBeInTheDocument();
         expect(screen.getByText("Dialog body")).toBeInTheDocument();
     });
+
+    it("focuses the requested primary target when one is provided", () => {
+        render(
+            <Dialog initialFocusSelector={"[data-dialog-primary='true']"} onOpenChange={vi.fn()} open title={"Confirm change"}>
+                <button type={"button"}>{"Cancel"}</button>
+                <button data-dialog-primary={"true"} type={"button"}>{"Confirm"}</button>
+            </Dialog>,
+        );
+
+        expect(screen.getByRole("button", { name: "Confirm" })).toHaveFocus();
+    });
 });
