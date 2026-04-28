@@ -86,6 +86,7 @@ export const PropertiesPage = (): JSX.Element => {
     const [dragColumnId, setDragColumnId] = useState<string | null>(null);
     const [filtersOpen, setFiltersOpen] = useState(false);
     const [tableState, setTableState] = useState<PropertiesTableState>(() => readPropertiesTableState(TABLE_STORAGE_KEY, COLUMN_IDS));
+    const columnMenuRef = useRef<HTMLDivElement | null>(null);
     const resizeStateRef = useRef<{ readonly columnId: string; readonly startWidth: number; readonly startX: number; } | null>(null);
 
     const propertiesQuery = useQuery<Property[]>({
@@ -139,6 +140,33 @@ export const PropertiesPage = (): JSX.Element => {
             window.removeEventListener("mouseup", handleMouseUp);
         };
     }, []);
+
+    useEffect(() => {
+        if (!columnMenuOpen) {
+            return undefined;
+        }
+
+        const handlePointerDown = (event: MouseEvent): void => {
+            if (!(event.target instanceof Node) || columnMenuRef.current?.contains(event.target)) {
+                return;
+            }
+
+            setColumnMenuOpen(false);
+        };
+
+        const handleKeyDown = (event: KeyboardEvent): void => {
+            if (event.key === "Escape") {
+                setColumnMenuOpen(false);
+            }
+        };
+
+        window.addEventListener("mousedown", handlePointerDown);
+        window.addEventListener("keydown", handleKeyDown);
+        return () => {
+            window.removeEventListener("mousedown", handlePointerDown);
+            window.removeEventListener("keydown", handleKeyDown);
+        };
+    }, [columnMenuOpen]);
 
     const bookmarkMutation = useMutation({
         mutationFn: async ({ isBookmarked, propertyId }: { readonly isBookmarked: boolean; readonly propertyId: string; }) => {
@@ -261,9 +289,13 @@ export const PropertiesPage = (): JSX.Element => {
         <PageStack>
             <PageCard
                 action={(
-                    <div className={"action-group"}>
-                        <div className={"properties-table__column-menu"}>
-                            <Button onClick={() => { setColumnMenuOpen((open) => !open); }} variant={"secondary"}>
+                        <div className={"action-group"}>
+                        <div className={"properties-table__column-menu"} ref={columnMenuRef}>
+                            <Button
+                                aria-expanded={columnMenuOpen}
+                                onClick={() => { setColumnMenuOpen((open) => !open); }}
+                                variant={"secondary"}
+                            >
                                 {"Columns"}
                             </Button>
                             {columnMenuOpen ? (

@@ -199,7 +199,7 @@ export const SettingsPage = (): JSX.Element => {
                                             </Field>
                                             <ActionGroup>
                                                 <Button disabled={profileMutation.isPending || displayName.trim() === ""} isLoading={profileMutation.isPending} type={"submit"}>
-                                                    {"Save changes"}
+                                                    {"Save profile"}
                                                 </Button>
                                             </ActionGroup>
                                         </FormGrid>
@@ -269,12 +269,12 @@ export const SettingsPage = (): JSX.Element => {
                                                 <input checked={preferences.digestMode} onChange={(event) => { setPreferences((current) => ({ ...current, digestMode: event.target.checked })); }} type={"checkbox"} />
                                             </Field>
                                             <Field label={"Minimum severity"}>
-                                                <select className={"field__control"} onChange={(event) => { setPreferences((current) => ({ ...current, severityFloor: event.target.value })); }} value={preferences.severityFloor}>
+                                                <Select onChange={(event) => { setPreferences((current) => ({ ...current, severityFloor: event.target.value })); }} value={preferences.severityFloor}>
                                                     <option value={"low"}>{"Low"}</option>
                                                     <option value={"medium"}>{"Medium"}</option>
                                                     <option value={"high"}>{"High"}</option>
                                                     <option value={"critical"}>{"Critical"}</option>
-                                                </select>
+                                                </Select>
                                             </Field>
                                             <Field fullWidth label={"Delivery channels"}>
                                                 <MultiSelect
@@ -297,7 +297,7 @@ export const SettingsPage = (): JSX.Element => {
                                                 />
                                             </Field>
                                             <ActionGroup>
-                                                <Button type={"submit"}>{"Save user settings"}</Button>
+                                                <Button type={"submit"}>{"Save preferences"}</Button>
                                             </ActionGroup>
                                         </FormGrid>
                                     </PageCard>
@@ -380,7 +380,7 @@ export const SettingsPage = (): JSX.Element => {
                                                 />
                                             </Field>
                                             <ActionGroup>
-                                                <Button type={"submit"}>{"Save operations settings"}</Button>
+                                                <Button type={"submit"}>{"Save intake defaults"}</Button>
                                             </ActionGroup>
                                         </FormGrid>
                                     </PageCard>
