@@ -54,11 +54,11 @@ describe("AlertsPage", () => {
         fireEvent.click(await screen.findByRole("button", { name: "New alert" }));
 
         expect(screen.getByRole("heading", { name: "Create alert" })).toBeInTheDocument();
-        expect(screen.getByLabelText("Rule type")).toBeInTheDocument();
+        expect(screen.getAllByRole("combobox")[1]).toBeInTheDocument();
 
-        fireEvent.change(screen.getByLabelText("Rule type"), { target: { value: "price_below" } });
+        fireEvent.change(screen.getAllByRole("combobox")[1] as HTMLSelectElement, { target: { value: "price_below" } });
 
-        expect(await screen.findByLabelText("Threshold")).toBeInTheDocument();
+        expect(await screen.findByRole("spinbutton")).toBeInTheDocument();
         expect(screen.getByRole("button", { name: "Create alert" })).toBeInTheDocument();
     });
 
@@ -68,7 +68,7 @@ describe("AlertsPage", () => {
         renderAlertsPage();
 
         fireEvent.click(await screen.findByRole("button", { name: "New alert" }));
-        fireEvent.change(screen.getByLabelText("Property"), { target: { value: "prop_1" } });
+        fireEvent.change(screen.getAllByRole("combobox")[0] as HTMLSelectElement, { target: { value: "prop_1" } });
         fireEvent.click(screen.getByRole("button", { name: "Create alert" }));
 
         expect(await screen.findByText("Could not save the alert rule.")).toBeInTheDocument();

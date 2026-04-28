@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { RouterProvider, createMemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -64,14 +64,22 @@ describe("TriageInboxPage", () => {
     });
 
     it("only disables the row action being processed", async () => {
-        ingestPropertyMock.mockImplementation(() => new Promise(() => {}));
+        ingestPropertyMock.mockImplementation(() => new Promise<void>((resolve) => {
+            void resolve;
+        }));
 
         renderTriageInboxPage();
 
-        const runButtons = await screen.findAllByRole("button", { name: "Run now" });
-        fireEvent.click(runButtons[0] as HTMLButtonElement);
+        const firstArticle = (await screen.findByText("Sunny flat is degraded")).closest("article");
+        const secondArticle = (await screen.findByText("City loft is degraded")).closest("article");
+        expect(firstArticle).not.toBeNull();
+        expect(secondArticle).not.toBeNull();
 
-        expect(runButtons[0]).toBeDisabled();
-        expect(runButtons[1]).not.toBeDisabled();
+        fireEvent.click(within(firstArticle as HTMLElement).getByRole("button", { name: "Run now" }));
+
+        await waitFor(() => {
+            expect(within(firstArticle as HTMLElement).getByText("Run now").closest("button")).toBeDisabled();
+            expect(within(secondArticle as HTMLElement).getByText("Run now").closest("button")).not.toBeDisabled();
+        });
     });
 });
