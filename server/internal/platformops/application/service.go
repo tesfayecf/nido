@@ -20,6 +20,8 @@ import (
 )
 
 type Store interface {
+	ExportWorkspaceBackup(ctx context.Context) (platformopsdomain.WorkspaceBackup, error)
+	RestoreWorkspaceBackup(ctx context.Context, backup platformopsdomain.WorkspaceBackup) error
 	GetPlatformSettings(ctx context.Context) (platformopsdomain.PlatformSettings, error)
 	SavePlatformSettings(ctx context.Context, settings platformopsdomain.PlatformSettings) error
 	CreateIntegrationDeliveryLog(ctx context.Context, log platformopsdomain.IntegrationDeliveryLog) error
@@ -132,6 +134,17 @@ func (s *Service) UpdateSettings(ctx context.Context, settings platformopsdomain
 		return platformopsdomain.PlatformSettings{}, err
 	}
 	return s.GetSettings(ctx)
+}
+
+func (s *Service) ExportWorkspaceBackup(ctx context.Context) (platformopsdomain.WorkspaceBackup, error) {
+	return s.store.ExportWorkspaceBackup(ctx)
+}
+
+func (s *Service) RestoreWorkspaceBackup(ctx context.Context, backup platformopsdomain.WorkspaceBackup) error {
+	if err := s.store.RestoreWorkspaceBackup(ctx, backup); err != nil {
+		return err
+	}
+	return s.reconcileRuntimeState(ctx)
 }
 
 func (s *Service) Summary(ctx context.Context) (platformopsdomain.SchedulerSummary, error) {
