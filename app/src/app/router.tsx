@@ -35,7 +35,7 @@ export const router = createBrowserRouter([
         children: [
             {
                 index: true,
-                element: <Navigate replace to={"/properties"} />,
+                element: <Navigate replace to={"/dashboard"} />,
             },
             {
                 element: <RequireAuth />,

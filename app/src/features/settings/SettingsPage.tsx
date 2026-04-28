@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { ChangeEvent } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { ThemeToggle } from "@/components/shell/ThemeToggle";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Field } from "@/components/ui/Field";
 import { FormGrid } from "@/components/ui/FormGrid";
@@ -17,6 +19,7 @@ import { Select } from "@/components/ui/Select";
 import { Tabs } from "@/components/ui/Tabs";
 import { Textarea } from "@/components/ui/Textarea";
 import { useToast } from "@/components/ui/ToastProvider";
+import { applyThemePreference, getStoredThemePreference, THEME_STORAGE_KEY, type ThemePreference } from "@/hooks/useTheme";
 import { authKeys } from "@/services/auth/auth.keys";
 import { changePassword, getCurrentUser, updateProfile } from "@/services/auth/auth.service";
 import { sourceKeys } from "@/services/backoffice-sources/sources.keys";
@@ -25,10 +28,13 @@ import { tagKeys } from "@/services/tags/tags.keys";
 import { listTags } from "@/services/tags/tags.service";
 
 import {
+    DEFAULT_WORKSPACE_SETTINGS,
     formatMultilineValue,
+    normalizeWorkspaceSettings,
     parseMultilineValue,
     readWorkspaceSettings,
     saveWorkspaceSettings,
+    WORKSPACE_SETTINGS_STORAGE_KEY,
     type WorkspaceSettings,
 } from "@/features/settings/workspaceSettings";
 
@@ -42,6 +48,17 @@ interface NotificationPreferencesDraft {
 }
 
 const PREFERENCE_STORAGE_KEY = "nido.notification-preferences";
+const SETTINGS_BACKUP_VERSION = 1;
+const LOCAL_UI_STORAGE_KEYS = ["nido.bookmark-groups", "nido.nav-collapsed", "nido.properties.table"];
+
+interface SettingsBackupData {
+    readonly exported_at: string;
+    readonly notification_preferences: NotificationPreferencesDraft;
+    readonly theme_preference: ThemePreference;
+    readonly version: number;
+    readonly workspace_settings: WorkspaceSettings;
+}
+
 const DEFAULT_PREFERENCES: NotificationPreferencesDraft = {
     channels: ["in-app", "email"],
     digestMode: true,
@@ -49,6 +66,57 @@ const DEFAULT_PREFERENCES: NotificationPreferencesDraft = {
     quietHoursEnd: "07:00",
     quietHoursStart: "22:00",
     severityFloor: "medium",
+};
+
+const isObject = (value: unknown): value is Record<string, unknown> => {
+    return typeof value === "object" && value !== null;
+};
+
+const readStringArray = (value: unknown, fallback: readonly string[]): string[] => {
+    return Array.isArray(value)
+        ? value.map((item) => `${item}`.trim()).filter((item) => item !== "")
+        : [...fallback];
+};
+
+const normalizeNotificationPreferences = (value: unknown): NotificationPreferencesDraft => {
+    if (!isObject(value)) {
+        return DEFAULT_PREFERENCES;
+    }
+
+    return {
+        channels: readStringArray(value.channels, DEFAULT_PREFERENCES.channels),
+        digestMode: typeof value.digestMode === "boolean" ? value.digestMode : DEFAULT_PREFERENCES.digestMode,
+        mutedTagIds: readStringArray(value.mutedTagIds, DEFAULT_PREFERENCES.mutedTagIds),
+        quietHoursEnd: typeof value.quietHoursEnd === "string" ? value.quietHoursEnd : DEFAULT_PREFERENCES.quietHoursEnd,
+        quietHoursStart: typeof value.quietHoursStart === "string" ? value.quietHoursStart : DEFAULT_PREFERENCES.quietHoursStart,
+        severityFloor: typeof value.severityFloor === "string" ? value.severityFloor : DEFAULT_PREFERENCES.severityFloor,
+    };
+};
+
+const normalizeThemePreference = (value: unknown): ThemePreference => {
+    return value === "dark" || value === "light" || value === "system" ? value : "system";
+};
+
+const buildSettingsBackup = (preferences: NotificationPreferencesDraft, workspaceSettings: WorkspaceSettings): SettingsBackupData => ({
+    exported_at: new Date().toISOString(),
+    notification_preferences: preferences,
+    theme_preference: getStoredThemePreference(),
+    version: SETTINGS_BACKUP_VERSION,
+    workspace_settings: workspaceSettings,
+});
+
+const parseSettingsBackup = (value: unknown): SettingsBackupData | null => {
+    if (!isObject(value) || value.version !== SETTINGS_BACKUP_VERSION) {
+        return null;
+    }
+
+    return {
+        exported_at: typeof value.exported_at === "string" ? value.exported_at : new Date(0).toISOString(),
+        notification_preferences: normalizeNotificationPreferences(value.notification_preferences),
+        theme_preference: normalizeThemePreference(value.theme_preference),
+        version: SETTINGS_BACKUP_VERSION,
+        workspace_settings: normalizeWorkspaceSettings(value.workspace_settings),
+    };
 };
 
 export const SettingsPage = (): JSX.Element => {
@@ -78,6 +146,18 @@ export const SettingsPage = (): JSX.Element => {
     const [comparableFieldsText, setComparableFieldsText] = useState("");
     const [locationFieldsText, setLocationFieldsText] = useState("");
     const [typeFieldsText, setTypeFieldsText] = useState("");
+    const [pendingBackupImport, setPendingBackupImport] = useState<{ backup: SettingsBackupData; fileName: string; } | null>(null);
+    const [resetOpen, setResetOpen] = useState(false);
+    const backupFileInputRef = useRef<HTMLInputElement | null>(null);
+
+    const syncWorkspaceSettingsDraft = (nextSettings: WorkspaceSettings): void => {
+        setWorkspaceSettings(nextSettings);
+        setPriceFieldsText(formatMultilineValue(nextSettings.field_mappings.price_fields));
+        setAreaFieldsText(formatMultilineValue(nextSettings.field_mappings.area_fields));
+        setComparableFieldsText(formatMultilineValue(nextSettings.field_mappings.comparable_fields));
+        setLocationFieldsText(formatMultilineValue(nextSettings.field_mappings.location_fields));
+        setTypeFieldsText(formatMultilineValue(nextSettings.field_mappings.type_fields));
+    };
 
     useEffect(() => {
         if (meQuery.data !== undefined) {
@@ -87,12 +167,7 @@ export const SettingsPage = (): JSX.Element => {
 
     useEffect(() => {
         const storedSettings = readWorkspaceSettings();
-        setWorkspaceSettings(storedSettings);
-        setPriceFieldsText(formatMultilineValue(storedSettings.field_mappings.price_fields));
-        setAreaFieldsText(formatMultilineValue(storedSettings.field_mappings.area_fields));
-        setComparableFieldsText(formatMultilineValue(storedSettings.field_mappings.comparable_fields));
-        setLocationFieldsText(formatMultilineValue(storedSettings.field_mappings.location_fields));
-        setTypeFieldsText(formatMultilineValue(storedSettings.field_mappings.type_fields));
+        syncWorkspaceSettingsDraft(storedSettings);
 
         const rawPreferences = window.localStorage.getItem(PREFERENCE_STORAGE_KEY);
         if (rawPreferences === null) {
@@ -100,10 +175,7 @@ export const SettingsPage = (): JSX.Element => {
         }
 
         try {
-            setPreferences({
-                ...DEFAULT_PREFERENCES,
-                ...JSON.parse(rawPreferences) as Partial<NotificationPreferencesDraft>,
-            });
+            setPreferences(normalizeNotificationPreferences(JSON.parse(rawPreferences)));
         } catch {
             setPreferences(DEFAULT_PREFERENCES);
         }
@@ -156,9 +228,78 @@ export const SettingsPage = (): JSX.Element => {
                 type_fields: parseMultilineValue(typeFieldsText),
             },
         };
-        setWorkspaceSettings(nextSettings);
+        syncWorkspaceSettingsDraft(nextSettings);
         saveWorkspaceSettings(nextSettings);
         pushToast("Workspace settings applied immediately on this device.", "success");
+    };
+
+    const exportSettingsBackup = (): void => {
+        const backup = buildSettingsBackup(preferences, workspaceSettings);
+        const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = `nido-settings-backup-${backup.exported_at.replace(/[:.TZ]/gu, "-")}.json`;
+        anchor.click();
+        URL.revokeObjectURL(url);
+        pushToast("Settings backup exported.", "success");
+    };
+
+    const applySettingsBackup = (backup: SettingsBackupData): void => {
+        syncWorkspaceSettingsDraft(backup.workspace_settings);
+        setPreferences(backup.notification_preferences);
+        saveWorkspaceSettings(backup.workspace_settings);
+        window.localStorage.setItem(PREFERENCE_STORAGE_KEY, JSON.stringify(backup.notification_preferences));
+        applyThemePreference(backup.theme_preference);
+    };
+
+    const handleBackupFileChange = async (event: ChangeEvent<HTMLInputElement>): Promise<void> => {
+        const file = event.target.files?.[0];
+        if (file === undefined) {
+            return;
+        }
+
+        try {
+            const parsed = parseSettingsBackup(JSON.parse(await file.text()));
+            if (parsed === null) {
+                event.target.value = "";
+                pushToast("Backup file is not a supported Nido settings export.", "error");
+                return;
+            }
+
+            setPendingBackupImport({ backup: parsed, fileName: file.name });
+        } catch {
+            event.target.value = "";
+            pushToast("Could not read the selected backup file.", "error");
+        }
+    };
+
+    const restoreBackup = (): void => {
+        if (pendingBackupImport === null) {
+            return;
+        }
+
+        applySettingsBackup(pendingBackupImport.backup);
+        setPendingBackupImport(null);
+        if (backupFileInputRef.current !== null) {
+            backupFileInputRef.current.value = "";
+        }
+        pushToast("Settings backup restored on this device.", "success");
+    };
+
+    const resetLocalSettings = (): void => {
+        syncWorkspaceSettingsDraft(DEFAULT_WORKSPACE_SETTINGS);
+        setPreferences(DEFAULT_PREFERENCES);
+        saveWorkspaceSettings(DEFAULT_WORKSPACE_SETTINGS);
+        window.localStorage.setItem(PREFERENCE_STORAGE_KEY, JSON.stringify(DEFAULT_PREFERENCES));
+        applyThemePreference("system");
+        window.localStorage.removeItem(THEME_STORAGE_KEY);
+        window.localStorage.removeItem(WORKSPACE_SETTINGS_STORAGE_KEY);
+        LOCAL_UI_STORAGE_KEYS.forEach((storageKey) => {
+            window.localStorage.removeItem(storageKey);
+        });
+        setResetOpen(false);
+        pushToast("Local settings reset to defaults.", "success");
     };
 
     return (
@@ -392,12 +533,40 @@ export const SettingsPage = (): JSX.Element => {
                             label: "Recovery & Data Movement",
                             panel: (
                                 <PageStack>
-                                    <PageCard description={"Recovery and data movement controls live in Settings and stay separate from daily workflows."} title={"Recovery & Data Movement"}>
+                                    <PageCard description={"Export a device backup before changes, restore from a backup when needed, and keep resets behind confirmations."} title={"Recovery & Data Movement"}>
                                         <KeyValueGrid compact>
-                                            <KeyValuePair label={"Exports"} value={"Use backend-supported exports when available."} />
-                                            <KeyValuePair label={"Imports"} value={"Validate data before importing into tracked properties."} />
-                                            <KeyValuePair label={"Recovery"} value={"Keep recovery actions behind explicit confirmations."} />
+                                            <KeyValuePair label={"Data export"} value={"Download a JSON backup of local settings, notification preferences, and the current theme."} />
+                                            <KeyValuePair label={"Data recovery"} value={"Restore the same local settings set from a previously exported Nido backup file."} />
+                                            <KeyValuePair label={"Data deletion/reset"} value={"Reset this device back to default settings only after an explicit confirmation."} />
                                         </KeyValueGrid>
+                                    </PageCard>
+                                    <PageCard description={"Create a portable backup before testing changes on this device."} title={"Export local settings"}>
+                                        <KeyValueGrid compact>
+                                            <KeyValuePair label={"Includes"} value={"Workspace settings, notification preferences, and theme preference"} />
+                                            <KeyValuePair label={"Format"} value={"Versioned JSON backup"} />
+                                        </KeyValueGrid>
+                                        <ActionGroup>
+                                            <Button onClick={exportSettingsBackup}>{"Export settings backup"}</Button>
+                                        </ActionGroup>
+                                    </PageCard>
+                                    <PageCard description={"Restore a previously exported backup to recover local settings quickly."} title={"Recover from backup"}>
+                                        <KeyValueGrid compact>
+                                            <KeyValuePair label={"Supported backup"} value={`Nido settings backup v${SETTINGS_BACKUP_VERSION}`} />
+                                            <KeyValuePair label={"Restore behavior"} value={"Replaces local settings, notification preferences, and theme on this device"} />
+                                        </KeyValueGrid>
+                                        <input accept={"application/json,.json"} hidden onChange={(event) => { void handleBackupFileChange(event); }} ref={backupFileInputRef} type={"file"} />
+                                        <ActionGroup>
+                                            <Button onClick={() => { backupFileInputRef.current?.click(); }} variant={"secondary"}>{"Choose backup file"}</Button>
+                                        </ActionGroup>
+                                    </PageCard>
+                                    <PageCard description={"Remove custom local settings and return this browser to the default Nido setup."} title={"Reset local settings"}>
+                                        <KeyValueGrid compact>
+                                            <KeyValuePair label={"Resets"} value={"Workspace settings, notification preferences, theme, saved table layout, bookmarks groups, and nav state"} />
+                                            <KeyValuePair label={"Does not remove"} value={"Tracked properties, source templates, runs, tags, or server-side account data"} />
+                                        </KeyValueGrid>
+                                        <ActionGroup>
+                                            <Button onClick={() => { setResetOpen(true); }} variant={"destructive"}>{"Reset local settings"}</Button>
+                                        </ActionGroup>
                                     </PageCard>
                                 </PageStack>
                             ),
@@ -405,6 +574,31 @@ export const SettingsPage = (): JSX.Element => {
                     ]}
                 />
             </PageCard>
+            <ConfirmDialog
+                confirmLabel={"Restore backup"}
+                description={pendingBackupImport === null
+                    ? ""
+                    : `Restore "${pendingBackupImport.fileName}" on this device? This replaces the current local settings, notification preferences, and theme.`}
+                onConfirm={restoreBackup}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setPendingBackupImport(null);
+                        if (backupFileInputRef.current !== null) {
+                            backupFileInputRef.current.value = "";
+                        }
+                    }
+                }}
+                open={pendingBackupImport !== null}
+                title={"Restore settings backup"}
+            />
+            <ConfirmDialog
+                confirmLabel={"Reset local settings"}
+                description={"Reset this device to the default Nido settings? This removes local customizations and saved UI state, but it does not delete tracked properties or other server-side data."}
+                onConfirm={resetLocalSettings}
+                onOpenChange={setResetOpen}
+                open={resetOpen}
+                title={"Reset local settings"}
+            />
         </PageStack>
     );
 };
