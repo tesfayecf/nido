@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { classNames } from "@/lib/ui/classNames";
 
-interface DataTableColumn<TItem> {
+export interface DataTableColumn<TItem> {
     readonly align?: "left" | "right";
     readonly cell?: (item: TItem) => ReactNode;
     readonly header: ReactNode;
@@ -15,7 +15,7 @@ interface DataTableColumn<TItem> {
     readonly wrap?: boolean;
 }
 
-interface DataTableProps<TItem> {
+export interface DataTableProps<TItem> {
     readonly caption?: ReactNode;
     readonly className?: string;
     readonly columns: DataTableColumn<TItem>[];

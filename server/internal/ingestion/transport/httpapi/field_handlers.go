@@ -1,7 +1,6 @@
 package httpapi
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
@@ -30,8 +29,7 @@ func RegisterFields(mux *http.ServeMux, requireAuth func(http.Handler) http.Hand
 
 	mux.Handle("POST /api/v1/backoffice/fields", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var request ingestiondomain.FieldDefinition
-		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-			platformhttp.WriteError(w, http.StatusBadRequest, "invalid request body")
+		if !platformhttp.DecodeJSON(w, r, &request) {
 			return
 		}
 		field, err := service.CreateFieldDefinition(r.Context(), request)
@@ -49,8 +47,7 @@ func RegisterFields(mux *http.ServeMux, requireAuth func(http.Handler) http.Hand
 			platformhttp.WriteError(w, http.StatusBadRequest, "field id is required")
 			return
 		}
-		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-			platformhttp.WriteError(w, http.StatusBadRequest, "invalid request body")
+		if !platformhttp.DecodeJSON(w, r, &request) {
 			return
 		}
 		field, err := service.UpdateFieldDefinition(r.Context(), fieldID, request)
@@ -93,8 +90,7 @@ func RegisterFields(mux *http.ServeMux, requireAuth func(http.Handler) http.Hand
 
 	mux.Handle("POST /api/v1/backoffice/fields/unmapped/assign", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var request fieldAssignmentRequest
-		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-			platformhttp.WriteError(w, http.StatusBadRequest, "invalid request body")
+		if !platformhttp.DecodeJSON(w, r, &request) {
 			return
 		}
 		if err := service.AssignUnmappedField(r.Context(), request.PropertyID, request.SelectorName, request.FieldName); err != nil {

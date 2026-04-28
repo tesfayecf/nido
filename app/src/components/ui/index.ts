@@ -19,6 +19,7 @@ export * from "@/components/ui/MultiSelect";
 export * from "@/components/ui/PageCard";
 export * from "@/components/ui/PageStack";
 export * from "@/components/ui/Preformatted";
+export * from "@/components/ui/QueryDataTable";
 export * from "@/components/ui/RowActions";
 export * from "@/components/ui/Select";
 export * from "@/components/ui/Skeleton";

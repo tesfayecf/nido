@@ -1,7 +1,6 @@
 package httpapi
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
@@ -32,8 +31,7 @@ func RegisterTags(mux *http.ServeMux, requireAuth func(http.Handler) http.Handle
 			Name  string `json:"name"`
 			Color string `json:"color"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-			platformhttp.WriteError(w, http.StatusBadRequest, "invalid request body")
+		if !platformhttp.DecodeJSON(w, r, &request) {
 			return
 		}
 
@@ -101,8 +99,7 @@ func RegisterTags(mux *http.ServeMux, requireAuth func(http.Handler) http.Handle
 		var request struct {
 			TagIDs []string `json:"tag_ids"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-			platformhttp.WriteError(w, http.StatusBadRequest, "invalid request body")
+		if !platformhttp.DecodeJSON(w, r, &request) {
 			return
 		}
 
