@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { RouterProvider, createMemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -64,8 +64,9 @@ describe("TriageInboxPage", () => {
     });
 
     it("only disables the row action being processed", async () => {
+        let resolveIngest: (() => void) | undefined;
         ingestPropertyMock.mockImplementation(() => new Promise<void>((resolve) => {
-            void resolve;
+            resolveIngest = resolve;
         }));
 
         renderTriageInboxPage();
@@ -80,6 +81,10 @@ describe("TriageInboxPage", () => {
         await waitFor(() => {
             expect(within(firstArticle as HTMLElement).getByText("Run now").closest("button")).toBeDisabled();
             expect(within(secondArticle as HTMLElement).getByText("Run now").closest("button")).not.toBeDisabled();
+        });
+
+        await act(async () => {
+            resolveIngest?.();
         });
     });
 });

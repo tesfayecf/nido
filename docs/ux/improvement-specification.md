@@ -74,7 +74,7 @@
 2. Standardize view-vs-edit behavior between source detail and property detail.
 3. Consolidate alert creation shared behavior into a reusable helper.
 4. Tighten shell navigation labeling and information scent for first-time users.
-5. Capture seeded before/after screenshots for the touched workflows.
+5. Capture seeded before/after screenshots for the touched workflows once browser automation is available in an unlocked environment.
 
 ## Before vs After Workflow Notes
 

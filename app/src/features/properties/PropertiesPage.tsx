@@ -146,7 +146,7 @@ export const PropertiesPage = (): JSX.Element => {
             return undefined;
         }
 
-        const handlePointerDown = (event: MouseEvent): void => {
+        const handleMouseDown = (event: MouseEvent): void => {
             if (!(event.target instanceof Node) || columnMenuRef.current?.contains(event.target)) {
                 return;
             }
@@ -160,10 +160,10 @@ export const PropertiesPage = (): JSX.Element => {
             }
         };
 
-        window.addEventListener("mousedown", handlePointerDown);
+        window.addEventListener("mousedown", handleMouseDown);
         window.addEventListener("keydown", handleKeyDown);
         return () => {
-            window.removeEventListener("mousedown", handlePointerDown);
+            window.removeEventListener("mousedown", handleMouseDown);
             window.removeEventListener("keydown", handleKeyDown);
         };
     }, [columnMenuOpen]);

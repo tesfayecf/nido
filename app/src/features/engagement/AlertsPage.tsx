@@ -153,7 +153,7 @@ export const AlertsPage = (): JSX.Element => {
                     <Field hint={getRuleTypeLogic(ruleType, parsedThreshold)} label={"Rule type"}>
                         <Select onChange={(event) => { setRuleType(event.target.value); }} value={ruleType}>
                             {ALERT_RULE_TYPES.map((option) => {
-                                return <option key={option.value} value={option.value}>{getRuleTypeLabel(option.value)}</option>;
+                                return <option key={option.value} value={option.value}>{option.description}</option>;
                             })}
                         </Select>
                     </Field>

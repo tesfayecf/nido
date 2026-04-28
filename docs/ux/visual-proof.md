@@ -13,7 +13,7 @@ An automated screenshot pass was attempted after seeding local data and starting
 
 > Browser is already in use for `/root/.cache/ms-playwright/mcp-chrome`, use `--isolated` to run multiple instances of the same browser
 
-Because of that environment constraint, screenshot files could not be captured in this session.
+Because of that environment constraint, screenshot files could not be captured in this session. This is a temporary environment limitation, not a product limitation; seeded before/after screenshots remain a follow-up item for a session with an unlocked browser runtime.
 
 ## Workflow diagrams
 
