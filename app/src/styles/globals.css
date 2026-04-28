@@ -2200,6 +2200,15 @@ body {
     width: 100%;
 }
 
+.tags-table .data-table {
+    table-layout: fixed;
+}
+
+.tags-table .data-table th:nth-child(3),
+.tags-table .data-table td:nth-child(3) {
+    min-width: 11rem;
+}
+
 .data-table thead th {
     background: var(--color-background-strong);
     border-bottom: 1px solid var(--color-border);

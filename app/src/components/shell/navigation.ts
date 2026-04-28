@@ -29,8 +29,8 @@ export interface NavSection {
 export const AUTHENTICATED_SECTIONS: readonly NavSection[] = [
     {
         items: [
-            { icon: "search", label: "Properties", to: "/properties" },
             { icon: "home", label: "Dashboard", to: "/dashboard" },
+            { icon: "search", label: "Properties", to: "/properties" },
             { icon: "history", label: "Market Analysis", to: "/analytics" },
             { icon: "bookmark", label: "Bookmarks", to: "/bookmarks" },
         ],
@@ -84,8 +84,8 @@ const routeMeta: readonly [RegExp, RouteMeta][] = [
 ];
 
 const defaultMeta: RouteMeta = {
-    section: "Properties",
-    title: "Properties",
+    section: "Core",
+    title: "Dashboard",
 };
 
 export const getRouteMeta = (pathname: string): RouteMeta => {
