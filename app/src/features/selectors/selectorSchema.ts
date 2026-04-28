@@ -26,6 +26,8 @@ export interface SelectorFieldDraft {
     readonly partialMatch: string;
     readonly comparisonOperator: "" | "eq" | "gt" | "lt" | "contains";
     readonly comparisonValue: string;
+    readonly templateFieldName?: string;
+    readonly templateSignature?: string;
 }
 
 interface LegacyFieldSelector {
@@ -136,6 +138,8 @@ export const createEmptySelectorDraft = (): SelectorFieldDraft => ({
     partialMatch: "",
     comparisonOperator: "",
     comparisonValue: "",
+    templateFieldName: undefined,
+    templateSignature: undefined,
 });
 
 export const createDefaultSelectorDrafts = (): SelectorFieldDraft[] => [
@@ -164,6 +168,8 @@ export const selectorToDraft = (selector: FieldSelector): SelectorFieldDraft => 
     partialMatch: selector.partial_match ?? "",
     comparisonOperator: selector.comparison_operator ?? "",
     comparisonValue: selector.comparison_value ?? "",
+    templateFieldName: undefined,
+    templateSignature: undefined,
 });
 
 export const draftToSelector = (draft: SelectorFieldDraft): FieldSelector => ({
@@ -189,6 +195,10 @@ export const draftToSelector = (draft: SelectorFieldDraft): FieldSelector => ({
     comparison_operator: draft.comparisonOperator !== "" ? draft.comparisonOperator : undefined,
     comparison_value: draft.comparisonValue.trim() !== "" ? draft.comparisonValue.trim() : undefined,
 });
+
+export const buildFieldSelectorSignature = (field: FieldSelector): string => {
+    return JSON.stringify(field);
+};
 
 export const parseSelectorConfigJson = (configJson?: string): FieldSelector[] => {
     if ((configJson ?? "").trim() === "") {

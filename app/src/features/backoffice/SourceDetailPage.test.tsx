@@ -81,7 +81,9 @@ describe("SourceDetailPage", () => {
         await waitFor(() => {
             expect(screen.getByLabelText("Template id")).toHaveValue("");
             expect(screen.getByLabelText("Template name")).toHaveValue("");
-            expect(screen.getAllByLabelText("Field name").map((input) => (input as HTMLInputElement).value)).toEqual(["price", "title", "location"]);
+            expect(screen.getByRole("button", { name: /price/i })).toBeInTheDocument();
+            expect(screen.getByRole("button", { name: /title/i })).toBeInTheDocument();
+            expect(screen.getByRole("button", { name: /location/i })).toBeInTheDocument();
         });
     });
 

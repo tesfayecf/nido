@@ -127,6 +127,7 @@ export const PropertiesPage = (): JSX.Element => {
                 },
             }));
         };
+
         const handleMouseUp = (): void => {
             resizeStateRef.current = null;
         };
@@ -303,139 +304,142 @@ export const PropertiesPage = (): JSX.Element => {
             >
                 {propertiesQuery.isError || summariesQuery.isError ? <ErrorBanner>{"Could not load the portfolio table."}</ErrorBanner> : null}
                 {(propertiesQuery.isLoading || summariesQuery.isLoading) ? <p className={"state-message state-message--loading"}>{"Loading properties..."}</p> : null}
-                {!propertiesQuery.isLoading && !summariesQuery.isLoading ? (
-                    sortedRows.length === 0 && rows.length === 0 ? (
+                {!propertiesQuery.isLoading && !summariesQuery.isLoading ? 
+                    sortedRows.length === 0 && rows.length === 0 ? 
                         <p className={"muted-copy"}>{"No properties are being tracked yet."}</p>
-                    ) : (
-                        <div className={"properties-table__shell"}>
-                            <table className={"properties-table"}>
-                                <thead>
-                                    <tr>
-                                        {visibleColumns.map((column) => {
-                                            const width = tableState.widths[column.id] ?? column.width;
-                                            const active = sortColumnId === column.id;
-                                            return (
-                                                <th
-                                                    draggable
-                                                    key={column.id}
-                                                    onDragOver={(event) => { event.preventDefault(); }}
-                                                    onDragStart={() => { setDragColumnId(column.id); }}
-                                                    onDrop={() => {
-                                                        if (dragColumnId === null || dragColumnId === column.id) {
-                                                            return;
-                                                        }
-
-                                                        setTableState((current) => reorderColumns(current, dragColumnId, column.id));
-                                                        setDragColumnId(null);
-                                                    }}
-                                                    scope={"col"}
-                                                    style={{ width }}
-                                                >
-                                                    <button
-                                                        className={active ? "properties-table__sort properties-table__sort--active" : "properties-table__sort"}
-                                                        onClick={() => {
-                                                            if (active) {
-                                                                setSortDirection((current) => current === "asc" ? "desc" : "asc");
+                        : (
+                            <div className={"properties-table__shell"}>
+                                <table className={"properties-table"}>
+                                    <thead>
+                                        <tr>
+                                            {visibleColumns.map((column) => {
+                                                const width = tableState.widths[column.id] ?? column.width;
+                                                const active = sortColumnId === column.id;
+                                                return (
+                                                    <th
+                                                        draggable
+                                                        key={column.id}
+                                                        onDragOver={(event) => { event.preventDefault(); }}
+                                                        onDragStart={() => { setDragColumnId(column.id); }}
+                                                        onDrop={() => {
+                                                            if (dragColumnId === null || dragColumnId === column.id) {
                                                                 return;
                                                             }
 
-                                                            setSortColumnId(column.id);
-                                                            setSortDirection("asc");
+                                                            setTableState((current) => reorderColumns(current, dragColumnId, column.id));
+                                                            setDragColumnId(null);
                                                         }}
-                                                        type={"button"}
+                                                        scope={"col"}
+                                                        style={{ width }}
                                                     >
-                                                        {column.header}
-                                                    </button>
-                                                    <span
-                                                        className={"properties-table__resize-handle"}
-                                                        onMouseDown={(event) => {
-                                                            resizeStateRef.current = {
-                                                                columnId: column.id,
-                                                                startWidth: width,
-                                                                startX: event.clientX,
-                                                            };
-                                                        }}
-                                                    />
-                                                </th>
-                                            );
-                                        })}
-                                        <th scope={"col"} style={{ width: 132 }}>{"Actions"}</th>
-                                    </tr>
-                                    {filtersOpen ? (
-                                        <tr className={"properties-table__filters-row"}>
-                                            {visibleColumns.map((column) => (
-                                                <th key={`${column.id}-filter`} style={{ width: tableState.widths[column.id] ?? column.width }}>
-                                                    {renderFilter(column.id, tableState, setTableState, {
-                                                        bathroomOptions,
-                                                        locationOptions,
-                                                        roomOptions,
-                                                    })}
-                                                </th>
-                                            ))}
-                                            <th />
-                                        </tr>
-                                    ) : null}
-                                </thead>
-                                <tbody>
-                                    {sortedRows.map((row) => {
-                                        const isBookmarked = bookmarkedIds.has(row.id);
-                                        return (
-                                            <tr
-                                                aria-label={`Open property ${row.label.trim() !== "" ? row.label : row.url.trim() !== "" ? row.url : row.id}`}
-                                                className={"properties-table__row properties-table__row--interactive"}
-                                                key={row.id}
-                                                onClick={(event) => {
-                                                    if (!isEventFromInteractiveElement(event.target)) {
-                                                        void navigate(`/properties/${row.id}`);
-                                                    }
-                                                }}
-                                                onKeyDown={(event) => {
-                                                    if (event.key === "Enter" || event.key === " ") {
-                                                        event.preventDefault();
-                                                        void navigate(`/properties/${row.id}`);
-                                                    }
-                                                }}
-                                                role={"button"}
-                                                tabIndex={0}
-                                            >
-                                                {visibleColumns.map((column) => (
-                                                    <td key={`${row.id}-${column.id}`}>
-                                                        <div className={"properties-table__cell"}>
-                                                            {renderColumnCell(column.id, row, column.render(row))}
-                                                        </div>
-                                                    </td>
-                                                ))}
-                                                <td>
-                                                    <RowActions>
-                                                        <Button as={Link} size={"small"} to={`/properties/${row.id}`} variant={"ghost"}>{"Open"}</Button>
                                                         <button
-                                                            aria-label={isBookmarked ? "Remove bookmark" : "Bookmark property"}
-                                                            className={"icon-button"}
-                                                            onClick={() => { bookmarkMutation.mutate({ isBookmarked, propertyId: row.id }); }}
+                                                            className={active ? "properties-table__sort properties-table__sort--active" : "properties-table__sort"}
+                                                            onClick={() => {
+                                                                if (active) {
+                                                                    setSortDirection((current) => current === "asc" ? "desc" : "asc");
+                                                                    return;
+                                                                }
+
+                                                                setSortColumnId(column.id);
+                                                                setSortDirection("asc");
+                                                            }}
                                                             type={"button"}
                                                         >
-                                                            <Icon name={isBookmarked ? "bookmark-filled" : "bookmark"} />
+                                                            {column.header}
                                                         </button>
-                                                        {row.url.trim() !== "" ? (
+                                                        <span
+                                                            className={"properties-table__resize-handle"}
+                                                            onMouseDown={(event) => {
+                                                                resizeStateRef.current = {
+                                                                    columnId: column.id,
+                                                                    startWidth: width,
+                                                                    startX: event.clientX,
+                                                                };
+                                                            }}
+                                                        />
+                                                    </th>
+                                                );
+                                            })}
+                                            <th scope={"col"} style={{ width: 132 }}>{"Actions"}</th>
+                                        </tr>
+                                        {filtersOpen ? (
+                                            <tr className={"properties-table__filters-row"}>
+                                                {visibleColumns.map((column) => (
+                                                    <th key={`${column.id}-filter`} style={{ width: tableState.widths[column.id] ?? column.width }}>
+                                                        {renderFilter(column.id, tableState, setTableState, {
+                                                            bathroomOptions,
+                                                            locationOptions,
+                                                            roomOptions,
+                                                        })}
+                                                    </th>
+                                                ))}
+                                                <th />
+                                            </tr>
+                                        ) : null}
+                                    </thead>
+                                    <tbody>
+                                        {sortedRows.map((row) => {
+                                            const isBookmarked = bookmarkedIds.has(row.id);
+                                            return (
+                                                <tr
+                                                    aria-label={`Open property ${row.label.trim() !== "" ? row.label : row.url.trim() !== "" ? row.url : row.id}`}
+                                                    className={"properties-table__row properties-table__row--interactive"}
+                                                    key={row.id}
+                                                    onClick={(event) => {
+                                                        if (!isEventFromInteractiveElement(event.target, event.currentTarget)) {
+                                                            void navigate(`/properties/${row.id}`);
+                                                        }
+                                                    }}
+                                                    onKeyDown={(event) => {
+                                                        if (isEventFromInteractiveElement(event.target, event.currentTarget)) {
+                                                            return;
+                                                        }
+
+                                                        if (event.key === "Enter" || event.key === " ") {
+                                                            event.preventDefault();
+                                                            void navigate(`/properties/${row.id}`);
+                                                        }
+                                                    }}
+                                                    role={"button"}
+                                                    tabIndex={0}
+                                                >
+                                                    {visibleColumns.map((column) => (
+                                                        <td key={`${row.id}-${column.id}`}>
+                                                            <div className={"properties-table__cell"}>
+                                                                {renderColumnCell(column.id, row, column.render(row))}
+                                                            </div>
+                                                        </td>
+                                                    ))}
+                                                    <td>
+                                                        <RowActions>
                                                             <button
-                                                                aria-label={"Run scrape"}
+                                                                aria-label={isBookmarked ? "Remove bookmark" : "Bookmark property"}
                                                                 className={"icon-button"}
-                                                                onClick={() => { ingestMutation.mutate(row.id); }}
+                                                                onClick={() => { bookmarkMutation.mutate({ isBookmarked, propertyId: row.id }); }}
                                                                 type={"button"}
                                                             >
-                                                                <Icon name={"play"} />
+                                                                <Icon name={isBookmarked ? "bookmark-filled" : "bookmark"} />
                                                             </button>
-                                                        ) : null}
-                                                    </RowActions>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
-                    )
-                ) : null}
+                                                            {row.url.trim() !== "" ? (
+                                                                <button
+                                                                    aria-label={"Run scrape"}
+                                                                    className={"icon-button"}
+                                                                    onClick={() => { ingestMutation.mutate(row.id); }}
+                                                                    type={"button"}
+                                                                >
+                                                                    <Icon name={"play"} />
+                                                                </button>
+                                                            ) : null}
+                                                        </RowActions>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )
+                    : null}
             </PageCard>
         </PageStack>
     );
@@ -445,9 +449,11 @@ const renderColumnCell = (columnId: string, row: PropertyRow, value: JSX.Element
     if (columnId === "opportunity") {
         return <StatusBadge tone={opportunityTone(row.opportunity)} value={String(value)} />;
     }
+
     if (columnId === "status") {
         return <StatusBadge tone={statusTone(row.property.status)} value={String(value)} />;
     }
+
     if (columnId === "property") {
         return (
             <div className={"data-table__primary"}>
@@ -582,6 +588,7 @@ const matchesNumericRange = (value: number | undefined, filter: NumericRangeFilt
     if (filter.min.trim() === "" && filter.max.trim() === "") {
         return true;
     }
+
     if (value === undefined) {
         return false;
     }
@@ -591,6 +598,7 @@ const matchesNumericRange = (value: number | undefined, filter: NumericRangeFilt
     if (min !== undefined && Number.isFinite(min) && value < min) {
         return false;
     }
+
     if (max !== undefined && Number.isFinite(max) && value > max) {
         return false;
     }
@@ -616,8 +624,17 @@ const INTERACTIVE_SELECTOR = [
     "[role='switch']",
 ].join(", ");
 
-const isEventFromInteractiveElement = (target: EventTarget | null): boolean => {
-    return target instanceof HTMLElement && target.closest(INTERACTIVE_SELECTOR) !== null;
+/**
+ * Returns true when the event started from an interactive child, excluding the
+ * row element itself so row clicks still navigate.
+ */
+const isEventFromInteractiveElement = (target: EventTarget | null, currentTarget?: HTMLElement): boolean => {
+    if (!(target instanceof HTMLElement)) {
+        return false;
+    }
+
+    const interactiveElement = target.closest(INTERACTIVE_SELECTOR);
+    return interactiveElement !== null && interactiveElement !== currentTarget;
 };
 
 const matchesSelectFilter = (value: string, filter: string): boolean => {

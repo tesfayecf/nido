@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 
 import { Button } from "@/components/ui/Button";
@@ -7,13 +7,19 @@ import { Field } from "@/components/ui/Field";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
+import type { SelectorFieldDraft } from "@/features/selectors/selectorSchema";
 import type { FieldDefinitionUsage } from "@/services/fields/fields.types";
 import type { PropertyPreviewFieldResult, SelectorType } from "@/services/properties/properties.types";
-import type { SelectorFieldDraft } from "@/features/selectors/selectorSchema";
+
+interface SelectorBuilderFieldMetadata {
+    readonly origin: "manual" | "template";
+    readonly status: "linked" | "manual" | "modified";
+}
 
 interface SelectorBuilderProps {
     readonly fields: SelectorFieldDraft[];
     readonly fieldDefinitions?: FieldDefinitionUsage[];
+    readonly fieldMetadataById?: Record<string, SelectorBuilderFieldMetadata>;
     readonly onChange: Dispatch<SetStateAction<SelectorFieldDraft[]>>;
     readonly previewByFieldName?: Map<string, PropertyPreviewFieldResult>;
 }
@@ -67,16 +73,63 @@ const previewLabel = (field?: PropertyPreviewFieldResult): string => {
     return field.message ?? "No value found yet.";
 };
 
-export const SelectorBuilder = ({ fieldDefinitions, fields, onChange, previewByFieldName }: SelectorBuilderProps): JSX.Element => {
+const getFieldTypeLabel = (field: SelectorFieldDraft): string => {
+    return field.extractionMode === "attribute"
+        ? `Attribute · ${field.selectorType.toUpperCase()}`
+        : `Text · ${field.selectorType.toUpperCase()}`;
+};
+
+const getFieldOriginLabel = (metadata: SelectorBuilderFieldMetadata): string => {
+    return metadata.origin === "template" ? "Template" : "User-created";
+};
+
+const getFieldStatusLabel = (metadata: SelectorBuilderFieldMetadata): string => {
+    switch (metadata.status) {
+        case "linked":
+            return "Linked";
+        case "modified":
+            return "Modified";
+        case "manual":
+        default:
+            return "Manual";
+    }
+};
+
+export const SelectorBuilder = ({
+    fieldDefinitions,
+    fieldMetadataById,
+    fields,
+    onChange,
+    previewByFieldName,
+}: SelectorBuilderProps): JSX.Element => {
+    const [expandedFieldId, setExpandedFieldId] = useState<string | null>(null);
     const [helpOpen, setHelpOpen] = useState(false);
     const [tipsOpen, setTipsOpen] = useState(false);
     const [openFallbacks, setOpenFallbacks] = useState<Set<string>>(new Set());
+    const previousFieldIdsRef = useRef<string[]>(fields.map((field) => field.id));
     const globalFields = [...fieldDefinitions ?? []].sort((left, right) => left.display_name.localeCompare(right.display_name));
 
+    useEffect(() => {
+        const previousFieldIds = previousFieldIdsRef.current;
+        const nextFieldIds = fields.map((field) => field.id);
+        const addedFieldId = nextFieldIds.find((fieldId) => !previousFieldIds.includes(fieldId));
+        if (addedFieldId !== undefined) {
+            setExpandedFieldId(addedFieldId);
+        } else if (expandedFieldId !== null && !nextFieldIds.includes(expandedFieldId)) {
+            setExpandedFieldId(null);
+        }
+
+        previousFieldIdsRef.current = nextFieldIds;
+    }, [expandedFieldId, fields]);
+
     const toggleFallback = (fieldId: string): void => {
-        setOpenFallbacks((prev) => {
-            const next = new Set(prev);
-            if (next.has(fieldId)) { next.delete(fieldId); } else { next.add(fieldId); }
+        setOpenFallbacks((previous) => {
+            const next = new Set(previous);
+            if (next.has(fieldId)) {
+                next.delete(fieldId);
+            } else {
+                next.add(fieldId);
+            }
 
             return next;
         });
@@ -88,7 +141,7 @@ export const SelectorBuilder = ({ fieldDefinitions, fields, onChange, previewByF
                 <div className={"selector-builder__intro-header"}>
                     <p className={"selector-builder__eyebrow"}>{"Selector builder"}</p>
                     <div className={"action-group"}>
-                        <Button onClick={() => { setTipsOpen((prev) => !prev); }} size={"small"} variant={"ghost"}>
+                        <Button onClick={() => { setTipsOpen((previous) => !previous); }} size={"small"} variant={"ghost"}>
                             {tipsOpen ? "Hide tips ▴" : "Tips ▾"}
                         </Button>
                         <Button onClick={() => { setHelpOpen(true); }} size={"small"} variant={"secondary"}>
@@ -96,21 +149,21 @@ export const SelectorBuilder = ({ fieldDefinitions, fields, onChange, previewByF
                         </Button>
                     </div>
                 </div>
-                <h3 className={"selector-builder__title"}>{"Tell Nido where each value lives on the page."}</h3>
+                <h3 className={"selector-builder__title"}>{"Manage fields from one compact table, then expand only what you need."}</h3>
                 <p className={"selector-builder__copy"}>
-                    {"A selector points to the part of the page you want to read. Start with CSS for most pages, add a fallback if the first selector fails, and switch to XPath only when you need advanced targeting."}
+                    {"Scan field origin and status first, then open a row to edit selectors, fallbacks, cleanup rules, and preview details."}
                 </p>
             </div>
 
             {tipsOpen ? (
                 <div className={"selector-builder__tips"} role={"list"}>
                     <div className={"selector-builder__tip"} role={"listitem"}>
-                        <strong>{"CSS selector"}</strong>
-                        <span>{'Selects page elements with classes or ids, for example ".price" or "#title".'}</span>
+                        <strong>{"Field source"}</strong>
+                        <span>{"Template fields stay marked so it is clear which rows came from a template and which were added manually."}</span>
                     </div>
                     <div className={"selector-builder__tip"} role={"listitem"}>
-                        <strong>{"Fallback selectors"}</strong>
-                        <span>{"Add one selector per line and they will be tried in order if the main selector fails."}</span>
+                        <strong>{"Progressive disclosure"}</strong>
+                        <span>{"Open one row at a time to keep large configurations scannable without hiding any editing power."}</span>
                     </div>
                     <div className={"selector-builder__tip"} role={"listitem"}>
                         <strong>{"Extraction"}</strong>
@@ -119,249 +172,307 @@ export const SelectorBuilder = ({ fieldDefinitions, fields, onChange, previewByF
                 </div>
             ) : null}
 
-            <div className={"item-list"}>
-                {fields.map((field, index) => {
-                    const preview = previewByFieldName?.get(field.name.trim());
-                    const needsAttribute = field.extractionMode === "attribute" || field.selectorType === "attribute";
+            <div className={"selector-builder__table-shell"}>
+                <table className={"selector-builder__table"}>
+                    <thead>
+                        <tr>
+                            <th scope={"col"}>{"Field"}</th>
+                            <th scope={"col"}>{"Type"}</th>
+                            <th scope={"col"}>{"Source"}</th>
+                            <th scope={"col"}>{"Status"}</th>
+                            <th scope={"col"}>{"Actions"}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {fields.map((field, index) => {
+                            const preview = previewByFieldName?.get(field.name.trim());
+                            const needsAttribute = field.extractionMode === "attribute" || field.selectorType === "attribute";
+                            const expanded = expandedFieldId === field.id;
+                            const metadata = fieldMetadataById?.[field.id] ?? { origin: "manual", status: "manual" } satisfies SelectorBuilderFieldMetadata;
 
-                    return (
-                        <article className={"selector-builder__field"} key={field.id}>
-                            <div className={"selector-builder__field-header"}>
-                                <div>
-                                    <p className={"selector-builder__field-index"}>{`Field ${index + 1}`}</p>
-                                    <h4 className={"selector-builder__field-title"}>{field.name.trim() === "" ? "Untitled field" : field.name.trim()}</h4>
-                                </div>
-                                <div className={"selector-builder__field-actions"}>
-                                    <label className={"selector-builder__toggle"}>
-                                        <input
-                                            checked={field.required}
-                                            onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { required: event.target.checked })); }}
-                                            type={"checkbox"}
-                                        />
-                                        <span>{"Required"}</span>
-                                    </label>
-                                    <Button
-                                        onClick={() => { onChange((currentFields) => currentFields.filter((item) => item.id !== field.id)); }}
-                                        variant={"secondary"}
-                                    >
-                                        {"Remove"}
-                                    </Button>
-                                </div>
-                            </div>
+                            return (
+                                <Fragment key={field.id}>
+                                    <tr className={expanded ? "selector-builder__summary-row selector-builder__summary-row--expanded" : "selector-builder__summary-row"}>
+                                        <td>
+                                            <button
+                                                aria-expanded={expanded}
+                                                className={"selector-builder__expand"}
+                                                onClick={() => {
+                                                    setExpandedFieldId((current) => current === field.id ? null : field.id);
+                                                }}
+                                                type={"button"}
+                                            >
+                                                <span aria-hidden={"true"} className={"selector-builder__expand-icon"}>
+                                                    {expanded ? "▾" : "▸"}
+                                                </span>
+                                                <span>
+                                                    <span className={"selector-builder__field-index"}>{`Field ${index + 1}`}</span>
+                                                    <strong className={"selector-builder__field-name"}>{field.name.trim() === "" ? "Untitled field" : field.name.trim()}</strong>
+                                                </span>
+                                            </button>
+                                        </td>
+                                        <td>{getFieldTypeLabel(field)}</td>
+                                        <td>
+                                            <span className={`selector-builder__meta-badge selector-builder__meta-badge--${metadata.origin}`}>
+                                                {getFieldOriginLabel(metadata)}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span className={`selector-builder__meta-badge selector-builder__meta-badge--${metadata.status}`}>
+                                                {getFieldStatusLabel(metadata)}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div className={"selector-builder__summary-actions"}>
+                                                <span className={"muted-copy"}>{field.required ? "Required" : "Optional"}</span>
+                                                <Button
+                                                    onClick={() => {
+                                                        onChange((currentFields) => currentFields.filter((item) => item.id !== field.id));
+                                                    }}
+                                                    size={"small"}
+                                                    variant={"secondary"}
+                                                >
+                                                    {"Remove"}
+                                                </Button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {expanded ? (
+                                        <tr className={"selector-builder__details-row"}>
+                                            <td colSpan={5}>
+                                                <div className={"selector-builder__field"}>
+                                                    <div className={"selector-builder__field-header"}>
+                                                        <div>
+                                                            <p className={"selector-builder__field-index"}>{`Field ${index + 1}`}</p>
+                                                            <h4 className={"selector-builder__field-title"}>{field.name.trim() === "" ? "Untitled field" : field.name.trim()}</h4>
+                                                        </div>
+                                                        <label className={"selector-builder__toggle"}>
+                                                            <input
+                                                                checked={field.required}
+                                                                onChange={(event) => {
+                                                                    onChange((currentFields) => updateField(currentFields, field.id, { required: event.target.checked }));
+                                                                }}
+                                                                type={"checkbox"}
+                                                            />
+                                                            <span>{"Required"}</span>
+                                                        </label>
+                                                    </div>
 
-                            <div className={"selector-builder__grid"}>
-                                <Field label={"Field name"}>
-                                    <Input
-                                        onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { name: event.target.value })); }}
-                                        placeholder={"Price"}
-                                        type={"text"}
-                                        value={field.name}
-                                    />
-                                </Field>
+                                                    <div className={"selector-builder__grid"}>
+                                                        <Field label={"Field name"}>
+                                                            <Input
+                                                                onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { name: event.target.value })); }}
+                                                                placeholder={"Price"}
+                                                                type={"text"}
+                                                                value={field.name}
+                                                            />
+                                                        </Field>
 
-                                <Field
-                                    hint={"Optional. Map this output to a shared canonical field for cross-property analytics."}
-                                    label={"Global field"}
-                                >
-                                    <Select
-                                        onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { fieldName: event.target.value })); }}
-                                        value={field.fieldName}
-                                    >
-                                        <option value={""}>{"Unassigned"}</option>
-                                        {globalFields.map((option) => <option key={option.id} value={option.name}>{option.display_name}</option>)}
-                                    </Select>
-                                </Field>
+                                                        <Field
+                                                            hint={"Optional. Map this output to a shared canonical field for cross-property analytics."}
+                                                            label={"Global field"}
+                                                        >
+                                                            <Select
+                                                                onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { fieldName: event.target.value })); }}
+                                                                value={field.fieldName}
+                                                            >
+                                                                <option value={""}>{"Unassigned"}</option>
+                                                                {globalFields.map((option) => <option key={option.id} value={option.name}>{option.display_name}</option>)}
+                                                            </Select>
+                                                        </Field>
 
-                                <Field
-                                    hint={SELECTOR_TYPE_OPTIONS.find((option) => option.value === field.selectorType)?.description}
-                                    label={"Selector type"}
-                                >
-                                    <Select
-                                        onChange={(event) => {
-                                            const selectorType = event.target.value as SelectorType;
-                                            onChange((currentFields) => updateField(currentFields, field.id, {
-                                                extractionMode: selectorType === "attribute" ? "attribute" : field.extractionMode,
-                                                selectorType,
-                                            }));
-                                        }}
-                                        value={field.selectorType}
-                                    >
-                                        {SELECTOR_TYPE_OPTIONS.map((option) => {
-                                            return <option key={option.value} value={option.value}>{option.label}</option>;
-                                        })}
-                                    </Select>
-                                </Field>
+                                                        <Field
+                                                            hint={SELECTOR_TYPE_OPTIONS.find((option) => option.value === field.selectorType)?.description}
+                                                            label={"Selector type"}
+                                                        >
+                                                            <Select
+                                                                onChange={(event) => {
+                                                                    const selectorType = event.target.value as SelectorType;
+                                                                    onChange((currentFields) => updateField(currentFields, field.id, {
+                                                                        extractionMode: selectorType === "attribute" ? "attribute" : field.extractionMode,
+                                                                        selectorType,
+                                                                    }));
+                                                                }}
+                                                                value={field.selectorType}
+                                                            >
+                                                                {SELECTOR_TYPE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                                                            </Select>
+                                                        </Field>
 
-                                <Field fullWidth label={"Primary selector"}>
-                                    <Input
-                                        onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { selectorValue: event.target.value })); }}
-                                        placeholder={field.selectorType === "xpath" ? "//span[@data-price]" : ".price"}
-                                        type={"text"}
-                                        value={field.selectorValue}
-                                    />
-                                </Field>
+                                                        <Field fullWidth label={"Primary selector"}>
+                                                            <Input
+                                                                onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { selectorValue: event.target.value })); }}
+                                                                placeholder={field.selectorType === "xpath" ? "//span[@data-price]" : ".price"}
+                                                                type={"text"}
+                                                                value={field.selectorValue}
+                                                            />
+                                                        </Field>
 
-                                <div className={"field field--full-width"}>
-                                    <Button
-                                        onClick={() => { toggleFallback(field.id); }}
-                                        size={"small"}
-                                        variant={"ghost"}
-                                    >
-                                        {openFallbacks.has(field.id) ? "Hide fallback selectors ▴" : "Add fallback selectors ▾"}
-                                    </Button>
-                                    {openFallbacks.has(field.id) ? (
-                                        <Field
-                                            fullWidth
-                                            hint={"Optional. Add one selector per line in the order you want to try them."}
-                                            label={"Fallback selectors"}
-                                        >
-                                            <Textarea
-                                                className={"selector-builder__textarea"}
-                                                onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { fallbackSelectorsRaw: event.target.value })); }}
-                                                placeholder={field.selectorType === "xpath" ? "//div[@data-price]" : ".price-alt\n[data-price]"}
-                                                rows={3}
-                                                value={field.fallbackSelectorsRaw}
-                                            />
-                                        </Field>
+                                                        <div className={"field field--full-width"}>
+                                                            <Button
+                                                                onClick={() => { toggleFallback(field.id); }}
+                                                                size={"small"}
+                                                                variant={"ghost"}
+                                                            >
+                                                                {openFallbacks.has(field.id) ? "Hide fallback selectors ▴" : "Add fallback selectors ▾"}
+                                                            </Button>
+                                                            {openFallbacks.has(field.id) ? (
+                                                                <Field
+                                                                    fullWidth
+                                                                    hint={"Optional. Add one selector per line in the order you want to try them."}
+                                                                    label={"Fallback selectors"}
+                                                                >
+                                                                    <Textarea
+                                                                        className={"selector-builder__textarea"}
+                                                                        onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { fallbackSelectorsRaw: event.target.value })); }}
+                                                                        placeholder={field.selectorType === "xpath" ? "//div[@data-price]" : ".price-alt\n[data-price]"}
+                                                                        rows={3}
+                                                                        value={field.fallbackSelectorsRaw}
+                                                                    />
+                                                                </Field>
+                                                            ) : null}
+                                                        </div>
+
+                                                        <Field label={"Extraction type"}>
+                                                            <Select
+                                                                onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { extractionMode: event.target.value === "attribute" ? "attribute" : "text" })); }}
+                                                                value={field.extractionMode}
+                                                            >
+                                                                <option value={"text"}>{"Text"}</option>
+                                                                <option value={"attribute"}>{"Attribute"}</option>
+                                                            </Select>
+                                                        </Field>
+
+                                                        {field.extractionMode === "text" ? (
+                                                            <Field label={"Text to read"}>
+                                                                <Select
+                                                                    onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { textMode: event.target.value === "textContent" ? "textContent" : "innerText" })); }}
+                                                                    value={field.textMode}
+                                                                >
+                                                                    <option value={"innerText"}>{TEXT_MODE_LABELS.innerText}</option>
+                                                                    <option value={"textContent"}>{TEXT_MODE_LABELS.textContent}</option>
+                                                                </Select>
+                                                            </Field>
+                                                        ) : null}
+
+                                                        {needsAttribute ? (
+                                                            <Field label={"Attribute name"}>
+                                                                <Input
+                                                                    onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { attribute: event.target.value })); }}
+                                                                    placeholder={"href"}
+                                                                    type={"text"}
+                                                                    value={field.attribute}
+                                                                />
+                                                            </Field>
+                                                        ) : null}
+
+                                                        <Field label={"Value cleanup"}>
+                                                            <Select
+                                                                onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { transform: event.target.value })); }}
+                                                                value={field.transform}
+                                                            >
+                                                                {TRANSFORM_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                                                            </Select>
+                                                        </Field>
+
+                                                        <Field label={"Use default if missing"} variant={"checkbox"}>
+                                                            <input
+                                                                checked={field.useDefaultWhenMissing}
+                                                                onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { useDefaultWhenMissing: event.target.checked })); }}
+                                                                type={"checkbox"}
+                                                            />
+                                                        </Field>
+
+                                                        {field.useDefaultWhenMissing ? (
+                                                            <Field hint={"Used when the field is missing or empty."} label={"Default value"}>
+                                                                <Input
+                                                                    onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { defaultValue: event.target.value })); }}
+                                                                    placeholder={"Fallback value"}
+                                                                    type={"text"}
+                                                                    value={field.defaultValue}
+                                                                />
+                                                            </Field>
+                                                        ) : null}
+
+                                                        <Field hint={"Capture the first regex match or group."} label={"Regex extraction"}>
+                                                            <Input
+                                                                onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { regexPattern: event.target.value })); }}
+                                                                placeholder={"\\d+[.,]?\\d*"}
+                                                                type={"text"}
+                                                                value={field.regexPattern}
+                                                            />
+                                                        </Field>
+
+                                                        <Field label={"Partial match"}>
+                                                            <Input
+                                                                onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { partialMatch: event.target.value })); }}
+                                                                placeholder={"Text to keep"}
+                                                                type={"text"}
+                                                                value={field.partialMatch}
+                                                            />
+                                                        </Field>
+
+                                                        <Field hint={"Split text and keep first value unless multi-value is enabled."} label={"Split delimiter"}>
+                                                            <Input
+                                                                onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { splitDelimiter: event.target.value })); }}
+                                                                placeholder={","}
+                                                                type={"text"}
+                                                                value={field.splitDelimiter}
+                                                            />
+                                                        </Field>
+
+                                                        <Field label={"Return multiple values"} variant={"checkbox"}>
+                                                            <input
+                                                                checked={field.multiValue}
+                                                                onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { multiValue: event.target.checked })); }}
+                                                                type={"checkbox"}
+                                                            />
+                                                        </Field>
+
+                                                        <Field hint={"Optional boolean output such as price > 500000."} label={"Boolean comparison"}>
+                                                            <Select
+                                                                onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { comparisonOperator: event.target.value as SelectorFieldDraft["comparisonOperator"] })); }}
+                                                                value={field.comparisonOperator}
+                                                            >
+                                                                <option value={""}>{"None"}</option>
+                                                                <option value={"eq"}>{"Equals"}</option>
+                                                                <option value={"gt"}>{"Greater than"}</option>
+                                                                <option value={"lt"}>{"Less than"}</option>
+                                                                <option value={"contains"}>{"Contains"}</option>
+                                                            </Select>
+                                                        </Field>
+
+                                                        {field.comparisonOperator !== "" ? (
+                                                            <Field label={"Comparison value"}>
+                                                                <Input
+                                                                    onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { comparisonValue: event.target.value })); }}
+                                                                    placeholder={"500000"}
+                                                                    type={"text"}
+                                                                    value={field.comparisonValue}
+                                                                />
+                                                            </Field>
+                                                        ) : null}
+                                                    </div>
+
+                                                    <div className={`selector-builder__preview ${previewTone(preview)}`}>
+                                                        <div>
+                                                            <p className={"selector-builder__preview-label"}>{"Preview status"}</p>
+                                                            <strong className={"selector-builder__preview-title"}>{previewLabel(preview)}</strong>
+                                                        </div>
+                                                        <div className={"selector-builder__preview-meta"}>
+                                                            {preview?.matched_selector !== undefined ? <span>{`Used ${preview.matched_selector}`}</span> : null}
+                                                            {preview?.value !== undefined && preview.value !== "" ? <code>{preview.value}</code> : null}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
                                     ) : null}
-                                </div>
-
-                                <Field label={"Extraction type"}>
-                                    <Select
-                                        onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { extractionMode: event.target.value === "attribute" ? "attribute" : "text" })); }}
-                                        value={field.extractionMode}
-                                    >
-                                        <option value={"text"}>{"Text"}</option>
-                                        <option value={"attribute"}>{"Attribute"}</option>
-                                    </Select>
-                                </Field>
-
-                                {field.extractionMode === "text" ? (
-                                    <Field label={"Text to read"}>
-                                        <Select
-                                            onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { textMode: event.target.value === "textContent" ? "textContent" : "innerText" })); }}
-                                            value={field.textMode}
-                                        >
-                                            <option value={"innerText"}>{TEXT_MODE_LABELS.innerText}</option>
-                                            <option value={"textContent"}>{TEXT_MODE_LABELS.textContent}</option>
-                                        </Select>
-                                    </Field>
-                                ) : null}
-
-                                {needsAttribute ? (
-                                    <Field label={"Attribute name"}>
-                                        <Input
-                                            onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { attribute: event.target.value })); }}
-                                            placeholder={"href"}
-                                            type={"text"}
-                                            value={field.attribute}
-                                        />
-                                    </Field>
-                                ) : null}
-
-                                <Field label={"Value cleanup"}>
-                                    <Select
-                                        onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { transform: event.target.value })); }}
-                                        value={field.transform}
-                                    >
-                                        {TRANSFORM_OPTIONS.map((option) => {
-                                            return <option key={option.value} value={option.value}>{option.label}</option>;
-                                        })}
-                                    </Select>
-                                </Field>
-
-                                <Field label={"Use default if missing"} variant={"checkbox"}>
-                                    <input
-                                        checked={field.useDefaultWhenMissing}
-                                        onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { useDefaultWhenMissing: event.target.checked })); }}
-                                        type={"checkbox"}
-                                    />
-                                </Field>
-
-                                {field.useDefaultWhenMissing ? (
-                                    <Field hint={"Used when the field is missing or empty."} label={"Default value"}>
-                                        <Input
-                                            onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { defaultValue: event.target.value })); }}
-                                            placeholder={"Fallback value"}
-                                            type={"text"}
-                                            value={field.defaultValue}
-                                        />
-                                    </Field>
-                                ) : null}
-
-                                <Field hint={"Capture the first regex match or group."} label={"Regex extraction"}>
-                                    <Input
-                                        onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { regexPattern: event.target.value })); }}
-                                        placeholder={"\\d+[.,]?\\d*"}
-                                        type={"text"}
-                                        value={field.regexPattern}
-                                    />
-                                </Field>
-
-                                <Field label={"Partial match"}>
-                                    <Input
-                                        onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { partialMatch: event.target.value })); }}
-                                        placeholder={"Text to keep"}
-                                        type={"text"}
-                                        value={field.partialMatch}
-                                    />
-                                </Field>
-
-                                <Field hint={"Split text and keep first value unless multi-value is enabled."} label={"Split delimiter"}>
-                                    <Input
-                                        onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { splitDelimiter: event.target.value })); }}
-                                        placeholder={","}
-                                        type={"text"}
-                                        value={field.splitDelimiter}
-                                    />
-                                </Field>
-
-                                <Field label={"Return multiple values"} variant={"checkbox"}>
-                                    <input
-                                        checked={field.multiValue}
-                                        onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { multiValue: event.target.checked })); }}
-                                        type={"checkbox"}
-                                    />
-                                </Field>
-
-                                <Field hint={"Optional boolean output such as price > 500000."} label={"Boolean comparison"}>
-                                    <Select
-                                        onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { comparisonOperator: event.target.value as SelectorFieldDraft["comparisonOperator"] })); }}
-                                        value={field.comparisonOperator}
-                                    >
-                                        <option value={""}>{"None"}</option>
-                                        <option value={"eq"}>{"Equals"}</option>
-                                        <option value={"gt"}>{"Greater than"}</option>
-                                        <option value={"lt"}>{"Less than"}</option>
-                                        <option value={"contains"}>{"Contains"}</option>
-                                    </Select>
-                                </Field>
-
-                                {field.comparisonOperator !== "" ? (
-                                    <Field label={"Comparison value"}>
-                                        <Input
-                                            onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { comparisonValue: event.target.value })); }}
-                                            placeholder={"500000"}
-                                            type={"text"}
-                                            value={field.comparisonValue}
-                                        />
-                                    </Field>
-                                ) : null}
-                            </div>
-
-                            <div className={`selector-builder__preview ${previewTone(preview)}`}>
-                                <div>
-                                    <p className={"selector-builder__preview-label"}>{"Preview status"}</p>
-                                    <strong className={"selector-builder__preview-title"}>{previewLabel(preview)}</strong>
-                                </div>
-                                <div className={"selector-builder__preview-meta"}>
-                                    {preview?.matched_selector !== undefined ? <span>{`Used ${preview.matched_selector}`}</span> : null}
-                                    {preview?.value !== undefined && preview.value !== "" ? <code>{preview.value}</code> : null}
-                                </div>
-                            </div>
-                        </article>
-                    );
-                })}
+                                </Fragment>
+                            );
+                        })}
+                    </tbody>
+                </table>
             </div>
             <Dialog
                 actions={<Button onClick={() => { setHelpOpen(false); }}>{"Got it"}</Button>}
