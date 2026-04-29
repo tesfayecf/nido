@@ -26,10 +26,11 @@ export const ConfirmDialog = ({
             actions={(
                 <ActionGroup>
                     <Button onClick={() => { onOpenChange(false); }} variant={"secondary"}>{"Cancel"}</Button>
-                    <Button isLoading={isPending} onClick={onConfirm} variant={"destructive"}>{confirmLabel}</Button>
+                    <Button data-dialog-primary={"true"} isLoading={isPending} onClick={onConfirm} variant={"destructive"}>{confirmLabel}</Button>
                 </ActionGroup>
             )}
             description={description}
+            initialFocusSelector={"[data-dialog-primary=\"true\"]"}
             onOpenChange={onOpenChange}
             open={open}
             title={title}
