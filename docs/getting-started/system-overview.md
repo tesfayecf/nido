@@ -1,57 +1,46 @@
 # System Overview
 
-## Purpose
+Nido has one active product surface: an authenticated workspace for tracking property data, reviewing runs, and managing follow-up workflows.
 
-This document gives the fastest accurate mental model of the product and repository.
+## Repository map
 
-## Context
+- `/server` — backend runtime, APIs, persistence, schedulers
+- `/app` — frontend routes, pages, state, API clients
+- `/docs` — onboarding and architecture docs
+- `/cmd` — local helper commands
 
-Nido is a monorepo for a property-tracking workspace. The backend stores and processes tracked-property data. The frontend exposes that data through an authenticated operator console.
+## Core concepts
 
-## Core Concepts
+- **Source**: reusable extraction template
+- **Property**: tracked URL plus schedule and config
+- **Snapshot**: extracted field values for one run
+- **Property run**: one manual or scheduled execution record
+- **Field**: canonical schema entry used by normalization and analytics
+- **Tag / bookmark / alert / notification**: follow-up tools layered on top of tracked properties
 
-- **Source template**: reusable extraction template for a site or feed
-- **Tracked property**: a specific URL plus schedule, retry, and business metadata
-- **Property config**: versioned selector rules for one tracked property
-- **Snapshot**: extracted values captured during an ingest
-- **Property run**: scheduler attempt record for a tracked property
-- **Field definition**: canonical field used for normalization and analytics
-- **Engagement workflow**: bookmarks, alert rules, and notifications tied to the current user
+## Data flow
 
-## Behavior / Flow
+```text
+browser route
+  -> app/src/features/* page
+  -> app/src/services/* client
+  -> server/internal/*/transport/httpapi handler
+  -> server/internal/*/application service
+  -> server/internal/platform/sqlite store
+  -> JSON response
+  -> TanStack Query cache + local page state
+```
 
-The high-level system flow is:
+## Main runtime entry points
 
-1. Create or maintain a source template
-2. Create a tracked property that references a source template
-3. Preview or save selector configuration for that property
-4. Run ingestion manually or through the scheduler
-5. Persist snapshots and property-run history
-6. Use fields and analytics to interpret normalized data
-7. Use bookmarks, alerts, and notifications for follow-up
+- Backend composition: `server/internal/app/runtime.go`
+- Frontend composition: `app/src/app/router.tsx`
+- Frontend providers: `app/src/app/AppProviders.tsx`
+- Shared backend persistence: `server/internal/platform/sqlite/store.go`
 
-Repository layout:
+## What changed in the simplified system
 
-- `/app` — React 19, Vite, TanStack Query, Zustand, shared UI components
-- `/server` — Go backend, SQLite persistence, modular monolith layout
-- `/docs` — onboarding, architecture, user docs, shared references
-- `/cmd` — helper scripts for local workflows
-
-## Examples
-
-A common operator journey:
-
-- create a property
-- map selectors to canonical fields
-- trigger an ingest
-- inspect snapshots and property-run status
-- review analytics and configure alerts
-
-## Related Docs
-
-- [Quick Start](./quick-start.md)
-- [Architecture / System Design](../architecture/system-design.md)
-- [Architecture / Data Model](../architecture/data-model.md)
-- [Docs App / Overview](../app/overview.md)
-- [Server Docs / Data Flow](../../server/docs/data-flow.md)
-- [App Docs / UI Architecture](../../app/docs/ui-architecture.md)
+- Only mounted runtime behavior is documented as product behavior
+- Legacy catalog code was removed because it was not part of the active runtime
+- The unused source scheduler shutdown path was removed; the active property scheduler remains
+- Frontend dependencies were trimmed to the packages that are actually used

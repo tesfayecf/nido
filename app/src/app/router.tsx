@@ -17,7 +17,9 @@ import { FieldsPage } from "@/features/fields/FieldsPage";
 import { DashboardPage } from "@/features/operators/DashboardPage";
 import { TriageInboxPage } from "@/features/operators/TriageInboxPage";
 import { PropertiesPage } from "@/features/properties/PropertiesPage";
+import { PropertyComparePage } from "@/features/properties/PropertyComparePage";
 import { PropertyDetailPage } from "@/features/properties/PropertyDetailPage";
+import { PropertyPrintPage } from "@/features/properties/PropertyPrintPage";
 import { FieldAnalysisPage } from "@/features/properties/FieldAnalysisPage";
 import { SettingsPage } from "@/features/settings/SettingsPage";
 import { TagsPage } from "@/features/tags/TagsPage";
@@ -61,8 +63,20 @@ export const router = createBrowserRouter([
                         element: <PropertyDetailPage />,
                     },
                     {
+                        path: "properties/compare",
+                        element: <PropertyComparePage />,
+                    },
+                    {
+                        path: "properties/print",
+                        element: <PropertyPrintPage />,
+                    },
+                    {
                         path: "properties/:propertyId",
                         element: <PropertyDetailPage />,
+                    },
+                    {
+                        path: "properties/:propertyId/print",
+                        element: <PropertyPrintPage />,
                     },
                     {
                         path: "properties/:propertyId/fields/:fieldName/analysis",

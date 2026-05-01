@@ -44,6 +44,8 @@ type Service struct {
 	digestCancel context.CancelFunc
 }
 
+const weeklyDigestInterval = 7 * 24 * time.Hour
+
 func NewService(logger *slog.Logger, store Store, events *platformevents.Broker, scheduler *ingestionapp.PropertyScheduler, cfg platformconfig.NotificationsConfig) *Service {
 	digestCtx, digestCancel := context.WithCancel(context.Background())
 	return &Service{
@@ -237,11 +239,8 @@ func (s *Service) maybeSendDigest(ctx context.Context) error {
 	if now.Before(windowStart) {
 		return nil
 	}
-	if settings.EmailDigest.LastSentAt != nil {
-		last := settings.EmailDigest.LastSentAt.UTC()
-		if last.Year() == now.Year() && last.YearDay() == now.YearDay() {
-			return nil
-		}
+	if settings.EmailDigest.LastSentAt != nil && now.Sub(settings.EmailDigest.LastSentAt.UTC()) < weeklyDigestInterval {
+		return nil
 	}
 
 	summary, err := s.Summary(ctx)
@@ -249,7 +248,7 @@ func (s *Service) maybeSendDigest(ctx context.Context) error {
 		return err
 	}
 	body := fmt.Sprintf(
-		"Nido daily digest\n\nTracked properties: %d\nPaused properties: %d\nQueue depth: %d\nRuns last 24h: %d\nFailures last 24h: %d\nSuccess rate: %.1f%%\n",
+		"Nido weekly digest\n\nTracked properties: %d\nPaused properties: %d\nQueue depth: %d\nRuns last 24h: %d\nFailures last 24h: %d\nSuccess rate: %.1f%%\n",
 		summary.TrackedProperties,
 		summary.PausedProperties,
 		summary.QueueDepth,
@@ -257,7 +256,7 @@ func (s *Service) maybeSendDigest(ctx context.Context) error {
 		summary.FailuresLast24Hours,
 		summary.SuccessRate,
 	)
-	if err := s.sendEmailDigest(settings.EmailDigest.Recipient, "Nido digest", body); err != nil {
+	if err := s.sendEmailDigest(settings.EmailDigest.Recipient, "Nido weekly digest", body); err != nil {
 		return s.persistLog(ctx, platformopsdomain.IntegrationDeliveryLog{
 			ID:           id.New("idel"),
 			Channel:      "email",

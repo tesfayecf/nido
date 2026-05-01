@@ -11,7 +11,6 @@ import (
 	"time"
 
 	authdomain "nido/server/internal/auth/domain"
-	"nido/server/internal/catalog/domain"
 	engagementdomain "nido/server/internal/engagement/domain"
 	ingestiondomain "nido/server/internal/ingestion/domain"
 	"nido/server/internal/platform/id"
@@ -910,6 +909,23 @@ func (s *Store) ListAlertRulesForEvaluation(ctx context.Context) ([]engagementdo
 	return items, rows.Err()
 }
 
+// UpdateAlertRuleEnabled updates one alert rule enabled state.
+func (s *Store) UpdateAlertRuleEnabled(ctx context.Context, userID, ruleID string, enabled bool, updatedAt time.Time) error {
+	_, err := s.db.ExecContext(
+		ctx,
+		`UPDATE alert_rules SET enabled = ?, updated_at = ? WHERE id = ? AND user_id = ?`,
+		boolToInt(enabled),
+		formatTime(updatedAt),
+		ruleID,
+		userID,
+	)
+	if err != nil {
+		return fmt.Errorf("update alert rule enabled: %w", err)
+	}
+
+	return nil
+}
+
 // DeleteAlertRule removes one alert rule.
 func (s *Store) DeleteAlertRule(ctx context.Context, userID, ruleID string) error {
 	_, err := s.db.ExecContext(ctx, `DELETE FROM alert_rules WHERE id = ? AND user_id = ?`, ruleID, userID)
@@ -991,88 +1007,6 @@ func (s *Store) SetNotificationReadState(ctx context.Context, userID, notificati
 	}
 
 	return nil
-}
-
-// ListListings returns the catalog listing read model.
-func (s *Store) ListListings(ctx context.Context, query domain.ListQuery) ([]domain.Listing, error) {
-	statement := `SELECT id, source_id, external_id, title, price_amount, currency, location, url, first_seen_at, last_seen_at, latest_snapshot_at FROM listings`
-	args := make([]any, 0, 3)
-
-	filters := make([]string, 0, 2)
-	if strings.TrimSpace(query.SourceID) != "" {
-		filters = append(filters, `source_id = ?`)
-		args = append(args, query.SourceID)
-	}
-	if strings.TrimSpace(query.Query) != "" {
-		filters = append(filters, `(LOWER(title) LIKE LOWER(?) OR LOWER(location) LIKE LOWER(?))`)
-		search := "%" + query.Query + "%"
-		args = append(args, search, search)
-	}
-	if len(filters) > 0 {
-		statement += ` WHERE ` + strings.Join(filters, ` AND `)
-	}
-
-	statement += ` ORDER BY last_seen_at DESC LIMIT ?`
-	args = append(args, query.Limit)
-
-	rows, err := s.db.QueryContext(ctx, statement, args...)
-	if err != nil {
-		return nil, fmt.Errorf("list listings: %w", err)
-	}
-	defer rows.Close()
-
-	items := make([]domain.Listing, 0)
-	for rows.Next() {
-		listing, err := scanListing(rows)
-		if err != nil {
-			return nil, err
-		}
-
-		items = append(items, listing)
-	}
-
-	return items, rows.Err()
-}
-
-// GetListing returns one listing and its price history.
-func (s *Store) GetListing(ctx context.Context, listingID string) (domain.Listing, []domain.PriceEvent, error) {
-	listing, err := scanListing(s.db.QueryRowContext(ctx, `SELECT id, source_id, external_id, title, price_amount, currency, location, url, first_seen_at, last_seen_at, latest_snapshot_at FROM listings WHERE id = ?`, listingID))
-	if err != nil {
-		return domain.Listing{}, nil, err
-	}
-
-	historyRows, err := s.db.QueryContext(ctx, `SELECT id, listing_id, previous_amount, new_amount, changed_at FROM price_events WHERE listing_id = ? ORDER BY changed_at DESC`, listingID)
-	if err != nil {
-		return domain.Listing{}, nil, fmt.Errorf("list price history: %w", err)
-	}
-	defer historyRows.Close()
-
-	history := make([]domain.PriceEvent, 0)
-	for historyRows.Next() {
-		var (
-			event          domain.PriceEvent
-			previousAmount sql.NullInt64
-			changedAt      string
-		)
-
-		if err := historyRows.Scan(&event.ID, &event.ListingID, &previousAmount, &event.NewAmount, &changedAt); err != nil {
-			return domain.Listing{}, nil, fmt.Errorf("scan price event: %w", err)
-		}
-
-		if previousAmount.Valid {
-			value := previousAmount.Int64
-			event.PreviousAmount = &value
-		}
-		parsedChangedAt, err := parseTime(changedAt)
-		if err != nil {
-			return domain.Listing{}, nil, err
-		}
-		event.ChangedAt = parsedChangedAt
-
-		history = append(history, event)
-	}
-
-	return listing, history, historyRows.Err()
 }
 
 type scanner interface {
@@ -1364,45 +1298,6 @@ func scanNotification(scanner scanner) (engagementdomain.Notification, error) {
 	}
 
 	return notification, nil
-}
-
-func scanListing(scanner scanner) (domain.Listing, error) {
-	var (
-		listing                                   domain.Listing
-		firstSeenAt, lastSeenAt, latestSnapshotAt string
-	)
-
-	err := scanner.Scan(
-		&listing.ID,
-		&listing.SourceID,
-		&listing.ExternalID,
-		&listing.Title,
-		&listing.PriceAmount,
-		&listing.Currency,
-		&listing.Location,
-		&listing.URL,
-		&firstSeenAt,
-		&lastSeenAt,
-		&latestSnapshotAt,
-	)
-	if err != nil {
-		return domain.Listing{}, err
-	}
-
-	listing.FirstSeenAt, err = parseTime(firstSeenAt)
-	if err != nil {
-		return domain.Listing{}, err
-	}
-	listing.LastSeenAt, err = parseTime(lastSeenAt)
-	if err != nil {
-		return domain.Listing{}, err
-	}
-	listing.LatestSnapshotAt, err = parseTime(latestSnapshotAt)
-	if err != nil {
-		return domain.Listing{}, err
-	}
-
-	return listing, nil
 }
 
 func formatTime(value time.Time) string {
