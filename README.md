@@ -1,37 +1,32 @@
 # Nido
 
-Nido is a monorepo for a housing-market workspace with a Go backend under `/server` and a React + Vite frontend under `/app`.
+Nido is a monorepo for an authenticated property-tracking workspace with a Go backend in `/server` and a React frontend in `/app`.
 
-The current implementation focuses on:
+## Active system
 
-- authenticated tracked-property operations, including extraction config, snapshots, and scheduler history
-- authenticated personal tracking with bookmarks, alerts, and notifications
-- authenticated backoffice operations for sources, tags, runs, and live events
+- `/server` serves auth, tracked-property, field, tag, engagement, analytics, and platform APIs
+- `/app` renders the operator UI and talks to the backend through typed service modules
+- SQLite is the system of record
+- The active backend runtime starts in `server/internal/app/runtime.go`
+- The active frontend route tree starts in `app/src/app/router.tsx`
 
-The repository still contains some legacy or future-facing packages, including catalog/listing and object-store code. The active runtime documentation below calls out which surfaces are mounted today.
+## Workspace layout
 
-## Workspace Layout
+- `/app` — React 19 + Vite client
+- `/server` — Go backend and SQLite persistence
+- `/cmd` — local helper scripts
+- `/docs` — onboarding, architecture, and workflow docs
+- `/config` — local configuration
 
-- `/app` — React 19 + Vite client, TanStack Query for server state, Zustand for client state
-- `/server` — Go backend, modular monolith, SQLite persistence, SSE transport for live backoffice events
-- `/cmd` — helper scripts for local SQLite and Garage workflows
-- `/config` — local Garage configuration
-- `/docs` — prompt and planning artifacts
-- `/third-party` — bundled Go and Garage binaries used by the workspace
-
-## Quick Start
+## Quick start
 
 ### Backend
 
-Use the bundled Go toolchain and follow the environment contract documented in [server/docs/local-development.md](./server/docs/local-development.md).
-
-From the repository root:
-
 ```bash
-GOTOOLCHAIN=local ./third-party/go/bin/go -C server run ./cmd/server
+go run /home/runner/work/nido/nido/server/cmd/server
 ```
 
-That minimal start uses SQLite defaults and creates the local admin automatically:
+Default local admin:
 
 ```text
 email: admin@local
@@ -40,66 +35,47 @@ password: dev-password
 
 ### Frontend
 
-Follow the frontend runbook in [app/docs/local-development.md](./app/docs/local-development.md).
-
-From `/app`:
-
 ```bash
-pnpm install
-pnpm dev
+cd /home/runner/work/nido/nido/app
+corepack pnpm install
+corepack pnpm dev
 ```
 
-The frontend dev server runs on `http://127.0.0.1:3000` and proxies `/api` requests to the backend on `http://127.0.0.1:8080` by default.
+The frontend runs on `http://127.0.0.1:3000` and proxies `/api` to `http://127.0.0.1:8080`.
 
-### Unified Helper
-
-If you want one root-level entrypoint for the common backend and frontend flows, use:
+### Unified helper
 
 ```bash
-./cmd/nido.sh help
-./cmd/nido.sh seed
-./cmd/nido.sh app-start
+/home/runner/work/nido/nido/cmd/nido.sh help
+/home/runner/work/nido/nido/cmd/nido.sh seed
+/home/runner/work/nido/nido/cmd/nido.sh app-start
 ```
 
-The helper exposes backend build and run commands, a deterministic local seed command, frontend build and preview commands, and forwards the usual `NIDO_*` and `VITE_*` environment variables. For example:
-
-```bash
-NIDO_DATABASE_PATH="./server/.sqlite/local.db" ./cmd/nido.sh backend-run
-NIDO_DATABASE_PATH="./server/.sqlite/local.db" ./cmd/nido.sh seed
-APP_API_ORIGIN="http://127.0.0.1:8080" ./cmd/nido.sh frontend-build
-```
-
-`seed` migrates the SQLite schema and loads deterministic development-only data (sources, properties, tags, snapshots, alerts, and notifications). It is idempotent and refuses to run when `NIDO_ENV`, `APP_ENV`, `ENVIRONMENT`, or `GO_ENV` is set to `production` or `prod`.
-
-## Verification Commands
+## Validation
 
 Frontend:
 
 ```bash
-cd app
-pnpm typecheck
-pnpm test
-pnpm build
-pnpm lint
+cd /home/runner/work/nido/nido/app
+corepack pnpm test
+corepack pnpm lint
+corepack pnpm typecheck
+corepack pnpm exec vite build
 ```
 
 Backend:
 
 ```bash
-cd server
-GOTOOLCHAIN=local ../third-party/go/bin/go test ./...
+cd /home/runner/work/nido/nido/server
+go test ./...
 ```
 
-`GOTOOLCHAIN=local` keeps test runs pinned to the bundled workspace toolchain instead of attempting to fetch a newer Go release.
+## Developer docs
 
-## Key Docs
+Start here:
 
-- [app/docs/README.md](./app/docs/README.md)
-- [server/docs/architecture.md](./server/docs/architecture.md)
-- [server/docs/README.md](./server/docs/README.md)
-- [server/docs/maintenance.md](./server/docs/maintenance.md)
-- [server/docs/local-development.md](./server/docs/local-development.md)
-- [app/docs/architecture.md](./app/docs/architecture.md)
-- [app/docs/maintenance.md](./app/docs/maintenance.md)
-- [app/docs/backend-contract.md](./app/docs/backend-contract.md)
-- [app/docs/local-development.md](./app/docs/local-development.md)
+1. [Documentation hub](./docs/README.md)
+2. [System overview](./docs/getting-started/system-overview.md)
+3. [Common tasks](./docs/guides/common-tasks.md)
+4. [Backend overview](./server/docs/overview.md)
+5. [Frontend overview](./app/docs/overview.md)

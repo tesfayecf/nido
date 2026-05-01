@@ -1,57 +1,38 @@
 # Common Tasks
 
-## Purpose
+## Run the workspace
 
-This document gives short, practical paths for the most common repository tasks.
+1. Start the backend from `server/cmd/server`
+2. Start the frontend from `app`
+3. Log in with the local admin
+4. Confirm Properties, Sources, Fields, Analytics, and Settings load
 
-## Context
+## Add a feature
 
-New developers usually need to run the system, trace a workflow, and locate the correct files before making changes.
+1. Find the owning route or endpoint first
+2. Keep transport thin and put behavior in the owning service or page
+3. Reuse the existing store and service modules instead of adding new layers
+4. Update the closest backend or frontend doc that owns the behavior
+5. Run the existing validation commands
 
-## Core Concepts
+### Frontend entry points
 
-- Use the root docs for orientation.
-- Use `/server/docs` for backend ownership and contracts.
-- Use `/app/docs` for UI ownership and state rules.
-- Use `/docs/app` for user-facing behavior and tutorials.
+- routes: `app/src/app/router.tsx`
+- pages: `app/src/features/*`
+- API clients: `app/src/services/*`
+- shared UI: `app/src/components/*`
 
-## Behavior / Flow
+### Backend entry points
 
-### Run the workspace
-1. Follow [Quick Start](../getting-started/quick-start.md).
-2. Log in with the default local admin.
-3. Open Properties, Sources, Fields, Analytics, and Admin to confirm the main flows.
+- mounted runtime: `server/internal/app/runtime.go`
+- handlers: `server/internal/*/transport/httpapi`
+- business logic: `server/internal/*/application`
+- persistence: `server/internal/platform/sqlite`
 
-### Trace a frontend route
-1. Read [app/docs/ui-architecture.md](../../app/docs/ui-architecture.md).
-2. Open `app/src/app/router.tsx`.
-3. Follow the route into `app/src/features/<feature>`.
-4. Follow data dependencies into `app/src/services/<capability>`.
+## Modify existing logic
 
-### Trace a backend endpoint
-1. Read [server/docs/api-contracts.md](../../server/docs/api-contracts.md).
-2. Open the matching `server/internal/*/transport/httpapi` handler.
-3. Follow the call into the owning application service.
-4. Check the store or scheduler boundary if persistence or background behavior is involved.
-
-### Update a user workflow
-1. Update the implementation.
-2. Update the matching internal docs in `/server/docs` or `/app/docs`.
-3. Update the user-facing page in `/docs/app/tutorials` or `/docs/app/features`.
-
-## Examples
-
-Examples of where to start:
-
-- Property creation: [docs/app/tutorials/creating-a-property.md](../app/tutorials/creating-a-property.md)
-- Field mapping: [docs/app/tutorials/configuring-fields.md](../app/tutorials/configuring-fields.md)
-- Analytics behavior: [app/docs/features/analytics.md](../../app/docs/features/analytics.md)
-- Source template contracts: [server/docs/api-contracts.md](../../server/docs/api-contracts.md)
-
-## Related Docs
-
-- [Developer Workflow](./developer-workflow.md)
-- [Quick Start](../getting-started/quick-start.md)
-- [Server Docs / Modules](../../server/docs/modules.md)
-- [App Docs / UI Architecture](../../app/docs/ui-architecture.md)
-- [Docs App / Overview](../app/overview.md)
+1. Start from the mounted page or handler
+2. Follow one call chain at a time until you reach the owner of the rule
+3. Change the smallest owner that can explain the behavior by itself
+4. Avoid adding wrappers, adapters, or generic helpers unless the current code is duplicated and hard to read
+5. Re-run tests before moving on
