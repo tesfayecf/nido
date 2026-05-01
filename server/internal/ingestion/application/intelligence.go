@@ -32,11 +32,13 @@ func ComputeChangeSignals(
 	current ingestiondomain.PropertySnapshot,
 	previous ingestiondomain.PropertySnapshot,
 	property ingestiondomain.Property,
+	fields ...[]ingestiondomain.FieldSelector,
 ) []ingestiondomain.ChangeSignal {
 	signals := make([]ingestiondomain.ChangeSignal, 0, 4)
 
 	currentValues := decodeStringValues(current.Values)
 	previousValues := decodeStringValues(previous.Values)
+	fieldRoles := buildFieldRoleMap(fields...)
 
 	observedAt := current.ObservedAt
 	if observedAt.IsZero() {
@@ -122,6 +124,42 @@ func ComputeChangeSignals(
 		})
 	}
 
+	if previous.ID != "" {
+		seen := make(map[string]struct{})
+		for field, currentValue := range currentValues {
+			field = strings.TrimSpace(field)
+			if field == "" || field == "price" || field == "status" {
+				continue
+			}
+			previousValue, hadPrevious := previousValues[field]
+			if !hadPrevious || strings.TrimSpace(previousValue) == strings.TrimSpace(currentValue) {
+				continue
+			}
+			if _, ok := seen[field]; ok {
+				continue
+			}
+			seen[field] = struct{}{}
+
+			role := roleForField(fieldRoles, field)
+			group := ingestiondomain.ChangeGroupDataQuality
+			label := fmt.Sprintf("%s changed from %q to %q", humanizeFieldName(field), previousValue, currentValue)
+			if role == ingestiondomain.FieldRolePrefill {
+				group = ingestiondomain.ChangeGroupListingFacts
+				label = "Listing facts changed"
+			}
+
+			signals = append(signals, ingestiondomain.ChangeSignal{
+				Field:      field,
+				Label:      label,
+				Previous:   previousValue,
+				Current:    currentValue,
+				ObservedAt: observedAt,
+				Impact:     ingestiondomain.ChangeImpactNeutral,
+				Group:      group,
+			})
+		}
+	}
+
 	// ── Property tracking status change ──────────────────────────────────────
 	if previous.ID != "" && string(property.Status) != "" {
 		if previous.IsValid && !current.IsValid {
@@ -178,6 +216,41 @@ func ComputeChangeSignals(
 	}
 
 	return signals
+}
+
+func buildFieldRoleMap(fieldSets ...[]ingestiondomain.FieldSelector) map[string]ingestiondomain.FieldRole {
+	roles := make(map[string]ingestiondomain.FieldRole)
+	for _, fields := range fieldSets {
+		for _, field := range fields {
+			name := strings.TrimSpace(field.Name)
+			if name == "" {
+				continue
+			}
+			roles[name] = ingestiondomain.NormalizeFieldRole(field.FieldRole, name)
+		}
+	}
+	return roles
+}
+
+func roleForField(roles map[string]ingestiondomain.FieldRole, fieldName string) ingestiondomain.FieldRole {
+	if role, ok := roles[fieldName]; ok {
+		return role
+	}
+	return ingestiondomain.NormalizeFieldRole("", fieldName)
+}
+
+func humanizeFieldName(fieldName string) string {
+	words := strings.Fields(strings.ReplaceAll(fieldName, "_", " "))
+	if len(words) == 0 {
+		return fieldName
+	}
+	for index, word := range words {
+		if word == "" {
+			continue
+		}
+		words[index] = strings.ToUpper(word[:1]) + word[1:]
+	}
+	return strings.Join(words, " ")
 }
 
 // DeriveDecisionContext builds the acquisition intelligence context for a property.

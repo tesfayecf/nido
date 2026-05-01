@@ -246,6 +246,26 @@ func TestNormalizeConfiguredFieldsSupportsLegacySelectorShape(t *testing.T) {
 	if fields[0].ExtractionMode != ingestiondomain.ExtractionModeText {
 		t.Fatalf("expected text extraction mode, got %q", fields[0].ExtractionMode)
 	}
+	if fields[0].FieldRole != ingestiondomain.FieldRoleTracked || !fields[0].Required {
+		t.Fatalf("expected price to be tracked and required, got role=%q required=%v", fields[0].FieldRole, fields[0].Required)
+	}
+}
+
+func TestNormalizeConfiguredFieldsDefaultsListingFactsToPrefill(t *testing.T) {
+	t.Parallel()
+
+	fields, err := normalizeConfiguredFields([]ingestiondomain.FieldSelector{
+		{
+			Name:          "location",
+			SelectorValue: ".location",
+		},
+	})
+	if err != nil {
+		t.Fatalf("expected field to normalize, got %v", err)
+	}
+	if fields[0].FieldRole != ingestiondomain.FieldRolePrefill {
+		t.Fatalf("expected location to default to prefill, got %q", fields[0].FieldRole)
+	}
 }
 
 func TestNormalizeConfiguredFieldsRejectsUnsupportedXPathSyntax(t *testing.T) {

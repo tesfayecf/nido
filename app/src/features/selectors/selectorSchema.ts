@@ -4,6 +4,7 @@ import type {
     PropertyPreviewFieldResult,
     SelectorType,
     TextMode,
+    FieldRole,
 } from "@/services/properties/properties.types";
 
 export interface SelectorFieldDraft {
@@ -26,6 +27,7 @@ export interface SelectorFieldDraft {
     readonly partialMatch: string;
     readonly comparisonOperator: "" | "eq" | "gt" | "lt" | "contains";
     readonly comparisonValue: string;
+    readonly fieldRole: FieldRole;
     readonly templateFieldName?: string;
     readonly templateSignature?: string;
 }
@@ -50,9 +52,18 @@ interface LegacyFieldSelector {
     readonly partial_match?: string;
     readonly comparison_operator?: "" | "eq" | "gt" | "lt" | "contains";
     readonly comparison_value?: string;
+    readonly field_role?: FieldRole;
 }
 
 const DEFAULT_TEXT_MODE: TextMode = "innerText";
+
+export const normalizeFieldRole = (role: FieldRole | undefined, fieldName: string): FieldRole => {
+    if (role === "tracked" || role === "prefill") {
+        return role;
+    }
+
+    return fieldName.trim().toLowerCase() === "price" ? "tracked" : "prefill";
+};
 
 const normalizeSelectorType = (selectorType?: string, extractionMode?: ExtractionMode): SelectorType => {
     if (selectorType === "xpath") {
@@ -115,6 +126,7 @@ export const normalizeFieldSelector = (raw: LegacyFieldSelector): FieldSelector 
         partial_match: raw.partial_match?.trim() !== "" ? raw.partial_match?.trim() : undefined,
         comparison_operator: raw.comparison_operator?.trim() !== "" ? raw.comparison_operator : undefined,
         comparison_value: raw.comparison_value?.trim() !== "" ? raw.comparison_value?.trim() : undefined,
+        field_role: normalizeFieldRole(raw.field_role, raw.name ?? ""),
     };
 };
 
@@ -138,12 +150,13 @@ export const createEmptySelectorDraft = (): SelectorFieldDraft => ({
     partialMatch: "",
     comparisonOperator: "",
     comparisonValue: "",
+    fieldRole: "prefill",
     templateFieldName: undefined,
     templateSignature: undefined,
 });
 
 export const createDefaultSelectorDrafts = (): SelectorFieldDraft[] => [
-    { ...createEmptySelectorDraft(), fieldName: "price", name: "price", required: true },
+    { ...createEmptySelectorDraft(), fieldName: "price", fieldRole: "tracked", name: "price", required: true },
 ];
 
 export const selectorToDraft = (selector: FieldSelector): SelectorFieldDraft => ({
@@ -166,6 +179,7 @@ export const selectorToDraft = (selector: FieldSelector): SelectorFieldDraft => 
     partialMatch: selector.partial_match ?? "",
     comparisonOperator: selector.comparison_operator ?? "",
     comparisonValue: selector.comparison_value ?? "",
+    fieldRole: normalizeFieldRole(selector.field_role, selector.name),
     templateFieldName: undefined,
     templateSignature: undefined,
 });
@@ -192,6 +206,7 @@ export const draftToSelector = (draft: SelectorFieldDraft): FieldSelector => ({
     partial_match: draft.partialMatch.trim() !== "" ? draft.partialMatch.trim() : undefined,
     comparison_operator: draft.comparisonOperator !== "" ? draft.comparisonOperator : undefined,
     comparison_value: draft.comparisonValue.trim() !== "" ? draft.comparisonValue.trim() : undefined,
+    field_role: normalizeFieldRole(draft.fieldRole, draft.name),
 });
 
 export const buildFieldSelectorSignature = (field: FieldSelector): string => {

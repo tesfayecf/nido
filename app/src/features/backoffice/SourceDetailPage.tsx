@@ -112,7 +112,7 @@ export const SourceDetailPage = (): JSX.Element => {
                 snapshots: await listPropertySnapshots(property.id, 8),
             })));
 
-            return buildSourceHealthSnapshot(snapshotSets);
+            return buildSourceHealthSnapshot(snapshotSets, selectorFields.map(draftToSelector));
         },
         queryKey: ["source-health", sourceId ?? "new"],
     });
@@ -161,6 +161,8 @@ export const SourceDetailPage = (): JSX.Element => {
             mode: field.extractionMode,
             name: field.name,
             required: field.required ? "Required" : "Optional",
+            role: field.fieldRole === "tracked" ? "Tracked" : "Prefill",
+            roleValue: field.fieldRole,
             selector: field.selectorValue,
         }));
 
@@ -204,7 +206,7 @@ export const SourceDetailPage = (): JSX.Element => {
         <PageStack>
             <PageCard
                 action={<Button as={Link} to={"/sources"} variant={"secondary"}>{"Back to templates"}</Button>}
-                description={"Build a reusable extraction template with clear selectors, fallbacks, and a quick preview."}
+                description={"Build a reusable template that both speeds up property intake and defines which fields stay under live monitoring."}
                 title={isCreateMode ? "Create Template" : `Edit ${formState.name}`}
             >
                 {sourceQuery.isLoading ? <p className={"muted-copy"}>{"Loading template..."}</p> : null}
@@ -295,7 +297,7 @@ export const SourceDetailPage = (): JSX.Element => {
                     </KeyValueGrid>
                 </PageCard>
 
-                <PageCard description={"Track which properties depend on this template, how often their runs succeed, and which fields are drifting toward empty values."} title={"Source Health"}>
+                <PageCard description={"Track which properties depend on this template, how often their runs succeed, and whether monitoring health differs from intake coverage."} title={"Source Health"}>
                     {sourceHealthQuery.isLoading ? <p className={"muted-copy"}>{"Loading source health..."}</p> : null}
                     {sourceHealthQuery.isError ? <ErrorBanner>{"Could not load source health."}</ErrorBanner> : null}
                     {sourceHealthQuery.data !== undefined ? (
@@ -304,13 +306,25 @@ export const SourceDetailPage = (): JSX.Element => {
                                 <KeyValuePair label={"Affected properties"} value={`${sourceHealthQuery.data.affectedProperties}`} />
                                 <KeyValuePair label={"Success rate"} value={`${sourceHealthQuery.data.successRate}%`} />
                                 <KeyValuePair label={"Failure rate"} value={`${sourceHealthQuery.data.failureRate}%`} />
-                                <KeyValuePair label={"Average completeness"} value={`${sourceHealthQuery.data.fieldCompleteness}%`} />
+                                <KeyValuePair label={"Tracked field health"} value={`${sourceHealthQuery.data.trackedFieldHealth}%`} />
+                                <KeyValuePair label={"Prefill coverage"} value={`${sourceHealthQuery.data.prefillCoverage}%`} />
                             </KeyValueGrid>
+                            <div className={"property-detail-group-grid"} style={{ marginTop: "1rem" }}>
+                                <div className={"property-inline-note"}>
+                                    <strong>{"Tracked field health"}</strong>
+                                    <span>{"Shows whether live monitoring fields are still extracting reliably across recent runs."}</span>
+                                </div>
+                                <div className={"property-inline-note"}>
+                                    <strong>{"Prefill coverage"}</strong>
+                                    <span>{"Shows how often intake-oriented listing facts are available when this template is used."}</span>
+                                </div>
+                            </div>
                             <DataTable
                                 caption={"Field completeness by template field"}
                                 columns={[
-                                    { cell: (item) => item.field, header: "Field", id: "field", sortValue: (item) => item.field },
-                                    { cell: (item) => `${item.completeness}%`, header: "Completeness", id: "completeness", sortValue: (item) => item.completeness },
+                                     { cell: (item) => item.field, header: "Field", id: "field", sortValue: (item) => item.field },
+                                     { cell: (item) => item.role === "tracked" ? "Tracked" : "Prefill", header: "Role", id: "role", sortValue: (item) => item.role },
+                                     { cell: (item) => `${item.completeness}%`, header: "Completeness", id: "completeness", sortValue: (item) => item.completeness },
                                     { cell: (item) => `${item.emptyCount}`, header: "Empty results", id: "emptyCount", sortValue: (item) => item.emptyCount },
                                 ]}
                                 compact
@@ -329,16 +343,17 @@ export const SourceDetailPage = (): JSX.Element => {
                             {"Add field"}
                         </Button>
                     )}
-                    description={"Configured fields are listed below. Use the row actions to change a single field without opening the full editor."}
+                    description={"Configured fields are listed below. Use the row actions to classify and change a single field without opening the full editor."}
                     title={"Configured Fields"}
                 >
                     <DataTable
                         caption={"Configured source fields"}
                         columns={[
-                            { cell: (item) => item.name, header: "Field", id: "name", sortValue: (item) => item.name },
-                            { cell: (item) => item.selector, header: "Selector", id: "selector" },
-                            { cell: (item) => item.mode, header: "Mode", id: "mode", sortValue: (item) => item.mode },
-                            { cell: (item) => item.required, header: "Required", id: "required", sortValue: (item) => item.required },
+                             { cell: (item) => item.name, header: "Field", id: "name", sortValue: (item) => item.name },
+                             { cell: (item) => item.role, header: "Role", id: "role", sortValue: (item) => item.role },
+                             { cell: (item) => item.mode, header: "Type", id: "mode", sortValue: (item) => item.mode },
+                             { cell: (item) => item.selector, header: "Source", id: "selector" },
+                             { cell: (item) => item.required, header: "Status", id: "required", sortValue: (item) => item.required },
                             {
                                 align: "right",
                                 cell: (item) => (
@@ -369,7 +384,9 @@ export const SourceDetailPage = (): JSX.Element => {
                             },
                         ]}
                         compact
-                        emptyMessage={"No selector fields are configured yet."}
+                        emptyMessage={fieldRows.some((row) => row.roleValue === "tracked")
+                            ? "No prefill fields yet. Add stable listing facts if you want faster property creation from a URL."
+                            : "No tracked fields yet. Add price or another live signal before relying on this template for monitoring."}
                         getRowId={(item) => item.id}
                         items={fieldRows}
                         pageSize={12}
@@ -413,12 +430,13 @@ export const SourceDetailPage = (): JSX.Element => {
     );
 };
 
-const buildSourceHealthSnapshot = (items: { property: { id: string; }; snapshots: PropertySnapshot[]; }[]): {
+const buildSourceHealthSnapshot = (items: { property: { id: string; }; snapshots: PropertySnapshot[]; }[], configuredFields: ReturnType<typeof draftToSelector>[]): {
     readonly affectedProperties: number;
     readonly failureRate: number;
-    readonly fieldCompleteness: number;
-    readonly fields: { completeness: number; emptyCount: number; field: string; }[];
+    readonly prefillCoverage: number;
+    readonly fields: { completeness: number; emptyCount: number; field: string; role: "prefill" | "tracked"; }[];
     readonly successRate: number;
+    readonly trackedFieldHealth: number;
 } => {
     const totalSnapshots = items.flatMap((item) => item.snapshots);
     const successCount = totalSnapshots.filter((snapshot) => snapshot.is_valid).length;
@@ -437,20 +455,28 @@ const buildSourceHealthSnapshot = (items: { property: { id: string; }; snapshots
         });
     });
 
+    const rolesByField = new Map(configuredFields.map((field) => [field.name, field.field_role === "tracked" ? "tracked" as const : "prefill" as const]));
     const fields = [...fieldStats.entries()].map(([field, stat]) => ({
         completeness: stat.seenCount === 0 ? 0 : Math.round(((stat.seenCount - stat.emptyCount) / stat.seenCount) * 100),
         emptyCount: stat.emptyCount,
         field,
+        role: rolesByField.get(field) ?? (field === "price" ? "tracked" as const : "prefill" as const),
     }));
-    const averageCompleteness = fields.length === 0
+    const trackedFields = fields.filter((field) => field.role === "tracked");
+    const prefillFields = fields.filter((field) => field.role === "prefill");
+    const trackedFieldHealth = trackedFields.length === 0
         ? 0
-        : Math.round(fields.reduce((sum, item) => sum + item.completeness, 0) / fields.length);
+        : Math.round(trackedFields.reduce((sum, item) => sum + item.completeness, 0) / trackedFields.length);
+    const prefillCoverage = prefillFields.length === 0
+        ? 0
+        : Math.round(prefillFields.reduce((sum, item) => sum + item.completeness, 0) / prefillFields.length);
 
     return {
         affectedProperties: items.length,
         failureRate: totalSnapshots.length === 0 ? 0 : Math.round((failureCount / totalSnapshots.length) * 100),
-        fieldCompleteness: averageCompleteness,
         fields,
+        prefillCoverage,
         successRate: totalSnapshots.length === 0 ? 0 : Math.round((successCount / totalSnapshots.length) * 100),
+        trackedFieldHealth,
     };
 };

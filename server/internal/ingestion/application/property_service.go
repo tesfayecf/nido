@@ -393,6 +393,7 @@ func selectorsEqual(left, right ingestiondomain.FieldSelector) bool {
 		left.SelectorType != right.SelectorType ||
 		left.SelectorValue != right.SelectorValue ||
 		left.ExtractionMode != right.ExtractionMode ||
+		left.FieldRole != right.FieldRole ||
 		left.TextMode != right.TextMode ||
 		left.Attribute != right.Attribute ||
 		left.Transform != right.Transform ||
@@ -478,7 +479,8 @@ func (s *PropertyService) buildSummary(ctx context.Context, property ingestiondo
 	if len(snapshots) > 1 {
 		previous = snapshots[1]
 	}
-	signals := ComputeChangeSignals(current, previous, property)
+	config, _ := s.GetLatestPropertyConfig(ctx, property.ID)
+	signals := ComputeChangeSignals(current, previous, property, config.Fields)
 	decision := DeriveDecisionContext(property, current)
 	currentValues := decodeSnapshotValues(current.Values)
 	changeSummary := BuildLatestChangeSummary(signals)
@@ -1394,7 +1396,12 @@ func normalizeConfiguredFields(fields []ingestiondomain.FieldSelector) ([]ingest
 		field.PartialMatch = strings.TrimSpace(field.PartialMatch)
 		field.ComparisonOperator = strings.TrimSpace(strings.ToLower(field.ComparisonOperator))
 		field.ComparisonValue = strings.TrimSpace(field.ComparisonValue)
+		field.FieldRole = ingestiondomain.NormalizeFieldRole(field.FieldRole, field.Name)
 		field.FallbackSelectors = ingestiondomain.NormalizeSelectorList(field.FallbackSelectors)
+		if strings.EqualFold(field.Name, "price") {
+			field.FieldRole = ingestiondomain.FieldRoleTracked
+			field.Required = true
+		}
 
 		if field.Name == "" {
 			return nil, fmt.Errorf("field name is required")

@@ -46,6 +46,16 @@ const (
 	TextModeInnerText   TextMode = "innerText"
 )
 
+// FieldRole describes whether a selector is used for intake prefill or ongoing monitoring.
+type FieldRole string
+
+const (
+	// FieldRolePrefill imports mostly stable listing facts for faster property creation.
+	FieldRolePrefill FieldRole = "prefill"
+	// FieldRoleTracked compares values across runs as ongoing monitoring signals.
+	FieldRoleTracked FieldRole = "tracked"
+)
+
 // FieldSelector describes how to extract one named field from a page.
 type FieldSelector struct {
 	Name                  string         `json:"name"`
@@ -65,6 +75,7 @@ type FieldSelector struct {
 	PartialMatch          string         `json:"partial_match,omitempty"`
 	ComparisonOperator    string         `json:"comparison_operator,omitempty"`
 	ComparisonValue       string         `json:"comparison_value,omitempty"`
+	FieldRole             FieldRole      `json:"field_role,omitempty"`
 	Required              bool           `json:"required"`
 }
 
@@ -86,6 +97,7 @@ type fieldSelectorPayload struct {
 	PartialMatch          string         `json:"partial_match,omitempty"`
 	ComparisonOperator    string         `json:"comparison_operator,omitempty"`
 	ComparisonValue       string         `json:"comparison_value,omitempty"`
+	FieldRole             FieldRole      `json:"field_role,omitempty"`
 	Required              bool           `json:"required"`
 	Selectors             []string       `json:"selectors,omitempty"`
 }
@@ -103,6 +115,7 @@ func (field *FieldSelector) UnmarshalJSON(data []byte) error {
 		ComparisonValue:       strings.TrimSpace(payload.ComparisonValue),
 		DefaultValue:          strings.TrimSpace(payload.DefaultValue),
 		ExtractionMode:        payload.ExtractionMode,
+		FieldRole:             NormalizeFieldRole(payload.FieldRole, payload.Name),
 		FieldName:             strings.TrimSpace(payload.FieldName),
 		MultiValue:            payload.MultiValue,
 		Name:                  strings.TrimSpace(payload.Name),
@@ -162,6 +175,7 @@ func (field FieldSelector) MarshalJSON() ([]byte, error) {
 		ComparisonValue:       strings.TrimSpace(field.ComparisonValue),
 		DefaultValue:          strings.TrimSpace(field.DefaultValue),
 		ExtractionMode:        field.ExtractionMode,
+		FieldRole:             NormalizeFieldRole(field.FieldRole, field.Name),
 		FieldName:             strings.TrimSpace(field.FieldName),
 		FallbackSelectors:     NormalizeSelectorList(field.FallbackSelectors),
 		MultiValue:            field.MultiValue,
@@ -192,6 +206,19 @@ func (field FieldSelector) MarshalJSON() ([]byte, error) {
 	}
 
 	return json.Marshal(payload)
+}
+
+// NormalizeFieldRole resolves missing or invalid roles using the product defaults.
+func NormalizeFieldRole(role FieldRole, fieldName string) FieldRole {
+	switch role {
+	case FieldRolePrefill, FieldRoleTracked:
+		return role
+	default:
+		if strings.EqualFold(strings.TrimSpace(fieldName), "price") {
+			return FieldRoleTracked
+		}
+		return FieldRolePrefill
+	}
 }
 
 // NormalizeSelectorList trims selectors and removes empty entries.

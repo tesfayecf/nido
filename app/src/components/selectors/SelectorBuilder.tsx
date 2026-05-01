@@ -95,6 +95,8 @@ const getFieldStatusLabel = (metadata: SelectorBuilderFieldMetadata): string => 
     }
 };
 
+const getFieldRoleLabel = (role: SelectorFieldDraft["fieldRole"]): string => role === "tracked" ? "Tracked" : "Prefill";
+
 export const SelectorBuilder = ({
     fieldDefinitions,
     fieldMetadataById,
@@ -151,7 +153,7 @@ export const SelectorBuilder = ({
                 </div>
                 <h3 className={"selector-builder__title"}>{"Manage fields from one compact table, then expand only what you need."}</h3>
                 <p className={"selector-builder__copy"}>
-                    {"Scan field origin and status first, then open a row to edit selectors, fallbacks, cleanup rules, and preview details."}
+                    {"Scan field role, origin, and status first, then open a row to edit selectors, fallbacks, cleanup rules, and preview details."}
                 </p>
             </div>
 
@@ -177,6 +179,7 @@ export const SelectorBuilder = ({
                     <thead>
                         <tr>
                             <th scope={"col"}>{"Field"}</th>
+                            <th scope={"col"}>{"Role"}</th>
                             <th scope={"col"}>{"Type"}</th>
                             <th scope={"col"}>{"Source"}</th>
                             <th scope={"col"}>{"Status"}</th>
@@ -211,6 +214,11 @@ export const SelectorBuilder = ({
                                                 </span>
                                             </button>
                                         </td>
+                                        <td>
+                                            <span className={`selector-builder__meta-badge selector-builder__meta-badge--${field.fieldRole}`}>
+                                                {getFieldRoleLabel(field.fieldRole)}
+                                            </span>
+                                        </td>
                                         <td>{getFieldTypeLabel(field)}</td>
                                         <td>
                                             <span className={`selector-builder__meta-badge selector-builder__meta-badge--${metadata.origin}`}>
@@ -239,7 +247,7 @@ export const SelectorBuilder = ({
                                     </tr>
                                     {expanded ? (
                                         <tr className={"selector-builder__details-row"}>
-                                            <td colSpan={5}>
+                                            <td colSpan={6}>
                                                 <div className={"selector-builder__field"}>
                                                     <div className={"selector-builder__field-header"}>
                                                         <div>
@@ -261,11 +269,32 @@ export const SelectorBuilder = ({
                                                     <div className={"selector-builder__grid"}>
                                                         <Field label={"Field name"}>
                                                             <Input
-                                                                onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { name: event.target.value })); }}
+                                                                onChange={(event) => {
+                                                                    const nextName = event.target.value;
+                                                                    onChange((currentFields) => updateField(currentFields, field.id, {
+                                                                        fieldRole: nextName.trim().toLowerCase() === "price" ? "tracked" : field.fieldRole,
+                                                                        name: nextName,
+                                                                        required: nextName.trim().toLowerCase() === "price" ? true : field.required,
+                                                                    }));
+                                                                }}
                                                                 placeholder={"Price"}
                                                                 type={"text"}
                                                                 value={field.name}
                                                             />
+                                                        </Field>
+
+                                                        <Field
+                                                            hint={"Use Prefill for mostly stable listing facts. Use Tracked for values you want Nido to compare on each run."}
+                                                            label={"Field role"}
+                                                        >
+                                                            <Select
+                                                                disabled={field.name.trim().toLowerCase() === "price"}
+                                                                onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { fieldRole: event.target.value as SelectorFieldDraft["fieldRole"] })); }}
+                                                                value={field.fieldRole}
+                                                            >
+                                                                <option value={"prefill"}>{"Prefill"}</option>
+                                                                <option value={"tracked"}>{"Tracked"}</option>
+                                                            </Select>
                                                         </Field>
 
                                                         <Field

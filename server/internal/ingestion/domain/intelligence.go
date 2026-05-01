@@ -22,6 +22,7 @@ const (
 	ChangeGroupStatus      ChangeGroup = "status"
 	ChangeGroupDataQuality ChangeGroup = "data_quality"
 	ChangeGroupFreshness   ChangeGroup = "freshness"
+	ChangeGroupListingFacts ChangeGroup = "listing_facts"
 )
 
 // ChangeSignal captures one discrete intelligence signal for a property snapshot transition.
