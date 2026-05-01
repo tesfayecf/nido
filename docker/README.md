@@ -19,7 +19,7 @@ The image keeps the frontend same-origin with the API by serving static assets t
 From the repository root:
 
 ```bash
-docker buildx build --platform linux/arm64 -t tesfayecf/nido:latest-arm64 -f ./docker/Dockerfile . --load
+docker buildx build --platform linux/arm64 -t tesfayecf/nido:latest-arm64 -f ./docker/Dockerfile . --load -t <tag>
 ```
 
 ## GitHub Actions Publish
