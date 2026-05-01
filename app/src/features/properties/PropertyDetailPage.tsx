@@ -9,6 +9,7 @@ import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { DataTable } from "@/components/ui/DataTable";
+import { Dialog } from "@/components/ui/Dialog";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Field } from "@/components/ui/Field";
 import { FormGrid } from "@/components/ui/FormGrid";
@@ -29,7 +30,10 @@ import { CopyButton } from "@/components/ui/CopyButton";
 import { useToast } from "@/components/ui/ToastProvider";
 import { TagBadge } from "@/components/tags/TagBadge";
 import { TagPicker } from "@/components/tags/TagPicker";
+import { PriceHistoryChart } from "@/features/properties/PriceHistoryChart";
 import { buildPriceIntelligence, formatDecisionStatus } from "@/features/properties/priceIntelligence";
+import { buildPriceHistoryPoints } from "@/features/properties/propertyHistory";
+import { downloadPropertySnapshotExport } from "@/features/properties/propertyExport";
 import { readWorkspaceSettings } from "@/features/settings/workspaceSettings";
 import { fieldKeys } from "@/services/fields/fields.keys";
 import { listFields } from "@/services/fields/fields.service";
@@ -400,6 +404,9 @@ export const PropertyDetailPage = (): JSX.Element => {
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [createAlertOpen, setCreateAlertOpen] = useState(false);
     const [tagsOpen, setTagsOpen] = useState(false);
+    const [exportOpen, setExportOpen] = useState(false);
+    const [exportFormat, setExportFormat] = useState<"csv" | "json">("csv");
+    const [chartOpen, setChartOpen] = useState(false);
     const [snapshotConfigFilter, setSnapshotConfigFilter] = useState<number>(0);
     const [compareLeftVersion, setCompareLeftVersion] = useState<number>(0);
     const [compareRightVersion, setCompareRightVersion] = useState<number>(0);
@@ -434,7 +441,7 @@ export const PropertyDetailPage = (): JSX.Element => {
     });
     const snapshotsQuery = useQuery({
         enabled: !isCreateMode,
-        queryFn: () => listPropertySnapshots(resolvedId, 20),
+        queryFn: () => listPropertySnapshots(resolvedId),
         queryKey: propertyKeys.snapshots(resolvedId),
     });
     const propertyTagsQuery = useQuery({
@@ -552,6 +559,7 @@ export const PropertyDetailPage = (): JSX.Element => {
         }));
     }, [fieldRows]);
     const hasConfiguredPriceField = useMemo(() => fieldRows.some(isPriceFieldDraft), [fieldRows]);
+    const priceHistoryPoints = useMemo(() => buildPriceHistoryPoints(snapshotsQuery.data ?? []), [snapshotsQuery.data]);
     const createPriceFieldError = isCreateMode && sourceId.trim() === "" && !hasConfiguredPriceField
         ? "Add at least one field configured as Price before creating a property without a template."
         : undefined;
@@ -1132,6 +1140,8 @@ export const PropertyDetailPage = (): JSX.Element => {
                         action={(
                             <ActionGroup>
                                 <Button as={Link} to={"/properties"} variant={"secondary"}>{"Back"}</Button>
+                                <Button onClick={() => { setExportOpen(true); }} variant={"secondary"}>{"Export"}</Button>
+                                <Button onClick={() => { window.open(`/properties/${resolvedId}/print`, "_blank", "noopener"); }} variant={"secondary"}>{"Print / PDF"}</Button>
                                 <Button onClick={() => { setDeleteOpen(true); }} variant={"secondary"}>{"Delete"}</Button>
                             </ActionGroup>
                         )}
@@ -1243,6 +1253,16 @@ export const PropertyDetailPage = (): JSX.Element => {
                                 </div>
                                 <section className={"property-detail-group"}>
                                     <span className={"app-shell__eyebrow"}>{"History & trends"}</span>
+                                    <div className={"property-history-card"}>
+                                        <div className={"listing-dense-row__headline"}>
+                                            <div>
+                                                <strong>{"Price history"}</strong>
+                                                <p className={"muted-copy"}>{"The sparkline stays compact until you need the full chart."}</p>
+                                            </div>
+                                            <Button disabled={priceHistoryPoints.length === 0} onClick={() => { setChartOpen(true); }} size={"small"} variant={"secondary"}>{"Expand chart"}</Button>
+                                        </div>
+                                        {priceHistoryPoints.length === 0 ? <p className={"muted-copy"}>{"No historical price snapshots yet."}</p> : <PriceHistoryChart compact points={priceHistoryPoints} />}
+                                    </div>
                                     <div className={"property-inline-note"}>
                                         <strong>{summaryQuery.data.latest_change_summary === "" ? "No recent pricing change summary." : summaryQuery.data.latest_change_summary}</strong>
                                         <span>{summaryQuery.data.signals.length === 0 ? "No pricing or data-quality signals are available yet." : `${summaryQuery.data.signals.length} tracked signal${summaryQuery.data.signals.length === 1 ? "" : "s"} available.`}</span>
@@ -1650,10 +1670,13 @@ export const PropertyDetailPage = (): JSX.Element => {
                                     <strong>{"Config filter"}</strong>
                                     <p className={"muted-copy"}>{"Filter snapshots by the config version that produced them."}</p>
                                 </div>
-                                <Select onChange={(event) => { setSnapshotConfigFilter(Number(event.target.value)); }} value={`${snapshotConfigFilter}`}>
-                                    <option value={"0"}>{"All versions"}</option>
-                                    {configVersions.map((config) => <option key={config.id} value={`${config.version}`}>{`Version ${config.version}`}</option>)}
-                                </Select>
+                                <ActionGroup>
+                                    <Select onChange={(event) => { setSnapshotConfigFilter(Number(event.target.value)); }} value={`${snapshotConfigFilter}`}>
+                                        <option value={"0"}>{"All versions"}</option>
+                                        {configVersions.map((config) => <option key={config.id} value={`${config.version}`}>{`Version ${config.version}`}</option>)}
+                                    </Select>
+                                    <Button onClick={() => { setExportOpen(true); }} size={"small"} variant={"secondary"}>{"Export"}</Button>
+                                </ActionGroup>
                             </div>
                             <DataTable
                                 caption={"Recent property snapshots"}
@@ -1793,6 +1816,48 @@ export const PropertyDetailPage = (): JSX.Element => {
                 open={rollbackTargetVersion !== null}
                 title={"Confirm rollback"}
             />
+            <Dialog
+                actions={(
+                    <ActionGroup>
+                        <Button onClick={() => { setExportOpen(false); }} variant={"secondary"}>{"Cancel"}</Button>
+                        <Button
+                            onClick={() => {
+                                if (propertyQuery.data !== undefined) {
+                                    downloadPropertySnapshotExport(propertyQuery.data, recentRuns, exportFormat);
+                                }
+
+                                setExportOpen(false);
+                            }}
+                        >
+                            {`Download ${exportFormat.toUpperCase()}`}
+                        </Button>
+                    </ActionGroup>
+                )}
+                description={"Download the current property snapshot history as CSV or JSON."}
+                onOpenChange={setExportOpen}
+                open={exportOpen}
+                title={"Export snapshots"}
+            >
+                <div className={"dashboard-grid"}>
+                    <label className={"properties-table__column-toggle"}>
+                        <input checked={exportFormat === "csv"} onChange={() => { setExportFormat("csv"); }} type={"radio"} />
+                        <span>{"CSV"}</span>
+                    </label>
+                    <label className={"properties-table__column-toggle"}>
+                        <input checked={exportFormat === "json"} onChange={() => { setExportFormat("json"); }} type={"radio"} />
+                        <span>{"JSON"}</span>
+                    </label>
+                </div>
+            </Dialog>
+            <Dialog
+                actions={<ActionGroup><Button onClick={() => { setChartOpen(false); }} variant={"secondary"}>{"Close"}</Button></ActionGroup>}
+                description={"Hover to inspect exact prices and timestamps across the full history."}
+                onOpenChange={setChartOpen}
+                open={chartOpen}
+                title={"Price history"}
+            >
+                <PriceHistoryChart points={priceHistoryPoints} />
+            </Dialog>
         </>
     );
 };

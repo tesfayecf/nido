@@ -909,6 +909,23 @@ func (s *Store) ListAlertRulesForEvaluation(ctx context.Context) ([]engagementdo
 	return items, rows.Err()
 }
 
+// UpdateAlertRuleEnabled updates one alert rule enabled state.
+func (s *Store) UpdateAlertRuleEnabled(ctx context.Context, userID, ruleID string, enabled bool, updatedAt time.Time) error {
+	_, err := s.db.ExecContext(
+		ctx,
+		`UPDATE alert_rules SET enabled = ?, updated_at = ? WHERE id = ? AND user_id = ?`,
+		boolToInt(enabled),
+		formatTime(updatedAt),
+		ruleID,
+		userID,
+	)
+	if err != nil {
+		return fmt.Errorf("update alert rule enabled: %w", err)
+	}
+
+	return nil
+}
+
 // DeleteAlertRule removes one alert rule.
 func (s *Store) DeleteAlertRule(ctx context.Context, userID, ruleID string) error {
 	_, err := s.db.ExecContext(ctx, `DELETE FROM alert_rules WHERE id = ? AND user_id = ?`, ruleID, userID)

@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import { AsyncContent } from "@/components/ui/AsyncContent";
 import { Button } from "@/components/ui/Button";
@@ -15,6 +15,7 @@ import { PageStack } from "@/components/ui/PageStack";
 import { Select } from "@/components/ui/Select";
 import { formatCurrency } from "@/lib/format/currency";
 import { formatDateTime } from "@/lib/format/date";
+import { stringifyComparisonIds } from "@/features/properties/propertyCompare";
 import { bookmarkKeys } from "@/services/bookmarks/bookmarks.keys";
 import { deleteBookmark, listBookmarks } from "@/services/bookmarks/bookmarks.service";
 
@@ -43,9 +44,11 @@ const saveBookmarkGroups = (state: BookmarkGroupsState): void => {
 };
 
 export const BookmarksPage = (): JSX.Element => {
+    const navigate = useNavigate();
     const queryClient = useQueryClient();
     const [groupState, setGroupState] = useState<BookmarkGroupsState>(readBookmarkGroups);
     const [newGroupName, setNewGroupName] = useState("");
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const bookmarksQuery = useQuery({
         queryFn: listBookmarks,
         queryKey: bookmarkKeys.all(),
@@ -101,6 +104,20 @@ export const BookmarksPage = (): JSX.Element => {
                 </FormGrid>
             </PageCard>
             <PageCard description={"Bookmarks save properties directly, without any watchlist or listing intermediary."} title={"Bookmarks"}>
+                {selectedIds.length > 0 ? (
+                    <div className={"toolbar"}>
+                        <strong>{`${selectedIds.length} selected`}</strong>
+                        <Button
+                            disabled={selectedIds.length < 2 || selectedIds.length > 4}
+                            onClick={() => {
+                                void navigate(`/properties/compare?ids=${encodeURIComponent(stringifyComparisonIds(selectedIds))}`);
+                            }}
+                            variant={"secondary"}
+                        >
+                            {"Compare"}
+                        </Button>
+                    </div>
+                ) : null}
                 <AsyncContent
                     emptyMessage={"No properties have been bookmarked yet."}
                     errorMessage={"Could not load bookmarks."}
@@ -117,6 +134,16 @@ export const BookmarksPage = (): JSX.Element => {
                                     {items.map((item) => (
                                         <ListRow key={item.property_id}>
                                             <ListRowMain>
+                                                <input
+                                                    aria-label={`Select ${item.title}`}
+                                                    checked={selectedIds.includes(item.property_id)}
+                                                    onChange={(event) => {
+                                                        setSelectedIds((current) => event.target.checked
+                                                            ? [...current, item.property_id]
+                                                            : current.filter((propertyId) => propertyId !== item.property_id));
+                                                    }}
+                                                    type={"checkbox"}
+                                                />
                                                 <div>
                                                     <h3 className={"list-row__title"}><Link to={`/properties/${item.property_id}`}>{item.title}</Link></h3>
                                                     <p className={"list-row__meta"}>{item.location}{" · saved "}{formatDateTime(item.bookmarked_at)}</p>

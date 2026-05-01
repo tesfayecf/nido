@@ -20,11 +20,15 @@ import { Tabs } from "@/components/ui/Tabs";
 import { Textarea } from "@/components/ui/Textarea";
 import { useToast } from "@/components/ui/ToastProvider";
 import { applyThemePreference, getStoredThemePreference, THEME_STORAGE_KEY } from "@/hooks/useTheme";
+import { formatDateTime } from "@/lib/format/date";
 import { downloadWorkspaceBackupData, restoreWorkspaceBackupData } from "@/services/backup/backup.service";
 import { authKeys } from "@/services/auth/auth.keys";
 import { changePassword, getCurrentUser, updateProfile } from "@/services/auth/auth.service";
 import { sourceKeys } from "@/services/backoffice-sources/sources.keys";
 import { listSources } from "@/services/backoffice-sources/sources.service";
+import { PREFERENCE_STORAGE_KEY } from "@/features/settings/localPreferences";
+import { getPlatformSettings, updatePlatformSettings } from "@/services/platform/platform.service";
+import type { PlatformSettings } from "@/services/platform/platform.types";
 import { tagKeys } from "@/services/tags/tags.keys";
 import { listTags } from "@/services/tags/tags.service";
 
@@ -49,7 +53,6 @@ import {
     type WorkspaceSettings,
 } from "@/features/settings/workspaceSettings";
 
-const PREFERENCE_STORAGE_KEY = "nido.notification-preferences";
 const LOCAL_UI_STORAGE_KEYS = ["nido.bookmark-groups", "nido.nav-collapsed", "nido.properties.table"];
 
 export const SettingsPage = (): JSX.Element => {
@@ -67,6 +70,10 @@ export const SettingsPage = (): JSX.Element => {
         queryFn: listTags,
         queryKey: tagKeys.all(),
     });
+    const platformSettingsQuery = useQuery({
+        queryFn: getPlatformSettings,
+        queryKey: ["platform", "settings"],
+    });
 
     const [displayName, setDisplayName] = useState("");
     const [currentPassword, setCurrentPassword] = useState("");
@@ -81,6 +88,7 @@ export const SettingsPage = (): JSX.Element => {
     const [typeFieldsText, setTypeFieldsText] = useState("");
     const [pendingBackupImport, setPendingBackupImport] = useState<{ backup: ImportedBackup; fileName: string; } | null>(null);
     const [resetOpen, setResetOpen] = useState(false);
+    const [platformSettingsDraft, setPlatformSettingsDraft] = useState<PlatformSettings | null>(null);
     const backupFileInputRef = useRef<HTMLInputElement | null>(null);
 
     const syncWorkspaceSettingsDraft = (nextSettings: WorkspaceSettings): void => {
@@ -97,6 +105,12 @@ export const SettingsPage = (): JSX.Element => {
             setDisplayName(meQuery.data.display_name);
         }
     }, [meQuery.data]);
+
+    useEffect(() => {
+        if (platformSettingsQuery.data !== undefined) {
+            setPlatformSettingsDraft(platformSettingsQuery.data);
+        }
+    }, [platformSettingsQuery.data]);
 
     useEffect(() => {
         const storedSettings = readWorkspaceSettings();
@@ -191,6 +205,22 @@ export const SettingsPage = (): JSX.Element => {
         newPassword.trim() !== "" &&
         !passwordMismatch &&
         newPassword.length >= 8;
+    const saveWeeklyDigestMutation = useMutation({
+        mutationFn: async () => {
+            if (platformSettingsDraft === null) {
+                throw new Error("Platform settings have not loaded yet.");
+            }
+
+            return updatePlatformSettings(platformSettingsDraft);
+        },
+        onError() {
+            pushToast("Could not save weekly email digest settings.", "error");
+        },
+        onSuccess(nextSettings) {
+            setPlatformSettingsDraft(nextSettings);
+            pushToast("Weekly digest settings saved.", "success");
+        },
+    });
 
     const savePreferences = (): void => {
         window.localStorage.setItem(PREFERENCE_STORAGE_KEY, JSON.stringify(preferences));
@@ -485,6 +515,67 @@ export const SettingsPage = (): JSX.Element => {
                                             </Field>
                                             <ActionGroup>
                                                 <Button type={"submit"}>{"Save intake defaults"}</Button>
+                                            </ActionGroup>
+                                        </FormGrid>
+                                    </PageCard>
+                                    <PageCard description={"Desktop digests run locally once per week when digest mode is enabled. Configure the optional email copy here."} title={"Weekly digest"}>
+                                        <FormGrid
+                                            onSubmit={(event) => {
+                                                event.preventDefault();
+                                                saveWeeklyDigestMutation.mutate();
+                                            }}
+                                        >
+                                            {platformSettingsQuery.isError ? <ErrorBanner>{"Could not load weekly digest settings."}</ErrorBanner> : null}
+                                            <Field hint={"Desktop notifications use the local digest setting above. Enable this only if SMTP delivery is configured."} label={"Send weekly email digest"} variant={"checkbox"}>
+                                                <input
+                                                    checked={platformSettingsDraft?.email_digest.enabled ?? false}
+                                                    onChange={(event) => {
+                                                        setPlatformSettingsDraft((current) => current === null ? current : {
+                                                            ...current,
+                                                            email_digest: {
+                                                                ...current.email_digest,
+                                                                enabled: event.target.checked,
+                                                            },
+                                                        });
+                                                    }}
+                                                    type={"checkbox"}
+                                                />
+                                            </Field>
+                                            <Field label={"Digest recipient"}>
+                                                <Input
+                                                    onChange={(event) => {
+                                                        setPlatformSettingsDraft((current) => current === null ? current : {
+                                                            ...current,
+                                                            email_digest: {
+                                                                ...current.email_digest,
+                                                                recipient: event.target.value,
+                                                            },
+                                                        });
+                                                    }}
+                                                    placeholder={"owner@example.com"}
+                                                    value={platformSettingsDraft?.email_digest.recipient ?? ""}
+                                                />
+                                            </Field>
+                                            <Field label={"Send after (UTC)"}>
+                                                <Input
+                                                    onChange={(event) => {
+                                                        setPlatformSettingsDraft((current) => current === null ? current : {
+                                                            ...current,
+                                                            email_digest: {
+                                                                ...current.email_digest,
+                                                                schedule: event.target.value,
+                                                            },
+                                                        });
+                                                    }}
+                                                    type={"time"}
+                                                    value={platformSettingsDraft?.email_digest.schedule ?? "09:00"}
+                                                />
+                                            </Field>
+                                            <Field label={"Last sent"}>
+                                                <Input disabled value={platformSettingsDraft?.email_digest.last_sent_at === undefined ? "Never" : formatDateTime(platformSettingsDraft.email_digest.last_sent_at)} />
+                                            </Field>
+                                            <ActionGroup>
+                                                <Button isLoading={saveWeeklyDigestMutation.isPending} type={"submit"}>{"Save weekly digest"}</Button>
                                             </ActionGroup>
                                         </FormGrid>
                                     </PageCard>

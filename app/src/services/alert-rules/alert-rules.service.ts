@@ -34,6 +34,21 @@ export const createAlertRule = async (request: CreateAlertRuleRequest): Promise<
 };
 
 /**
+ * Updates the enabled state for one alert rule.
+ *
+ * @param ruleId The alert-rule identifier.
+ * @param enabled Whether the rule should be enabled.
+ */
+export const setAlertRuleEnabled = async (ruleId: string, enabled: boolean): Promise<void> => {
+    await apiRequest<StatusEnvelope, { enabled: boolean }>({
+        auth: true,
+        body: { enabled },
+        method: "PUT",
+        path: `/api/v1/me/alert-rules/${ruleId}`,
+    });
+};
+
+/**
  * Deletes one alert rule.
  *
  * @param ruleId The alert-rule identifier to delete.
