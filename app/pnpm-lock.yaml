@@ -23,9 +23,6 @@ importers:
       chart.js:
         specifier: 4.5.1
         version: 4.5.1
-      immer:
-        specifier: 10.1.1
-        version: 10.1.1
       react:
         specifier: 19.1.0
         version: 19.1.0
@@ -41,9 +38,6 @@ importers:
       react-router-dom:
         specifier: 7.11.0
         version: 7.11.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
-      use-immer:
-        specifier: 0.11.0
-        version: 0.11.0(immer@10.1.1)(react@19.1.0)
       zustand:
         specifier: 5.0.9
         version: 5.0.9(@types/react@19.1.8)(immer@10.1.1)(react@19.1.0)
@@ -2008,12 +2002,6 @@ packages:
   uri-js@4.4.1:
     resolution: {integrity: sha512-7rKUyy33Q1yc98pQ1DAmLtwX109F7TIfWlW1Ydo8Wl1ii1SeHieeh0HHfPeL2fMXK6z0s8ecKs9frCuLJvndBg==}
 
-  use-immer@0.11.0:
-    resolution: {integrity: sha512-RNAqi3GqsWJ4bcCd4LMBgdzvPmTABam24DUaFiKfX9s3MSorNRz9RDZYJkllJoMHUxVLMDetwAuCDeyWNrp1yA==}
-    peerDependencies:
-      immer: '>=8.0.0'
-      react: ^16.8.0 || ^17.0.1 || ^18.0.0 || ^19.0.0
-
   vite-node@3.2.4:
     resolution: {integrity: sha512-EbKSKh+bh1E1IFxeO0pg1n4dvoOTt0UDiXMd/qn++r98+jPO1xtJilvXldeuQ8giIB5IkpjCgMleHMNEsGH6pg==}
     engines: {node: ^18.0.0 || ^20.0.0 || >=22.0.0}
@@ -3511,7 +3499,8 @@ snapshots:
 
   ignore@7.0.5: {}
 
-  immer@10.1.1: {}
+  immer@10.1.1:
+    optional: true
 
   import-fresh@3.3.1:
     dependencies:
@@ -4269,11 +4258,6 @@ snapshots:
   uri-js@4.4.1:
     dependencies:
       punycode: 2.3.1
-
-  use-immer@0.11.0(immer@10.1.1)(react@19.1.0):
-    dependencies:
-      immer: 10.1.1
-      react: 19.1.0
 
   vite-node@3.2.4(@types/node@22.13.5):
     dependencies:

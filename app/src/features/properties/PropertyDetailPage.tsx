@@ -552,7 +552,7 @@ export const PropertyDetailPage = (): JSX.Element => {
     });
     const snapshotsQuery = useQuery({
         enabled: !isCreateMode,
-        queryFn: () => listPropertySnapshots(resolvedId, 20),
+        queryFn: () => listPropertySnapshots(resolvedId),
         queryKey: propertyKeys.snapshots(resolvedId),
     });
     const propertyTagsQuery = useQuery({
@@ -1320,6 +1320,7 @@ export const PropertyDetailPage = (): JSX.Element => {
                 ) : null}
 
                 {activeSection === "overview" ? (
+                
                     <>
                         <PageCard
                             action={(

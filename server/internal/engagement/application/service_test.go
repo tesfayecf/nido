@@ -41,6 +41,10 @@ func (s engagementStoreStub) ListAlertRulesForEvaluation(context.Context) ([]eng
 	return nil, nil
 }
 
+func (s engagementStoreStub) UpdateAlertRuleEnabled(context.Context, string, string, bool, time.Time) error {
+	return nil
+}
+
 func (s engagementStoreStub) DeleteAlertRule(context.Context, string, string) error {
 	return nil
 }

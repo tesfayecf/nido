@@ -136,6 +136,7 @@ export interface PropertyUpsertRequest {
     readonly url: string;
     readonly label: string;
     readonly source_id?: string;
+    readonly status?: PropertyStatus;
     readonly schedule_interval_seconds?: number;
     readonly retry_max_attempts?: number;
     readonly retry_backoff_millis?: number;

@@ -35,6 +35,7 @@ type Store interface {
 	CreateAlertRule(ctx context.Context, rule engagementdomain.AlertRule) error
 	ListAlertRules(ctx context.Context, userID string) ([]engagementdomain.AlertRule, error)
 	ListAlertRulesForEvaluation(ctx context.Context) ([]engagementdomain.AlertRule, error)
+	UpdateAlertRuleEnabled(ctx context.Context, userID, ruleID string, enabled bool, updatedAt time.Time) error
 	DeleteAlertRule(ctx context.Context, userID, ruleID string) error
 	CreateNotification(ctx context.Context, notification engagementdomain.Notification) error
 	UpdateNotificationDeliveryStatus(ctx context.Context, notificationID, status string) error
@@ -113,6 +114,11 @@ func (s *Service) CreateAlertRule(ctx context.Context, input engagementdomain.Al
 // ListAlertRules returns rules for one user.
 func (s *Service) ListAlertRules(ctx context.Context, userID string) ([]engagementdomain.AlertRule, error) {
 	return s.store.ListAlertRules(ctx, userID)
+}
+
+// SetAlertRuleEnabled updates the enabled state for one alert rule.
+func (s *Service) SetAlertRuleEnabled(ctx context.Context, userID, ruleID string, enabled bool) error {
+	return s.store.UpdateAlertRuleEnabled(ctx, userID, ruleID, enabled, time.Now().UTC())
 }
 
 // DeleteAlertRule removes one alert rule.

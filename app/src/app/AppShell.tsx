@@ -4,6 +4,7 @@ import { Outlet, useLocation } from "react-router-dom";
 
 import { AppHeader } from "@/components/shell/AppHeader";
 import { AppNav } from "@/components/shell/AppNav";
+import { useWeeklyDigest } from "@/features/settings/weeklyDigest";
 import { useShellStore } from "@/stores/shell.store";
 
 /**
@@ -13,6 +14,7 @@ import { useShellStore } from "@/stores/shell.store";
  * while feature modules control their own content and data fetching.
  */
 export const AppShell = (): JSX.Element => {
+    useWeeklyDigest();
     const location = useLocation();
     const navOpen = useShellStore((state) => state.navOpen);
     const navCollapsed = useShellStore((state) => state.navCollapsed);
