@@ -5,6 +5,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ToastProvider } from "@/components/ui/ToastProvider";
 import { PropertyDetailPage } from "@/features/properties/PropertyDetailPage";
+import { formatDateTime } from "@/lib/format/date";
+import { propertyKeys } from "@/services/properties/properties.keys";
 import type { FieldDefinitionUsage } from "@/services/fields/fields.types";
 import type {
     Property,
@@ -186,6 +188,15 @@ const renderPropertyDetailPage = (): ReturnType<typeof render> => {
             queries: { retry: false },
         },
     });
+
+    queryClient.setQueryData(propertyKeys.detail(PROPERTY.id), PROPERTY);
+    queryClient.setQueryData(propertyKeys.summary(PROPERTY.id), SUMMARY);
+    queryClient.setQueryData(propertyKeys.summaries(), [SUMMARY]);
+    queryClient.setQueryData(propertyKeys.config(PROPERTY.id), CONFIG);
+    queryClient.setQueryData(propertyKeys.configVersions(PROPERTY.id), [CONFIG]);
+    queryClient.setQueryData(propertyKeys.runs(PROPERTY.id), RUNS);
+    queryClient.setQueryData(propertyKeys.snapshots(PROPERTY.id), []);
+
     const router = createMemoryRouter(
         [{ path: "/properties/:propertyId", element: <PropertyDetailPage /> }],
         { initialEntries: ["/properties/prop_1"] },
@@ -269,8 +280,8 @@ describe("PropertyDetailPage", () => {
 
         expect(await screen.findByText("Scheduled")).toBeInTheDocument();
         expect(screen.getAllByText("5 minutes").length).toBeGreaterThan(0);
-        expect(screen.getByText("Jan 1, 2024, 12:05 PM")).toBeInTheDocument();
-        expect(screen.getByText("Jan 1, 2024, 11:55 AM")).toBeInTheDocument();
+        expect(screen.getAllByText(formatDateTime(PROPERTY.next_run_at ?? "")).length).toBeGreaterThan(0);
+        expect(screen.getAllByText(formatDateTime(PROPERTY.last_run_at ?? "")).length).toBeGreaterThan(0);
     });
 
     it("switches sections without scrolling and only renders the active panel", async () => {
@@ -286,7 +297,7 @@ describe("PropertyDetailPage", () => {
         expect(screen.queryByLabelText("Target price")).not.toBeInTheDocument();
     });
 
-    it("prioritizes insights, then configuration, before notes in the property navigation", async () => {
+    it("orders overview, insights, notes, then configuration in the property navigation", async () => {
         renderPropertyDetailPage();
 
         await screen.findByText("Sunny flat");
@@ -294,17 +305,33 @@ describe("PropertyDetailPage", () => {
             .map((button) => button.textContent)
             .filter((label): label is string => label !== null);
 
-        expect(navLabels.indexOf("Property Insights")).toBeGreaterThan(-1);
-        expect(navLabels.indexOf("Configuration")).toBeGreaterThan(-1);
+        expect(navLabels.indexOf("Overview")).toBeGreaterThan(-1);
+        expect(navLabels.indexOf("Insights")).toBeGreaterThan(-1);
         expect(navLabels.indexOf("Notes & Decisions")).toBeGreaterThan(-1);
-        expect(navLabels.indexOf("Property Insights")).toBeLessThan(navLabels.indexOf("Configuration"));
-        expect(navLabels.indexOf("Configuration")).toBeLessThan(navLabels.indexOf("Notes & Decisions"));
+        expect(navLabels.indexOf("Configuration")).toBeGreaterThan(-1);
+        expect(navLabels.indexOf("Overview")).toBeLessThan(navLabels.indexOf("Insights"));
+        expect(navLabels.indexOf("Insights")).toBeLessThan(navLabels.indexOf("Notes & Decisions"));
+        expect(navLabels.indexOf("Notes & Decisions")).toBeLessThan(navLabels.indexOf("Configuration"));
+    });
+
+    it("renders the price intelligence board inside the Insights section with accessible price guidance", async () => {
+        renderPropertyDetailPage();
+
+        await screen.findByText("Sunny flat");
+        expect(screen.queryByText("Current position")).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole("button", { name: "Insights" }));
+
+        expect(screen.getByText("Current position")).toBeInTheDocument();
+        expect(screen.getByText("Benchmark analysis")).toBeInTheDocument();
+        expect(screen.getByText("Currently 4.8% above target.")).toBeInTheDocument();
+        expect(screen.getByLabelText("Current price")).toHaveAccessibleDescription("Save to refresh benchmark gaps and downstream deal recommendations.");
     });
 
     it("saves structured duration controls as schedule seconds", async () => {
         renderPropertyDetailPage();
 
-        fireEvent.click(await screen.findByRole("button", { name: "Configuration" }));
+        fireEvent.click(await screen.findByRole("button", { name: "Overview" }));
 
         const scheduleInput = document.querySelector<HTMLInputElement>("#prop-schedule-value");
         const scheduleUnit = document.querySelector<HTMLSelectElement>("#prop-schedule-unit");

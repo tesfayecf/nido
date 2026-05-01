@@ -1052,6 +1052,241 @@ textarea {
     padding: var(--space-4);
 }
 
+.price-intelligence-hero {
+    background:
+        radial-gradient(circle at top right, color-mix(in srgb, var(--color-brand-soft) 52%, transparent) 0, transparent 40%),
+        linear-gradient(135deg, color-mix(in srgb, var(--color-surface) 84%, var(--color-background)) 0%, color-mix(in srgb, var(--color-brand-soft) 18%, var(--color-surface)) 100%);
+    border: 1px solid color-mix(in srgb, var(--color-brand) 18%, var(--color-border));
+    border-radius: var(--radius-lg);
+    display: grid;
+    gap: var(--space-4);
+    padding: clamp(var(--space-4), 3vw, var(--space-6));
+}
+
+.price-intelligence-hero__header {
+    align-items: flex-start;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-4);
+    justify-content: space-between;
+}
+
+.price-intelligence-hero__main {
+    display: grid;
+    gap: var(--space-2);
+    max-width: 42rem;
+}
+
+.price-intelligence-hero__headline {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+}
+
+.price-intelligence-hero__price {
+    color: var(--color-text);
+    font-size: clamp(1.9rem, 4vw, 3rem);
+    letter-spacing: -0.04em;
+    line-height: 0.95;
+}
+
+.price-intelligence-hero__summary {
+    color: var(--color-text-secondary);
+    font-size: var(--text-md);
+    line-height: 1.5;
+    margin: 0;
+}
+
+.price-intelligence-hero__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    justify-content: flex-end;
+}
+
+.price-intelligence-stat-grid {
+    display: grid;
+    gap: var(--space-3);
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+}
+
+.price-intelligence-stat {
+    background: color-mix(in srgb, var(--color-surface) 88%, white);
+    border: 1px solid color-mix(in srgb, var(--color-border) 82%, var(--color-brand-soft));
+    border-radius: var(--radius-md);
+    display: grid;
+    gap: var(--space-1);
+    min-height: 8.5rem;
+    padding: var(--space-4);
+}
+
+.price-intelligence-stat__label,
+.price-intelligence-fact__label,
+.price-intelligence-comparison__metric-label,
+.price-intelligence-comparison__eyebrow {
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.price-intelligence-stat__value,
+.price-intelligence-fact__value,
+.price-intelligence-comparison__title,
+.price-intelligence-comparison__metric-value,
+.price-intelligence-panel__title {
+    color: var(--color-text);
+}
+
+.price-intelligence-stat__value {
+    font-size: var(--text-lg);
+    line-height: 1.15;
+}
+
+.price-intelligence-stat__meta {
+    color: var(--color-text-secondary);
+    font-size: var(--text-sm);
+    line-height: 1.45;
+}
+
+.price-intelligence-chip {
+    align-items: center;
+    border-radius: 999px;
+    display: inline-flex;
+    font-size: var(--text-xs);
+    font-weight: 700;
+    gap: var(--space-1);
+    padding: 0.45rem 0.7rem;
+}
+
+.price-intelligence-chip--opportunity {
+    background: color-mix(in srgb, var(--color-success-soft) 76%, var(--color-surface));
+    color: var(--color-success);
+}
+
+.price-intelligence-chip--risk {
+    background: color-mix(in srgb, var(--color-danger-soft) 72%, var(--color-surface));
+    color: var(--color-danger);
+}
+
+.price-intelligence-chip--steady {
+    background: color-mix(in srgb, var(--color-info-soft) 72%, var(--color-surface));
+    color: var(--color-info);
+}
+
+.price-intelligence-panel__header {
+    align-items: flex-start;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    justify-content: space-between;
+}
+
+.price-intelligence-panel__title {
+    font-size: var(--text-lg);
+    margin: var(--space-1) 0 0;
+}
+
+.price-intelligence-panel__copy {
+    color: var(--color-text-secondary);
+    font-size: var(--text-sm);
+    line-height: 1.5;
+    max-width: 18rem;
+    text-align: right;
+}
+
+.price-intelligence-editor-grid {
+    display: grid;
+    gap: var(--space-4);
+}
+
+.price-intelligence-editor__field {
+    display: grid;
+    gap: var(--space-2);
+}
+
+.price-intelligence-field-note {
+    margin: 0;
+}
+
+.price-intelligence-fact-grid {
+    display: grid;
+    gap: var(--space-3);
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+}
+
+.price-intelligence-fact {
+    background: color-mix(in srgb, var(--color-background) 70%, var(--color-surface));
+    border: 1px solid color-mix(in srgb, var(--color-border) 84%, transparent);
+    border-radius: var(--radius-md);
+    display: grid;
+    gap: var(--space-1);
+    padding: var(--space-3);
+}
+
+.price-intelligence-comparison-list {
+    display: grid;
+    gap: var(--space-3);
+}
+
+.price-intelligence-comparison {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    display: grid;
+    gap: var(--space-3);
+    padding: var(--space-4);
+}
+
+.price-intelligence-comparison--opportunity {
+    background: color-mix(in srgb, var(--color-success-soft) 28%, var(--color-surface));
+    border-color: color-mix(in srgb, var(--color-success) 18%, var(--color-border));
+}
+
+.price-intelligence-comparison--risk {
+    background: color-mix(in srgb, var(--color-danger-soft) 24%, var(--color-surface));
+    border-color: color-mix(in srgb, var(--color-danger) 18%, var(--color-border));
+}
+
+.price-intelligence-comparison--steady {
+    background: color-mix(in srgb, var(--color-surface) 84%, var(--color-background));
+}
+
+.price-intelligence-comparison__header {
+    align-items: flex-start;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    justify-content: space-between;
+}
+
+.price-intelligence-comparison__title {
+    font-size: var(--text-lg);
+    margin: var(--space-1) 0 0;
+}
+
+.price-intelligence-comparison__metrics {
+    display: grid;
+    gap: var(--space-3);
+    grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+}
+
+.price-intelligence-comparison__metric {
+    display: grid;
+    gap: var(--space-1);
+}
+
+@media (max-width: 48rem) {
+    .price-intelligence-panel__copy {
+        max-width: none;
+        text-align: left;
+    }
+
+    .price-intelligence-hero__meta {
+        justify-content: flex-start;
+    }
+}
+
 .property-toggle-row {
     align-items: center;
     display: inline-flex;

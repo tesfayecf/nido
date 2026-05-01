@@ -34,7 +34,6 @@ import { readWorkspaceSettings } from "@/features/settings/workspaceSettings";
 import { fieldKeys } from "@/services/fields/fields.keys";
 import { listFields } from "@/services/fields/fields.service";
 import { PropertyAlertCreateDialog } from "@/features/engagement/PropertyAlertCreateDialog";
-import { DecisionStrip } from "@/features/properties/DecisionStrip";
 import {
     SCHEDULE_PRESETS,
     durationDraftFromSeconds,
@@ -335,6 +334,124 @@ const parseAttributeNumber = (value: string | undefined): number | undefined => 
 
 const formatEuro = (value: number): string => `${Math.round(value).toLocaleString("en")} €`;
 
+type PriceDeltaTone = "opportunity" | "risk" | "steady";
+
+const formatOptionalEuro = (value: number | undefined, fallback = "—"): string => {
+    return value !== undefined ? formatEuro(value) : fallback;
+};
+
+const formatRawPriceValue = (value: string | undefined): string => {
+    if (value === undefined || value.trim() === "") {
+        return "Not captured";
+    }
+
+    const parsed = parseAttributeNumber(value);
+    return parsed !== undefined ? formatEuro(parsed) : value;
+};
+
+const normalizeDeltaValue = (value: number | undefined): number | undefined => {
+    if (value === undefined) {
+        return undefined;
+    }
+
+    return Math.abs(value) < 0.05 ? 0 : value;
+};
+
+const formatSignedPercent = (value: number | undefined): string => {
+    const normalized = normalizeDeltaValue(value);
+    if (normalized === undefined) {
+        return "—";
+    }
+
+    const sign = normalized > 0 ? "+" : normalized < 0 ? "-" : "";
+    return `${sign}${Math.abs(normalized).toFixed(1)}%`;
+};
+
+const formatSignedEuro = (value: number | undefined): string => {
+    if (value === undefined) {
+        return "—";
+    }
+
+    const rounded = Math.round(value);
+    const sign = rounded > 0 ? "+" : rounded < 0 ? "-" : "";
+    return `${sign}${formatEuro(Math.abs(rounded))}`;
+};
+
+const formatLabelText = (value: string | undefined): string => {
+    return formatDecisionStatus(value).replace(/\b\w/g, (character) => character.toUpperCase());
+};
+
+const getDeltaTone = (value: number | undefined): PriceDeltaTone => {
+    const normalized = normalizeDeltaValue(value);
+    if (normalized === undefined || normalized === 0) {
+        return "steady";
+    }
+
+    return normalized > 0 ? "risk" : "opportunity";
+};
+
+const getClassificationTone = (classification: ReturnType<typeof buildPriceIntelligence>["classification"]): PriceDeltaTone => {
+    if (classification === "cheap") {
+        return "opportunity";
+    }
+
+    if (classification === "expensive") {
+        return "risk";
+    }
+
+    return "steady";
+};
+
+const buildGapSummary = (value: number | undefined, label: string): string | undefined => {
+    const normalized = normalizeDeltaValue(value);
+    if (normalized === undefined) {
+        return undefined;
+    }
+
+    if (normalized === 0) {
+        return `aligned with ${label}`;
+    }
+
+    return `${Math.abs(normalized).toFixed(1)}% ${normalized > 0 ? "above" : "below"} ${label}`;
+};
+
+const buildBenchmarkNarrative = (pricingInsight: ReturnType<typeof buildPriceIntelligence>): string => {
+    const statements = [
+        buildGapSummary(pricingInsight.target_delta_percent, "target"),
+        buildGapSummary(pricingInsight.market_delta_percent, "market average"),
+    ].filter((statement): statement is string => statement !== undefined);
+
+    return statements.length > 0
+        ? `Currently ${statements.join(" and ")}.`
+        : `Using ${pricingInsight.benchmark_label} as the active benchmark.`;
+};
+
+const buildDeltaChipLabel = (value: number | undefined, label: string): string => {
+    const normalized = normalizeDeltaValue(value);
+    if (normalized === undefined) {
+        return "Awaiting data";
+    }
+
+    if (normalized === 0) {
+        return "In line";
+    }
+
+    return `${normalized > 0 ? "Above" : "Below"} ${label}`;
+};
+
+const buildGapReading = (value: number | undefined, label: string): string => {
+    const rounded = value !== undefined ? Math.round(value) : undefined;
+    if (rounded === undefined) {
+        return `No ${label} benchmark yet`;
+    }
+
+    if (rounded === 0) {
+        return `In line with ${label}`;
+    }
+
+    return `${formatEuro(Math.abs(rounded))} ${rounded > 0 ? "above" : "below"} ${label}`;
+};
+
 const buildPropertyAttributes = (values: Record<string, string>): { pricePerSquareMeter?: string; rooms?: string; surfaceArea?: string; totalPrice?: string; } => {
     const price = parseAttributeNumber(values.price ?? values.total_price);
     const area = parseAttributeNumber(values.area_m2 ?? values.surface_area ?? values.surface);
@@ -350,12 +467,13 @@ const buildPropertyAttributes = (values: Record<string, string>): { pricePerSqua
 
 const createPriceSelectorDrafts = (): SelectorFieldDraft[] => createDefaultSelectorDrafts().filter((field) => field.name === "price");
 
-type PropertySectionId = "configuration" | "insights" | "notes-decisions";
+type PropertySectionId = "overview" | "insights" | "notes-decisions" | "configuration";
 
 const PROPERTY_SECTIONS: { readonly id: PropertySectionId; readonly label: string; }[] = [
-    { id: "insights", label: "Property Insights" },
-    { id: "configuration", label: "Configuration" },
+    { id: "overview", label: "Overview" },
+    { id: "insights", label: "Insights" },
     { id: "notes-decisions", label: "Notes & Decisions" },
+    { id: "configuration", label: "Configuration" },
 ];
 
 const toTemplateFieldDraft = (field: ReturnType<typeof parseSelectorConfigJson>[number]): SelectorFieldDraft => ({
@@ -410,7 +528,7 @@ export const PropertyDetailPage = (): JSX.Element => {
     const [manualEntryMode, setManualEntryMode] = useState(false);
     const [autofillStatus, setAutofillStatus] = useState<"error" | "idle" | "loading" | "success">("idle");
     const [autofillMessage, setAutofillMessage] = useState("");
-    const [activeSection, setActiveSection] = useState<PropertySectionId>("insights");
+    const [activeSection, setActiveSection] = useState<PropertySectionId>("overview");
     const [detachmentAlertDismissed, setDetachmentAlertDismissed] = useState(false);
     const manualOverrideFieldsRef = useRef<Set<PropertyManualDataDraftKey>>(new Set());
     const autofilledFieldsRef = useRef<Set<PropertyManualDataDraftKey>>(new Set());
@@ -493,7 +611,7 @@ export const PropertyDetailPage = (): JSX.Element => {
     }, [propertyQuery.data]);
 
     useEffect(() => {
-        setActiveSection("insights");
+        setActiveSection("overview");
     }, [resolvedId]);
 
     useEffect(() => {
@@ -1127,7 +1245,7 @@ export const PropertyDetailPage = (): JSX.Element => {
                         </button>
                     ))}
                 </nav>
-                {activeSection === "insights" ? (
+                {activeSection === "overview" ? (
                     <PageCard
                         action={(
                             <ActionGroup>
@@ -1135,9 +1253,9 @@ export const PropertyDetailPage = (): JSX.Element => {
                                 <Button onClick={() => { setDeleteOpen(true); }} variant={"secondary"}>{"Delete"}</Button>
                             </ActionGroup>
                         )}
-                        description={"Review the latest tracked state, then edit directly inside each section without leaving this page."}
+                        description={"Review the latest tracked state and core property facts before drilling into insights or configuration."}
                         title={propertyQuery.data?.label !== undefined && propertyQuery.data.label !== "" ? propertyQuery.data.label : propertyQuery.data?.url !== undefined && propertyQuery.data.url !== "" ? propertyQuery.data.url : "Manual property"}
-                        titleId={"insights"}
+                        titleId={"overview"}
                     >
                         {propertyQuery.isError ? <ErrorBanner>{"Could not load property."}</ErrorBanner> : null}
                         {propertyQuery.data !== undefined ? (
@@ -1165,7 +1283,7 @@ export const PropertyDetailPage = (): JSX.Element => {
                     </PageCard>
                 ) : null}
 
-                {activeSection === "insights" ? (
+                {activeSection === "overview" ? (
                     <>
                         <PageCard description={"Auto-calculated from the latest extracted values and field defaults."} title={"Attributes"} titleId={"attributes"}>
                             <KeyValueGrid compact>
@@ -1201,252 +1319,8 @@ export const PropertyDetailPage = (): JSX.Element => {
                     </>
                 ) : null}
 
-                {activeSection === "insights" ? (
-                    <PageCard description={"Separates price inputs, computed metrics, and history so pricing signals are easy to scan."} title={"Price Intelligence"} titleId={"price-intelligence"}>
-                        {summaryQuery.data === undefined || pricingInsight === undefined ? <EmptyState message={"Price intelligence will appear after the first property summary is available."} /> : (
-                            <div className={"property-section-stack"}>
-                                <DecisionStrip allSummaries={summariesQuery.data} settings={workspaceSettings} summary={summaryQuery.data} />
-                                <div className={"property-detail-group-grid"}>
-                                    <section className={"property-detail-group"}>
-                                        <span className={"app-shell__eyebrow"}>{"Raw inputs"}</span>
-                                        <FormGrid variant={"two-column"}>
-                                            <Field error={manualPriceError} label={"Current price"}>
-                                                <Input id={"prop-price"} invalid={manualPriceError !== undefined} min={0} onChange={(event) => { setManualDataDraft((current) => ({ ...current, price: event.target.value })); }} prefix={"€"} type={"number"} value={manualDataDraft.price} />
-                                            </Field>
-                                            <Field label={"Current extracted price"}>
-                                                <Input disabled placeholder={"Not captured"} prefix={"€"} type={"text"} value={latestValues.price ?? latestValues.total_price ?? ""} />
-                                            </Field>
-                                        </FormGrid>
-                                        <KeyValueGrid compact>
-                                            <KeyValuePair label={"Target price"} value={pricingInsight.target_price !== undefined ? formatEuro(pricingInsight.target_price) : "Not set"} />
-                                            <KeyValuePair label={"Market average"} value={pricingInsight.market_average !== undefined ? formatEuro(pricingInsight.market_average) : "Not enough comparables"} />
-                                            <KeyValuePair label={"Benchmark"} value={pricingInsight.benchmark_value !== undefined ? formatEuro(pricingInsight.benchmark_value) : "Not set"} />
-                                            <KeyValuePair label={"Latest extracted €/m²"} value={pricingInsight.current_price_per_unit !== undefined ? formatEuro(pricingInsight.current_price_per_unit) : "Not captured"} />
-                                        </KeyValueGrid>
-                                        <ActionGroup>
-                                            <Button disabled={isPropertySaveDisabled} onClick={handlePropertySave}>{savePropertyMutation.isPending ? "Saving..." : "Save price"}</Button>
-                                        </ActionGroup>
-                                    </section>
-                                    <section className={"property-detail-group"}>
-                                        <span className={"app-shell__eyebrow"}>{"Computed metrics"}</span>
-                                        <KeyValueGrid compact>
-                                            <KeyValuePair label={"Decision status"} value={formatDecisionStatus(summaryQuery.data.decision.stage)} />
-                                            <KeyValuePair label={"Classification"} value={pricingInsight.classification} />
-                                            <KeyValuePair label={"Gap vs market"} value={pricingInsight.market_delta_percent !== undefined ? `${pricingInsight.market_delta_percent.toFixed(1)}%` : "—"} />
-                                            <KeyValuePair label={"Gap vs target"} value={pricingInsight.target_delta_percent !== undefined ? `${pricingInsight.target_delta_percent.toFixed(1)}%` : "—"} />
-                                            <KeyValuePair label={"Market delta"} value={pricingInsight.market_delta_absolute !== undefined ? formatEuro(pricingInsight.market_delta_absolute) : "—"} />
-                                            <KeyValuePair label={"Target delta"} value={pricingInsight.target_delta_absolute !== undefined ? formatEuro(pricingInsight.target_delta_absolute) : "—"} />
-                                            <KeyValuePair label={"Comparables"} value={`${pricingInsight.comparable_count}`} />
-                                            <KeyValuePair label={"Freshness"} value={summaryQuery.data.decision.freshness_status} />
-                                        </KeyValueGrid>
-                                    </section>
-                                </div>
-                                <section className={"property-detail-group"}>
-                                    <span className={"app-shell__eyebrow"}>{"History & trends"}</span>
-                                    <div className={"property-inline-note"}>
-                                        <strong>{summaryQuery.data.latest_change_summary === "" ? "No recent pricing change summary." : summaryQuery.data.latest_change_summary}</strong>
-                                        <span>{summaryQuery.data.signals.length === 0 ? "No pricing or data-quality signals are available yet." : `${summaryQuery.data.signals.length} tracked signal${summaryQuery.data.signals.length === 1 ? "" : "s"} available.`}</span>
-                                    </div>
-                                    {summaryQuery.data.signals.length > 0 ? (
-                                        <Tabs
-                                            defaultTabId={"all"}
-                                            items={[
-                                                {
-                                                    id: "all",
-                                                    label: "All signals",
-                                                    panel: (
-                                                        <DataTable
-                                                            caption={"Change signals"}
-                                                            columns={[
-                                                                { cell: (item) => item.label, header: "Signal", id: "label", sortValue: (item) => item.label },
-                                                                { cell: (item) => item.group, header: "Group", id: "group", sortValue: (item) => item.group },
-                                                                { cell: (item) => item.impact, header: "Impact", id: "impact", sortValue: (item) => item.impact },
-                                                                { cell: (item) => item.previous ?? "—", header: "Previous", id: "previous" },
-                                                                { cell: (item) => item.current ?? "—", header: "Current", id: "current" },
-                                                                { cell: (item) => formatDateTime(item.observed_at), header: "Observed at", id: "observed_at", sortValue: (item) => item.observed_at },
-                                                            ]}
-                                                            compact
-                                                            emptyMessage={"No signals detected."}
-                                                            getRowId={(item) => item.field}
-                                                            items={summaryQuery.data.signals}
-                                                            pageSize={10}
-                                                        />
-                                                    ),
-                                                },
-                                                {
-                                                    id: "pricing",
-                                                    label: "Pricing",
-                                                    panel: (
-                                                        <DataTable
-                                                            caption={"Pricing signals"}
-                                                            columns={[
-                                                                { cell: (item) => item.label, header: "Signal", id: "label" },
-                                                                { cell: (item) => item.impact, header: "Impact", id: "impact" },
-                                                                { cell: (item) => item.previous ?? "—", header: "Previous", id: "previous" },
-                                                                { cell: (item) => item.current ?? "—", header: "Current", id: "current" },
-                                                            ]}
-                                                            compact
-                                                            emptyMessage={"No pricing signals."}
-                                                            getRowId={(item) => item.field}
-                                                            items={summaryQuery.data.signals.filter((signal) => signal.group === "pricing")}
-                                                            pageSize={10}
-                                                        />
-                                                    ),
-                                                },
-                                                {
-                                                    id: "data_quality",
-                                                    label: "Data quality",
-                                                    panel: (
-                                                        <DataTable
-                                                            caption={"Data quality signals"}
-                                                            columns={[
-                                                                { cell: (item) => item.label, header: "Signal", id: "label" },
-                                                                { cell: (item) => item.impact, header: "Impact", id: "impact" },
-                                                                { cell: (item) => item.field, header: "Field", id: "field" },
-                                                            ]}
-                                                            compact
-                                                            emptyMessage={"No data quality signals."}
-                                                            getRowId={(item) => item.field}
-                                                            items={summaryQuery.data.signals.filter((signal) => signal.group === "data_quality" || signal.group === "freshness")}
-                                                            pageSize={10}
-                                                        />
-                                                    ),
-                                                },
-                                            ]}
-                                        />
-                                    ) : null}
-                                </section>
-                            </div>
-                        )}
-                        {savePropertyMutation.isError ? <ErrorBanner>{"Could not save property. Check the price, source details, and any optional URL."}</ErrorBanner> : null}
-                    </PageCard>
-                ) : null}
-
-                {activeSection === "notes-decisions" ? (
-                    <PageCard description={"Edit decision context, notes, and thesis directly within the section."} title={"Notes & Decisions"} titleId={"notes-decisions"}>
-                        <FormGrid variant={"two-column"}>
-                            <div style={{ display: "grid", gap: "0.25rem", gridColumn: "1 / -1" }}>
-                                <strong>{"Decision status"}</strong>
-                                <div className={"action-group"}>
-                                    {["candidate", "shortlisted", "rejected"].map((value) => (
-                                        <Button
-                                            key={value}
-                                            onClick={() => { setMetadataDraft((current) => ({ ...current, businessStage: current.businessStage === value ? "" : value })); }}
-                                            size={"small"}
-                                            type={"button"}
-                                            variant={metadataDraft.businessStage === value ? "primary" : "secondary"}
-                                        >
-                                            {formatDecisionStatus(value)}
-                                        </Button>
-                                    ))}
-                                </div>
-                            </div>
-                            <Field label={"Target price"}>
-                                <Input min={0} onChange={(event) => { setMetadataDraft((current) => ({ ...current, targetPrice: event.target.value })); }} prefix={"€"} type={"number"} value={metadataDraft.targetPrice} />
-                            </Field>
-                            <Field label={"Priority"}>
-                                <Select onChange={(event) => { setMetadataDraft((current) => ({ ...current, priorityLevel: event.target.value })); }} value={metadataDraft.priorityLevel}>
-                                    <option value={""}>{"Not set"}</option>
-                                    <option value={"low"}>{"Low"}</option>
-                                    <option value={"medium"}>{"Medium"}</option>
-                                    <option value={"high"}>{"High"}</option>
-                                    <option value={"critical"}>{"Critical"}</option>
-                                </Select>
-                            </Field>
-                            <Field label={"Expected rent"}>
-                                <Input min={0} onChange={(event) => { setMetadataDraft((current) => ({ ...current, expectedRent: event.target.value })); }} prefix={"€"} type={"number"} value={metadataDraft.expectedRent} />
-                            </Field>
-                            <Field label={"Expected yield (%)"}>
-                                <Input min={0} onChange={(event) => { setMetadataDraft((current) => ({ ...current, expectedYieldPercent: event.target.value })); }} step={"0.1"} type={"number"} value={metadataDraft.expectedYieldPercent} />
-                            </Field>
-                            <Field fullWidth label={"Notes"}>
-                                <Textarea onChange={(event) => { setMetadataDraft((current) => ({ ...current, acquisitionNotes: event.target.value })); }} rows={4} value={metadataDraft.acquisitionNotes} />
-                            </Field>
-                            <Field fullWidth label={"Thesis"}>
-                                <Textarea onChange={(event) => { setMetadataDraft((current) => ({ ...current, dealThesis: event.target.value })); }} rows={4} value={metadataDraft.dealThesis} />
-                            </Field>
-                        </FormGrid>
-                        <ActionGroup>
-                            <Button disabled={isPropertySaveDisabled} onClick={handlePropertySave}>{savePropertyMutation.isPending ? "Saving..." : "Save notes & decisions"}</Button>
-                        </ActionGroup>
-                        {savePropertyMutation.isError ? <ErrorBanner>{"Could not save property. Check the price, source details, and any optional URL."}</ErrorBanner> : null}
-                    </PageCard>
-                ) : null}
-
-                {activeSection === "configuration" ? (
+                {activeSection === "overview" ? (
                     <>
-                        <PageCard
-                            description={"Manage property identity and template linkage inline without opening a separate editor."}
-                            title={"Configuration"}
-                            titleId={"configuration"}
-                        >
-                            <FormGrid variant={"two-column"}>
-                                <Field label={"Label"}>
-                                    <Input id={"prop-label"} onChange={(event) => { setLabel(event.target.value); }} placeholder={"Optional display name"} type={"text"} value={label} />
-                                </Field>
-                                <Field error={urlError} fullWidth label={"Source URL"}>
-                                    <Input id={"prop-url"} invalid={urlError !== undefined} onChange={(event) => { setUrl(event.target.value); }} placeholder={"https://example.com/property/123"} type={"url"} value={url} />
-                                </Field>
-                                <Field label={"Source template"}>
-                                    <Select id={"prop-source"} onChange={(event) => { setSourceId(event.target.value); }} value={sourceId}>
-                                        <option value={""}>{"No template"}</option>
-                                        {(sourcesQuery.data ?? []).map((source) => {
-                                            return <option key={source.id} value={source.id}>{source.name}</option>;
-                                        })}
-                                    </Select>
-                                </Field>
-                            </FormGrid>
-                            <ActionGroup>
-                                <Button disabled={isPropertySaveDisabled} onClick={handlePropertySave}>{savePropertyMutation.isPending ? "Saving..." : "Save settings"}</Button>
-                                <Button onClick={() => { setDeleteOpen(true); }} variant={"secondary"}>{"Delete"}</Button>
-                            </ActionGroup>
-                            {savePropertyMutation.isError ? <ErrorBanner>{"Could not save property. Check the price, source details, and any optional URL."}</ErrorBanner> : null}
-                        </PageCard>
-                        <PageCard
-                            action={(
-                                <Button onClick={() => { setTagsOpen(true); }} variant={"secondary"}>{"Edit tags"}</Button>
-                            )}
-                            description={"Manage tags here so categorization stays with the rest of the property settings."}
-                            title={"Tags"}
-                        >
-                            {propertyTagsQuery.isLoading ? <p className={"muted-copy"}>{"Loading tags..."}</p> : null}
-                            {(propertyTagsQuery.data ?? []).length === 0 && !propertyTagsQuery.isLoading
-                                ? <EmptyState message={"No tags assigned. Click 'Edit tags' to add tags."} />
-                                : (
-                                    <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
-                                        {(propertyTagsQuery.data ?? []).map((tag) => <TagBadge key={tag.id} tag={tag} />)}
-                                    </div>
-                                )}
-                        </PageCard>
-                        <PageCard description={"Review the URL and template summary, then manage field configuration from a compact, expandable table."} title={"Fields & Source Extraction"}>
-                            <KeyValueGrid compact>
-                                <KeyValuePair label={"URL"} value={propertyQuery.data?.url !== undefined && propertyQuery.data.url !== "" ? propertyQuery.data.url : "Manual property"} />
-                                <KeyValuePair label={"Source template"} value={sourcesQuery.data?.find((source) => source.id === propertyQuery.data?.source_id)?.name ?? "No template"} />
-                            </KeyValueGrid>
-                            {isTemplateDetached && !detachmentAlertDismissed ? (
-                                <div className={"property-inline-alert"} role={"status"}>
-                                    <span className={"property-inline-alert__copy"}>
-                                        <strong>{"Template link removed for this property."}</strong>
-                                        <span>{"This field setup no longer matches the selected template, so future template updates will not apply automatically."}</span>
-                                    </span>
-                                    <Button onClick={() => { setDetachmentAlertDismissed(true); }} size={"small"} variant={"ghost"}>
-                                        {"Dismiss"}
-                                    </Button>
-                                </div>
-                            ) : null}
-                            <SelectorBuilder fieldDefinitions={fieldDefinitionsQuery.data} fieldMetadataById={fieldMetadataById} fields={fieldRows} onChange={setFieldRows} previewByFieldName={previewMap} />
-                            <ActionGroup>
-                                <Button onClick={() => { setFieldRows((rows) => [...rows, createEmptySelectorDraft()]); }} variant={"secondary"}>{"Add field"}</Button>
-                                <Button disabled={previewMutation.isPending || url.trim() === "" || validationMessages.length > 0} onClick={() => { previewMutation.mutate(); }} variant={"secondary"}>{previewMutation.isPending ? "Previewing..." : "Preview extraction"}</Button>
-                                <Button disabled={saveConfigMutation.isPending || validationMessages.length > 0} onClick={() => { saveConfigMutation.mutate(); }}>{saveConfigMutation.isPending ? "Saving..." : "Save configuration"}</Button>
-                            </ActionGroup>
-                            {validationMessages.length > 0 ? (
-                                <div className={"selector-builder__validation-list"}>
-                                    {validationMessages.map((message) => <ErrorBanner key={message}>{message}</ErrorBanner>)}
-                                </div>
-                            ) : null}
-                            {saveConfigMutation.isError ? <ErrorBanner>{"Could not save configuration."}</ErrorBanner> : null}
-                        </PageCard>
                         <PageCard
                             action={(
                                 <ActionGroup>
@@ -1585,31 +1459,6 @@ export const PropertyDetailPage = (): JSX.Element => {
                                 </>
                             )}
                         </PageCard>
-                        <PageCard
-                            action={(
-                                <Button onClick={() => { setCreateAlertOpen(true); }} variant={"secondary"}>{"Create alert"}</Button>
-                            )}
-                            description={"Alert configuration stays with the rest of the operational setup so thresholds and automations stay together."}
-                            title={"Alerts"}
-                        >
-                            {propertyAlerts.length === 0 ? <EmptyState message={"No alerts are linked to this property yet."} /> : (
-                                <ItemList>
-                                    {propertyAlerts.map((rule) => {
-                                        return (
-                                            <ListRow key={rule.id}>
-                                                <ListRowMain>
-                                                    <div>
-                                                        <h3 className={"list-row__title"}>{getRuleTypeLabel(rule.rule_type)}</h3>
-                                                        <p className={"list-row__meta"}>{getRuleTypeLogic(rule.rule_type, rule.threshold_amount)}</p>
-                                                    </div>
-                                                    <StatusBadge tone={rule.enabled ? "success" : "neutral"} value={rule.enabled ? "on" : "off"} />
-                                                </ListRowMain>
-                                            </ListRow>
-                                        );
-                                    })}
-                                </ItemList>
-                            )}
-                        </PageCard>
                         <PageCard description={"Recent automation runs with auto-refresh every 5 seconds."} title={"Automation Runs"}>
                             <DataTable
                                 caption={"Property automation runs"}
@@ -1671,6 +1520,397 @@ export const PropertyDetailPage = (): JSX.Element => {
                                 pageSize={8}
                                 rowLabel={(item) => `Open run ${item.id}`}
                             />
+                        </PageCard>
+                    </>
+                ) : null}
+
+                {activeSection === "insights" ? (
+                    <PageCard description={"Puts the live price, benchmark gaps, and tracked changes into a single decision board."} title={"Price Intelligence"} titleId={"price-intelligence"}>
+                        {summaryQuery.data === undefined || pricingInsight === undefined ? <EmptyState message={"Price intelligence will appear after the first property summary is available."} /> : (
+                            <div className={"property-section-stack"}>
+                                <section className={"price-intelligence-hero"}>
+                                    <div className={"price-intelligence-hero__header"}>
+                                        <div className={"price-intelligence-hero__main"}>
+                                            <span className={"app-shell__eyebrow"}>{"Current position"}</span>
+                                            <div className={"price-intelligence-hero__headline"}>
+                                                <strong className={"price-intelligence-hero__price"}>{formatOptionalEuro(pricingInsight.current_price, "Not captured")}</strong>
+                                                <span className={`price-intelligence-chip price-intelligence-chip--${getClassificationTone(pricingInsight.classification)}`}>{formatLabelText(pricingInsight.classification)}</span>
+                                            </div>
+                                            <p className={"price-intelligence-hero__summary"}>{buildBenchmarkNarrative(pricingInsight)}</p>
+                                        </div>
+                                        <div className={"price-intelligence-hero__meta"}>
+                                            <span className={"price-intelligence-chip price-intelligence-chip--steady"}>{`Stage: ${formatLabelText(summaryQuery.data.decision.stage)}`}</span>
+                                            <span className={"price-intelligence-chip price-intelligence-chip--steady"}>{`Freshness: ${formatLabelText(summaryQuery.data.decision.freshness_status)}`}</span>
+                                            <span className={"price-intelligence-chip price-intelligence-chip--steady"}>{`${pricingInsight.comparable_count} comparable${pricingInsight.comparable_count === 1 ? "" : "s"}`}</span>
+                                        </div>
+                                    </div>
+                                    <div className={"price-intelligence-stat-grid"}>
+                                        <div className={"price-intelligence-stat"}>
+                                            <span className={"price-intelligence-stat__label"}>{"Primary benchmark"}</span>
+                                            <strong className={"price-intelligence-stat__value"}>{formatOptionalEuro(pricingInsight.benchmark_value, "Waiting for price target")}</strong>
+                                            <span className={"price-intelligence-stat__meta"}>{pricingInsight.benchmark_label === "target price" ? "Target price" : "Market average"}</span>
+                                        </div>
+                                        <div className={"price-intelligence-stat"}>
+                                            <span className={"price-intelligence-stat__label"}>{"Target price"}</span>
+                                            <strong className={"price-intelligence-stat__value"}>{formatOptionalEuro(pricingInsight.target_price, "Not set")}</strong>
+                                            <span className={"price-intelligence-stat__meta"}>{"Acquisition objective"}</span>
+                                        </div>
+                                        <div className={"price-intelligence-stat"}>
+                                            <span className={"price-intelligence-stat__label"}>{"Market average"}</span>
+                                            <strong className={"price-intelligence-stat__value"}>{formatOptionalEuro(pricingInsight.market_average, "Not enough comparables")}</strong>
+                                            <span className={"price-intelligence-stat__meta"}>{pricingInsight.market_average === undefined ? "Need more similar listings" : "Comparable listings"}</span>
+                                        </div>
+                                        <div className={"price-intelligence-stat"}>
+                                            <span className={"price-intelligence-stat__label"}>{"Latest extracted €/m²"}</span>
+                                            <strong className={"price-intelligence-stat__value"}>{formatOptionalEuro(pricingInsight.current_price_per_unit, "Not captured")}</strong>
+                                            <span className={"price-intelligence-stat__meta"}>{"Computed from current surface area"}</span>
+                                        </div>
+                                    </div>
+                                </section>
+                                <div className={"property-detail-group-grid"}>
+                                    <section className={"property-detail-group"}>
+                                        <div className={"price-intelligence-panel__header"}>
+                                            <div>
+                                                <span className={"app-shell__eyebrow"}>{"Price controls"}</span>
+                                                <h3 className={"price-intelligence-panel__title"}>{"Update acquisition baseline"}</h3>
+                                            </div>
+                                            <span className={"price-intelligence-panel__copy"}>{"Comparisons refresh after the next save."}</span>
+                                        </div>
+                                        <div className={"price-intelligence-editor-grid"}>
+                                            <div className={"price-intelligence-editor__field"}>
+                                                <Field error={manualPriceError} label={"Current price"}>
+                                                    <Input
+                                                        aria-label={"Current price"}
+                                                        aria-describedby={"prop-price-note"}
+                                                        id={"prop-price"}
+                                                        invalid={manualPriceError !== undefined}
+                                                        min={0}
+                                                        onChange={(event) => { setManualDataDraft((current) => ({ ...current, price: event.target.value })); }}
+                                                        prefix={"€"}
+                                                        type={"number"}
+                                                        value={manualDataDraft.price}
+                                                    />
+                                                </Field>
+                                                <p className={"field__hint price-intelligence-field-note"} id={"prop-price-note"}>{"Save to refresh benchmark gaps and downstream deal recommendations."}</p>
+                                            </div>
+                                            <div className={"price-intelligence-fact-grid"}>
+                                                <div className={"price-intelligence-fact"}>
+                                                    <span className={"price-intelligence-fact__label"}>{"Latest extracted price"}</span>
+                                                    <strong className={"price-intelligence-fact__value"}>{formatRawPriceValue(latestValues.price ?? latestValues.total_price)}</strong>
+                                                </div>
+                                                <div className={"price-intelligence-fact"}>
+                                                    <span className={"price-intelligence-fact__label"}>{"Active benchmark"}</span>
+                                                    <strong className={"price-intelligence-fact__value"}>{pricingInsight.benchmark_label === "target price" ? "Target price" : "Market average"}</strong>
+                                                </div>
+                                                <div className={"price-intelligence-fact"}>
+                                                    <span className={"price-intelligence-fact__label"}>{"Benchmark value"}</span>
+                                                    <strong className={"price-intelligence-fact__value"}>{formatOptionalEuro(pricingInsight.benchmark_value, "Waiting for price target")}</strong>
+                                                </div>
+                                                <div className={"price-intelligence-fact"}>
+                                                    <span className={"price-intelligence-fact__label"}>{"Classification"}</span>
+                                                    <strong className={"price-intelligence-fact__value"}>{formatLabelText(pricingInsight.classification)}</strong>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <ActionGroup>
+                                            <Button disabled={isPropertySaveDisabled} onClick={handlePropertySave}>{savePropertyMutation.isPending ? "Saving..." : "Save price"}</Button>
+                                        </ActionGroup>
+                                    </section>
+                                    <section className={"property-detail-group"}>
+                                        <div className={"price-intelligence-panel__header"}>
+                                            <div>
+                                                <span className={"app-shell__eyebrow"}>{"Benchmark analysis"}</span>
+                                                <h3 className={"price-intelligence-panel__title"}>{"See where the listing sits"}</h3>
+                                            </div>
+                                            <span className={"price-intelligence-panel__copy"}>{"Positive gaps mean the asking price is above the reference point."}</span>
+                                        </div>
+                                        <div className={"price-intelligence-comparison-list"}>
+                                            <article className={`price-intelligence-comparison price-intelligence-comparison--${getDeltaTone(pricingInsight.target_delta_percent)}`}>
+                                                <div className={"price-intelligence-comparison__header"}>
+                                                    <div>
+                                                        <span className={"price-intelligence-comparison__eyebrow"}>{"Target price"}</span>
+                                                        <h4 className={"price-intelligence-comparison__title"}>{formatOptionalEuro(pricingInsight.target_price, "Not set")}</h4>
+                                                    </div>
+                                                    <span className={`price-intelligence-chip price-intelligence-chip--${getDeltaTone(pricingInsight.target_delta_percent)}`}>{buildDeltaChipLabel(pricingInsight.target_delta_percent, "target")}</span>
+                                                </div>
+                                                <div className={"price-intelligence-comparison__metrics"}>
+                                                    <div className={"price-intelligence-comparison__metric"}>
+                                                        <span className={"price-intelligence-comparison__metric-label"}>{"Percent gap"}</span>
+                                                        <strong className={"price-intelligence-comparison__metric-value"}>{formatSignedPercent(pricingInsight.target_delta_percent)}</strong>
+                                                    </div>
+                                                    <div className={"price-intelligence-comparison__metric"}>
+                                                        <span className={"price-intelligence-comparison__metric-label"}>{"Euro gap"}</span>
+                                                        <strong className={"price-intelligence-comparison__metric-value"}>{formatSignedEuro(pricingInsight.target_delta_absolute)}</strong>
+                                                    </div>
+                                                    <div className={"price-intelligence-comparison__metric"}>
+                                                        <span className={"price-intelligence-comparison__metric-label"}>{"Reading"}</span>
+                                                        <strong className={"price-intelligence-comparison__metric-value"}>{buildGapReading(pricingInsight.target_delta_absolute, "target")}</strong>
+                                                    </div>
+                                                </div>
+                                            </article>
+                                            <article className={`price-intelligence-comparison price-intelligence-comparison--${getDeltaTone(pricingInsight.market_delta_percent)}`}>
+                                                <div className={"price-intelligence-comparison__header"}>
+                                                    <div>
+                                                        <span className={"price-intelligence-comparison__eyebrow"}>{"Market average"}</span>
+                                                        <h4 className={"price-intelligence-comparison__title"}>{formatOptionalEuro(pricingInsight.market_average, "Not enough comparables")}</h4>
+                                                    </div>
+                                                    <span className={`price-intelligence-chip price-intelligence-chip--${getDeltaTone(pricingInsight.market_delta_percent)}`}>{buildDeltaChipLabel(pricingInsight.market_delta_percent, "market")}</span>
+                                                </div>
+                                                <div className={"price-intelligence-comparison__metrics"}>
+                                                    <div className={"price-intelligence-comparison__metric"}>
+                                                        <span className={"price-intelligence-comparison__metric-label"}>{"Percent gap"}</span>
+                                                        <strong className={"price-intelligence-comparison__metric-value"}>{formatSignedPercent(pricingInsight.market_delta_percent)}</strong>
+                                                    </div>
+                                                    <div className={"price-intelligence-comparison__metric"}>
+                                                        <span className={"price-intelligence-comparison__metric-label"}>{"Euro gap"}</span>
+                                                        <strong className={"price-intelligence-comparison__metric-value"}>{formatSignedEuro(pricingInsight.market_delta_absolute)}</strong>
+                                                    </div>
+                                                    <div className={"price-intelligence-comparison__metric"}>
+                                                        <span className={"price-intelligence-comparison__metric-label"}>{"Reading"}</span>
+                                                        <strong className={"price-intelligence-comparison__metric-value"}>{buildGapReading(pricingInsight.market_delta_absolute, "market average")}</strong>
+                                                    </div>
+                                                </div>
+                                            </article>
+                                        </div>
+                                    </section>
+                                </div>
+                                <section className={"property-detail-group"}>
+                                    <div className={"price-intelligence-panel__header"}>
+                                        <div>
+                                            <span className={"app-shell__eyebrow"}>{"Signals timeline"}</span>
+                                            <h3 className={"price-intelligence-panel__title"}>{"Recent pricing movement"}</h3>
+                                        </div>
+                                        <span className={"price-intelligence-panel__copy"}>{summaryQuery.data.signals.length === 0 ? "No tracked pricing or freshness signals yet." : `${summaryQuery.data.signals.length} tracked signal${summaryQuery.data.signals.length === 1 ? "" : "s"} available.`}</span>
+                                    </div>
+                                    <div className={"property-inline-note"}>
+                                        <strong>{summaryQuery.data.latest_change_summary === "" ? "No recent pricing change summary." : summaryQuery.data.latest_change_summary}</strong>
+                                        <span>{pricingInsight.benchmark_label === "target price" ? "Target price is currently driving the benchmark view." : "Market average is currently driving the benchmark view."}</span>
+                                    </div>
+                                    {summaryQuery.data.signals.length > 0 ? (
+                                        <Tabs
+                                            defaultTabId={"all"}
+                                            items={[
+                                                {
+                                                    id: "all",
+                                                    label: "All signals",
+                                                    panel: (
+                                                        <DataTable
+                                                            caption={"Change signals"}
+                                                            columns={[
+                                                                { cell: (item) => item.label, header: "Signal", id: "label", sortValue: (item) => item.label },
+                                                                { cell: (item) => item.group, header: "Group", id: "group", sortValue: (item) => item.group },
+                                                                { cell: (item) => item.impact, header: "Impact", id: "impact", sortValue: (item) => item.impact },
+                                                                { cell: (item) => item.previous ?? "—", header: "Previous", id: "previous" },
+                                                                { cell: (item) => item.current ?? "—", header: "Current", id: "current" },
+                                                                { cell: (item) => formatDateTime(item.observed_at), header: "Observed at", id: "observed_at", sortValue: (item) => item.observed_at },
+                                                            ]}
+                                                            compact
+                                                            emptyMessage={"No signals detected."}
+                                                            getRowId={(item) => item.field}
+                                                            items={summaryQuery.data.signals}
+                                                            pageSize={10}
+                                                        />
+                                                    ),
+                                                },
+                                                {
+                                                    id: "pricing",
+                                                    label: "Pricing",
+                                                    panel: (
+                                                        <DataTable
+                                                            caption={"Pricing signals"}
+                                                            columns={[
+                                                                { cell: (item) => item.label, header: "Signal", id: "label" },
+                                                                { cell: (item) => item.impact, header: "Impact", id: "impact" },
+                                                                { cell: (item) => item.previous ?? "—", header: "Previous", id: "previous" },
+                                                                { cell: (item) => item.current ?? "—", header: "Current", id: "current" },
+                                                            ]}
+                                                            compact
+                                                            emptyMessage={"No pricing signals."}
+                                                            getRowId={(item) => item.field}
+                                                            items={summaryQuery.data.signals.filter((signal) => signal.group === "pricing")}
+                                                            pageSize={10}
+                                                        />
+                                                    ),
+                                                },
+                                                {
+                                                    id: "quality",
+                                                    label: "Data quality",
+                                                    panel: (
+                                                        <DataTable
+                                                            caption={"Data-quality signals"}
+                                                            columns={[
+                                                                { cell: (item) => item.label, header: "Signal", id: "label" },
+                                                                { cell: (item) => item.impact, header: "Impact", id: "impact" },
+                                                                { cell: (item) => item.current ?? "—", header: "Current", id: "current" },
+                                                                { cell: (item) => formatDateTime(item.observed_at), header: "Observed at", id: "observed_at", sortValue: (item) => item.observed_at },
+                                                            ]}
+                                                            compact
+                                                            emptyMessage={"No data-quality signals detected."}
+                                                            getRowId={(item) => item.field}
+                                                            items={summaryQuery.data.signals.filter((item) => item.group === "data_quality" || item.group === "freshness")}
+                                                            pageSize={10}
+                                                        />
+                                                    ),
+                                                },
+                                            ]}
+                                        />
+                                    ) : <EmptyState message={"No pricing or data-quality signals are available yet."} />}
+                                </section>
+                            </div>
+                        )}
+                        {savePropertyMutation.isError ? <ErrorBanner>{"Could not save property. Check the price, source details, and any optional URL."}</ErrorBanner> : null}
+                    </PageCard>
+                ) : null}
+
+                {activeSection === "notes-decisions" ? (
+                    <PageCard description={"Edit decision context, notes, and thesis directly within the section."} title={"Notes & Decisions"} titleId={"notes-decisions"}>
+                        <FormGrid variant={"two-column"}>
+                            <div style={{ display: "grid", gap: "0.25rem", gridColumn: "1 / -1" }}>
+                                <strong>{"Decision status"}</strong>
+                                <div className={"action-group"}>
+                                    {["candidate", "shortlisted", "rejected"].map((value) => (
+                                        <Button
+                                            key={value}
+                                            onClick={() => { setMetadataDraft((current) => ({ ...current, businessStage: current.businessStage === value ? "" : value })); }}
+                                            size={"small"}
+                                            type={"button"}
+                                            variant={metadataDraft.businessStage === value ? "primary" : "secondary"}
+                                        >
+                                            {formatDecisionStatus(value)}
+                                        </Button>
+                                    ))}
+                                </div>
+                            </div>
+                            <Field label={"Target price"}>
+                                <Input min={0} onChange={(event) => { setMetadataDraft((current) => ({ ...current, targetPrice: event.target.value })); }} prefix={"€"} type={"number"} value={metadataDraft.targetPrice} />
+                            </Field>
+                            <Field label={"Priority"}>
+                                <Select onChange={(event) => { setMetadataDraft((current) => ({ ...current, priorityLevel: event.target.value })); }} value={metadataDraft.priorityLevel}>
+                                    <option value={""}>{"Not set"}</option>
+                                    <option value={"low"}>{"Low"}</option>
+                                    <option value={"medium"}>{"Medium"}</option>
+                                    <option value={"high"}>{"High"}</option>
+                                    <option value={"critical"}>{"Critical"}</option>
+                                </Select>
+                            </Field>
+                            <Field label={"Expected rent"}>
+                                <Input min={0} onChange={(event) => { setMetadataDraft((current) => ({ ...current, expectedRent: event.target.value })); }} prefix={"€"} type={"number"} value={metadataDraft.expectedRent} />
+                            </Field>
+                            <Field label={"Expected yield (%)"}>
+                                <Input min={0} onChange={(event) => { setMetadataDraft((current) => ({ ...current, expectedYieldPercent: event.target.value })); }} step={"0.1"} type={"number"} value={metadataDraft.expectedYieldPercent} />
+                            </Field>
+                            <Field fullWidth label={"Notes"}>
+                                <Textarea onChange={(event) => { setMetadataDraft((current) => ({ ...current, acquisitionNotes: event.target.value })); }} rows={4} value={metadataDraft.acquisitionNotes} />
+                            </Field>
+                            <Field fullWidth label={"Thesis"}>
+                                <Textarea onChange={(event) => { setMetadataDraft((current) => ({ ...current, dealThesis: event.target.value })); }} rows={4} value={metadataDraft.dealThesis} />
+                            </Field>
+                        </FormGrid>
+                        <ActionGroup>
+                            <Button disabled={isPropertySaveDisabled} onClick={handlePropertySave}>{savePropertyMutation.isPending ? "Saving..." : "Save notes & decisions"}</Button>
+                        </ActionGroup>
+                        {savePropertyMutation.isError ? <ErrorBanner>{"Could not save property. Check the price, source details, and any optional URL."}</ErrorBanner> : null}
+                    </PageCard>
+                ) : null}
+
+                {activeSection === "configuration" ? (
+                    <>
+                        <PageCard
+                            description={"Manage property identity and template linkage inline without opening a separate editor."}
+                            title={"Configuration"}
+                            titleId={"configuration"}
+                        >
+                            <FormGrid variant={"two-column"}>
+                                <Field label={"Label"}>
+                                    <Input id={"prop-label"} onChange={(event) => { setLabel(event.target.value); }} placeholder={"Optional display name"} type={"text"} value={label} />
+                                </Field>
+                                <Field error={urlError} fullWidth label={"Source URL"}>
+                                    <Input id={"prop-url"} invalid={urlError !== undefined} onChange={(event) => { setUrl(event.target.value); }} placeholder={"https://example.com/property/123"} type={"url"} value={url} />
+                                </Field>
+                                <Field label={"Source template"}>
+                                    <Select id={"prop-source"} onChange={(event) => { setSourceId(event.target.value); }} value={sourceId}>
+                                        <option value={""}>{"No template"}</option>
+                                        {(sourcesQuery.data ?? []).map((source) => {
+                                            return <option key={source.id} value={source.id}>{source.name}</option>;
+                                        })}
+                                    </Select>
+                                </Field>
+                            </FormGrid>
+                            <ActionGroup>
+                                <Button disabled={isPropertySaveDisabled} onClick={handlePropertySave}>{savePropertyMutation.isPending ? "Saving..." : "Save settings"}</Button>
+                                <Button onClick={() => { setDeleteOpen(true); }} variant={"secondary"}>{"Delete"}</Button>
+                            </ActionGroup>
+                            {savePropertyMutation.isError ? <ErrorBanner>{"Could not save property. Check the price, source details, and any optional URL."}</ErrorBanner> : null}
+                        </PageCard>
+                        <PageCard
+                            action={(
+                                <Button onClick={() => { setTagsOpen(true); }} variant={"secondary"}>{"Edit tags"}</Button>
+                            )}
+                            description={"Manage tags here so categorization stays with the rest of the property settings."}
+                            title={"Tags"}
+                        >
+                            {propertyTagsQuery.isLoading ? <p className={"muted-copy"}>{"Loading tags..."}</p> : null}
+                            {(propertyTagsQuery.data ?? []).length === 0 && !propertyTagsQuery.isLoading
+                                ? <EmptyState message={"No tags assigned. Click 'Edit tags' to add tags."} />
+                                : (
+                                    <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+                                        {(propertyTagsQuery.data ?? []).map((tag) => <TagBadge key={tag.id} tag={tag} />)}
+                                    </div>
+                                )}
+                        </PageCard>
+                        <PageCard description={"Review the URL and template summary, then manage field configuration from a compact, expandable table."} title={"Fields & Source Extraction"}>
+                            <KeyValueGrid compact>
+                                <KeyValuePair label={"URL"} value={propertyQuery.data?.url !== undefined && propertyQuery.data.url !== "" ? propertyQuery.data.url : "Manual property"} />
+                                <KeyValuePair label={"Source template"} value={sourcesQuery.data?.find((source) => source.id === propertyQuery.data?.source_id)?.name ?? "No template"} />
+                            </KeyValueGrid>
+                            {isTemplateDetached && !detachmentAlertDismissed ? (
+                                <div className={"property-inline-alert"} role={"status"}>
+                                    <span className={"property-inline-alert__copy"}>
+                                        <strong>{"Template link removed for this property."}</strong>
+                                        <span>{"This field setup no longer matches the selected template, so future template updates will not apply automatically."}</span>
+                                    </span>
+                                    <Button onClick={() => { setDetachmentAlertDismissed(true); }} size={"small"} variant={"ghost"}>
+                                        {"Dismiss"}
+                                    </Button>
+                                </div>
+                            ) : null}
+                            <SelectorBuilder fieldDefinitions={fieldDefinitionsQuery.data} fieldMetadataById={fieldMetadataById} fields={fieldRows} onChange={setFieldRows} previewByFieldName={previewMap} />
+                            <ActionGroup>
+                                <Button onClick={() => { setFieldRows((rows) => [...rows, createEmptySelectorDraft()]); }} variant={"secondary"}>{"Add field"}</Button>
+                                <Button disabled={previewMutation.isPending || url.trim() === "" || validationMessages.length > 0} onClick={() => { previewMutation.mutate(); }} variant={"secondary"}>{previewMutation.isPending ? "Previewing..." : "Preview extraction"}</Button>
+                                <Button disabled={saveConfigMutation.isPending || validationMessages.length > 0} onClick={() => { saveConfigMutation.mutate(); }}>{saveConfigMutation.isPending ? "Saving..." : "Save configuration"}</Button>
+                            </ActionGroup>
+                            {validationMessages.length > 0 ? (
+                                <div className={"selector-builder__validation-list"}>
+                                    {validationMessages.map((message) => <ErrorBanner key={message}>{message}</ErrorBanner>)}
+                                </div>
+                            ) : null}
+                            {saveConfigMutation.isError ? <ErrorBanner>{"Could not save configuration."}</ErrorBanner> : null}
+                        </PageCard>
+                        <PageCard
+                            action={(
+                                <Button onClick={() => { setCreateAlertOpen(true); }} variant={"secondary"}>{"Create alert"}</Button>
+                            )}
+                            description={"Alert configuration stays with the rest of the operational setup so thresholds and automations stay together."}
+                            title={"Alerts"}
+                        >
+                            {propertyAlerts.length === 0 ? <EmptyState message={"No alerts are linked to this property yet."} /> : (
+                                <ItemList>
+                                    {propertyAlerts.map((rule) => {
+                                        return (
+                                            <ListRow key={rule.id}>
+                                                <ListRowMain>
+                                                    <div>
+                                                        <h3 className={"list-row__title"}>{getRuleTypeLabel(rule.rule_type)}</h3>
+                                                        <p className={"list-row__meta"}>{getRuleTypeLogic(rule.rule_type, rule.threshold_amount)}</p>
+                                                    </div>
+                                                    <StatusBadge tone={rule.enabled ? "success" : "neutral"} value={rule.enabled ? "on" : "off"} />
+                                                </ListRowMain>
+                                            </ListRow>
+                                        );
+                                    })}
+                                </ItemList>
+                            )}
                         </PageCard>
                         <PageCard description={"Compare any two saved configs, review the selector diff, and restore a previous version without losing history."} title={"Config History"}>
                             {configVersions.length === 0 ? <EmptyState message={"No config versions have been saved yet."} /> : (
