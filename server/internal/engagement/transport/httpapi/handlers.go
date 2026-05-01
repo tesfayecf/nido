@@ -112,6 +112,28 @@ func Register(mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, s
 		platformhttp.WriteJSON(w, http.StatusCreated, map[string]any{"item": rule})
 	})))
 
+	mux.Handle("PUT /api/v1/me/alert-rules/{ruleID}", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		principal, ok := authhttp.CurrentPrincipal(r.Context())
+		if !ok {
+			platformhttp.WriteError(w, http.StatusUnauthorized, "authentication required")
+			return
+		}
+
+		var request struct {
+			Enabled bool `json:"enabled"`
+		}
+		if !platformhttp.DecodeJSON(w, r, &request) {
+			return
+		}
+
+		if err := service.SetAlertRuleEnabled(r.Context(), principal.User.ID, r.PathValue("ruleID"), request.Enabled); err != nil {
+			platformhttp.WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		platformhttp.WriteJSON(w, http.StatusOK, map[string]string{"status": "updated"})
+	})))
+
 	mux.Handle("DELETE /api/v1/me/alert-rules/{ruleID}", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		principal, ok := authhttp.CurrentPrincipal(r.Context())
 		if !ok {

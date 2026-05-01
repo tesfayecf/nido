@@ -5,22 +5,31 @@ import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/rea
 import { Link, useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/Button";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { Dialog } from "@/components/ui/Dialog";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { Field } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
+import { MultiSelect } from "@/components/ui/MultiSelect";
 import { PageCard } from "@/components/ui/PageCard";
 import { PageStack } from "@/components/ui/PageStack";
 import { RowActions } from "@/components/ui/RowActions";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useToast } from "@/components/ui/ToastProvider";
+import { ActionGroup } from "@/components/ui/ActionGroup";
 import { readWorkspaceSettings } from "@/features/settings/workspaceSettings";
+import { downloadPropertyListExport } from "@/features/properties/propertyExport";
 import { formatDateTime } from "@/lib/format/date";
 import { bookmarkKeys } from "@/services/bookmarks/bookmarks.keys";
 import { createBookmark, deleteBookmark, listBookmarks } from "@/services/bookmarks/bookmarks.service";
+import { alertRuleKeys } from "@/services/alert-rules/alert-rules.keys";
+import { listAlertRules, setAlertRuleEnabled } from "@/services/alert-rules/alert-rules.service";
+import { stringifyComparisonIds } from "@/features/properties/propertyCompare";
 import { propertyKeys } from "@/services/properties/properties.keys";
-import { ingestProperty, listProperties, listPropertySummaries } from "@/services/properties/properties.service";
+import { deleteProperty, ingestProperty, listProperties, listPropertySummaries, updateProperty } from "@/services/properties/properties.service";
 import type { Property, PropertyStatus, PropertySummary } from "@/services/properties/properties.types";
 import { tagKeys } from "@/services/tags/tags.keys";
-import { listPropertyTags } from "@/services/tags/tags.service";
+import { listPropertyTags, listTags, setPropertyTags } from "@/services/tags/tags.service";
 import { buildPriceIntelligence } from "@/features/properties/priceIntelligence";
 import { formatCurrency } from "@/lib/format/currency";
 import {
@@ -85,7 +94,16 @@ export const PropertiesPage = (): JSX.Element => {
     const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
     const [dragColumnId, setDragColumnId] = useState<string | null>(null);
     const [filtersOpen, setFiltersOpen] = useState(false);
+    const [selectedPropertyIds, setSelectedPropertyIds] = useState<string[]>([]);
     const [tableState, setTableState] = useState<PropertiesTableState>(() => readPropertiesTableState(TABLE_STORAGE_KEY, COLUMN_IDS));
+    const [exportOpen, setExportOpen] = useState(false);
+    const [exportFormat, setExportFormat] = useState<"csv" | "json">("csv");
+    const [tagDialogOpen, setTagDialogOpen] = useState(false);
+    const [tagAction, setTagAction] = useState<"add" | "remove">("add");
+    const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+    const [archiveOpen, setArchiveOpen] = useState(false);
+    const [deleteOpen, setDeleteOpen] = useState(false);
+    const [alertAction, setAlertAction] = useState<"disable" | "enable" | null>(null);
     const columnMenuRef = useRef<HTMLDivElement | null>(null);
     const resizeStateRef = useRef<{ readonly columnId: string; readonly startWidth: number; readonly startX: number; } | null>(null);
 
@@ -106,6 +124,14 @@ export const PropertiesPage = (): JSX.Element => {
     const bookmarksQuery = useQuery({
         queryFn: listBookmarks,
         queryKey: bookmarkKeys.all(),
+    });
+    const tagsQuery = useQuery({
+        queryFn: listTags,
+        queryKey: tagKeys.all(),
+    });
+    const alertRulesQuery = useQuery({
+        queryFn: listAlertRules,
+        queryKey: alertRuleKeys.all(),
     });
 
     useEffect(() => {
@@ -194,6 +220,76 @@ export const PropertiesPage = (): JSX.Element => {
             pushToast("Scrape run started.", "success");
         },
     });
+    const bulkMutation = useMutation({
+        mutationFn: async (action: "archive" | "delete" | "disable-alerts" | "enable-alerts" | "set-tags") => {
+            const selectedRows = rows.filter((row) => selectedPropertyIds.includes(row.id));
+            if (action === "set-tags") {
+                await Promise.all(selectedRows.map(async (row) => {
+                    const existingTagIds = (propertyTagQueries[rows.findIndex((candidate) => candidate.id === row.id)]?.data ?? []).map((tag) => tag.id);
+                    const nextTagIds = tagAction === "add"
+                        ? Array.from(new Set([...existingTagIds, ...selectedTagIds]))
+                        : existingTagIds.filter((tagId) => !selectedTagIds.includes(tagId));
+                    await setPropertyTags(row.id, nextTagIds);
+                }));
+                return;
+            }
+
+            if (action === "archive") {
+                await Promise.all(selectedRows.map(async (row) => {
+                    await updateProperty(row.id, {
+                        label: row.property.label,
+                        metadata: row.property.metadata,
+                        pause_reason: row.property.pause_reason,
+                        paused: row.property.paused,
+                        retry_backoff_millis: row.property.retry_backoff_millis,
+                        retry_max_attempts: row.property.retry_max_attempts,
+                        schedule_interval_seconds: row.property.schedule_interval_seconds,
+                        source_id: row.property.source_id,
+                        status: "inactive",
+                        url: row.property.url,
+                    });
+                }));
+                return;
+            }
+
+            if (action === "delete") {
+                await Promise.all(selectedRows.map(async (row) => deleteProperty(row.id)));
+                return;
+            }
+
+            const rules = (alertRulesQuery.data ?? []).filter((rule) => selectedPropertyIds.includes(rule.property_id));
+            await Promise.all(rules.map(async (rule) => setAlertRuleEnabled(rule.id, action === "enable-alerts")));
+        },
+        onError() {
+            pushToast("Could not apply the selected bulk action.", "error");
+        },
+        onSuccess(_data, action) {
+            void Promise.all([
+                queryClient.invalidateQueries({ queryKey: propertyKeys.all() }),
+                queryClient.invalidateQueries({ queryKey: propertyKeys.summaries() }),
+                queryClient.invalidateQueries({ queryKey: tagKeys.all() }),
+                queryClient.invalidateQueries({ queryKey: alertRuleKeys.all() }),
+            ]);
+            setSelectedPropertyIds([]);
+            setTagDialogOpen(false);
+            setArchiveOpen(false);
+            setDeleteOpen(false);
+            setAlertAction(null);
+            setSelectedTagIds([]);
+            pushToast(
+                action === "archive"
+                    ? "Selected properties archived."
+                    : action === "delete"
+                        ? "Selected properties deleted."
+                        : action === "set-tags"
+                            ? "Selected tags updated."
+                            : action === "enable-alerts"
+                                ? "Alert rules enabled."
+                                : "Alert rules disabled.",
+                "success",
+            );
+        },
+    });
 
     const summariesById = useMemo(() => new Map((summariesQuery.data ?? []).map((summary) => [summary.property.id, summary])), [summariesQuery.data]);
     const bookmarkedIds = useMemo(() => new Set((bookmarksQuery.data ?? []).map((bookmark) => bookmark.property_id)), [bookmarksQuery.data]);
@@ -249,6 +345,8 @@ export const PropertiesPage = (): JSX.Element => {
                 && matchesSelectFilter(row.opportunity, filters.opportunity);
         });
     }, [rows, tableState.filters]);
+    const allFilteredSelected = filteredRows.length > 0 && filteredRows.every((row) => selectedPropertyIds.includes(row.id));
+    const selectedCount = selectedPropertyIds.length;
 
     const sortedRows = useMemo(() => {
         const column = COLUMNS.find((candidate) => candidate.id === sortColumnId);
@@ -289,7 +387,7 @@ export const PropertiesPage = (): JSX.Element => {
         <PageStack>
             <PageCard
                 action={(
-                        <div className={"action-group"}>
+                    <div className={"action-group"}>
                         <div className={"properties-table__column-menu"} ref={columnMenuRef}>
                             <Button
                                 aria-expanded={columnMenuOpen}
@@ -326,6 +424,18 @@ export const PropertiesPage = (): JSX.Element => {
                         <Button onClick={() => { setFiltersOpen((open) => !open); }} variant={"secondary"}>
                             {filtersOpen ? "Hide filters" : "Filters"}
                         </Button>
+                        <Button onClick={() => { setExportOpen(true); }} variant={"secondary"}>
+                            {"Export"}
+                        </Button>
+                        <Button
+                            onClick={() => {
+                                const ids = sortedRows.map((row) => row.id);
+                                window.open(`/properties/print?ids=${encodeURIComponent(stringifyComparisonIds(ids))}`, "_blank", "noopener");
+                            }}
+                            variant={"secondary"}
+                        >
+                            {"Print / PDF"}
+                        </Button>
                         <Button as={Link} iconBefore={<Icon name={"plus"} />} to={"/properties/new"}>
                             {"Add Property"}
                         </Button>
@@ -334,6 +444,28 @@ export const PropertiesPage = (): JSX.Element => {
                 description={"Price-first table view with filters tucked away until needed."}
                 title={"Properties"}
             >
+                {selectedCount > 0 ? (
+                    <div className={"toolbar"}>
+                        <strong>{`${selectedCount} selected`}</strong>
+                        <ActionGroup>
+                            <Button
+                                disabled={selectedCount < 2 || selectedCount > 4}
+                                onClick={() => {
+                                    void navigate(`/properties/compare?ids=${encodeURIComponent(stringifyComparisonIds(selectedPropertyIds))}`);
+                                }}
+                                variant={"secondary"}
+                            >
+                                {"Compare"}
+                            </Button>
+                            <Button onClick={() => { setTagAction("add"); setTagDialogOpen(true); }} variant={"secondary"}>{"Add tags"}</Button>
+                            <Button onClick={() => { setTagAction("remove"); setTagDialogOpen(true); }} variant={"secondary"}>{"Remove tags"}</Button>
+                            <Button onClick={() => { setAlertAction("enable"); }} variant={"secondary"}>{"Enable alerts"}</Button>
+                            <Button onClick={() => { setAlertAction("disable"); }} variant={"secondary"}>{"Disable alerts"}</Button>
+                            <Button onClick={() => { setArchiveOpen(true); }} variant={"secondary"}>{"Archive"}</Button>
+                            <Button onClick={() => { setDeleteOpen(true); }} variant={"destructive"}>{"Delete"}</Button>
+                        </ActionGroup>
+                    </div>
+                ) : null}
                 {propertiesQuery.isError || summariesQuery.isError ? <ErrorBanner>{"Could not load the portfolio table."}</ErrorBanner> : null}
                 {(propertiesQuery.isLoading || summariesQuery.isLoading) ? <p className={"state-message state-message--loading"}>{"Loading properties..."}</p> : null}
                 {!propertiesQuery.isLoading && !summariesQuery.isLoading ? 
@@ -344,6 +476,16 @@ export const PropertiesPage = (): JSX.Element => {
                                 <table className={"properties-table"}>
                                     <thead>
                                         <tr>
+                                            <th scope={"col"} style={{ width: 52 }}>
+                                                <input
+                                                    aria-label={"Select all filtered properties"}
+                                                    checked={allFilteredSelected}
+                                                    onChange={(event) => {
+                                                        setSelectedPropertyIds(event.target.checked ? filteredRows.map((row) => row.id) : []);
+                                                    }}
+                                                    type={"checkbox"}
+                                                />
+                                            </th>
                                             {visibleColumns.map((column) => {
                                                 const width = tableState.widths[column.id] ?? column.width;
                                                 const active = sortColumnId === column.id;
@@ -396,6 +538,7 @@ export const PropertiesPage = (): JSX.Element => {
                                         </tr>
                                         {filtersOpen ? (
                                             <tr className={"properties-table__filters-row"}>
+                                                <th />
                                                 {visibleColumns.map((column) => (
                                                     <th key={`${column.id}-filter`} style={{ width: tableState.widths[column.id] ?? column.width }}>
                                                         {renderFilter(column.id, tableState, setTableState, {
@@ -435,6 +578,18 @@ export const PropertiesPage = (): JSX.Element => {
                                                     role={"button"}
                                                     tabIndex={0}
                                                 >
+                                                    <td>
+                                                        <input
+                                                            aria-label={`Select ${row.label}`}
+                                                            checked={selectedPropertyIds.includes(row.id)}
+                                                            onChange={(event) => {
+                                                                setSelectedPropertyIds((current) => event.target.checked
+                                                                    ? [...current, row.id]
+                                                                    : current.filter((propertyId) => propertyId !== row.id));
+                                                            }}
+                                                            type={"checkbox"}
+                                                        />
+                                                    </td>
                                                     {visibleColumns.map((column) => (
                                                         <td key={`${row.id}-${column.id}`}>
                                                             <div className={"properties-table__cell"}>
@@ -473,6 +628,101 @@ export const PropertiesPage = (): JSX.Element => {
                         )
                     : null}
             </PageCard>
+            <Dialog
+                actions={(
+                    <ActionGroup>
+                        <Button onClick={() => { setExportOpen(false); }} variant={"secondary"}>{"Cancel"}</Button>
+                        <Button
+                            onClick={() => {
+                                downloadPropertyListExport(
+                                    sortedRows.map((row) => Object.fromEntries([
+                                        ["id", row.id],
+                                        ...visibleColumns.map((column) => [column.id, typeof column.render(row) === "string" ? column.render(row) : column.sortValue(row)]),
+                                        ["url", row.url],
+                                    ])),
+                                    visibleColumns.map((column) => ({ header: column.header, id: column.id })),
+                                    exportFormat,
+                                );
+                                setExportOpen(false);
+                            }}
+                        >
+                            {`Download ${exportFormat.toUpperCase()}`}
+                        </Button>
+                    </ActionGroup>
+                )}
+                description={"Exports respect the current filters and visible columns."}
+                onOpenChange={setExportOpen}
+                open={exportOpen}
+                title={"Export properties"}
+            >
+                <div className={"dashboard-grid"}>
+                    <label className={"properties-table__column-toggle"}>
+                        <input checked={exportFormat === "csv"} onChange={() => { setExportFormat("csv"); }} type={"radio"} />
+                        <span>{"CSV"}</span>
+                    </label>
+                    <label className={"properties-table__column-toggle"}>
+                        <input checked={exportFormat === "json"} onChange={() => { setExportFormat("json"); }} type={"radio"} />
+                        <span>{"JSON"}</span>
+                    </label>
+                </div>
+            </Dialog>
+            <Dialog
+                actions={(
+                    <ActionGroup>
+                        <Button onClick={() => { setTagDialogOpen(false); }} variant={"secondary"}>{"Cancel"}</Button>
+                        <Button
+                            disabled={selectedTagIds.length === 0}
+                            isLoading={bulkMutation.isPending}
+                            onClick={() => { bulkMutation.mutate("set-tags"); }}
+                        >
+                            {tagAction === "add" ? "Apply tags" : "Remove tags"}
+                        </Button>
+                    </ActionGroup>
+                )}
+                description={`Apply this tag update to ${selectedCount} selected properties.`}
+                onOpenChange={setTagDialogOpen}
+                open={tagDialogOpen}
+                title={tagAction === "add" ? "Bulk add tags" : "Bulk remove tags"}
+            >
+                <Field label={"Tags"}>
+                    <MultiSelect
+                        onChange={setSelectedTagIds}
+                        options={(tagsQuery.data ?? []).map((tag) => ({ label: tag.name, value: tag.id }))}
+                        values={selectedTagIds}
+                    />
+                </Field>
+            </Dialog>
+            <ConfirmDialog
+                confirmLabel={"Archive selected"}
+                description={`Archive ${selectedCount} selected properties?`}
+                isPending={bulkMutation.isPending}
+                onConfirm={() => { bulkMutation.mutate("archive"); }}
+                onOpenChange={setArchiveOpen}
+                open={archiveOpen}
+                title={"Archive properties"}
+            />
+            <ConfirmDialog
+                confirmLabel={"Delete selected"}
+                description={`Delete ${selectedCount} selected properties? This cannot be undone.`}
+                isPending={bulkMutation.isPending}
+                onConfirm={() => { bulkMutation.mutate("delete"); }}
+                onOpenChange={setDeleteOpen}
+                open={deleteOpen}
+                title={"Delete properties"}
+            />
+            <ConfirmDialog
+                confirmLabel={alertAction === "enable" ? "Enable alerts" : "Disable alerts"}
+                description={`${alertAction === "enable" ? "Enable" : "Disable"} alert rules for the selected properties.`}
+                isPending={bulkMutation.isPending}
+                onConfirm={() => {
+                    if (alertAction !== null) {
+                        bulkMutation.mutate(alertAction === "enable" ? "enable-alerts" : "disable-alerts");
+                    }
+                }}
+                onOpenChange={(open) => { if (!open) { setAlertAction(null); } }}
+                open={alertAction !== null}
+                title={alertAction === "enable" ? "Enable alerts" : "Disable alerts"}
+            />
         </PageStack>
     );
 };

@@ -16,6 +16,7 @@ type propertyUpsertRequest struct {
 	RetryBackoffMillis      *int                              `json:"retry_backoff_millis,omitempty"`
 	RetryMaxAttempts        *int                              `json:"retry_max_attempts,omitempty"`
 	ScheduleIntervalSeconds *int                              `json:"schedule_interval_seconds,omitempty"`
+	Status                  *string                           `json:"status,omitempty"`
 	SourceID                *string                           `json:"source_id,omitempty"`
 	URL                     string                            `json:"url"`
 	Paused                  *bool                             `json:"paused,omitempty"`
@@ -405,6 +406,9 @@ func propertyFromUpsertRequest(request propertyUpsertRequest) ingestiondomain.Pr
 	if request.SourceID != nil {
 		property.SourceID = strings.TrimSpace(*request.SourceID)
 	}
+	if request.Status != nil {
+		property.Status = ingestiondomain.PropertyStatus(strings.TrimSpace(*request.Status))
+	}
 	if request.ScheduleIntervalSeconds != nil {
 		property.ScheduleIntervalSeconds = *request.ScheduleIntervalSeconds
 	}
@@ -432,6 +436,9 @@ func mergePropertyUpsertRequest(existing ingestiondomain.Property, request prope
 	property.Label = request.Label
 	if request.SourceID != nil {
 		property.SourceID = strings.TrimSpace(*request.SourceID)
+	}
+	if request.Status != nil {
+		property.Status = ingestiondomain.PropertyStatus(strings.TrimSpace(*request.Status))
 	}
 	if request.ScheduleIntervalSeconds != nil {
 		property.ScheduleIntervalSeconds = *request.ScheduleIntervalSeconds
