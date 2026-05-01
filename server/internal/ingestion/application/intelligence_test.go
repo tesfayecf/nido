@@ -219,6 +219,47 @@ func TestComputeChangeSignals_CurrencyStrippedPrice(t *testing.T) {
 	}
 }
 
+func TestComputeChangeSignals_PrefillChangesAreListingFactUpdates(t *testing.T) {
+	now := time.Now().UTC()
+	current := makeSnapshot(map[string]string{"location": "Bilbao", "price": "250000"}, true, now)
+	previous := makeSnapshot(map[string]string{"location": "Madrid", "price": "250000"}, true, now.Add(-time.Hour))
+	previous.ID = "snap-prev"
+
+	signals := ComputeChangeSignals(current, previous, baseProperty, []ingestiondomain.FieldSelector{
+		{Name: "location", FieldRole: ingestiondomain.FieldRolePrefill},
+	})
+
+	sig, ok := findSignal(signals, "location")
+	if !ok {
+		t.Fatal("expected location change signal")
+	}
+	if sig.Group != ingestiondomain.ChangeGroupListingFacts {
+		t.Fatalf("expected listing facts group, got %q", sig.Group)
+	}
+	if sig.Label != "Listing facts changed" {
+		t.Fatalf("expected informational label, got %q", sig.Label)
+	}
+}
+
+func TestComputeChangeSignals_TrackedChangesStayPrimary(t *testing.T) {
+	now := time.Now().UTC()
+	current := makeSnapshot(map[string]string{"availability": "reserved", "price": "250000"}, true, now)
+	previous := makeSnapshot(map[string]string{"availability": "available", "price": "250000"}, true, now.Add(-time.Hour))
+	previous.ID = "snap-prev"
+
+	signals := ComputeChangeSignals(current, previous, baseProperty, []ingestiondomain.FieldSelector{
+		{Name: "availability", FieldRole: ingestiondomain.FieldRoleTracked},
+	})
+
+	sig, ok := findSignal(signals, "availability")
+	if !ok {
+		t.Fatal("expected availability change signal")
+	}
+	if sig.Group == ingestiondomain.ChangeGroupListingFacts {
+		t.Fatalf("expected tracked field to remain primary, got %q", sig.Group)
+	}
+}
+
 // ── DeriveDecisionContext ─────────────────────────────────────────────────────
 
 func TestDeriveDecisionContext_PriceGap(t *testing.T) {

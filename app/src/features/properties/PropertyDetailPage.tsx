@@ -306,6 +306,12 @@ const createManualAttributeDraft = (): ManualAttributeDraft => ({
 
 const normalizeManualAttributeName = (value: string): string => value.trim().toLowerCase().replace(/[\s-]+/g, "_");
 
+const formatFieldName = (value: string): string => value
+    .split(/[_\s-]+/)
+    .filter((part) => part !== "")
+    .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
+    .join(" ");
+
 const buildManualAttributePayload = (rows: readonly ManualAttributeDraft[]): PropertyManualData | undefined => {
     const payload: PropertyManualData = {};
     for (const row of rows) {
@@ -555,6 +561,15 @@ export const PropertyDetailPage = (): JSX.Element => {
         () => parseSelectorConfigJson(selectedSource?.config_json),
         [selectedSource?.config_json],
     );
+    const templatePrefillFields = useMemo(
+        () => sourceTemplateFields.filter((field) => field.field_role !== "tracked").map((field) => formatFieldName(field.name)),
+        [sourceTemplateFields],
+    );
+    const templateTrackedFields = useMemo(
+        () => sourceTemplateFields.filter((field) => field.field_role === "tracked" || field.name === "price").map((field) => formatFieldName(field.name)),
+        [sourceTemplateFields],
+    );
+    const noTemplateSelected = sourceId.trim() === "";
     const createURLHint = getCreateURLHint(url, autofillStatus, autofillMessage, sourceId.trim() !== "", manualEntryMode);
     const fieldMetadataById = useMemo<Record<string, { origin: "manual" | "template"; status: "linked" | "manual" | "modified"; }>>(() => {
         return Object.fromEntries(fieldRows.map((field) => {
@@ -714,8 +729,12 @@ export const PropertyDetailPage = (): JSX.Element => {
                 }
 
                 setAutofillStatus(result.success ? "success" : "error");
+                const prefillFieldNames = new Set(sourceTemplateFields
+                    .filter((field) => field.field_role !== "tracked")
+                    .map((field) => field.name));
+                const hasPrefillValues = result.fields.some((field) => prefillFieldNames.has(field.name) && field.success);
                 setAutofillMessage(result.success
-                    ? "URL checked. Initial price will be captured from the first successful snapshot."
+                    ? hasPrefillValues ? "URL checked. Property facts are ready to prefill from this template." : "URL checked. No property facts were available to prefill from this template."
                     : "Could not check the URL. You can still create the property and capture the first price from a later snapshot.");
             } catch {
                 if (cancelled) {
@@ -932,6 +951,13 @@ export const PropertyDetailPage = (): JSX.Element => {
         setManualAttributeRows(manualAttributeRowsFromValues(sourceValues));
     }, [isCreateMode, latestValues, summaryQuery.data?.current_values]);
     const attributes = useMemo(() => buildPropertyAttributes(latestValues), [latestValues]);
+    const propertyFactRows = useMemo(() => {
+        return Object.entries(latestValues)
+            .filter(([field]) => field !== "price" && field !== "total_price")
+            .map(([field, value]) => ({ field: formatFieldName(field), value }));
+    }, [latestValues]);
+    const primarySignals = useMemo(() => summaryQuery.data?.signals.filter((signal) => signal.group !== "listing_facts") ?? [], [summaryQuery.data?.signals]);
+    const listingFactSignals = useMemo(() => summaryQuery.data?.signals.filter((signal) => signal.group === "listing_facts") ?? [], [summaryQuery.data?.signals]);
     const recentRuns = useMemo(() => {
         const snapshots = snapshotsQuery.data ?? [];
         if (snapshotConfigFilter <= 0) {
@@ -988,6 +1014,21 @@ export const PropertyDetailPage = (): JSX.Element => {
     if (summaryQuery.data?.latest_change_summary !== undefined && summaryQuery.data.latest_change_summary !== "") {
         decisionEntries.push({ label: "System signal", timestamp: latestSnapshot?.observed_at, value: summaryQuery.data.latest_change_summary });
     }
+
+    const templateRoleSummary = noTemplateSelected
+        ? <p className={"muted-copy"}>{"Select a source template to prefill property facts and define what Nido should monitor after creation."}</p>
+        : (
+            <div className={"property-detail-group-grid"}>
+                <div className={"property-inline-note"}>
+                    <strong>{"Prefill once"}</strong>
+                    <span>{templatePrefillFields.length > 0 ? templatePrefillFields.join(", ") : "This template does not prefill any property facts yet. Add fields like location, area, or rooms if you want faster intake."}</span>
+                </div>
+                <div className={"property-inline-note"}>
+                    <strong>{"Monitor on each run"}</strong>
+                    <span>{templateTrackedFields.length > 0 ? templateTrackedFields.join(", ") : "This template does not track any live fields yet. Add at least one tracked field, usually price."}</span>
+                </div>
+            </div>
+        );
 
     const manualAttributeEditor = (
         <div className={"property-section-stack"}>
@@ -1087,7 +1128,7 @@ export const PropertyDetailPage = (): JSX.Element => {
                                     value={url}
                                 />
                             </Field>
-                            <Field hint={"Optional. Select a template to preload extraction fields."} label={"Source template"}>
+                            <Field hint={"Optional. Templates can prefill property facts and define what Nido keeps tracking after creation."} label={"Source template"}>
                                 <Select id={"prop-source"} onChange={(event) => { setSourceId(event.target.value); }} value={sourceId}>
                                     <option value={""}>{"No template"}</option>
                                     {(sourcesQuery.data ?? []).map((source) => {
@@ -1098,15 +1139,24 @@ export const PropertyDetailPage = (): JSX.Element => {
                         </>
                     ) : null}
                 </FormGrid>
+                {!manualEntryMode ? (
+                    <div className={"property-template-summary"}>
+                        <div>
+                            <strong>{"What this template will do"}</strong>
+                            <p className={"muted-copy"}>{"Templates can speed up intake and define what Nido keeps monitoring after the property is created."}</p>
+                        </div>
+                        {templateRoleSummary}
+                    </div>
+                ) : null}
                 {manualEntryMode ? manualAttributeEditor : (
                     <div style={{ display: "grid", gap: "0.75rem", marginTop: "1rem" }}>
                         <Button onClick={() => { setAdditionalFieldsOpen((open) => !open); }} type={"button"} variant={"secondary"}>
-                            {additionalFieldsOpen ? "Hide field configuration" : "Configure extraction fields"}
+                            {additionalFieldsOpen ? "Hide source fields" : "Review source fields"}
                         </Button>
                         <p className={"muted-copy"}>
                             {additionalFieldsOpen
-                                ? "Finish optional extraction setup below, then create the property from the configuration block."
-                                : "Initial price is not required. Nido will derive the first price from the first successful snapshot."}
+                                ? "Price is required now. Other source fields can prefill property facts so you can create the property faster."
+                                : "Price is required now. Other source fields can prefill property facts so you can create the property faster."}
                         </p>
                     </div>
                 )}
@@ -1125,7 +1175,7 @@ export const PropertyDetailPage = (): JSX.Element => {
             </PageCard>
 
             {additionalFieldsOpen && !manualEntryMode ? (
-                <PageCard description={"Manage optional extraction fields. Price can be added here or captured by a source template after creation."} title={"Source & extraction configuration"}>
+                <PageCard description={"Review inherited roles before optional selector editing. Price is the primary tracked signal for acquisition decisions."} title={"Source & extraction configuration"}>
                     {isTemplateDetached && !detachmentAlertDismissed ? (
                         <div className={"property-inline-alert"} role={"status"}>
                             <span className={"property-inline-alert__copy"}>
@@ -1224,13 +1274,14 @@ export const PropertyDetailPage = (): JSX.Element => {
 
                 {activeSection === "insights" ? (
                     <>
-                        <PageCard description={"Auto-calculated from the latest extracted values and field defaults."} title={"Attributes"} titleId={"attributes"}>
-                            <KeyValueGrid compact>
-                                <KeyValuePair label={"€/m²"} value={attributes.pricePerSquareMeter ?? "Needs price and surface"} />
-                                <KeyValuePair label={"Total price"} value={attributes.totalPrice ?? "Not captured"} />
-                                <KeyValuePair label={"Surface area"} value={attributes.surfaceArea ?? "Not captured"} />
-                                <KeyValuePair label={"Rooms"} value={attributes.rooms ?? "Not captured"} />
-                            </KeyValueGrid>
+                        <PageCard description={"Mostly stable facts imported from the listing or entered manually. These support context and comparison, but they are not the main live monitoring signal."} title={"Property Facts"} titleId={"attributes"}>
+                            {propertyFactRows.length === 0 ? <EmptyState message={"No property facts have been captured yet. Run the source again or add details manually."} /> : (
+                                <KeyValueGrid compact>
+                                    <KeyValuePair label={"€/m²"} value={attributes.pricePerSquareMeter ?? "Needs price and surface"} />
+                                    <KeyValuePair label={"Surface area"} value={attributes.surfaceArea ?? "Not captured"} />
+                                    <KeyValuePair label={"Rooms"} value={attributes.rooms ?? "Not captured"} />
+                                </KeyValueGrid>
+                            )}
                         </PageCard>
                     </>
                 ) : null}
@@ -1279,7 +1330,7 @@ export const PropertyDetailPage = (): JSX.Element => {
                                     </div>
                                     <div className={"property-inline-note"}>
                                         <strong>{summaryQuery.data.latest_change_summary === "" ? "No recent pricing change summary." : summaryQuery.data.latest_change_summary}</strong>
-                                        <span>{summaryQuery.data.signals.length === 0 ? "No pricing or data-quality signals are available yet." : `${summaryQuery.data.signals.length} tracked signal${summaryQuery.data.signals.length === 1 ? "" : "s"} available.`}</span>
+                                        <span>{primarySignals.length === 0 ? "Price is the only live signal for this property right now." : `${primarySignals.length} tracked signal${primarySignals.length === 1 ? "" : "s"} available.`}</span>
                                     </div>
                                     {summaryQuery.data.signals.length > 0 ? (
                                         <Tabs
@@ -1302,7 +1353,7 @@ export const PropertyDetailPage = (): JSX.Element => {
                                                             compact
                                                             emptyMessage={"No signals detected."}
                                                             getRowId={(item) => item.field}
-                                                            items={summaryQuery.data.signals}
+                                                            items={primarySignals}
                                                             pageSize={10}
                                                         />
                                                     ),
@@ -1322,7 +1373,7 @@ export const PropertyDetailPage = (): JSX.Element => {
                                                             compact
                                                             emptyMessage={"No pricing signals."}
                                                             getRowId={(item) => item.field}
-                                                            items={summaryQuery.data.signals.filter((signal) => signal.group === "pricing")}
+                                                            items={primarySignals.filter((signal) => signal.group === "pricing")}
                                                             pageSize={10}
                                                         />
                                                     ),
@@ -1341,9 +1392,31 @@ export const PropertyDetailPage = (): JSX.Element => {
                                                             compact
                                                             emptyMessage={"No data quality signals."}
                                                             getRowId={(item) => item.field}
-                                                            items={summaryQuery.data.signals.filter((signal) => signal.group === "data_quality" || signal.group === "freshness")}
+                                                            items={primarySignals.filter((signal) => signal.group === "data_quality" || signal.group === "freshness")}
                                                             pageSize={10}
                                                         />
+                                                    ),
+                                                },
+                                                {
+                                                    id: "listing_facts",
+                                                    label: "Listing facts changed",
+                                                    panel: (
+                                                        <div className={"property-section-stack"}>
+                                                            <p className={"muted-copy"}>{"This field is marked as Prefill, so changes are shown as listing updates instead of primary monitoring alerts."}</p>
+                                                            <DataTable
+                                                                caption={"Listing facts changed"}
+                                                                columns={[
+                                                                    { cell: (item) => item.field, header: "Field", id: "field" },
+                                                                    { cell: (item) => item.previous ?? "—", header: "Previous", id: "previous" },
+                                                                    { cell: (item) => item.current ?? "—", header: "Current", id: "current" },
+                                                                ]}
+                                                                compact
+                                                                emptyMessage={"No listing fact changes."}
+                                                                getRowId={(item) => item.field}
+                                                                items={listingFactSignals}
+                                                                pageSize={10}
+                                                            />
+                                                        </div>
                                                     ),
                                                 },
                                             ]}
@@ -1484,7 +1557,7 @@ export const PropertyDetailPage = (): JSX.Element => {
                                 )}
                         </PageCard>
                         {!manualEntryMode ? (
-                            <PageCard description={"Review the URL and template summary, then manage field configuration from a compact, expandable table."} title={"Fields & Source Extraction"}>
+                            <PageCard description={"Review which source fields prefill property facts and which ones stay under live monitoring."} title={"Source Fields"}>
                                 <KeyValueGrid compact>
                                     <KeyValuePair label={"URL"} value={propertyQuery.data?.url !== undefined && propertyQuery.data.url !== "" ? propertyQuery.data.url : "Manual property"} />
                                     <KeyValuePair label={"Source template"} value={sourcesQuery.data?.find((source) => source.id === propertyQuery.data?.source_id)?.name ?? "No template"} />

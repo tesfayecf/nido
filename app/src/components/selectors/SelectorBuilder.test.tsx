@@ -46,7 +46,8 @@ describe("SelectorBuilder", () => {
 
         fireEvent.click(screen.getByRole("button", { name: /price/i }));
 
-        expect(screen.getAllByRole("combobox")[0]).toHaveValue("price");
+        expect(screen.getAllByRole("combobox")[0]).toHaveValue("tracked");
+        expect(screen.getAllByRole("combobox")[1]).toHaveValue("price");
         expect(screen.getAllByRole("option", { name: "Price" }).length).toBeGreaterThan(0);
     });
 });

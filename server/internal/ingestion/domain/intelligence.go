@@ -18,10 +18,11 @@ const (
 type ChangeGroup string
 
 const (
-	ChangeGroupPricing     ChangeGroup = "pricing"
-	ChangeGroupStatus      ChangeGroup = "status"
-	ChangeGroupDataQuality ChangeGroup = "data_quality"
-	ChangeGroupFreshness   ChangeGroup = "freshness"
+	ChangeGroupPricing      ChangeGroup = "pricing"
+	ChangeGroupStatus       ChangeGroup = "status"
+	ChangeGroupDataQuality  ChangeGroup = "data_quality"
+	ChangeGroupFreshness    ChangeGroup = "freshness"
+	ChangeGroupListingFacts ChangeGroup = "listing_facts"
 )
 
 // ChangeSignal captures one discrete intelligence signal for a property snapshot transition.
@@ -74,9 +75,9 @@ type DecisionContext struct {
 
 // PropertySummary is the read model returned by the summary endpoints.
 type PropertySummary struct {
-	Property        Property        `json:"property"`
-	CurrentValues   map[string]string `json:"current_values"`
-	Decision        DecisionContext `json:"decision"`
-	Signals         []ChangeSignal  `json:"signals"`
-	LatestChangeSummary string      `json:"latest_change_summary,omitempty"`
+	Property            Property          `json:"property"`
+	CurrentValues       map[string]string `json:"current_values"`
+	Decision            DecisionContext   `json:"decision"`
+	Signals             []ChangeSignal    `json:"signals"`
+	LatestChangeSummary string            `json:"latest_change_summary,omitempty"`
 }

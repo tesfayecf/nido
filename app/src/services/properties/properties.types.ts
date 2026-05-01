@@ -6,6 +6,8 @@ export type ExtractionMode = "text" | "attribute";
 
 export type TextMode = "textContent" | "innerText";
 
+export type FieldRole = "prefill" | "tracked";
+
 export interface FieldSelector {
     readonly name: string;
     readonly field_name?: string;
@@ -24,6 +26,7 @@ export interface FieldSelector {
     readonly partial_match?: string;
     readonly comparison_operator?: "" | "eq" | "gt" | "lt" | "contains";
     readonly comparison_value?: string;
+    readonly field_role?: FieldRole;
     readonly required: boolean;
 }
 
@@ -169,7 +172,7 @@ export interface PropertyListFilter {
 // ── Change Intelligence Layer ─────────────────────────────────────────────────
 
 export type ChangeImpact = "positive" | "negative" | "neutral";
-export type ChangeGroup = "pricing" | "status" | "data_quality" | "freshness";
+export type ChangeGroup = "pricing" | "status" | "data_quality" | "freshness" | "listing_facts";
 
 export interface ChangeSignal {
     readonly field: string;

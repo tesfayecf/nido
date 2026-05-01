@@ -326,7 +326,7 @@ describe("PropertyDetailPage", () => {
 
         renderPropertyCreatePage();
 
-        expect(await screen.findByRole("button", { name: "Configure extraction fields" })).toBeInTheDocument();
+        expect(await screen.findByRole("button", { name: "Review source fields" })).toBeInTheDocument();
         expect(screen.queryByLabelText("Notes")).not.toBeInTheDocument();
         expect(screen.queryByLabelText("Target price")).not.toBeInTheDocument();
         expect(screen.queryByLabelText("Run interval")).not.toBeInTheDocument();
@@ -353,14 +353,14 @@ describe("PropertyDetailPage", () => {
     it("moves the create action below selector configuration when the price selector flow is enabled", async () => {
         renderPropertyCreatePage();
 
-        await screen.findByRole("button", { name: "Configure extraction fields" });
+        await screen.findByRole("button", { name: "Review source fields" });
         expect(screen.getByRole("button", { name: "Create Property" })).toBeInTheDocument();
 
-        fireEvent.click(screen.getByRole("button", { name: "Configure extraction fields" }));
+        fireEvent.click(screen.getByRole("button", { name: "Review source fields" }));
 
         const selectorSection = screen.getByText("Source & extraction configuration").closest("section");
         expect(selectorSection).not.toBeNull();
-        expect(screen.getByText("Finish optional extraction setup below, then create the property from the configuration block.")).toBeInTheDocument();
+        expect(screen.getByText("Price is required now. Other source fields can prefill property facts so you can create the property faster.")).toBeInTheDocument();
         expect(selectorSection?.querySelector('button[type="submit"]')?.textContent).toBe("Create Property");
         expect(document.querySelectorAll('form#property-create-form button[type="submit"]').length).toBe(0);
     });
@@ -368,7 +368,7 @@ describe("PropertyDetailPage", () => {
     it("blocks submission when the optional URL is invalid", async () => {
         renderPropertyCreatePage();
 
-        await screen.findByRole("button", { name: "Configure extraction fields" });
+        await screen.findByRole("button", { name: "Review source fields" });
         fireEvent.change(screen.getByRole("textbox", { name: /URL/ }), { target: { value: "notaurl" } });
 
         expect(await screen.findByText("Enter a valid http:// or https:// URL.")).toBeInTheDocument();
@@ -384,7 +384,7 @@ describe("PropertyDetailPage", () => {
         fireEvent.change(screen.getByLabelText("Label"), { target: { value: "Manual listing" } });
         expect(screen.queryByLabelText("URL")).not.toBeInTheDocument();
         expect(screen.queryByText("Source template")).not.toBeInTheDocument();
-        expect(screen.queryByRole("button", { name: "Configure extraction fields" })).not.toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: "Review source fields" })).not.toBeInTheDocument();
         fireEvent.change(screen.getAllByLabelText("Snapshot value")[0] as HTMLInputElement, { target: { value: "275000" } });
         fireEvent.click(screen.getByRole("button", { name: "Create Property" }));
 
@@ -447,7 +447,7 @@ describe("PropertyDetailPage", () => {
 
         renderPropertyCreatePage();
 
-        await screen.findByRole("button", { name: "Configure extraction fields" });
+        await screen.findByRole("button", { name: "Review source fields" });
         await screen.findByText("Idealista template");
         fireEvent.change(document.querySelector("#prop-source") as HTMLSelectElement, { target: { value: "source_1" } });
         fireEvent.change(screen.getByRole("textbox", { name: /URL/ }), { target: { value: "https://example.com/listing" } });
@@ -474,7 +474,7 @@ describe("PropertyDetailPage", () => {
 
         renderPropertyCreatePage();
 
-        fireEvent.click(await screen.findByRole("button", { name: "Configure extraction fields" }));
+        fireEvent.click(await screen.findByRole("button", { name: "Review source fields" }));
         fireEvent.change(document.querySelector("#prop-source") as HTMLSelectElement, { target: { value: "source_1" } });
 
         await waitFor(() => {
@@ -517,7 +517,7 @@ describe("PropertyDetailPage", () => {
 
         renderPropertyCreatePage();
 
-        await screen.findByRole("button", { name: "Configure extraction fields" });
+        await screen.findByRole("button", { name: "Review source fields" });
         await screen.findByText("Idealista template");
         fireEvent.change(document.querySelector("#prop-source") as HTMLSelectElement, { target: { value: "source_1" } });
         fireEvent.change(screen.getByRole("textbox", { name: /URL/ }), { target: { value: "https://example.com/listing" } });
