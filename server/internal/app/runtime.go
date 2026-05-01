@@ -29,10 +29,8 @@ type Runtime struct {
 	Handler           http.Handler
 	db                *sql.DB
 	cancel            context.CancelFunc
-	scheduler         *ingestionapp.Scheduler
 	propertyScheduler *ingestionapp.PropertyScheduler
 	platformService   *platformopsapp.Service
-	shutdownTimeout   time.Duration
 }
 
 // New builds the operational backend runtime.
@@ -113,10 +111,8 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Runtime,
 		Handler:           platformhttp.LoggingMiddleware(logger, platformhttp.CORSMiddleware(mux)),
 		db:                db,
 		cancel:            cancel,
-		scheduler:         nil,
 		propertyScheduler: propertyScheduler,
 		platformService:   platformService,
-		shutdownTimeout:   cfg.Scheduler.ShutdownTimeout,
 	}, nil
 }
 
@@ -130,13 +126,6 @@ func (r *Runtime) Close() error {
 	}
 	if r.propertyScheduler != nil {
 		r.propertyScheduler.Stop()
-	}
-	if r.scheduler != nil {
-		waitCtx, cancel := context.WithTimeout(context.Background(), r.shutdownTimeout)
-		defer cancel()
-		if err := r.scheduler.Wait(waitCtx); err != nil {
-			return err
-		}
 	}
 	return r.db.Close()
 }
