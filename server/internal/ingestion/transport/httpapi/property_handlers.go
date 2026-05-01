@@ -1,7 +1,9 @@
 package httpapi
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -22,16 +24,7 @@ type propertyUpsertRequest struct {
 	Paused                  *bool                             `json:"paused,omitempty"`
 	PauseReason             *string                           `json:"pause_reason,omitempty"`
 	Metadata                *ingestiondomain.PropertyMetadata `json:"metadata,omitempty"`
-	ManualData              *propertyManualDataRequest        `json:"manual_data,omitempty"`
-}
-
-type propertyManualDataRequest struct {
-	AreaSqm     *float64 `json:"area_sqm,omitempty"`
-	Bathrooms   *float64 `json:"bathrooms,omitempty"`
-	Location    *string  `json:"location,omitempty"`
-	Price       *int64   `json:"price,omitempty"`
-	PropertyAge *int64   `json:"property_age,omitempty"`
-	Rooms       *float64 `json:"rooms,omitempty"`
+	ManualData              map[string]json.RawMessage        `json:"manual_data,omitempty"`
 }
 
 // RegisterProperties binds property tracking HTTP routes to the supplied mux.
@@ -63,9 +56,13 @@ func RegisterProperties(mux *http.ServeMux, requireAuth func(http.Handler) http.
 			return
 		}
 
-		manualValues := manualDataFromRequest(request.ManualData)
-		if _, ok := manualValues["price"]; !ok {
-			platformhttp.WriteError(w, http.StatusBadRequest, "price is required")
+		manualValues, err := manualDataFromRequest(request.ManualData)
+		if err != nil {
+			platformhttp.WriteError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		if isManualTrackingRequest(request) && len(manualValues) == 0 {
+			platformhttp.WriteError(w, http.StatusBadRequest, "manual snapshot values are required")
 			return
 		}
 
@@ -159,7 +156,13 @@ func RegisterProperties(mux *http.ServeMux, requireAuth func(http.Handler) http.
 			return
 		}
 
-		property, err := service.UpsertPropertyWithManualData(r.Context(), mergePropertyUpsertRequest(existing, request), manualDataFromRequest(request.ManualData))
+		manualValues, err := manualDataFromRequest(request.ManualData)
+		if err != nil {
+			platformhttp.WriteError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		property, err := service.UpsertPropertyWithManualData(r.Context(), mergePropertyUpsertRequest(existing, request), manualValues)
 		if err != nil {
 			platformhttp.WriteError(w, http.StatusBadRequest, err.Error())
 			return
@@ -461,36 +464,75 @@ func mergePropertyUpsertRequest(existing ingestiondomain.Property, request prope
 	return property
 }
 
-func manualDataFromRequest(request *propertyManualDataRequest) map[string]string {
-	if request == nil {
-		return nil
+func isManualTrackingRequest(request propertyUpsertRequest) bool {
+	if request.Metadata == nil {
+		return strings.TrimSpace(request.URL) == "" && strings.TrimSpace(optionalString(request.SourceID)) == ""
+	}
+
+	return strings.EqualFold(strings.TrimSpace(request.Metadata.TrackingMode), "manual")
+}
+
+func optionalString(value *string) string {
+	if value == nil {
+		return ""
+	}
+
+	return *value
+}
+
+func manualDataFromRequest(request map[string]json.RawMessage) (map[string]string, error) {
+	if len(request) == 0 {
+		return nil, nil
 	}
 
 	values := map[string]string{}
-	if request.Price != nil {
-		values["price"] = strconv.FormatInt(*request.Price, 10)
-	}
-	if request.AreaSqm != nil {
-		values["area_m2"] = strconv.FormatFloat(*request.AreaSqm, 'f', -1, 64)
-	}
-	if request.Rooms != nil {
-		values["rooms"] = strconv.FormatFloat(*request.Rooms, 'f', -1, 64)
-	}
-	if request.Bathrooms != nil {
-		values["bathrooms"] = strconv.FormatFloat(*request.Bathrooms, 'f', -1, 64)
-	}
-	if request.PropertyAge != nil {
-		values["property_age"] = strconv.FormatInt(*request.PropertyAge, 10)
-	}
-	if request.Location != nil {
-		trimmed := strings.TrimSpace(*request.Location)
-		if trimmed != "" {
-			values["location"] = trimmed
+	for rawKey, rawValue := range request {
+		key := normalizeManualDataKey(rawKey)
+		if key == "" || string(rawValue) == "null" {
+			continue
+		}
+
+		value, err := stringifyManualDataValue(rawValue)
+		if err != nil {
+			return nil, err
+		}
+		if value != "" {
+			values[key] = value
 		}
 	}
 	if len(values) == 0 {
-		return nil
+		return nil, nil
 	}
 
-	return values
+	return values, nil
+}
+
+func normalizeManualDataKey(value string) string {
+	normalized := strings.TrimSpace(strings.ToLower(value))
+	normalized = strings.ReplaceAll(normalized, " ", "_")
+	normalized = strings.ReplaceAll(normalized, "-", "_")
+	return normalized
+}
+
+func stringifyManualDataValue(raw json.RawMessage) (string, error) {
+	var text string
+	if err := json.Unmarshal(raw, &text); err == nil {
+		return strings.TrimSpace(text), nil
+	}
+
+	var number float64
+	if err := json.Unmarshal(raw, &number); err == nil {
+		if number == float64(int64(number)) {
+			return strconv.FormatInt(int64(number), 10), nil
+		}
+
+		return strconv.FormatFloat(number, 'f', -1, 64), nil
+	}
+
+	var boolean bool
+	if err := json.Unmarshal(raw, &boolean); err == nil {
+		return strconv.FormatBool(boolean), nil
+	}
+
+	return "", fmt.Errorf("manual data values must be strings, numbers, or booleans")
 }

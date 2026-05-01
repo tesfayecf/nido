@@ -236,6 +236,7 @@ type PropertyAttachment struct {
 type PropertyMetadata struct {
 	PriorityLevel      string               `json:"priority_level,omitempty"`
 	BusinessStage      string               `json:"business_stage,omitempty"`
+	TrackingMode       string               `json:"tracking_mode,omitempty"`
 	TargetPrice        int64                `json:"target_price,omitempty"`
 	ExpectedRent       int64                `json:"expected_rent,omitempty"`
 	ExpectedYieldBps   int                  `json:"expected_yield_bps,omitempty"`
