@@ -529,10 +529,5 @@ func stringifyManualDataValue(raw json.RawMessage) (string, error) {
 		return strconv.FormatFloat(number, 'f', -1, 64), nil
 	}
 
-	var boolean bool
-	if err := json.Unmarshal(raw, &boolean); err == nil {
-		return strconv.FormatBool(boolean), nil
-	}
-
-	return "", fmt.Errorf("manual data values must be strings, numbers, or booleans")
+	return "", fmt.Errorf("manual data values must be strings or numbers")
 }

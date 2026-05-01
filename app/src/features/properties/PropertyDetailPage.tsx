@@ -343,7 +343,7 @@ const inferTrackingMode = (property: { readonly metadata?: PropertyMetadata; rea
         return property.metadata.tracking_mode;
     }
 
-    return property?.url !== undefined && property.url.trim() !== "" || property?.source_id !== undefined && property.source_id.trim() !== ""
+    return (property?.url !== undefined && property.url.trim() !== "") || (property?.source_id !== undefined && property.source_id.trim() !== "")
         ? "automatic"
         : "manual";
 };
