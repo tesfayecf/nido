@@ -46,9 +46,12 @@ export interface PropertyAttachment {
     readonly url: string;
 }
 
+export type PropertyTrackingMode = "automatic" | "manual";
+
 export interface PropertyMetadata {
     readonly priority_level?: string;
     readonly business_stage?: string;
+    readonly tracking_mode?: PropertyTrackingMode;
     readonly target_price?: number;
     readonly expected_rent?: number;
     readonly expected_yield_bps?: number;
@@ -87,14 +90,7 @@ export interface PropertySnapshot {
     readonly error_message?: string;
 }
 
-export interface PropertyManualData {
-    readonly area_sqm?: number;
-    readonly bathrooms?: number;
-    readonly location?: string;
-    readonly price?: number;
-    readonly property_age?: number;
-    readonly rooms?: number;
-}
+export type PropertyManualData = Record<string, number | string | undefined>;
 
 export interface PropertyPreviewRequest {
     readonly url: string;

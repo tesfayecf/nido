@@ -499,23 +499,25 @@ func TestEnsurePropertyReschedulesExistingPropertyWithoutResettingRunState(t *te
 	}
 }
 
-func TestUpsertPropertyWithManualDataRequiresPriceWhenCreatingSnapshot(t *testing.T) {
+func TestUpsertPropertyWithManualDataSkipsSnapshotWithoutManualValues(t *testing.T) {
 	t.Parallel()
 
 	now := time.Date(2024, time.January, 2, 9, 0, 0, 0, time.UTC)
 	store := &propertyServiceStoreStub{propertyErr: sql.ErrNoRows}
 	service := NewPropertyService(nil, store, nil, fixedClock{now: now}, nil, nil)
 
-	_, err := service.UpsertPropertyWithManualData(context.Background(), ingestiondomain.Property{
-		Label: "Manual listing",
-	}, map[string]string{
-		"location": "Bilbao",
-	})
-	if err == nil {
-		t.Fatal("expected manual save without price to fail")
+	property, err := service.UpsertPropertyWithManualData(context.Background(), ingestiondomain.Property{
+		Label: "Automated listing",
+		URL:   "https://example.com/listing",
+	}, map[string]string{})
+	if err != nil {
+		t.Fatalf("expected save without manual values to succeed, got %v", err)
 	}
-	if got := err.Error(); got != "price is required" {
-		t.Fatalf("expected price validation error, got %q", got)
+	if property.ID == "" {
+		t.Fatal("expected property to be saved")
+	}
+	if len(store.snapshots) != 0 {
+		t.Fatalf("expected no manual snapshots, got %d", len(store.snapshots))
 	}
 }
 

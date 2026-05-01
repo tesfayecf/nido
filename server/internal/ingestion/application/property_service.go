@@ -800,6 +800,7 @@ func (s *PropertyService) normalizeAndValidateProperty(ctx context.Context, prop
 	property.PauseReason = strings.TrimSpace(property.PauseReason)
 	property.Metadata.PriorityLevel = strings.TrimSpace(property.Metadata.PriorityLevel)
 	property.Metadata.BusinessStage = strings.TrimSpace(property.Metadata.BusinessStage)
+	property.Metadata.TrackingMode = strings.TrimSpace(property.Metadata.TrackingMode)
 	property.Metadata.AcquisitionNotes = strings.TrimSpace(property.Metadata.AcquisitionNotes)
 	property.Metadata.DealThesis = strings.TrimSpace(property.Metadata.DealThesis)
 	for index := range property.Metadata.ExternalReferences {
@@ -885,8 +886,8 @@ func (s *PropertyService) recordManualSnapshot(
 		}
 		values[key] = trimmed
 	}
-	if strings.TrimSpace(values["price"]) == "" {
-		return ingestiondomain.PropertySnapshot{}, fmt.Errorf("price is required")
+	if len(values) == 0 {
+		return ingestiondomain.PropertySnapshot{}, fmt.Errorf("manual snapshot values are required")
 	}
 
 	changeFlags := map[string]bool{}

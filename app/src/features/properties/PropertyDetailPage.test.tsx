@@ -268,6 +268,7 @@ describe("PropertyDetailPage", () => {
         renderPropertyDetailPage();
 
         expect(await screen.findByText("Scheduled")).toBeInTheDocument();
+        fireEvent.click(screen.getByRole("button", { name: "Configuration" }));
         expect(screen.getAllByText("5 minutes").length).toBeGreaterThan(0);
         expect(screen.getByText("Jan 1, 2024, 12:05 PM")).toBeInTheDocument();
         expect(screen.getByText("Jan 1, 2024, 11:55 AM")).toBeInTheDocument();
@@ -286,19 +287,15 @@ describe("PropertyDetailPage", () => {
         expect(screen.queryByLabelText("Target price")).not.toBeInTheDocument();
     });
 
-    it("prioritizes insights, then configuration, before notes in the property navigation", async () => {
+    it("renders exactly four property sections in the required order", async () => {
         renderPropertyDetailPage();
 
         await screen.findByText("Sunny flat");
         const navLabels = screen.getAllByRole("button")
             .map((button) => button.textContent)
-            .filter((label): label is string => label !== null);
+            .filter((label): label is string => label === "Overview" || label === "Insights" || label === "Notes & Decisions" || label === "Configuration");
 
-        expect(navLabels.indexOf("Property Insights")).toBeGreaterThan(-1);
-        expect(navLabels.indexOf("Configuration")).toBeGreaterThan(-1);
-        expect(navLabels.indexOf("Notes & Decisions")).toBeGreaterThan(-1);
-        expect(navLabels.indexOf("Property Insights")).toBeLessThan(navLabels.indexOf("Configuration"));
-        expect(navLabels.indexOf("Configuration")).toBeLessThan(navLabels.indexOf("Notes & Decisions"));
+        expect(navLabels).toEqual(["Overview", "Insights", "Notes & Decisions", "Configuration"]);
     });
 
     it("saves structured duration controls as schedule seconds", async () => {
@@ -329,21 +326,21 @@ describe("PropertyDetailPage", () => {
 
         renderPropertyCreatePage();
 
-        expect(await screen.findByRole("button", { name: "Configure price selector" })).toBeInTheDocument();
+        expect(await screen.findByRole("button", { name: "Configure extraction fields" })).toBeInTheDocument();
         expect(screen.queryByLabelText("Notes")).not.toBeInTheDocument();
         expect(screen.queryByLabelText("Target price")).not.toBeInTheDocument();
         expect(screen.queryByLabelText("Run interval")).not.toBeInTheDocument();
         expect(screen.getByRole("button", { name: "Create Property" })).toBeDisabled();
         fireEvent.change(screen.getByRole("textbox", { name: /URL/ }), { target: { value: "https://example.com/listing" } });
         fireEvent.change(document.querySelector("#prop-source") as HTMLSelectElement, { target: { value: "source_1" } });
-        fireEvent.change(document.querySelector("#prop-price") as HTMLInputElement, { target: { value: "275000" } });
         fireEvent.click(screen.getByRole("button", { name: "Create Property" }));
 
         await waitFor(() => {
             expect(createPropertyMock).toHaveBeenCalledWith(expect.objectContaining({
                 label: "",
-                manual_data: expect.objectContaining({
-                    price: 275000,
+                manual_data: undefined,
+                metadata: expect.objectContaining({
+                    tracking_mode: "automatic",
                 }),
                 schedule_interval_seconds: 0,
                 source_id: "source_1",
@@ -356,14 +353,14 @@ describe("PropertyDetailPage", () => {
     it("moves the create action below selector configuration when the price selector flow is enabled", async () => {
         renderPropertyCreatePage();
 
-        await screen.findByRole("button", { name: "Configure price selector" });
+        await screen.findByRole("button", { name: "Configure extraction fields" });
         expect(screen.getByRole("button", { name: "Create Property" })).toBeInTheDocument();
 
-        fireEvent.click(screen.getByRole("button", { name: "Configure price selector" }));
+        fireEvent.click(screen.getByRole("button", { name: "Configure extraction fields" }));
 
-        const selectorSection = screen.getByText("Source & scraping configuration").closest("section");
+        const selectorSection = screen.getByText("Source & extraction configuration").closest("section");
         expect(selectorSection).not.toBeNull();
-        expect(screen.getByText("Finish the selector setup below, then create the property from the configuration block.")).toBeInTheDocument();
+        expect(screen.getByText("Finish optional extraction setup below, then create the property from the configuration block.")).toBeInTheDocument();
         expect(selectorSection?.querySelector('button[type="submit"]')?.textContent).toBe("Create Property");
         expect(document.querySelectorAll('form#property-create-form button[type="submit"]').length).toBe(0);
     });
@@ -371,8 +368,7 @@ describe("PropertyDetailPage", () => {
     it("blocks submission when the optional URL is invalid", async () => {
         renderPropertyCreatePage();
 
-        await screen.findByRole("button", { name: "Configure price selector" });
-        fireEvent.change(document.querySelector("#prop-price") as HTMLInputElement, { target: { value: "275000" } });
+        await screen.findByRole("button", { name: "Configure extraction fields" });
         fireEvent.change(screen.getByRole("textbox", { name: /URL/ }), { target: { value: "notaurl" } });
 
         expect(await screen.findByText("Enter a valid http:// or https:// URL.")).toBeInTheDocument();
@@ -380,14 +376,27 @@ describe("PropertyDetailPage", () => {
         expect(createPropertyMock).not.toHaveBeenCalled();
     });
 
-    it("requires a configured price field when creating without a template", async () => {
+    it("hides automation setup and saves flexible attributes in manual tracking mode", async () => {
+        createPropertyMock.mockResolvedValue({ ...PROPERTY, id: "prop_new", label: "Manual listing", metadata: { tracking_mode: "manual" }, url: "" });
         renderPropertyCreatePage();
 
-        fireEvent.click(await screen.findByRole("button", { name: "Configure price selector" }));
-        fireEvent.click(screen.getByRole("button", { name: /Remove price/i }));
+        fireEvent.click(await screen.findByLabelText("Manual Tracking"));
+        fireEvent.change(screen.getByLabelText("Label"), { target: { value: "Manual listing" } });
+        expect(screen.queryByLabelText("URL")).not.toBeInTheDocument();
+        expect(screen.queryByText("Source template")).not.toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: "Configure extraction fields" })).not.toBeInTheDocument();
+        fireEvent.change(screen.getAllByLabelText("Snapshot value")[0] as HTMLInputElement, { target: { value: "275000" } });
+        fireEvent.click(screen.getByRole("button", { name: "Create Property" }));
 
-        expect(await screen.findByText("Add at least one field configured as Price before creating a property without a template.")).toBeInTheDocument();
-        expect(screen.getByRole("button", { name: "Create Property" })).toBeDisabled();
+        await waitFor(() => {
+            expect(createPropertyMock).toHaveBeenCalledWith(expect.objectContaining({
+                label: "Manual listing",
+                manual_data: expect.objectContaining({ price: 275000 }),
+                metadata: expect.objectContaining({ tracking_mode: "manual" }),
+                source_id: undefined,
+                url: "",
+            }));
+        });
     });
 
     it("shows tags and alerts inside configuration instead of notes and decisions", async () => {
@@ -438,8 +447,8 @@ describe("PropertyDetailPage", () => {
 
         renderPropertyCreatePage();
 
-        await screen.findByRole("button", { name: "Configure price selector" });
-        fireEvent.change(document.querySelector("#prop-price") as HTMLInputElement, { target: { value: "275000" } });
+        await screen.findByRole("button", { name: "Configure extraction fields" });
+        await screen.findByText("Idealista template");
         fireEvent.change(document.querySelector("#prop-source") as HTMLSelectElement, { target: { value: "source_1" } });
         fireEvent.change(screen.getByRole("textbox", { name: /URL/ }), { target: { value: "https://example.com/listing" } });
 
@@ -448,7 +457,6 @@ describe("PropertyDetailPage", () => {
                 url: "https://example.com/listing",
             }));
         });
-        expect(document.querySelector("#prop-price")).toHaveValue(275000);
         expect(screen.queryByRole("spinbutton", { name: "Rooms" })).not.toBeInTheDocument();
     });
 
@@ -466,7 +474,7 @@ describe("PropertyDetailPage", () => {
 
         renderPropertyCreatePage();
 
-        fireEvent.click(await screen.findByRole("button", { name: "Configure price selector" }));
+        fireEvent.click(await screen.findByRole("button", { name: "Configure extraction fields" }));
         fireEvent.change(document.querySelector("#prop-source") as HTMLSelectElement, { target: { value: "source_1" } });
 
         await waitFor(() => {
@@ -479,7 +487,7 @@ describe("PropertyDetailPage", () => {
         expect(await screen.findByText("Template link removed for this property.")).toBeInTheDocument();
     });
 
-    it("preserves manual price overrides when URL autofill runs again", async () => {
+    it("checks automatic URLs without requiring a manual price override", async () => {
         listSourcesMock.mockResolvedValue([{
             config_json: JSON.stringify({
                 fields: [
@@ -509,22 +517,19 @@ describe("PropertyDetailPage", () => {
 
         renderPropertyCreatePage();
 
-        await screen.findByRole("button", { name: "Configure price selector" });
-        fireEvent.change(document.querySelector("#prop-price") as HTMLInputElement, { target: { value: "275000" } });
+        await screen.findByRole("button", { name: "Configure extraction fields" });
+        await screen.findByText("Idealista template");
         fireEvent.change(document.querySelector("#prop-source") as HTMLSelectElement, { target: { value: "source_1" } });
         fireEvent.change(screen.getByRole("textbox", { name: /URL/ }), { target: { value: "https://example.com/listing" } });
 
         await waitFor(() => {
             expect(previewExtractionMock).toHaveBeenCalledTimes(1);
         });
-        expect(document.querySelector("#prop-price")).toHaveValue(275000);
-
-        fireEvent.change(document.querySelector("#prop-price") as HTMLInputElement, { target: { value: "280000" } });
         fireEvent.change(screen.getByRole("textbox", { name: /URL/ }), { target: { value: "https://example.com/listing?refresh=1" } });
 
         await waitFor(() => {
             expect(previewExtractionMock).toHaveBeenCalledTimes(2);
         });
-        expect(document.querySelector("#prop-price")).toHaveValue(280000);
+        expect(screen.queryByLabelText("Price")).not.toBeInTheDocument();
     });
 });
