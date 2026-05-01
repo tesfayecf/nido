@@ -1399,7 +1399,6 @@ func normalizeConfiguredFields(fields []ingestiondomain.FieldSelector) ([]ingest
 		field.FieldRole = ingestiondomain.NormalizeFieldRole(field.FieldRole, field.Name)
 		field.FallbackSelectors = ingestiondomain.NormalizeSelectorList(field.FallbackSelectors)
 		if strings.EqualFold(field.Name, "price") {
-			field.FieldRole = ingestiondomain.FieldRoleTracked
 			field.Required = true
 		}
 

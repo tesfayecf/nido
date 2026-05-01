@@ -729,7 +729,10 @@ export const PropertyDetailPage = (): JSX.Element => {
                 }
 
                 setAutofillStatus(result.success ? "success" : "error");
-                const hasPrefillValues = result.fields.some((field) => sourceTemplateFields.some((templateField) => templateField.name === field.name && templateField.field_role !== "tracked") && field.success);
+                const prefillFieldNames = new Set(sourceTemplateFields
+                    .filter((field) => field.field_role !== "tracked")
+                    .map((field) => field.name));
+                const hasPrefillValues = result.fields.some((field) => prefillFieldNames.has(field.name) && field.success);
                 setAutofillMessage(result.success
                     ? hasPrefillValues ? "URL checked. Property facts are ready to prefill from this template." : "URL checked. No property facts were available to prefill from this template."
                     : "Could not check the URL. You can still create the property and capture the first price from a later snapshot.");

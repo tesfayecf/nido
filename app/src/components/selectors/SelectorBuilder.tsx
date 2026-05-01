@@ -45,6 +45,8 @@ const TRANSFORM_OPTIONS = [
     { label: "Currency amount", value: "currency" },
 ] as const;
 
+const SELECTOR_TABLE_COLUMN_COUNT = 6;
+
 const updateField = (fields: SelectorFieldDraft[], fieldId: string, patch: Partial<SelectorFieldDraft>): SelectorFieldDraft[] => {
     return fields.map((field) => field.id === fieldId ? { ...field, ...patch } : field);
 };
@@ -247,7 +249,7 @@ export const SelectorBuilder = ({
                                     </tr>
                                     {expanded ? (
                                         <tr className={"selector-builder__details-row"}>
-                                            <td colSpan={6}>
+                                            <td colSpan={SELECTOR_TABLE_COLUMN_COUNT}>
                                                 <div className={"selector-builder__field"}>
                                                     <div className={"selector-builder__field-header"}>
                                                         <div>

@@ -165,6 +165,14 @@ export const SourceDetailPage = (): JSX.Element => {
             roleValue: field.fieldRole,
             selector: field.selectorValue,
         }));
+    const hasPrefillFields = fieldRows.some((row) => row.roleValue === "prefill");
+    const hasTrackedFields = fieldRows.some((row) => row.roleValue === "tracked");
+    const noPrefillMessage = hasPrefillFields
+        ? null
+        : <p className={"muted-copy"}>{"No prefill fields yet. Add stable listing facts if you want faster property creation from a URL."}</p>;
+    const noTrackedMessage = hasTrackedFields
+        ? null
+        : <p className={"muted-copy"}>{"No tracked fields yet. Add price or another live signal before relying on this template for monitoring."}</p>;
 
     const persistFields = (nextFields: SelectorFieldDraft[]): void => {
         setSelectorFields(nextFields);
@@ -346,6 +354,8 @@ export const SourceDetailPage = (): JSX.Element => {
                     description={"Configured fields are listed below. Use the row actions to classify and change a single field without opening the full editor."}
                     title={"Configured Fields"}
                 >
+                    {noPrefillMessage}
+                    {noTrackedMessage}
                     <DataTable
                         caption={"Configured source fields"}
                         columns={[
@@ -384,9 +394,7 @@ export const SourceDetailPage = (): JSX.Element => {
                             },
                         ]}
                         compact
-                        emptyMessage={fieldRows.some((row) => row.roleValue === "tracked")
-                            ? "No prefill fields yet. Add stable listing facts if you want faster property creation from a URL."
-                            : "No tracked fields yet. Add price or another live signal before relying on this template for monitoring."}
+                        emptyMessage={"No selector fields are configured yet."}
                         getRowId={(item) => item.id}
                         items={fieldRows}
                         pageSize={12}
