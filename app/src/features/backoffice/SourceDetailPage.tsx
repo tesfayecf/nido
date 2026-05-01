@@ -47,6 +47,8 @@ const defaultSourceState = (): Source => ({
     name: "",
 });
 
+const getSelectorRole = (role: string | undefined): "prefill" | "tracked" => role === "tracked" ? "tracked" : "prefill";
+
 export const SourceDetailPage = (): JSX.Element => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
@@ -463,7 +465,7 @@ const buildSourceHealthSnapshot = (items: { property: { id: string; }; snapshots
         });
     });
 
-    const rolesByField = new Map(configuredFields.map((field) => [field.name, field.field_role === "tracked" ? "tracked" as const : "prefill" as const]));
+    const rolesByField = new Map(configuredFields.map((field) => [field.name, getSelectorRole(field.field_role)]));
     const fields = [...fieldStats.entries()].map(([field, stat]) => ({
         completeness: stat.seenCount === 0 ? 0 : Math.round(((stat.seenCount - stat.emptyCount) / stat.seenCount) * 100),
         emptyCount: stat.emptyCount,

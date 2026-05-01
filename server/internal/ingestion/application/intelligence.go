@@ -245,7 +245,7 @@ func humanizeFieldName(fieldName string) string {
 		return fieldName
 	}
 	for index, word := range words {
-		if word == "" {
+		if len(word) == 0 {
 			continue
 		}
 		words[index] = strings.ToUpper(word[:1]) + word[1:]
