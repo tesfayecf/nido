@@ -322,9 +322,9 @@ export const SourceDetailPage = (): JSX.Element => {
                             <DataTable
                                 caption={"Field completeness by template field"}
                                 columns={[
-                                     { cell: (item) => item.field, header: "Field", id: "field", sortValue: (item) => item.field },
-                                     { cell: (item) => item.role === "tracked" ? "Tracked" : "Prefill", header: "Role", id: "role", sortValue: (item) => item.role },
-                                     { cell: (item) => `${item.completeness}%`, header: "Completeness", id: "completeness", sortValue: (item) => item.completeness },
+                                    { cell: (item) => item.field, header: "Field", id: "field", sortValue: (item) => item.field },
+                                    { cell: (item) => item.role === "tracked" ? "Tracked" : "Prefill", header: "Role", id: "role", sortValue: (item) => item.role },
+                                    { cell: (item) => `${item.completeness}%`, header: "Completeness", id: "completeness", sortValue: (item) => item.completeness },
                                     { cell: (item) => `${item.emptyCount}`, header: "Empty results", id: "emptyCount", sortValue: (item) => item.emptyCount },
                                 ]}
                                 compact
@@ -349,11 +349,11 @@ export const SourceDetailPage = (): JSX.Element => {
                     <DataTable
                         caption={"Configured source fields"}
                         columns={[
-                             { cell: (item) => item.name, header: "Field", id: "name", sortValue: (item) => item.name },
-                             { cell: (item) => item.role, header: "Role", id: "role", sortValue: (item) => item.role },
-                             { cell: (item) => item.mode, header: "Type", id: "mode", sortValue: (item) => item.mode },
-                             { cell: (item) => item.selector, header: "Source", id: "selector" },
-                             { cell: (item) => item.required, header: "Status", id: "required", sortValue: (item) => item.required },
+                            { cell: (item) => item.name, header: "Field", id: "name", sortValue: (item) => item.name },
+                            { cell: (item) => item.role, header: "Role", id: "role", sortValue: (item) => item.role },
+                            { cell: (item) => item.mode, header: "Type", id: "mode", sortValue: (item) => item.mode },
+                            { cell: (item) => item.selector, header: "Source", id: "selector" },
+                            { cell: (item) => item.required, header: "Status", id: "required", sortValue: (item) => item.required },
                             {
                                 align: "right",
                                 cell: (item) => (

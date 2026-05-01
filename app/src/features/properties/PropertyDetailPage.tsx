@@ -569,6 +569,7 @@ export const PropertyDetailPage = (): JSX.Element => {
         () => sourceTemplateFields.filter((field) => field.field_role === "tracked" || field.name === "price").map((field) => formatFieldName(field.name)),
         [sourceTemplateFields],
     );
+    const noTemplateSelected = sourceId.trim() === "";
     const createURLHint = getCreateURLHint(url, autofillStatus, autofillMessage, sourceId.trim() !== "", manualEntryMode);
     const fieldMetadataById = useMemo<Record<string, { origin: "manual" | "template"; status: "linked" | "manual" | "modified"; }>>(() => {
         return Object.fromEntries(fieldRows.map((field) => {
@@ -1011,6 +1012,21 @@ export const PropertyDetailPage = (): JSX.Element => {
         decisionEntries.push({ label: "System signal", timestamp: latestSnapshot?.observed_at, value: summaryQuery.data.latest_change_summary });
     }
 
+    const templateRoleSummary = noTemplateSelected
+        ? <p className={"muted-copy"}>{"Select a source template to prefill property facts and define what Nido should monitor after creation."}</p>
+        : (
+            <div className={"property-detail-group-grid"}>
+                <div className={"property-inline-note"}>
+                    <strong>{"Prefill once"}</strong>
+                    <span>{templatePrefillFields.length > 0 ? templatePrefillFields.join(", ") : "This template does not prefill any property facts yet. Add fields like location, area, or rooms if you want faster intake."}</span>
+                </div>
+                <div className={"property-inline-note"}>
+                    <strong>{"Monitor on each run"}</strong>
+                    <span>{templateTrackedFields.length > 0 ? templateTrackedFields.join(", ") : "This template does not track any live fields yet. Add at least one tracked field, usually price."}</span>
+                </div>
+            </div>
+        );
+
     const manualAttributeEditor = (
         <div className={"property-section-stack"}>
             <div className={"property-inline-note"}>
@@ -1126,20 +1142,7 @@ export const PropertyDetailPage = (): JSX.Element => {
                             <strong>{"What this template will do"}</strong>
                             <p className={"muted-copy"}>{"Templates can speed up intake and define what Nido keeps monitoring after the property is created."}</p>
                         </div>
-                        {sourceId.trim() === "" ? (
-                            <p className={"muted-copy"}>{"Select a source template to prefill property facts and define what Nido should monitor after creation."}</p>
-                        ) : (
-                            <div className={"property-detail-group-grid"}>
-                                <div className={"property-inline-note"}>
-                                    <strong>{"Prefill once"}</strong>
-                                    <span>{templatePrefillFields.length > 0 ? templatePrefillFields.join(", ") : "This template does not prefill any property facts yet. Add fields like location, area, or rooms if you want faster intake."}</span>
-                                </div>
-                                <div className={"property-inline-note"}>
-                                    <strong>{"Monitor on each run"}</strong>
-                                    <span>{templateTrackedFields.length > 0 ? templateTrackedFields.join(", ") : "This template does not track any live fields yet. Add at least one tracked field, usually price."}</span>
-                                </div>
-                            </div>
-                        )}
+                        {templateRoleSummary}
                     </div>
                 ) : null}
                 {manualEntryMode ? manualAttributeEditor : (
