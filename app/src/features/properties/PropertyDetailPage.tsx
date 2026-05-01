@@ -597,6 +597,7 @@ export const PropertyDetailPage = (): JSX.Element => {
                 previousTemplateIdRef.current = "";
                 return;
             }
+
             const trimmedSourceId = sourceId.trim();
             const previousTemplateId = previousTemplateIdRef.current;
             if (trimmedSourceId === "") {
@@ -979,12 +980,15 @@ export const PropertyDetailPage = (): JSX.Element => {
     if (metadataDraft.businessStage.trim() !== "") {
         decisionEntries.push({ label: "Decision status", timestamp: propertyQuery.data?.updated_at, value: formatDecisionStatus(metadataDraft.businessStage) });
     }
+
     if (metadataDraft.priorityLevel.trim() !== "") {
         decisionEntries.push({ label: "Priority", timestamp: propertyQuery.data?.updated_at, value: metadataDraft.priorityLevel });
     }
+
     if (summaryQuery.data?.latest_change_summary !== undefined && summaryQuery.data.latest_change_summary !== "") {
         decisionEntries.push({ label: "System signal", timestamp: latestSnapshot?.observed_at, value: summaryQuery.data.latest_change_summary });
     }
+
     const manualAttributeEditor = (
         <div className={"property-section-stack"}>
             <div className={"property-inline-note"}>
@@ -1479,173 +1483,177 @@ export const PropertyDetailPage = (): JSX.Element => {
                                     </div>
                                 )}
                         </PageCard>
-                        {!manualEntryMode ? <PageCard description={"Review the URL and template summary, then manage field configuration from a compact, expandable table."} title={"Fields & Source Extraction"}>
-                            <KeyValueGrid compact>
-                                <KeyValuePair label={"URL"} value={propertyQuery.data?.url !== undefined && propertyQuery.data.url !== "" ? propertyQuery.data.url : "Manual property"} />
-                                <KeyValuePair label={"Source template"} value={sourcesQuery.data?.find((source) => source.id === propertyQuery.data?.source_id)?.name ?? "No template"} />
-                            </KeyValueGrid>
-                            {isTemplateDetached && !detachmentAlertDismissed ? (
-                                <div className={"property-inline-alert"} role={"status"}>
-                                    <span className={"property-inline-alert__copy"}>
-                                        <strong>{"Template link removed for this property."}</strong>
-                                        <span>{"This field setup no longer matches the selected template, so future template updates will not apply automatically."}</span>
-                                    </span>
-                                    <Button onClick={() => { setDetachmentAlertDismissed(true); }} size={"small"} variant={"ghost"}>
-                                        {"Dismiss"}
-                                    </Button>
-                                </div>
-                            ) : null}
-                            <SelectorBuilder fieldDefinitions={fieldDefinitionsQuery.data} fieldMetadataById={fieldMetadataById} fields={fieldRows} onChange={setFieldRows} previewByFieldName={previewMap} />
-                            <ActionGroup>
-                                <Button onClick={() => { setFieldRows((rows) => [...rows, createEmptySelectorDraft()]); }} variant={"secondary"}>{"Add field"}</Button>
-                                <Button disabled={previewMutation.isPending || url.trim() === "" || validationMessages.length > 0} onClick={() => { previewMutation.mutate(); }} variant={"secondary"}>{previewMutation.isPending ? "Previewing..." : "Preview extraction"}</Button>
-                                <Button disabled={saveConfigMutation.isPending || validationMessages.length > 0} onClick={() => { saveConfigMutation.mutate(); }}>{saveConfigMutation.isPending ? "Saving..." : "Save configuration"}</Button>
-                            </ActionGroup>
-                            {validationMessages.length > 0 ? (
-                                <div className={"selector-builder__validation-list"}>
-                                    {validationMessages.map((message) => <ErrorBanner key={message}>{message}</ErrorBanner>)}
-                                </div>
-                            ) : null}
-                            {saveConfigMutation.isError ? <ErrorBanner>{"Could not save configuration."}</ErrorBanner> : null}
-                        </PageCard> : null}
-                        {!manualEntryMode ? <PageCard
-                            action={(
-                                <ActionGroup>
-                                    <Button disabled={bookmarkMutation.isPending} onClick={() => { bookmarkMutation.mutate(); }} variant={"secondary"}>
-                                        {isBookmarked ? "Remove bookmark" : "Bookmark"}
-                                    </Button>
-                                    <Tooltip content={persistedRetrySummary}>
-                                        <Button disabled={ingestMutation.isPending} onClick={() => { ingestMutation.mutate(); }}>
-                                            {ingestMutation.isPending ? "Running..." : "Run now"}
-                                        </Button>
-                                    </Tooltip>
-                                    <Button as={Link} to={`/runs?property_id=${resolvedId}`} variant={"secondary"}>{"View history"}</Button>
-                                </ActionGroup>
-                            )}
-                            description={`${persistedScheduleSummary}. ${persistedRetrySummary}`}
-                            title={"Automation"}
-                        >
-                            <FormGrid variant={"two-column"}>
-                                <Field
-                                    error={scheduleIntervalError}
-                                    fullWidth
-                                    hint={scheduleIntervalError === undefined ? "Runs every X minutes/hours using the saved backend schedule." : undefined}
-                                    label={"Run interval"}
-                                >
-                                    <div style={{ display: "grid", gap: "0.75rem" }}>
-                                        <div style={{ display: "grid", gap: "0.75rem", gridTemplateColumns: "minmax(0, 1fr) 11rem" }}>
-                                            <Input
-                                                id={"prop-schedule-value"}
-                                                invalid={scheduleIntervalError !== undefined}
-                                                min={1}
-                                                onChange={(event) => { setScheduleIntervalValue(event.target.value); }}
-                                                placeholder={"15"}
-                                                type={"number"}
-                                                value={scheduleIntervalValue}
-                                            />
-                                            <Select
-                                                id={"prop-schedule-unit"}
-                                                invalid={scheduleIntervalError !== undefined}
-                                                onChange={(event) => { setScheduleIntervalUnit(event.target.value as DurationUnit); }}
-                                                value={scheduleIntervalUnit}
-                                            >
-                                                <option value={"seconds"}>{"Seconds"}</option>
-                                                <option value={"minutes"}>{"Minutes"}</option>
-                                                <option value={"hours"}>{"Hours"}</option>
-                                            </Select>
-                                        </div>
-                                        <ActionGroup>
-                                            {SCHEDULE_PRESETS.map((preset) => {
-                                                const presetLabel = formatDurationFromSeconds(durationDraftToSeconds(preset.value, preset.unit) ?? 0);
-                                                return (
-                                                    <Button
-                                                        key={`${preset.value}-${preset.unit}`}
-                                                        onClick={() => {
-                                                            setScheduleIntervalValue(preset.value);
-                                                            setScheduleIntervalUnit(preset.unit);
-                                                        }}
-                                                        size={"small"}
-                                                        type={"button"}
-                                                        variant={"secondary"}
-                                                    >
-                                                        {presetLabel}
-                                                    </Button>
-                                                );
-                                            })}
-                                        </ActionGroup>
-                                    </div>
-                                </Field>
-                                <Field hint={"Retry on failure before the base schedule resumes."} label={"Max attempts"}>
-                                    <Input id={"prop-retry"} min={1} onChange={(event) => { setRetryMaxAttempts(readNonNegativeNumber(event.target.value, 1)); }} type={"number"} value={retryMaxAttempts} />
-                                </Field>
-                                <Field error={retryBackoffError} hint={"Retry interval between failed attempts."} label={"Retry interval (ms)"}>
-                                    <Input
-                                        id={"prop-backoff"}
-                                        invalid={retryBackoffError !== undefined}
-                                        min={MIN_RETRY_BACKOFF_MS}
-                                        onChange={(event) => { setRetryBackoffMillis(readNonNegativeNumber(event.target.value, 500)); }}
-                                        type={"number"}
-                                        value={retryBackoffMillis}
-                                    />
-                                </Field>
-                                <Field label={"Automation paused"}>
-                                    <div className={"property-toggle-row"}>
-                                        <Toggle checked={metadataDraft.paused} label={"Automation paused"} onCheckedChange={(nextChecked) => { setMetadataDraft((current) => ({ ...current, paused: nextChecked })); }} />
-                                        <span className={"property-toggle-row__state"}>{metadataDraft.paused ? "On" : "Off"}</span>
-                                    </div>
-                                </Field>
-                                {metadataDraft.paused ? (
-                                    <Field fullWidth label={"Pause reason"}>
-                                        <Input onChange={(event) => { setMetadataDraft((current) => ({ ...current, pauseReason: event.target.value })); }} placeholder={"Optional context for the pause"} type={"text"} value={metadataDraft.pauseReason} />
-                                    </Field>
-                                ) : null}
-                            </FormGrid>
-                            <ActionGroup>
-                                <Button disabled={isPropertySaveDisabled} onClick={handlePropertySave}>{savePropertyMutation.isPending ? "Saving..." : "Save run configuration"}</Button>
-                            </ActionGroup>
-                            {savePropertyMutation.isError ? <ErrorBanner>{"Could not save property. Check the price, source details, and any optional URL."}</ErrorBanner> : null}
-                            {propertyQuery.data !== undefined ? (
+                        {!manualEntryMode ? (
+                            <PageCard description={"Review the URL and template summary, then manage field configuration from a compact, expandable table."} title={"Fields & Source Extraction"}>
                                 <KeyValueGrid compact>
-                                    <KeyValuePair label={"Scheduling"} value={persistedScheduleSummary} />
-                                    <KeyValuePair label={"Next run"} value={propertyQuery.data.next_run_at === undefined ? "Waiting for save" : formatDateTime(propertyQuery.data.next_run_at)} />
-                                    <KeyValuePair label={"Last run"} value={propertyQuery.data.last_run_at === undefined ? "No runs yet" : formatDateTime(propertyQuery.data.last_run_at)} />
-                                    <KeyValuePair label={"Retry policy"} value={persistedRetrySummary} />
+                                    <KeyValuePair label={"URL"} value={propertyQuery.data?.url !== undefined && propertyQuery.data.url !== "" ? propertyQuery.data.url : "Manual property"} />
+                                    <KeyValuePair label={"Source template"} value={sourcesQuery.data?.find((source) => source.id === propertyQuery.data?.source_id)?.name ?? "No template"} />
                                 </KeyValueGrid>
-                            ) : null}
-                            {latestSnapshot === undefined ? <EmptyState message={"No runs have been recorded for this property yet."} /> : (
-                                <>
-                                    <KeyValueGrid compact>
-                                        <KeyValuePair label={"Snapshot status"} value={<StatusBadge tone={latestSnapshot.is_valid ? "success" : "warning"} value={latestSnapshot.is_valid ? "valid" : "invalid"} />} />
-                                        <KeyValuePair label={"Observed at"} value={formatDateTime(latestSnapshot.observed_at)} />
-                                    </KeyValueGrid>
-                                    {latestSnapshot.error_message !== undefined && latestSnapshot.error_message !== "" ? <ErrorBanner>{latestSnapshot.error_message}</ErrorBanner> : null}
-                                    <DataTable
-                                        caption={"Current extracted values"}
-                                        columns={[
-                                            { cell: (item) => item.field, header: "Field", id: "field", sortValue: (item) => item.field },
-                                            { cell: (item) => item.value, header: "Value", id: "value" },
-                                            {
-                                                align: "right",
-                                                cell: (item) => (
-                                                    <RowActions>
-                                                        <Button as={Link} size={"small"} to={`/properties/${resolvedId}/fields/${encodeURIComponent(item.field)}/analysis`} variant={"ghost"}>
-                                                            {"View Analysis"}
+                                {isTemplateDetached && !detachmentAlertDismissed ? (
+                                    <div className={"property-inline-alert"} role={"status"}>
+                                        <span className={"property-inline-alert__copy"}>
+                                            <strong>{"Template link removed for this property."}</strong>
+                                            <span>{"This field setup no longer matches the selected template, so future template updates will not apply automatically."}</span>
+                                        </span>
+                                        <Button onClick={() => { setDetachmentAlertDismissed(true); }} size={"small"} variant={"ghost"}>
+                                            {"Dismiss"}
+                                        </Button>
+                                    </div>
+                                ) : null}
+                                <SelectorBuilder fieldDefinitions={fieldDefinitionsQuery.data} fieldMetadataById={fieldMetadataById} fields={fieldRows} onChange={setFieldRows} previewByFieldName={previewMap} />
+                                <ActionGroup>
+                                    <Button onClick={() => { setFieldRows((rows) => [...rows, createEmptySelectorDraft()]); }} variant={"secondary"}>{"Add field"}</Button>
+                                    <Button disabled={previewMutation.isPending || url.trim() === "" || validationMessages.length > 0} onClick={() => { previewMutation.mutate(); }} variant={"secondary"}>{previewMutation.isPending ? "Previewing..." : "Preview extraction"}</Button>
+                                    <Button disabled={saveConfigMutation.isPending || validationMessages.length > 0} onClick={() => { saveConfigMutation.mutate(); }}>{saveConfigMutation.isPending ? "Saving..." : "Save configuration"}</Button>
+                                </ActionGroup>
+                                {validationMessages.length > 0 ? (
+                                    <div className={"selector-builder__validation-list"}>
+                                        {validationMessages.map((message) => <ErrorBanner key={message}>{message}</ErrorBanner>)}
+                                    </div>
+                                ) : null}
+                                {saveConfigMutation.isError ? <ErrorBanner>{"Could not save configuration."}</ErrorBanner> : null}
+                            </PageCard>
+                        ) : null}
+                        {!manualEntryMode ? (
+                            <PageCard
+                                action={(
+                                    <ActionGroup>
+                                        <Button disabled={bookmarkMutation.isPending} onClick={() => { bookmarkMutation.mutate(); }} variant={"secondary"}>
+                                            {isBookmarked ? "Remove bookmark" : "Bookmark"}
+                                        </Button>
+                                        <Tooltip content={persistedRetrySummary}>
+                                            <Button disabled={ingestMutation.isPending} onClick={() => { ingestMutation.mutate(); }}>
+                                                {ingestMutation.isPending ? "Running..." : "Run now"}
+                                            </Button>
+                                        </Tooltip>
+                                        <Button as={Link} to={`/runs?property_id=${resolvedId}`} variant={"secondary"}>{"View history"}</Button>
+                                    </ActionGroup>
+                                )}
+                                description={`${persistedScheduleSummary}. ${persistedRetrySummary}`}
+                                title={"Automation"}
+                            >
+                                <FormGrid variant={"two-column"}>
+                                    <Field
+                                        error={scheduleIntervalError}
+                                        fullWidth
+                                        hint={scheduleIntervalError === undefined ? "Runs every X minutes/hours using the saved backend schedule." : undefined}
+                                        label={"Run interval"}
+                                    >
+                                        <div style={{ display: "grid", gap: "0.75rem" }}>
+                                            <div style={{ display: "grid", gap: "0.75rem", gridTemplateColumns: "minmax(0, 1fr) 11rem" }}>
+                                                <Input
+                                                    id={"prop-schedule-value"}
+                                                    invalid={scheduleIntervalError !== undefined}
+                                                    min={1}
+                                                    onChange={(event) => { setScheduleIntervalValue(event.target.value); }}
+                                                    placeholder={"15"}
+                                                    type={"number"}
+                                                    value={scheduleIntervalValue}
+                                                />
+                                                <Select
+                                                    id={"prop-schedule-unit"}
+                                                    invalid={scheduleIntervalError !== undefined}
+                                                    onChange={(event) => { setScheduleIntervalUnit(event.target.value as DurationUnit); }}
+                                                    value={scheduleIntervalUnit}
+                                                >
+                                                    <option value={"seconds"}>{"Seconds"}</option>
+                                                    <option value={"minutes"}>{"Minutes"}</option>
+                                                    <option value={"hours"}>{"Hours"}</option>
+                                                </Select>
+                                            </div>
+                                            <ActionGroup>
+                                                {SCHEDULE_PRESETS.map((preset) => {
+                                                    const presetLabel = formatDurationFromSeconds(durationDraftToSeconds(preset.value, preset.unit) ?? 0);
+                                                    return (
+                                                        <Button
+                                                            key={`${preset.value}-${preset.unit}`}
+                                                            onClick={() => {
+                                                                setScheduleIntervalValue(preset.value);
+                                                                setScheduleIntervalUnit(preset.unit);
+                                                            }}
+                                                            size={"small"}
+                                                            type={"button"}
+                                                            variant={"secondary"}
+                                                        >
+                                                            {presetLabel}
                                                         </Button>
-                                                    </RowActions>
-                                                ),
-                                                header: "Actions",
-                                                id: "actions",
-                                            },
-                                        ]}
-                                        compact
-                                        emptyMessage={"No extracted values are available for the latest run."}
-                                        getRowId={(item) => item.field}
-                                        items={extractedValueRows}
-                                        pageSize={8}
-                                    />
-                                </>
-                            )}
-                        </PageCard> : null}
+                                                    );
+                                                })}
+                                            </ActionGroup>
+                                        </div>
+                                    </Field>
+                                    <Field hint={"Retry on failure before the base schedule resumes."} label={"Max attempts"}>
+                                        <Input id={"prop-retry"} min={1} onChange={(event) => { setRetryMaxAttempts(readNonNegativeNumber(event.target.value, 1)); }} type={"number"} value={retryMaxAttempts} />
+                                    </Field>
+                                    <Field error={retryBackoffError} hint={"Retry interval between failed attempts."} label={"Retry interval (ms)"}>
+                                        <Input
+                                            id={"prop-backoff"}
+                                            invalid={retryBackoffError !== undefined}
+                                            min={MIN_RETRY_BACKOFF_MS}
+                                            onChange={(event) => { setRetryBackoffMillis(readNonNegativeNumber(event.target.value, 500)); }}
+                                            type={"number"}
+                                            value={retryBackoffMillis}
+                                        />
+                                    </Field>
+                                    <Field label={"Automation paused"}>
+                                        <div className={"property-toggle-row"}>
+                                            <Toggle checked={metadataDraft.paused} label={"Automation paused"} onCheckedChange={(nextChecked) => { setMetadataDraft((current) => ({ ...current, paused: nextChecked })); }} />
+                                            <span className={"property-toggle-row__state"}>{metadataDraft.paused ? "On" : "Off"}</span>
+                                        </div>
+                                    </Field>
+                                    {metadataDraft.paused ? (
+                                        <Field fullWidth label={"Pause reason"}>
+                                            <Input onChange={(event) => { setMetadataDraft((current) => ({ ...current, pauseReason: event.target.value })); }} placeholder={"Optional context for the pause"} type={"text"} value={metadataDraft.pauseReason} />
+                                        </Field>
+                                    ) : null}
+                                </FormGrid>
+                                <ActionGroup>
+                                    <Button disabled={isPropertySaveDisabled} onClick={handlePropertySave}>{savePropertyMutation.isPending ? "Saving..." : "Save run configuration"}</Button>
+                                </ActionGroup>
+                                {savePropertyMutation.isError ? <ErrorBanner>{"Could not save property. Check the price, source details, and any optional URL."}</ErrorBanner> : null}
+                                {propertyQuery.data !== undefined ? (
+                                    <KeyValueGrid compact>
+                                        <KeyValuePair label={"Scheduling"} value={persistedScheduleSummary} />
+                                        <KeyValuePair label={"Next run"} value={propertyQuery.data.next_run_at === undefined ? "Waiting for save" : formatDateTime(propertyQuery.data.next_run_at)} />
+                                        <KeyValuePair label={"Last run"} value={propertyQuery.data.last_run_at === undefined ? "No runs yet" : formatDateTime(propertyQuery.data.last_run_at)} />
+                                        <KeyValuePair label={"Retry policy"} value={persistedRetrySummary} />
+                                    </KeyValueGrid>
+                                ) : null}
+                                {latestSnapshot === undefined ? <EmptyState message={"No runs have been recorded for this property yet."} /> : (
+                                    <>
+                                        <KeyValueGrid compact>
+                                            <KeyValuePair label={"Snapshot status"} value={<StatusBadge tone={latestSnapshot.is_valid ? "success" : "warning"} value={latestSnapshot.is_valid ? "valid" : "invalid"} />} />
+                                            <KeyValuePair label={"Observed at"} value={formatDateTime(latestSnapshot.observed_at)} />
+                                        </KeyValueGrid>
+                                        {latestSnapshot.error_message !== undefined && latestSnapshot.error_message !== "" ? <ErrorBanner>{latestSnapshot.error_message}</ErrorBanner> : null}
+                                        <DataTable
+                                            caption={"Current extracted values"}
+                                            columns={[
+                                                { cell: (item) => item.field, header: "Field", id: "field", sortValue: (item) => item.field },
+                                                { cell: (item) => item.value, header: "Value", id: "value" },
+                                                {
+                                                    align: "right",
+                                                    cell: (item) => (
+                                                        <RowActions>
+                                                            <Button as={Link} size={"small"} to={`/properties/${resolvedId}/fields/${encodeURIComponent(item.field)}/analysis`} variant={"ghost"}>
+                                                                {"View Analysis"}
+                                                            </Button>
+                                                        </RowActions>
+                                                    ),
+                                                    header: "Actions",
+                                                    id: "actions",
+                                                },
+                                            ]}
+                                            compact
+                                            emptyMessage={"No extracted values are available for the latest run."}
+                                            getRowId={(item) => item.field}
+                                            items={extractedValueRows}
+                                            pageSize={8}
+                                        />
+                                    </>
+                                )}
+                            </PageCard>
+                        ) : null}
                         <PageCard
                             action={(
                                 <Button onClick={() => { setCreateAlertOpen(true); }} variant={"secondary"}>{"Create alert"}</Button>
@@ -1671,40 +1679,42 @@ export const PropertyDetailPage = (): JSX.Element => {
                                 </ItemList>
                             )}
                         </PageCard>
-                        {!manualEntryMode ? <PageCard description={"Recent automation runs with auto-refresh every 5 seconds."} title={"Automation Runs"}>
-                            <DataTable
-                                caption={"Property automation runs"}
-                                columns={[
-                                    { cell: (item) => <StatusBadge tone={runStatusTone(item.status)} value={item.status} />, header: "Status", id: "status", width: "8rem" },
-                                    { cell: (item) => item.trigger_kind, header: "Trigger", id: "trigger", width: "8rem" },
-                                    { cell: (item) => `${item.attempt_count} / ${item.max_attempts}`, header: "Attempts", id: "attempts", width: "8rem" },
-                                    { cell: (item) => item.started_at !== undefined ? formatDateTime(item.started_at) : "—", header: "Started", id: "started_at", sortValue: (item) => item.started_at ?? "", width: "11rem" },
-                                    { cell: (item) => item.finished_at !== undefined ? formatDateTime(item.finished_at) : "—", header: "Finished", id: "finished_at", sortValue: (item) => item.finished_at ?? "", width: "11rem" },
-                                    {
-                                        cell: (item) => {
-                                            if (item.error_message === undefined || item.error_message === "") {
-                                                return "—";
-                                            }
+                        {!manualEntryMode ? (
+                            <PageCard description={"Recent automation runs with auto-refresh every 5 seconds."} title={"Automation Runs"}>
+                                <DataTable
+                                    caption={"Property automation runs"}
+                                    columns={[
+                                        { cell: (item) => <StatusBadge tone={runStatusTone(item.status)} value={item.status} />, header: "Status", id: "status", width: "8rem" },
+                                        { cell: (item) => item.trigger_kind, header: "Trigger", id: "trigger", width: "8rem" },
+                                        { cell: (item) => `${item.attempt_count} / ${item.max_attempts}`, header: "Attempts", id: "attempts", width: "8rem" },
+                                        { cell: (item) => item.started_at !== undefined ? formatDateTime(item.started_at) : "—", header: "Started", id: "started_at", sortValue: (item) => item.started_at ?? "", width: "11rem" },
+                                        { cell: (item) => item.finished_at !== undefined ? formatDateTime(item.finished_at) : "—", header: "Finished", id: "finished_at", sortValue: (item) => item.finished_at ?? "", width: "11rem" },
+                                        {
+                                            cell: (item) => {
+                                                if (item.error_message === undefined || item.error_message === "") {
+                                                    return "—";
+                                                }
 
-                                            const truncated = item.error_message.length > 50 ? `${item.error_message.slice(0, 50)}...` : item.error_message;
-                                            return (
-                                                <Tooltip content={item.error_message}>
-                                                    <span style={{ color: "#dc2626" }}>{truncated}</span>
-                                                </Tooltip>
-                                            );
+                                                const truncated = item.error_message.length > 50 ? `${item.error_message.slice(0, 50)}...` : item.error_message;
+                                                return (
+                                                    <Tooltip content={item.error_message}>
+                                                        <span style={{ color: "#dc2626" }}>{truncated}</span>
+                                                    </Tooltip>
+                                                );
+                                            },
+                                            header: "Error",
+                                            id: "error",
                                         },
-                                        header: "Error",
-                                        id: "error",
-                                    },
-                                ]}
-                                compact
-                                emptyMessage={"No automation runs recorded yet."}
-                                getRowId={(item) => item.id}
-                                items={propertyRunsQuery.data ?? []}
-                                pageSize={10}
-                                rowLabel={(item) => `Run ${item.id}`}
-                            />
-                        </PageCard> : null}
+                                    ]}
+                                    compact
+                                    emptyMessage={"No automation runs recorded yet."}
+                                    getRowId={(item) => item.id}
+                                    items={propertyRunsQuery.data ?? []}
+                                    pageSize={10}
+                                    rowLabel={(item) => `Run ${item.id}`}
+                                />
+                            </PageCard>
+                        ) : null}
                         <PageCard description={"Recent snapshots stay directly attached to the property for fast scanning."} title={"Recent Snapshots"}>
                             <div style={{ display: "flex", justifyContent: "space-between", gap: "0.75rem", marginBottom: "0.75rem" }}>
                                 <div>
@@ -1736,87 +1746,89 @@ export const PropertyDetailPage = (): JSX.Element => {
                                 rowLabel={(item) => `Open run ${item.id}`}
                             />
                         </PageCard>
-                        {!manualEntryMode ? <PageCard description={"Compare any two saved configs, review the selector diff, and restore a previous version without losing history."} title={"Config History"}>
-                            {configVersions.length === 0 ? <EmptyState message={"No config versions have been saved yet."} /> : (
-                                <Tabs
-                                    defaultTabId={"history"}
-                                    items={[
-                                        {
-                                            id: "history",
-                                            label: "Versions",
-                                            panel: (
-                                                <DataTable
-                                                    caption={"Property config versions"}
-                                                    columns={[
-                                                        { cell: (item) => `v${item.version}`, header: "Version", id: "version", sortValue: (item) => item.version },
-                                                        { cell: (item) => formatDateTime(item.created_at), header: "Created", id: "created_at", sortValue: (item) => item.created_at },
-                                                        { cell: (item) => item.change_summary ?? "Saved configuration.", header: "Summary", id: "summary" },
-                                                        {
-                                                            align: "right",
-                                                            cell: (item) => (
-                                                                <ActionGroup>
-                                                                    <Button onClick={() => { setCompareLeftVersion(item.version); }} size={"small"} variant={"secondary"}>{"Compare from"}</Button>
-                                                                    <Button onClick={() => { setCompareRightVersion(item.version); }} size={"small"} variant={"secondary"}>{"Compare to"}</Button>
-                                                                    <Button onClick={() => { setRollbackTargetVersion(item.version); }} size={"small"} variant={"ghost"}>{"Rollback"}</Button>
-                                                                </ActionGroup>
-                                                            ),
-                                                            header: "Actions",
-                                                            id: "actions",
-                                                        },
-                                                    ]}
-                                                    compact
-                                                    emptyMessage={"No config versions have been saved yet."}
-                                                    getRowId={(item) => item.id}
-                                                    items={configVersions}
-                                                    pageSize={6}
-                                                />
-                                            ),
-                                        },
-                                        {
-                                            id: "diff",
-                                            label: "Structured diff",
-                                            panel: (
-                                                <div style={{ display: "grid", gap: "1rem" }}>
-                                                    <div style={{ display: "grid", gap: "0.75rem", gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
-                                                        <Field label={"Compare from"}>
-                                                            <Select onChange={(event) => { setCompareLeftVersion(Number(event.target.value)); }} value={`${selectedLeftConfig?.version ?? 0}`}>
-                                                                {configVersions.map((config) => <option key={`left-${config.id}`} value={`${config.version}`}>{`Version ${config.version}`}</option>)}
-                                                            </Select>
-                                                        </Field>
-                                                        <Field label={"Compare to"}>
-                                                            <Select onChange={(event) => { setCompareRightVersion(Number(event.target.value)); }} value={`${selectedRightConfig?.version ?? 0}`}>
-                                                                {configVersions.map((config) => <option key={`right-${config.id}`} value={`${config.version}`}>{`Version ${config.version}`}</option>)}
-                                                            </Select>
-                                                        </Field>
+                        {!manualEntryMode ? (
+                            <PageCard description={"Compare any two saved configs, review the selector diff, and restore a previous version without losing history."} title={"Config History"}>
+                                {configVersions.length === 0 ? <EmptyState message={"No config versions have been saved yet."} /> : (
+                                    <Tabs
+                                        defaultTabId={"history"}
+                                        items={[
+                                            {
+                                                id: "history",
+                                                label: "Versions",
+                                                panel: (
+                                                    <DataTable
+                                                        caption={"Property config versions"}
+                                                        columns={[
+                                                            { cell: (item) => `v${item.version}`, header: "Version", id: "version", sortValue: (item) => item.version },
+                                                            { cell: (item) => formatDateTime(item.created_at), header: "Created", id: "created_at", sortValue: (item) => item.created_at },
+                                                            { cell: (item) => item.change_summary ?? "Saved configuration.", header: "Summary", id: "summary" },
+                                                            {
+                                                                align: "right",
+                                                                cell: (item) => (
+                                                                    <ActionGroup>
+                                                                        <Button onClick={() => { setCompareLeftVersion(item.version); }} size={"small"} variant={"secondary"}>{"Compare from"}</Button>
+                                                                        <Button onClick={() => { setCompareRightVersion(item.version); }} size={"small"} variant={"secondary"}>{"Compare to"}</Button>
+                                                                        <Button onClick={() => { setRollbackTargetVersion(item.version); }} size={"small"} variant={"ghost"}>{"Rollback"}</Button>
+                                                                    </ActionGroup>
+                                                                ),
+                                                                header: "Actions",
+                                                                id: "actions",
+                                                            },
+                                                        ]}
+                                                        compact
+                                                        emptyMessage={"No config versions have been saved yet."}
+                                                        getRowId={(item) => item.id}
+                                                        items={configVersions}
+                                                        pageSize={6}
+                                                    />
+                                                ),
+                                            },
+                                            {
+                                                id: "diff",
+                                                label: "Structured diff",
+                                                panel: (
+                                                    <div style={{ display: "grid", gap: "1rem" }}>
+                                                        <div style={{ display: "grid", gap: "0.75rem", gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+                                                            <Field label={"Compare from"}>
+                                                                <Select onChange={(event) => { setCompareLeftVersion(Number(event.target.value)); }} value={`${selectedLeftConfig?.version ?? 0}`}>
+                                                                    {configVersions.map((config) => <option key={`left-${config.id}`} value={`${config.version}`}>{`Version ${config.version}`}</option>)}
+                                                                </Select>
+                                                            </Field>
+                                                            <Field label={"Compare to"}>
+                                                                <Select onChange={(event) => { setCompareRightVersion(Number(event.target.value)); }} value={`${selectedRightConfig?.version ?? 0}`}>
+                                                                    {configVersions.map((config) => <option key={`right-${config.id}`} value={`${config.version}`}>{`Version ${config.version}`}</option>)}
+                                                                </Select>
+                                                            </Field>
+                                                        </div>
+                                                        <KeyValueGrid compact>
+                                                            <KeyValuePair label={"Changed fields"} value={`${configDiff.changedCount}`} />
+                                                            <KeyValuePair label={"From summary"} value={selectedLeftConfig?.change_summary ?? "Saved configuration."} />
+                                                            <KeyValuePair label={"To summary"} value={selectedRightConfig?.change_summary ?? "Saved configuration."} />
+                                                        </KeyValueGrid>
+                                                        {configDiff.changes.length === 0 ? <EmptyState message={"The selected versions use the same selector definitions."} /> : (
+                                                            <DataTable
+                                                                caption={"Config diff"}
+                                                                columns={[
+                                                                    { cell: (item) => item.field, header: "Field", id: "field", sortValue: (item) => item.field },
+                                                                    { cell: (item) => item.type, header: "Change", id: "type", sortValue: (item) => item.type },
+                                                                    { cell: (item) => item.previous?.selector_value ?? "—", header: "Previous selector", id: "previous" },
+                                                                    { cell: (item) => item.next?.selector_value ?? "—", header: "Current selector", id: "current" },
+                                                                ]}
+                                                                compact
+                                                                emptyMessage={"No selector-level changes found."}
+                                                                getRowId={(item) => `${item.type}-${item.field}`}
+                                                                items={configDiff.changes}
+                                                                pageSize={8}
+                                                            />
+                                                        )}
                                                     </div>
-                                                    <KeyValueGrid compact>
-                                                        <KeyValuePair label={"Changed fields"} value={`${configDiff.changedCount}`} />
-                                                        <KeyValuePair label={"From summary"} value={selectedLeftConfig?.change_summary ?? "Saved configuration."} />
-                                                        <KeyValuePair label={"To summary"} value={selectedRightConfig?.change_summary ?? "Saved configuration."} />
-                                                    </KeyValueGrid>
-                                                    {configDiff.changes.length === 0 ? <EmptyState message={"The selected versions use the same selector definitions."} /> : (
-                                                        <DataTable
-                                                            caption={"Config diff"}
-                                                            columns={[
-                                                                { cell: (item) => item.field, header: "Field", id: "field", sortValue: (item) => item.field },
-                                                                { cell: (item) => item.type, header: "Change", id: "type", sortValue: (item) => item.type },
-                                                                { cell: (item) => item.previous?.selector_value ?? "—", header: "Previous selector", id: "previous" },
-                                                                { cell: (item) => item.next?.selector_value ?? "—", header: "Current selector", id: "current" },
-                                                            ]}
-                                                            compact
-                                                            emptyMessage={"No selector-level changes found."}
-                                                            getRowId={(item) => `${item.type}-${item.field}`}
-                                                            items={configDiff.changes}
-                                                            pageSize={8}
-                                                        />
-                                                    )}
-                                                </div>
-                                            ),
-                                        },
-                                    ]}
-                                />
-                            )}
-                        </PageCard> : null}
+                                                ),
+                                            },
+                                        ]}
+                                    />
+                                )}
+                            </PageCard>
+                        ) : null}
                     </>
                 ) : null}
             </PageStack>
