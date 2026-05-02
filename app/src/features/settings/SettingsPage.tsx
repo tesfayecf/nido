@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
 
 import { ThemeToggle } from "@/components/shell/ThemeToggle";
 import { ActionGroup } from "@/components/ui/ActionGroup";
@@ -207,6 +206,7 @@ export const SettingsPage = (): JSX.Element => {
             if (pendingImport.backup.kind === "full") {
                 await restoreWorkspaceBackupData(pendingImport.backup.workspace_data);
             }
+
             return pendingImport;
         },
         onError() {
@@ -218,6 +218,7 @@ export const SettingsPage = (): JSX.Element => {
             if (backupFileInputRef.current !== null) {
                 backupFileInputRef.current.value = "";
             }
+
             pushToast(
                 pendingImport.backup.kind === "full"
                     ? "Workspace backup restored."
@@ -546,7 +547,7 @@ export const SettingsPage = (): JSX.Element => {
                                             <KeyValuePair label={"Accepted fields"} value={"Keep canonical mappings away from pause and retry controls."} />
                                         </KeyValueGrid>
                                         <ActionGroup>
-                                            <Button as={Link} to={"/settings/field-candidates"} variant={"secondary"}>{"Open Field Candidates"}</Button>
+                                            <Button as={"a"} href={"/settings/field-candidates"} variant={"secondary"}>{"Open Field Candidates"}</Button>
                                         </ActionGroup>
                                     </PageCard>
                                     <PageCard description={"Keep the fast property flow lightweight while defining safe defaults for new automatic tracking."} title={"Property intake defaults"}>

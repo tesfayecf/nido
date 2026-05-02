@@ -1447,7 +1447,6 @@ export const PropertyDetailPage = (): JSX.Element => {
                                     <KeyValueGrid compact>
                                         <KeyValuePair label={"Latest change"} value={summaryQuery.data?.latest_change_summary !== undefined && summaryQuery.data.latest_change_summary !== "" ? summaryQuery.data.latest_change_summary : "Not available"} />
                                         <KeyValuePair label={"Last update"} value={latestSnapshot?.observed_at !== undefined ? formatDateTime(latestSnapshot.observed_at) : propertyQuery.data.updated_at === undefined ? "Not available" : formatDateTime(propertyQuery.data.updated_at)} />
-                                        <KeyValuePair label={"Last run"} value={propertyQuery.data.last_run_at === undefined ? "Not available" : formatDateTime(propertyQuery.data.last_run_at)} />
                                     </KeyValueGrid>
                                 </section>
                                 <section className={"property-detail-group"}>
