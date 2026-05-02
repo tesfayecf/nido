@@ -2,6 +2,7 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 
 import { Button } from "@/components/ui/Button";
+import { ContextualHelp } from "@/components/ui/ContextualHelp";
 import { Dialog } from "@/components/ui/Dialog";
 import { Field } from "@/components/ui/Field";
 import { Input } from "@/components/ui/Input";
@@ -165,6 +166,7 @@ export const SelectorBuilder = ({
     const [openFallbacks, setOpenFallbacks] = useState<Set<string>>(new Set());
     const previousFieldIdsRef = useRef<string[]>(fields.map((field) => field.id));
     const globalFields = [...fieldDefinitions ?? []].sort((left, right) => left.display_name.localeCompare(right.display_name));
+    const builderSummary = "Scan field role, origin, and status first, then open a row to edit selectors, fallbacks, cleanup rules, and preview details.";
 
     useEffect(() => {
         const previousFieldIds = previousFieldIdsRef.current;
@@ -206,10 +208,10 @@ export const SelectorBuilder = ({
                         </Button>
                     </div>
                 </div>
-                <h3 className={"selector-builder__title"}>{"Manage fields from one compact table, then expand only what you need."}</h3>
-                <p className={"selector-builder__copy"}>
-                    {"Scan field role, origin, and status first, then open a row to edit selectors, fallbacks, cleanup rules, and preview details."}
-                </p>
+                <div className={"selector-builder__title-row"}>
+                    <h3 className={"selector-builder__title"}>{"Manage fields from one compact table, then expand only what you need."}</h3>
+                    <ContextualHelp content={builderSummary} title={"Selector builder overview"} />
+                </div>
             </div>
 
             {tipsOpen ? (
@@ -506,7 +508,11 @@ export const SelectorBuilder = ({
                                                         <section className={"selector-builder__strategy-panel"}>
                                                             <Field
                                                                 fullWidth
-                                                                hint={"Choose one post-capture strategy. Switching clears inputs that do not apply to the new strategy."}
+                                                                hint={[
+                                                                    "Choose one post-capture strategy. Switching clears inputs that do not apply to the new strategy.",
+                                                                    EXTRACTION_STRATEGIES.find((option) => option.value === getExtractionStrategy(field))?.description,
+                                                                    EXTRACTION_STRATEGIES.find((option) => option.value === getExtractionStrategy(field))?.example,
+                                                                ].filter(Boolean).join(" ")}
                                                                 label={"Extraction strategy"}
                                                             >
                                                                 <Select
@@ -519,13 +525,6 @@ export const SelectorBuilder = ({
                                                                     {EXTRACTION_STRATEGIES.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                                                                 </Select>
                                                             </Field>
-                                                            {EXTRACTION_STRATEGIES.filter((option) => option.value === getExtractionStrategy(field)).map((option) => (
-                                                                <div className={"selector-builder__strategy-description"} key={option.value}>
-                                                                    <strong>{option.label}</strong>
-                                                                    <span>{option.description}</span>
-                                                                    <code>{option.example}</code>
-                                                                </div>
-                                                            ))}
                                                             {getExtractionStrategy(field) === "regex" ? (
                                                                 <Field fullWidth hint={"Capture the first regex match or capture group."} label={"Regex Pattern"}>
                                                                     <Input

@@ -26,11 +26,11 @@
     font-weight: 700;
 }
 
-.field__hint {
-    color: var(--color-text-muted);
-    font-size: var(--text-sm);
-    line-height: var(--line-height-body);
-    margin: 0;
+.field__label-row {
+    align-items: center;
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
 }
 
 .field__control {

@@ -56,6 +56,13 @@
     margin: var(--space-1) 0 0;
 }
 
+.settings-preferences-panel__title-row {
+    align-items: center;
+    display: flex;
+    gap: var(--space-2);
+    margin-top: var(--space-1);
+}
+
 .settings-preferences-panel__copy {
     margin-top: var(--space-2);
     max-width: 34rem;
@@ -92,4 +99,11 @@
 .settings-preferences-help {
     margin: 0;
     max-width: var(--container-md);
+}
+
+.settings-preferences-footer__help {
+    align-items: center;
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
 }

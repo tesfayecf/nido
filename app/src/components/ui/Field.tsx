@@ -1,6 +1,7 @@
 /* eslint-disable react/jsx-props-no-spreading */
 import type { HTMLAttributes, LabelHTMLAttributes, PropsWithChildren, ReactNode } from "react";
 
+import { ContextualHelp } from "@/components/ui/ContextualHelp";
 import { classNames } from "@/lib/ui/classNames";
 
 export type FieldVariant = "actions" | "checkbox" | "default";
@@ -34,6 +35,7 @@ export const Field = ({
     ...restProps
 }: FieldProps): JSX.Element => {
     const resolvedElement = as ?? (variant === "actions" ? "div" : "label");
+    const hintTitle = typeof label === "string" || typeof label === "number" ? `${label}` : "this field";
     const sharedClassName = classNames(
         "field",
         variant === "actions" && "field--actions",
@@ -44,18 +46,14 @@ export const Field = ({
     );
     const content = (
         <>
-            {variant === "checkbox" ? (
-                <>
-                    {children}
-                    {label !== undefined ? <span className={"field__label"}>{label}</span> : null}
-                </>
-            ) : (
-                <>
-                    {label !== undefined ? <span className={"field__label"}>{label}</span> : null}
-                    {children}
-                </>
-            )}
-            {hint !== undefined ? <p className={"field__hint"}>{hint}</p> : null}
+            {variant === "checkbox" ? children : null}
+            {label !== undefined ? (
+                <span className={"field__label-row"}>
+                    <span className={"field__label"}>{label}</span>
+                    {hint !== undefined ? <ContextualHelp content={hint} title={hintTitle} /> : null}
+                </span>
+            ) : null}
+            {variant === "checkbox" ? null : children}
             {error !== undefined ? <p className={"field__error"} role={"alert"}>{error}</p> : null}
         </>
     );
