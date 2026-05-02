@@ -1,0 +1,95 @@
+.action-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+}
+
+.form-grid {
+    display: grid;
+    gap: var(--space-4);
+}
+
+.form-grid--inline {
+    align-items: end;
+    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+}
+
+.form-grid--two-column {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.settings-preferences-form {
+    gap: var(--space-5);
+}
+
+.settings-preferences-layout {
+    display: grid;
+    gap: var(--space-4);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.settings-preferences-panel {
+    background: linear-gradient(180deg, color-mix(in srgb, var(--color-surface) 98%, transparent), color-mix(in srgb, var(--color-surface-muted) 72%, var(--color-surface)));
+    border: 1px solid color-mix(in srgb, var(--color-border-strong) 72%, var(--color-surface-muted));
+    border-radius: var(--radius-md);
+    display: grid;
+    gap: var(--space-4);
+    height: 100%;
+    min-width: 0;
+    padding: var(--space-4);
+}
+
+.settings-preferences-panel--wide {
+    grid-column: 1 / -1;
+}
+
+.settings-preferences-panel__header {
+    align-items: flex-start;
+    display: flex;
+    gap: var(--space-3);
+    justify-content: space-between;
+}
+
+.settings-preferences-panel__title {
+    font-size: var(--text-lg);
+    line-height: var(--line-height-tight);
+    margin: var(--space-1) 0 0;
+}
+
+.settings-preferences-panel__copy {
+    margin-top: var(--space-2);
+    max-width: 34rem;
+}
+
+.settings-preferences-panel__actions {
+    justify-content: flex-end;
+}
+
+.settings-preferences-panel__fields {
+    gap: var(--space-3);
+}
+
+.settings-preferences-density {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+}
+
+.settings-preferences-density .button {
+    flex: 1 1 10rem;
+}
+
+.settings-preferences-footer {
+    align-items: center;
+    border-top: 1px solid var(--color-border);
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    justify-content: space-between;
+    padding-top: var(--space-4);
+}
+
+.settings-preferences-help {
+    margin: 0;
+    max-width: var(--container-md);
+}

@@ -1,0 +1,106 @@
+.stat-grid {
+    display: grid;
+    gap: var(--space-4);
+    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+}
+
+.stat-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-card);
+    padding: var(--space-4);
+}
+
+.stat-card__label {
+    color: var(--color-text-muted);
+    display: block;
+    font-size: var(--text-sm);
+}
+
+.stat-card__value {
+    display: block;
+    font-size: var(--text-2xl);
+    margin-top: var(--space-2);
+}
+
+.item-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.list-row {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-4);
+}
+
+.list-row__main,
+.list-row__footer,
+.toolbar {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    justify-content: space-between;
+}
+
+.list-row__title {
+    font-size: var(--text-lg);
+    line-height: var(--line-height-tight);
+    margin: 0;
+}
+
+.list-row__meta {
+    color: var(--color-text-secondary);
+    margin: var(--space-1) 0 0;
+}
+
+.list-row__price {
+    font-size: var(--text-base);
+    text-align: right;
+}
+
+.text-link {
+    color: var(--color-accent);
+    font-weight: 700;
+}
+
+.text-link:hover {
+    color: var(--color-primary-strong);
+}
+
+.error-banner,
+.state-message--error {
+    color: var(--color-danger);
+}
+
+.empty-state,
+.state-message {
+    background: var(--color-surface-muted);
+    border: 1px dashed var(--color-border-strong);
+    border-radius: var(--radius-md);
+    color: var(--color-text-secondary);
+    padding: var(--space-5);
+    text-align: center;
+}
+
+.state-message {
+    border-style: solid;
+    font-weight: 600;
+}
+
+.state-message--loading {
+    color: var(--color-text-secondary);
+}
+
+.state-message--warning {
+    background: color-mix(in srgb, var(--color-warning-soft) 68%, var(--color-surface));
+    border-color: color-mix(in srgb, var(--color-warning) 28%, var(--color-border));
+    color: var(--color-text);
+}

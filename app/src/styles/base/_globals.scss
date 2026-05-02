@@ -1,0 +1,17 @@
+@use "../mixins/layout";
+
+.sr-only {
+    @include layout.visually-hidden;
+}
+
+.skip-link {
+    left: var(--space-4);
+    position: absolute;
+    top: var(--space-3);
+    transform: translateY(-180%);
+    z-index: 40;
+}
+
+.skip-link:focus-visible {
+    transform: translateY(0);
+}

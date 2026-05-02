@@ -1,0 +1,12 @@
+
+@mixin control-font {
+    font: inherit;
+}
+
+@mixin eyebrow($letter-spacing: 0.08em) {
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+    font-weight: 700;
+    letter-spacing: $letter-spacing;
+    text-transform: uppercase;
+}

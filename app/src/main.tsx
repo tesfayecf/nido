@@ -3,8 +3,7 @@ import ReactDOM from "react-dom/client";
 
 import { AppProviders } from "@/app/AppProviders";
 import { applyThemePreference, getStoredThemePreference } from "@/hooks/useTheme";
-import "@/styles/tokens.css";
-import "@/styles/globals.css";
+import "@/styles/main.scss";
 
 const container = document.getElementById("root");
 
