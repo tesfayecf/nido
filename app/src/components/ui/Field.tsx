@@ -28,6 +28,26 @@ type LabelableElementProps = {
     readonly id?: string;
 };
 
+const getHelpTitle = (value: ReactNode, depth = 0): string => {
+    if (depth > 10) {
+        return "";
+    }
+
+    if (typeof value === "string" || typeof value === "number") {
+        return `${value}`;
+    }
+
+    if (Array.isArray(value)) {
+        return value.map((item) => getHelpTitle(item, depth + 1)).filter((item) => item !== "").join(" ").trim();
+    }
+
+    if (isValidElement<{ children?: ReactNode; }>(value)) {
+        return getHelpTitle(value.props.children ?? "", depth + 1);
+    }
+
+    return "";
+};
+
 export const Field = ({
     as,
     children,
@@ -42,7 +62,7 @@ export const Field = ({
 }: FieldProps): JSX.Element => {
     const resolvedElement = hint !== undefined ? "div" : as ?? (variant === "actions" ? "div" : "label");
     const labelId = useId();
-    const hintTitle = typeof label === "string" || typeof label === "number" ? `${label}` : "this field";
+    const hintTitle = getHelpTitle(label) || "additional information";
     const childElement = isValidElement(children) ? children as ReactElement<LabelableElementProps> : null;
     const controlId = childElement?.props.id;
     const sharedClassName = classNames(

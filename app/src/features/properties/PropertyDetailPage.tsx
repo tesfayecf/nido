@@ -1306,7 +1306,7 @@ export const PropertyDetailPage = (): JSX.Element => {
                         </>
                     ) : null}
                 </FormGrid>
-                {!manualEntryMode && templateRoleSummary !== null ? (
+                {!manualEntryMode && !noTemplateSelected ? (
                     <div className={"property-template-summary"}>
                         <div className={"page-card__title-row"}>
                             <strong>{"What this template will do"}</strong>

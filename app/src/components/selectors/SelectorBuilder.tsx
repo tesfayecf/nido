@@ -248,6 +248,7 @@ export const SelectorBuilder = ({
                             const preview = previewByFieldName?.get(field.name.trim());
                             const needsAttribute = field.extractionMode === "attribute" || field.selectorType === "attribute";
                             const expanded = expandedFieldId === field.id;
+                            const activeExtractionStrategy = EXTRACTION_STRATEGIES.find((option) => option.value === getExtractionStrategy(field));
                             const metadata = fieldMetadataById?.[field.id] ?? {
                                 origin: "manual",
                                 reason: "No template linkage is saved for this field.",
@@ -510,8 +511,8 @@ export const SelectorBuilder = ({
                                                                 fullWidth
                                                                 hint={[
                                                                     "Choose one post-capture strategy. Switching clears inputs that do not apply to the new strategy.",
-                                                                    EXTRACTION_STRATEGIES.find((option) => option.value === getExtractionStrategy(field))?.description,
-                                                                    EXTRACTION_STRATEGIES.find((option) => option.value === getExtractionStrategy(field))?.example,
+                                                                    activeExtractionStrategy?.description,
+                                                                    activeExtractionStrategy?.example,
                                                                 ].filter(Boolean).join(" ")}
                                                                 label={"Extraction strategy"}
                                                             >

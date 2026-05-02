@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { PropsWithChildren, ReactNode } from "react";
 
 import { Button } from "@/components/ui/Button";
@@ -21,6 +21,16 @@ const ToastContext = createContext<ToastContextValue | null>(null);
 export const ToastProvider = ({ children }: PropsWithChildren): JSX.Element => {
     const [toasts, setToasts] = useState<ToastDefinition[]>([]);
     const nextToastIdRef = useRef(0);
+    const timeoutIdsRef = useRef<number[]>([]);
+
+    useEffect(() => {
+        return () => {
+            timeoutIdsRef.current.forEach((timeoutId) => {
+                window.clearTimeout(timeoutId);
+            });
+            timeoutIdsRef.current = [];
+        };
+    }, []);
 
     const dismissToast = useCallback((id: number): void => {
         setToasts((current) => current.filter((toast) => toast.id !== id));
@@ -30,9 +40,11 @@ export const ToastProvider = ({ children }: PropsWithChildren): JSX.Element => {
         nextToastIdRef.current += 1;
         const id = nextToastIdRef.current;
         setToasts((current) => [...current, { id, message, tone }]);
-        window.setTimeout(() => {
+        const timeoutId = window.setTimeout(() => {
             setToasts((current) => current.filter((toast) => toast.id !== id));
+            timeoutIdsRef.current = timeoutIdsRef.current.filter((currentId) => currentId !== timeoutId);
         }, 4_000);
+        timeoutIdsRef.current = [...timeoutIdsRef.current, timeoutId];
     }, []);
 
     const value = useMemo<ToastContextValue>(() => ({
