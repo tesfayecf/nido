@@ -704,7 +704,7 @@ export const PropertyDetailPage = (): JSX.Element => {
         return hasMissingTemplateField || hasModifiedTemplateField || hasManualFields;
     }, [fieldMetadataById, missingTemplateField, sourceId, sourceTemplateFields.length]);
     const unmatchedTemplateFields = useMemo(() => {
-        const mappedTemplateNames = new Set(fieldRows.map((field) => field.templateFieldName ?? field.name.trim()).filter((name) => name !== ""));
+        const mappedTemplateNames = new Set(fieldRows.map((field) => field.templateFieldName).filter((name): name is string => name !== undefined && name !== ""));
         return sourceTemplateFields.filter((field) => !mappedTemplateNames.has(field.name));
     }, [fieldRows, sourceTemplateFields]);
 
@@ -767,9 +767,13 @@ export const PropertyDetailPage = (): JSX.Element => {
 
     const revertTemplateField = (fieldId: string): void => {
         setFieldRows((currentFields) => currentFields.map((field) => {
-            const templateFieldName = field.templateFieldName ?? field.name;
+            const templateFieldName = field.templateFieldName;
+            if (field.id !== fieldId || templateFieldName === undefined) {
+                return field;
+            }
+
             const templateField = templateFieldsByName.get(templateFieldName);
-            if (field.id !== fieldId || templateField === undefined) {
+            if (templateField === undefined) {
                 return field;
             }
 

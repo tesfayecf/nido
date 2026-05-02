@@ -270,7 +270,15 @@ export const getFieldMappingState = (
         };
     }
 
-    if (field.propertyOverride || buildFieldSelectorSignature(draftToSelector(field)) !== field.templateSignature) {
+    if (field.propertyOverride) {
+        return {
+            reason: "This property keeps its own mapping and will not receive template updates until reverted.",
+            sourceLabel: "Manual property override",
+            state: "overridden",
+        };
+    }
+
+    if (buildFieldSelectorSignature(draftToSelector(field)) !== field.templateSignature) {
         return {
             reason: "This property keeps its own mapping and will not receive template updates until reverted.",
             sourceLabel: "Manual property override",
