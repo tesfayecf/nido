@@ -95,8 +95,8 @@ export const SourceDetailPage = (): JSX.Element => {
         },
     });
     const previewMutation = useMutation({
-        mutationFn: () => previewExtraction({
-            fields: selectorFields.map(draftToSelector).filter((field) => field.name !== ""),
+        mutationFn: (fields: SelectorFieldDraft[]) => previewExtraction({
+            fields: fields.map(draftToSelector).filter((field) => field.name !== ""),
             url: previewUrl,
         }),
         onSuccess(result) {
@@ -270,7 +270,7 @@ export const SourceDetailPage = (): JSX.Element => {
                         {isCreateMode ? (
                             <>
                                 <Button onClick={() => { setSelectorFields((currentFields) => [...currentFields, createEmptySelectorDraft()]); }} variant={"secondary"}>{"Add field"}</Button>
-                                <Button disabled={previewUrl.trim() === "" || validationMessages.length > 0} isLoading={previewMutation.isPending} onClick={() => { previewMutation.mutate(); }} variant={"secondary"}>
+                                <Button disabled={previewUrl.trim() === "" || validationMessages.length > 0} isLoading={previewMutation.isPending} onClick={() => { previewMutation.mutate(selectorFields); }} variant={"secondary"}>
                                     {previewMutation.isPending ? "Checking..." : "Preview template"}
                                 </Button>
                             </>
@@ -411,7 +411,7 @@ export const SourceDetailPage = (): JSX.Element => {
                                             aria-label={`Test field ${item.name}`}
                                             className={"icon-button"}
                                             disabled={previewUrl.trim() === "" || validationMessages.length > 0}
-                                            onClick={() => { previewMutation.mutate(); }}
+                                            onClick={() => { previewMutation.mutate([item.draft]); }}
                                             title={"Test field"}
                                             type={"button"}
                                         >

@@ -38,6 +38,14 @@ export interface WorkspaceSettings {
 
 export const WORKSPACE_SETTINGS_STORAGE_KEY = "nido.workspace-settings";
 
+export const FIELD_MAPPING_GROUPS: { key: keyof WorkspaceFieldMappings; label: string; }[] = [
+    { key: "price_fields", label: "Price" },
+    { key: "area_fields", label: "Area" },
+    { key: "location_fields", label: "Location" },
+    { key: "type_fields", label: "Type" },
+    { key: "comparable_fields", label: "Comparable" },
+];
+
 export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
     field_mappings: {
         area_fields: ["area_m2", "surface_area", "surface", "area", "size_m2", "surface_m2", "m2"],

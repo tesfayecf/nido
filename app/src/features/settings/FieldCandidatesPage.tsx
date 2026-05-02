@@ -17,6 +17,7 @@ import { fieldKeys } from "@/services/fields/fields.keys";
 import { listFields } from "@/services/fields/fields.service";
 import {
     DEFAULT_WORKSPACE_SETTINGS,
+    FIELD_MAPPING_GROUPS,
     readWorkspaceSettings,
     saveWorkspaceSettings,
     type WorkspaceFieldMappings,
@@ -35,14 +36,6 @@ interface FieldCandidateRow {
     readonly status: FieldCandidateStatus;
 }
 
-const mappingGroups: { key: keyof WorkspaceFieldMappings; label: string; }[] = [
-    { key: "price_fields", label: "Price" },
-    { key: "area_fields", label: "Area" },
-    { key: "location_fields", label: "Location" },
-    { key: "type_fields", label: "Type" },
-    { key: "comparable_fields", label: "Comparable" },
-];
-
 const readJsonRecord = <TValue,>(key: string, fallback: TValue): TValue => {
     try {
         const raw = window.localStorage.getItem(key);
@@ -58,7 +51,7 @@ const collectCandidates = (settings: WorkspaceSettings, ignoredFields: readonly 
     const groupsByName = new Map<string, string[]>();
 
     for (const sourceSettings of [DEFAULT_WORKSPACE_SETTINGS, settings]) {
-        for (const group of mappingGroups) {
+        for (const group of FIELD_MAPPING_GROUPS) {
             for (const fieldName of sourceSettings.field_mappings[group.key]) {
                 allNames.add(fieldName);
                 groupsByName.set(fieldName, [...groupsByName.get(fieldName) ?? [], group.label]);
@@ -80,7 +73,7 @@ const collectCandidates = (settings: WorkspaceSettings, ignoredFields: readonly 
 const updateFieldMappings = (settings: WorkspaceSettings, sourceField: string, targetField: string | null): WorkspaceSettings => ({
     ...settings,
     field_mappings: Object.fromEntries(
-        mappingGroups.map((group) => {
+        FIELD_MAPPING_GROUPS.map((group) => {
             const currentValues = settings.field_mappings[group.key];
             const shouldAddMappedField = targetField !== null
                 && currentValues.includes(sourceField)
