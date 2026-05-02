@@ -55,6 +55,18 @@ import {
 
 const LOCAL_UI_STORAGE_KEYS = ["nido.bookmark-groups", "nido.nav-collapsed", "nido.properties.table"];
 
+const DISPLAY_PRESETS = [
+    { currency: "EUR", label: "Ireland", locale: "en-IE" },
+    { currency: "EUR", label: "Spain", locale: "es-ES" },
+    { currency: "USD", label: "United States", locale: "en-US" },
+] as const;
+
+const NOTIFICATION_CHANNEL_PRESETS = [
+    { channels: ["in-app"], label: "In-app only" },
+    { channels: ["in-app", "email"], label: "Standard" },
+    { channels: ["in-app", "email", "webhook", "chat"], label: "All channels" },
+] as const;
+
 export const SettingsPage = (): JSX.Element => {
     const queryClient = useQueryClient();
     const { pushToast } = useToast();
@@ -98,6 +110,45 @@ export const SettingsPage = (): JSX.Element => {
         setComparableFieldsText(formatMultilineValue(nextSettings.field_mappings.comparable_fields));
         setLocationFieldsText(formatMultilineValue(nextSettings.field_mappings.location_fields));
         setTypeFieldsText(formatMultilineValue(nextSettings.field_mappings.type_fields));
+    };
+
+    const setDisplayDensity = (density: WorkspaceSettings["preferences"]["density"]): void => {
+        setWorkspaceSettings((current) => ({
+            ...current,
+            preferences: {
+                ...current.preferences,
+                density,
+            },
+        }));
+    };
+
+    const applyDisplayPreset = (locale: string, currency: string): void => {
+        setWorkspaceSettings((current) => ({
+            ...current,
+            preferences: {
+                ...current.preferences,
+                display_currency: currency,
+                display_locale: locale,
+            },
+        }));
+    };
+
+    const applyThresholdPreset = (cheapBelowPercent: number, expensiveAbovePercent: number): void => {
+        setWorkspaceSettings((current) => ({
+            ...current,
+            thresholds: {
+                ...current.thresholds,
+                cheap_below_percent: cheapBelowPercent,
+                expensive_above_percent: expensiveAbovePercent,
+            },
+        }));
+    };
+
+    const applyNotificationChannelPreset = (channels: string[]): void => {
+        setPreferences((current) => ({
+            ...current,
+            channels,
+        }));
     };
 
     useEffect(() => {
@@ -366,73 +417,164 @@ export const SettingsPage = (): JSX.Element => {
 
                                     <PageCard description={"Control how pricing signals and personal workspace defaults appear."} title={"Preferences"}>
                                         <FormGrid
+                                            className={"settings-preferences-form"}
                                             onSubmit={(event) => {
                                                 event.preventDefault();
                                                 persistWorkspaceSettings();
                                                 savePreferences();
                                             }}
                                         >
-                                            <Field label={"Display density"}>
-                                                <Select onChange={(event) => { setWorkspaceSettings((current) => ({ ...current, preferences: { ...current.preferences, density: event.target.value as WorkspaceSettings["preferences"]["density"] } })); }} value={workspaceSettings.preferences.density}>
-                                                    <option value={"comfortable"}>{"Comfortable"}</option>
-                                                    <option value={"compact"}>{"Compact"}</option>
-                                                </Select>
-                                            </Field>
-                                            <Field label={"Display locale"}>
-                                                <Input onChange={(event) => { setWorkspaceSettings((current) => ({ ...current, preferences: { ...current.preferences, display_locale: event.target.value } })); }} value={workspaceSettings.preferences.display_locale} />
-                                            </Field>
-                                            <Field label={"Display currency"}>
-                                                <Input onChange={(event) => { setWorkspaceSettings((current) => ({ ...current, preferences: { ...current.preferences, display_currency: event.target.value.toUpperCase() } })); }} value={workspaceSettings.preferences.display_currency} />
-                                            </Field>
-                                            <Field label={"Cheap threshold (%)"}>
-                                                <Input min={0} onChange={(event) => { setWorkspaceSettings((current) => ({ ...current, thresholds: { ...current.thresholds, cheap_below_percent: Number(event.target.value) || 0 } })); }} type={"number"} value={workspaceSettings.thresholds.cheap_below_percent} />
-                                            </Field>
-                                            <Field label={"Expensive threshold (%)"}>
-                                                <Input min={0} onChange={(event) => { setWorkspaceSettings((current) => ({ ...current, thresholds: { ...current.thresholds, expensive_above_percent: Number(event.target.value) || 0 } })); }} type={"number"} value={workspaceSettings.thresholds.expensive_above_percent} />
-                                            </Field>
-                                            <Field fullWidth label={"Default field mappings"}>
-                                                <Textarea onChange={(event) => { setWorkspaceSettings((current) => ({ ...current, preferences: { ...current.preferences, default_field_mappings_text: event.target.value } })); }} rows={4} value={workspaceSettings.preferences.default_field_mappings_text} />
-                                            </Field>
-                                            <Field label={"Quiet hours start"}>
-                                                <Input onChange={(event) => { setPreferences((current) => ({ ...current, quietHoursStart: event.target.value })); }} type={"time"} value={preferences.quietHoursStart} />
-                                            </Field>
-                                            <Field label={"Quiet hours end"}>
-                                                <Input onChange={(event) => { setPreferences((current) => ({ ...current, quietHoursEnd: event.target.value })); }} type={"time"} value={preferences.quietHoursEnd} />
-                                            </Field>
-                                            <Field hint={"Batch lower-priority notifications into a digest when enabled."} label={"Digest mode"} variant={"checkbox"}>
-                                                <input checked={preferences.digestMode} onChange={(event) => { setPreferences((current) => ({ ...current, digestMode: event.target.checked })); }} type={"checkbox"} />
-                                            </Field>
-                                            <Field label={"Minimum severity"}>
-                                                <Select onChange={(event) => { setPreferences((current) => ({ ...current, severityFloor: event.target.value })); }} value={preferences.severityFloor}>
-                                                    <option value={"low"}>{"Low"}</option>
-                                                    <option value={"medium"}>{"Medium"}</option>
-                                                    <option value={"high"}>{"High"}</option>
-                                                    <option value={"critical"}>{"Critical"}</option>
-                                                </Select>
-                                            </Field>
-                                            <Field fullWidth label={"Delivery channels"}>
-                                                <MultiSelect
-                                                    onChange={(values) => { setPreferences((current) => ({ ...current, channels: values })); }}
-                                                    options={[
-                                                        { label: "In-app", value: "in-app" },
-                                                        { label: "Email", value: "email" },
-                                                        { label: "Webhook", value: "webhook" },
-                                                        { label: "Chat integration", value: "chat" },
-                                                    ]}
-                                                    values={preferences.channels}
-                                                />
-                                            </Field>
-                                            <Field fullWidth label={"Muted tags"}>
-                                                <MultiSelect
-                                                    onChange={(values) => { setPreferences((current) => ({ ...current, mutedTagIds: values })); }}
-                                                    options={(tagsQuery.data ?? []).map((tag) => ({ label: tag.name, value: tag.id }))}
-                                                    placeholder={"Mute selected tags"}
-                                                    values={preferences.mutedTagIds}
-                                                />
-                                            </Field>
-                                            <ActionGroup>
-                                                <Button type={"submit"}>{"Save preferences"}</Button>
-                                            </ActionGroup>
+                                            <div className={"settings-preferences-layout"}>
+                                                <section className={"settings-preferences-panel"}>
+                                                    <div className={"settings-preferences-panel__header"}>
+                                                        <div>
+                                                            <span className={"app-shell__eyebrow"}>{"Display"}</span>
+                                                            <h3 className={"settings-preferences-panel__title"}>{"Workspace view"}</h3>
+                                                            <p className={"muted-copy settings-preferences-panel__copy"}>{"Keep formatting and density close to the presets you use most often."}</p>
+                                                        </div>
+                                                        <ActionGroup className={"settings-preferences-panel__actions"}>
+                                                            {DISPLAY_PRESETS.map((preset) => {
+                                                                const isActive = workspaceSettings.preferences.display_locale === preset.locale
+                                                                    && workspaceSettings.preferences.display_currency === preset.currency;
+                                                                return (
+                                                                    <Button
+                                                                        aria-label={`Apply ${preset.label} display preset`}
+                                                                        key={preset.label}
+                                                                        onClick={() => { applyDisplayPreset(preset.locale, preset.currency); }}
+                                                                        size={"small"}
+                                                                        variant={isActive ? "primary" : "secondary"}
+                                                                    >
+                                                                        {preset.label}
+                                                                    </Button>
+                                                                );
+                                                            })}
+                                                        </ActionGroup>
+                                                    </div>
+                                                    <FormGrid as={"div"} className={"settings-preferences-panel__fields"} variant={"two-column"}>
+                                                        <Field fullWidth label={"Display density"}>
+                                                            <div className={"settings-preferences-density"}>
+                                                                <Button onClick={() => { setDisplayDensity("comfortable"); }} size={"small"} variant={workspaceSettings.preferences.density === "comfortable" ? "primary" : "secondary"}>{"Comfortable"}</Button>
+                                                                <Button onClick={() => { setDisplayDensity("compact"); }} size={"small"} variant={workspaceSettings.preferences.density === "compact" ? "primary" : "secondary"}>{"Compact"}</Button>
+                                                            </div>
+                                                        </Field>
+                                                        <Field dense hint={"BCP 47 locale, for example en-IE or es-ES."} label={"Display locale"}>
+                                                            <Input onChange={(event) => { setWorkspaceSettings((current) => ({ ...current, preferences: { ...current.preferences, display_locale: event.target.value } })); }} value={workspaceSettings.preferences.display_locale} />
+                                                        </Field>
+                                                        <Field dense hint={"ISO currency code, for example EUR or USD."} label={"Display currency"}>
+                                                            <Input maxLength={3} onChange={(event) => { setWorkspaceSettings((current) => ({ ...current, preferences: { ...current.preferences, display_currency: event.target.value.toUpperCase().slice(0, 3) } })); }} value={workspaceSettings.preferences.display_currency} />
+                                                        </Field>
+                                                    </FormGrid>
+                                                </section>
+
+                                                <section className={"settings-preferences-panel"}>
+                                                    <div className={"settings-preferences-panel__header"}>
+                                                        <div>
+                                                            <span className={"app-shell__eyebrow"}>{"Pricing"}</span>
+                                                            <h3 className={"settings-preferences-panel__title"}>{"Deal evaluation"}</h3>
+                                                            <p className={"muted-copy settings-preferences-panel__copy"}>{"Adjust how aggressively the workspace labels listings as cheap or expensive."}</p>
+                                                        </div>
+                                                    </div>
+                                                    <FormGrid as={"div"} className={"settings-preferences-panel__fields"} variant={"two-column"}>
+                                                        <Field dense hint={"Listings below this percentage gap are marked cheap."} label={"Cheap threshold (%)"}>
+                                                            <Input min={0} onChange={(event) => { setWorkspaceSettings((current) => ({ ...current, thresholds: { ...current.thresholds, cheap_below_percent: Number(event.target.value) || 0 } })); }} type={"number"} value={workspaceSettings.thresholds.cheap_below_percent} />
+                                                        </Field>
+                                                        <Field dense hint={"Listings above this percentage gap are marked expensive."} label={"Expensive threshold (%)"}>
+                                                            <Input min={0} onChange={(event) => { setWorkspaceSettings((current) => ({ ...current, thresholds: { ...current.thresholds, expensive_above_percent: Number(event.target.value) || 0 } })); }} type={"number"} value={workspaceSettings.thresholds.expensive_above_percent} />
+                                                        </Field>
+                                                    </FormGrid>
+                                                </section>
+
+                                                <section className={"settings-preferences-panel settings-preferences-panel--wide"}>
+                                                    <div className={"settings-preferences-panel__header"}>
+                                                        <div>
+                                                            <span className={"app-shell__eyebrow"}>{"Mappings"}</span>
+                                                            <h3 className={"settings-preferences-panel__title"}>{"Default field aliases"}</h3>
+                                                            <p className={"muted-copy settings-preferences-panel__copy"}>{"Keep the common import aliases close at hand without making the threshold controls sprawl."}</p>
+                                                        </div>
+                                                        <ActionGroup className={"settings-preferences-panel__actions"}>
+                                                            <Button onClick={() => { setWorkspaceSettings((current) => ({ ...current, preferences: { ...current.preferences, default_field_mappings_text: DEFAULT_WORKSPACE_SETTINGS.preferences.default_field_mappings_text } })); }} size={"small"} variant={"ghost"}>{"Restore default mappings"}</Button>
+                                                        </ActionGroup>
+                                                    </div>
+                                                    <Field fullWidth hint={"One mapping per line as source -> canonical field."} label={"Default field mappings"}>
+                                                        <Textarea onChange={(event) => { setWorkspaceSettings((current) => ({ ...current, preferences: { ...current.preferences, default_field_mappings_text: event.target.value } })); }} rows={4} value={workspaceSettings.preferences.default_field_mappings_text} />
+                                                    </Field>
+                                                </section>
+
+                                                <section className={"settings-preferences-panel settings-preferences-panel--wide"}>
+                                                    <div className={"settings-preferences-panel__header"}>
+                                                        <div>
+                                                            <span className={"app-shell__eyebrow"}>{"Notifications"}</span>
+                                                            <h3 className={"settings-preferences-panel__title"}>{"Personal delivery"}</h3>
+                                                            <p className={"muted-copy settings-preferences-panel__copy"}>{"Keep the most common notification combinations one click away and reduce scanning fatigue."}</p>
+                                                        </div>
+                                                        <ActionGroup className={"settings-preferences-panel__actions"}>
+                                                            {NOTIFICATION_CHANNEL_PRESETS.map((preset) => {
+                                                                const isActive = preset.channels.length === preferences.channels.length
+                                                                    && preset.channels.every((channel) => preferences.channels.includes(channel));
+                                                                return (
+                                                                    <Button
+                                                                        aria-label={`Apply ${preset.label.toLowerCase()} notification preset`}
+                                                                        key={preset.label}
+                                                                        onClick={() => { applyNotificationChannelPreset([...preset.channels]); }}
+                                                                        size={"small"}
+                                                                        variant={isActive ? "primary" : "secondary"}
+                                                                    >
+                                                                        {preset.label}
+                                                                    </Button>
+                                                                );
+                                                            })}
+                                                        </ActionGroup>
+                                                    </div>
+                                                    <FormGrid as={"div"} className={"settings-preferences-panel__fields"} variant={"two-column"}>
+                                                        <Field dense hint={"Start muting lower-priority alerts at this time."} label={"Quiet hours start"}>
+                                                            <Input onChange={(event) => { setPreferences((current) => ({ ...current, quietHoursStart: event.target.value })); }} type={"time"} value={preferences.quietHoursStart} />
+                                                        </Field>
+                                                        <Field dense hint={"Resume standard alerts after this time."} label={"Quiet hours end"}>
+                                                            <Input onChange={(event) => { setPreferences((current) => ({ ...current, quietHoursEnd: event.target.value })); }} type={"time"} value={preferences.quietHoursEnd} />
+                                                        </Field>
+                                                        <Field className={"field--checkbox-compact"} hint={"Batch lower-priority notifications into a digest when enabled."} label={"Digest mode"} variant={"checkbox"}>
+                                                            <input checked={preferences.digestMode} onChange={(event) => { setPreferences((current) => ({ ...current, digestMode: event.target.checked })); }} type={"checkbox"} />
+                                                        </Field>
+                                                        <Field dense hint={"Ignore alerts below this urgency."} label={"Minimum severity"}>
+                                                            <Select onChange={(event) => { setPreferences((current) => ({ ...current, severityFloor: event.target.value })); }} value={preferences.severityFloor}>
+                                                                <option value={"low"}>{"Low"}</option>
+                                                                <option value={"medium"}>{"Medium"}</option>
+                                                                <option value={"high"}>{"High"}</option>
+                                                                <option value={"critical"}>{"Critical"}</option>
+                                                            </Select>
+                                                        </Field>
+                                                        <Field hint={"Pick where personal alerts should arrive."} label={"Delivery channels"}>
+                                                            <MultiSelect
+                                                                onChange={(values) => { setPreferences((current) => ({ ...current, channels: values })); }}
+                                                                options={[
+                                                                    { label: "In-app", value: "in-app" },
+                                                                    { label: "Email", value: "email" },
+                                                                    { label: "Webhook", value: "webhook" },
+                                                                    { label: "Chat integration", value: "chat" },
+                                                                ]}
+                                                                values={preferences.channels}
+                                                            />
+                                                        </Field>
+                                                        <Field hint={"Muted tags stay out of your personal notifications."} label={"Muted tags"}>
+                                                            <MultiSelect
+                                                                onChange={(values) => { setPreferences((current) => ({ ...current, mutedTagIds: values })); }}
+                                                                options={(tagsQuery.data ?? []).map((tag) => ({ label: tag.name, value: tag.id }))}
+                                                                placeholder={"Mute selected tags"}
+                                                                values={preferences.mutedTagIds}
+                                                            />
+                                                        </Field>
+                                                        <ActionGroup>
+                                                            <Button onClick={() => { setPreferences((current) => ({ ...current, mutedTagIds: [] })); }} size={"small"} variant={"ghost"}>{"Clear muted tags"}</Button>
+                                                        </ActionGroup>
+                                                    </FormGrid>
+                                                </section>
+                                            </div>
+                                            <div className={"settings-preferences-footer"}>
+                                                <p className={"muted-copy settings-preferences-help"}>{"Workspace formatting and personal notifications are saved together on this device."}</p>
+                                                <ActionGroup>
+                                                    <Button type={"submit"}>{"Save preferences"}</Button>
+                                                </ActionGroup>
+                                            </div>
                                         </FormGrid>
                                     </PageCard>
 

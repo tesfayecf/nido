@@ -9,10 +9,16 @@ interface OpportunityBreakdown {
 }
 
 export interface OpportunityCandidate {
+    readonly bathrooms?: number;
     readonly breakdown: OpportunityBreakdown;
+    readonly deltaAbsolute?: number;
+    readonly deltaPercent?: number;
     readonly label: string;
     readonly price?: number;
+    readonly pricePerSquareMeter?: number;
+    readonly propertyAge?: number;
     readonly propertyId: string;
+    readonly rooms?: number;
     readonly score: number;
 }
 
@@ -125,6 +131,10 @@ const rankOpportunities = (
         readonly bathrooms?: number;
         readonly label: string;
         readonly price?: number;
+        readonly priceChange?: {
+            readonly deltaAbsolute: number;
+            readonly deltaPercent?: number;
+        };
         readonly pricePerSquareMeter?: number;
         readonly propertyAge?: number;
         readonly propertyId: string;
@@ -165,10 +175,16 @@ const rankOpportunities = (
             ) / Math.max(availableWeights, 1);
 
             return {
+                bathrooms: item.bathrooms,
                 breakdown,
+                deltaAbsolute: item.priceChange?.deltaAbsolute,
+                deltaPercent: item.priceChange?.deltaPercent,
                 label: item.label,
                 price: item.price,
+                pricePerSquareMeter: item.pricePerSquareMeter,
+                propertyAge: item.propertyAge,
                 propertyId: item.propertyId,
+                rooms: item.rooms,
                 score: Math.round(weightedScore * 100),
             };
         })

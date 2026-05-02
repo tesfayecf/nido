@@ -88,6 +88,23 @@ describe("SettingsPage", () => {
         expect(screen.getByText("Export properties, sources, tags, relationships, field definitions, platform settings, and this device’s local settings into one versioned JSON file.")).toBeInTheDocument();
     });
 
+    it("applies quick preference presets and saves them locally", async () => {
+        renderSettingsPage();
+
+        expect(await screen.findByRole("heading", { name: "Preferences" })).toBeInTheDocument();
+        fireEvent.click(screen.getByRole("button", { name: "Apply United States display preset" }));
+        fireEvent.click(screen.getByRole("button", { name: "Compact" }));
+        fireEvent.click(screen.getByRole("button", { name: "Apply all channels notification preset" }));
+        fireEvent.click(screen.getByRole("button", { name: "Save preferences" }));
+
+        await waitFor(() => {
+            expect(window.localStorage.getItem(WORKSPACE_SETTINGS_STORAGE_KEY)).toContain('"display_locale":"en-US"');
+            expect(window.localStorage.getItem(WORKSPACE_SETTINGS_STORAGE_KEY)).toContain('"display_currency":"USD"');
+            expect(window.localStorage.getItem(WORKSPACE_SETTINGS_STORAGE_KEY)).toContain('"density":"compact"');
+            expect(window.localStorage.getItem(PREFERENCE_STORAGE_KEY)).toContain('"channels":["in-app","email","webhook","chat"]');
+        });
+    });
+
     it("restores a full workspace backup after confirmation", async () => {
         restoreWorkspaceBackupDataMock.mockResolvedValue(undefined);
         renderSettingsPage();

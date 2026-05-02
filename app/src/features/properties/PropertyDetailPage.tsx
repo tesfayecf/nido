@@ -38,7 +38,6 @@ import { readWorkspaceSettings } from "@/features/settings/workspaceSettings";
 import { fieldKeys } from "@/services/fields/fields.keys";
 import { listFields } from "@/services/fields/fields.service";
 import { PropertyAlertCreateDialog } from "@/features/engagement/PropertyAlertCreateDialog";
-import { DecisionStrip } from "@/features/properties/DecisionStrip";
 import {
     SCHEDULE_PRESETS,
     durationDraftFromSeconds,
@@ -365,6 +364,84 @@ const parseAttributeNumber = (value: string | undefined): number | undefined => 
 };
 
 const formatEuro = (value: number): string => `${Math.round(value).toLocaleString("en")} €`;
+
+type PriceMetricTone = "danger" | "neutral" | "success";
+
+interface PriceMetricCardProps {
+    readonly emphasis?: boolean;
+    readonly label: string;
+    readonly meta?: string;
+    readonly tone?: PriceMetricTone;
+    readonly value: string;
+}
+
+const formatSignedEuro = (value: number | undefined): string => {
+    if (value === undefined) {
+        return "—";
+    }
+
+    return `${value > 0 ? "+" : ""}${formatEuro(value)}`;
+};
+
+const formatSignedPercent = (value: number | undefined): string => {
+    if (value === undefined) {
+        return "—";
+    }
+
+    return `${value > 0 ? "+" : ""}${value.toFixed(1)}%`;
+};
+
+const formatPriceClassification = (value: ReturnType<typeof buildPriceIntelligence>["classification"]): string => {
+    return `${value.charAt(0).toUpperCase()}${value.slice(1)}`;
+};
+
+const getPriceMetricTone = (value: number | undefined): PriceMetricTone => {
+    if (value === undefined) {
+        return "neutral";
+    }
+
+    return value > 0 ? "danger" : "success";
+};
+
+const getPriceClassificationTone = (value: ReturnType<typeof buildPriceIntelligence>["classification"]): "danger" | "success" | "warning" => {
+    switch (value) {
+        case "cheap":
+            return "success";
+        case "expensive":
+            return "danger";
+        case "fair":
+        default:
+            return "warning";
+    }
+};
+
+const getFreshnessTone = (value: string | undefined): "danger" | "neutral" | "success" | "warning" => {
+    switch (value) {
+        case "fresh":
+            return "success";
+        case "aging":
+            return "warning";
+        case "stale":
+            return "danger";
+        case "unknown":
+        default:
+            return "neutral";
+    }
+};
+
+const isExternalHTTPURL = (value: string): boolean => validateOptionalPropertyURL(value) === undefined;
+
+const PriceMetricCard = ({ emphasis = false, label, meta, tone = "neutral", value }: PriceMetricCardProps): JSX.Element => {
+    return (
+        <article className={emphasis ? "property-price-metric property-price-metric--featured" : "property-price-metric"}>
+            <span className={"property-price-metric__label"}>{label}</span>
+            <strong className={`property-price-metric__value property-price-metric__value--${tone}`}>
+                {value}
+            </strong>
+            {meta !== undefined && meta !== "" ? <span className={"property-price-metric__meta"}>{meta}</span> : null}
+        </article>
+    );
+};
 
 const buildPropertyAttributes = (values: Record<string, string>): { pricePerSquareMeter?: string; rooms?: string; surfaceArea?: string; totalPrice?: string; } => {
     const price = parseAttributeNumber(values.price ?? values.total_price);
@@ -1002,6 +1079,8 @@ export const PropertyDetailPage = (): JSX.Element => {
             : undefined;
     }, [summariesQuery.data, summaryQuery.data, workspaceSettings]);
     const sourceSummary = sourcesQuery.data?.find((source) => source.id === propertyQuery.data?.source_id)?.name ?? (propertyQuery.data?.url ? "Custom URL" : "Manual tracking");
+    const externalReferences = useMemo(() => parseReferenceLines(metadataDraft.externalReferencesText), [metadataDraft.externalReferencesText]);
+    const attachments = useMemo(() => parseAttachmentLines(metadataDraft.attachmentsText), [metadataDraft.attachmentsText]);
     const decisionEntries: DecisionEntry[] = [];
     if (metadataDraft.businessStage.trim() !== "") {
         decisionEntries.push({ label: "Decision status", timestamp: propertyQuery.data?.updated_at, value: formatDecisionStatus(metadataDraft.businessStage) });
@@ -1103,12 +1182,12 @@ export const PropertyDetailPage = (): JSX.Element => {
                     <Field fullWidth hint={"Manual hides every automation field. Automatic derives price from the first successful snapshot."} label={"Tracking mode"}>
                         <div className={"dashboard-grid dashboard-grid--double"}>
                             <label className={"properties-table__column-toggle"}>
-                                <input checked={trackingMode === "manual"} onChange={() => { setTrackingMode("manual"); setAdditionalFieldsOpen(false); }} type={"radio"} />
-                                <span>{"Manual Tracking"}</span>
-                            </label>
-                            <label className={"properties-table__column-toggle"}>
                                 <input checked={trackingMode === "automatic"} onChange={() => { setTrackingMode("automatic"); }} type={"radio"} />
                                 <span>{"Automatic Tracking"}</span>
+                            </label>
+                            <label className={"properties-table__column-toggle"}>
+                                <input checked={trackingMode === "manual"} onChange={() => { setTrackingMode("manual"); setAdditionalFieldsOpen(false); }} type={"radio"} />
+                                <span>{"Manual Tracking"}</span>
                             </label>
                         </div>
                     </Field>
@@ -1245,25 +1324,52 @@ export const PropertyDetailPage = (): JSX.Element => {
                         {propertyQuery.data !== undefined ? (
                             <KeyValueGrid compact>
                                 <KeyValuePair label={"Tracking mode"} value={trackingMode === "manual" ? "Manual Tracking" : "Automatic Tracking"} />
-                                <KeyValuePair
-                                    label={"Current status"}
-                                    value={(
-                                        <span className={"status-with-copy"}>
-                                            <StatusBadge tone={automationStatusTone} value={automationStatus} />
-                                            <CopyButton label={"Copy property URL"} value={propertyQuery.data.url} />
-                                        </span>
-                                    )}
-                                />
+                                <KeyValuePair label={"Current status"} value={<StatusBadge tone={automationStatusTone} value={automationStatus} />} />
                                 <KeyValuePair label={"Property status"} value={<StatusBadge tone={propertyQuery.data.status === "active" ? "success" : propertyQuery.data.status === "degraded" ? "warning" : propertyQuery.data.status === "inactive" ? "danger" : "neutral"} value={propertyQuery.data.status} />} />
                                 <KeyValuePair label={"Source summary"} value={sourceSummary} />
                                 <KeyValuePair label={"Current price"} value={attributes.totalPrice ?? "Not captured"} />
-                                <KeyValuePair label={"Location"} value={latestValues.location ?? "Not captured"} />
-                                <KeyValuePair label={"Surface area"} value={attributes.surfaceArea ?? "Not captured"} />
-                                <KeyValuePair label={"Rooms"} value={attributes.rooms ?? "Not captured"} />
+                                <KeyValuePair label={"Last run"} value={propertyQuery.data.last_run_at === undefined ? "No runs yet" : formatDateTime(propertyQuery.data.last_run_at)} />
+                                <KeyValuePair label={"Next run"} value={propertyQuery.data.next_run_at === undefined ? manualEntryMode ? "Manual only" : "Waiting for save" : formatDateTime(propertyQuery.data.next_run_at)} />
                                 <KeyValuePair label={"Updated"} value={propertyQuery.data.updated_at === undefined ? "—" : formatDateTime(propertyQuery.data.updated_at)} />
                                 <KeyValuePair label={"Bookmark"} value={isBookmarked ? "Bookmarked" : "Not bookmarked"} />
                             </KeyValueGrid>
                         ) : null}
+                    </PageCard>
+                ) : null}
+
+                {activeSection === "overview" ? (
+                    <PageCard
+                        description={"Stable profile details, source context, and tags for quick orientation before deeper analysis."}
+                        title={"Property Profile"}
+                        titleId={"profile"}
+                    >
+                        <div className={"property-detail-group-grid"}>
+                            <section className={"property-detail-group"}>
+                                <span className={"app-shell__eyebrow"}>{"Source & identity"}</span>
+                                <KeyValueGrid compact>
+                                    <KeyValuePair
+                                        label={"Listing URL"}
+                                        value={propertyQuery.data?.url !== undefined && propertyQuery.data.url !== "" ? (
+                                            <span className={"status-with-copy"}>
+                                                <a className={"property-detail-anchor"} href={propertyQuery.data.url} rel={"noreferrer"} target={"_blank"}>{"Open listing"}</a>
+                                                <CopyButton label={"Copy property URL"} value={propertyQuery.data.url} />
+                                            </span>
+                                        ) : "Manual property"}
+                                    />
+                                    <KeyValuePair label={"Source template"} value={sourceSummary} />
+                                    <KeyValuePair label={"Created"} value={propertyQuery.data?.created_at === undefined ? "—" : formatDateTime(propertyQuery.data.created_at)} />
+                                    <KeyValuePair label={"Updated"} value={propertyQuery.data?.updated_at === undefined ? "—" : formatDateTime(propertyQuery.data.updated_at)} />
+                                </KeyValueGrid>
+                            </section>
+                            <section className={"property-detail-group"}>
+                                <span className={"app-shell__eyebrow"}>{"Listing attributes"}</span>
+                                {propertyFactRows.length === 0 ? <EmptyState message={"No property facts have been captured yet. Run the source again or add details manually."} /> : (
+                                    <KeyValueGrid compact>
+                                        {propertyFactRows.map((item) => <KeyValuePair key={item.field} label={item.field} value={item.value} />)}
+                                    </KeyValueGrid>
+                                )}
+                            </section>
+                        </div>
                         {(propertyTagsQuery.data ?? []).length > 0 ? (
                             <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginTop: "1rem" }}>
                                 {(propertyTagsQuery.data ?? []).map((tag) => <TagBadge key={tag.id} tag={tag} />)}
@@ -1273,172 +1379,369 @@ export const PropertyDetailPage = (): JSX.Element => {
                 ) : null}
 
                 {activeSection === "insights" ? (
-                    <>
-                        <PageCard description={"Mostly stable facts imported from the listing or entered manually. These support context and comparison, but they are not the main live monitoring signal."} title={"Property Facts"} titleId={"attributes"}>
-                            {propertyFactRows.length === 0 ? <EmptyState message={"No property facts have been captured yet. Run the source again or add details manually."} /> : (
-                                <KeyValueGrid compact>
-                                    <KeyValuePair label={"€/m²"} value={attributes.pricePerSquareMeter ?? "Needs price and surface"} />
-                                    <KeyValuePair label={"Surface area"} value={attributes.surfaceArea ?? "Not captured"} />
-                                    <KeyValuePair label={"Rooms"} value={attributes.rooms ?? "Not captured"} />
-                                </KeyValueGrid>
-                            )}
-                        </PageCard>
-                    </>
-                ) : null}
-
-                {activeSection === "insights" ? (
                     <PageCard description={"Separates price inputs, computed metrics, and history so pricing signals are easy to scan."} title={"Price Intelligence"} titleId={"price-intelligence"}>
                         {summaryQuery.data === undefined || pricingInsight === undefined ? <EmptyState message={"Price intelligence will appear after the first property summary is available."} /> : (
                             <div className={"property-section-stack"}>
-                                <DecisionStrip allSummaries={summariesQuery.data} settings={workspaceSettings} summary={summaryQuery.data} />
+                                <section className={"property-price-hero"}>
+                                    <div className={"property-price-hero__header"}>
+                                        <div className={"property-price-hero__intro"}>
+                                            <span className={"app-shell__eyebrow"}>{"Pricing posture"}</span>
+                                            <h3 className={"property-price-hero__title"}>{formatPriceClassification(pricingInsight.classification)}</h3>
+                                            <p className={"muted-copy"}>
+                                                {summaryQuery.data.latest_change_summary === ""
+                                                    ? `Benchmarking this listing against ${pricingInsight.benchmark_label}.`
+                                                    : summaryQuery.data.latest_change_summary}
+                                            </p>
+                                        </div>
+                                        <div className={"property-price-hero__badges"}>
+                                            <StatusBadge tone={getPriceClassificationTone(pricingInsight.classification)} value={formatPriceClassification(pricingInsight.classification)} />
+                                            <StatusBadge tone={getFreshnessTone(summaryQuery.data.decision.freshness_status)} value={summaryQuery.data.decision.freshness_status} />
+                                            <StatusBadge tone={"neutral"} value={formatDecisionStatus(summaryQuery.data.decision.stage)} />
+                                        </div>
+                                    </div>
+
+                                    <div className={"property-price-hero__metrics"}>
+                                        <PriceMetricCard
+                                            emphasis
+                                            label={"Current price"}
+                                            meta={pricingInsight.current_price_per_unit !== undefined ? `${formatEuro(pricingInsight.current_price_per_unit)} per m²` : "Per-square-meter price not captured yet."}
+                                            value={attributes.totalPrice ?? "Not captured"}
+                                        />
+                                        <PriceMetricCard
+                                            label={pricingInsight.benchmark_label === "target price" ? "Primary benchmark" : "Market benchmark"}
+                                            meta={pricingInsight.benchmark_label === "target price"
+                                                ? "Anchored to your target price."
+                                                : pricingInsight.comparable_count > 0
+                                                    ? `${pricingInsight.comparable_count} comparable${pricingInsight.comparable_count === 1 ? "" : "s"}`
+                                                    : "Need more comparable properties."}
+                                            value={pricingInsight.benchmark_value !== undefined ? formatEuro(pricingInsight.benchmark_value) : "Not set"}
+                                        />
+                                        <PriceMetricCard
+                                            label={"Gap vs target"}
+                                            meta={pricingInsight.target_delta_absolute !== undefined ? formatSignedEuro(pricingInsight.target_delta_absolute) : "Set a target price to compare."}
+                                            tone={getPriceMetricTone(pricingInsight.target_delta_percent)}
+                                            value={formatSignedPercent(pricingInsight.target_delta_percent)}
+                                        />
+                                        <PriceMetricCard
+                                            label={"Gap vs market"}
+                                            meta={pricingInsight.market_delta_absolute !== undefined ? formatSignedEuro(pricingInsight.market_delta_absolute) : "Need more comparable properties."}
+                                            tone={getPriceMetricTone(pricingInsight.market_delta_percent)}
+                                            value={formatSignedPercent(pricingInsight.market_delta_percent)}
+                                        />
+                                    </div>
+                                </section>
+
                                 <div className={"property-detail-group-grid"}>
                                     <section className={"property-detail-group"}>
-                                        <span className={"app-shell__eyebrow"}>{"Raw inputs"}</span>
-                                        <KeyValueGrid compact>
-                                            <KeyValuePair label={"Current price"} value={attributes.totalPrice ?? "Not captured"} />
-                                            <KeyValuePair label={"Target price"} value={pricingInsight.target_price !== undefined ? formatEuro(pricingInsight.target_price) : "Not set"} />
-                                            <KeyValuePair label={"Market average"} value={pricingInsight.market_average !== undefined ? formatEuro(pricingInsight.market_average) : "Not enough comparables"} />
-                                            <KeyValuePair label={"Benchmark"} value={pricingInsight.benchmark_value !== undefined ? formatEuro(pricingInsight.benchmark_value) : "Not set"} />
-                                            <KeyValuePair label={"Latest extracted €/m²"} value={pricingInsight.current_price_per_unit !== undefined ? formatEuro(pricingInsight.current_price_per_unit) : "Not captured"} />
-                                        </KeyValueGrid>
+                                        <span className={"app-shell__eyebrow"}>{"Benchmark breakdown"}</span>
+                                        <div className={"property-price-detail-grid"}>
+                                            <div className={"property-price-detail"}>
+                                                <span className={"property-price-detail__label"}>{"Target price"}</span>
+                                                <strong className={"property-price-detail__value property-price-detail__value--neutral"}>{pricingInsight.target_price !== undefined ? formatEuro(pricingInsight.target_price) : "Not set"}</strong>
+                                            </div>
+                                            <div className={"property-price-detail"}>
+                                                <span className={"property-price-detail__label"}>{"Market average"}</span>
+                                                <strong className={"property-price-detail__value property-price-detail__value--neutral"}>{pricingInsight.market_average !== undefined ? formatEuro(pricingInsight.market_average) : "Not enough comparables"}</strong>
+                                            </div>
+                                            <div className={"property-price-detail"}>
+                                                <span className={"property-price-detail__label"}>{"Benchmark"}</span>
+                                                <strong className={"property-price-detail__value property-price-detail__value--neutral"}>{pricingInsight.benchmark_value !== undefined ? formatEuro(pricingInsight.benchmark_value) : "Not set"}</strong>
+                                            </div>
+                                            <div className={"property-price-detail"}>
+                                                <span className={"property-price-detail__label"}>{"Latest extracted €/m²"}</span>
+                                                <strong className={"property-price-detail__value property-price-detail__value--neutral"}>{pricingInsight.current_price_per_unit !== undefined ? formatEuro(pricingInsight.current_price_per_unit) : "Not captured"}</strong>
+                                            </div>
+                                            <div className={"property-price-detail"}>
+                                                <span className={"property-price-detail__label"}>{"Decision status"}</span>
+                                                <strong className={"property-price-detail__value property-price-detail__value--neutral"}>{formatDecisionStatus(summaryQuery.data.decision.stage)}</strong>
+                                            </div>
+                                            <div className={"property-price-detail"}>
+                                                <span className={"property-price-detail__label"}>{"Comparables"}</span>
+                                                <strong className={"property-price-detail__value property-price-detail__value--neutral"}>{`${pricingInsight.comparable_count}`}</strong>
+                                            </div>
+                                        </div>
                                     </section>
                                     <section className={"property-detail-group"}>
-                                        <span className={"app-shell__eyebrow"}>{"Computed metrics"}</span>
-                                        <KeyValueGrid compact>
-                                            <KeyValuePair label={"Decision status"} value={formatDecisionStatus(summaryQuery.data.decision.stage)} />
-                                            <KeyValuePair label={"Classification"} value={pricingInsight.classification} />
-                                            <KeyValuePair label={"Gap vs market"} value={pricingInsight.market_delta_percent !== undefined ? `${pricingInsight.market_delta_percent.toFixed(1)}%` : "—"} />
-                                            <KeyValuePair label={"Gap vs target"} value={pricingInsight.target_delta_percent !== undefined ? `${pricingInsight.target_delta_percent.toFixed(1)}%` : "—"} />
-                                            <KeyValuePair label={"Market delta"} value={pricingInsight.market_delta_absolute !== undefined ? formatEuro(pricingInsight.market_delta_absolute) : "—"} />
-                                            <KeyValuePair label={"Target delta"} value={pricingInsight.target_delta_absolute !== undefined ? formatEuro(pricingInsight.target_delta_absolute) : "—"} />
-                                            <KeyValuePair label={"Comparables"} value={`${pricingInsight.comparable_count}`} />
-                                            <KeyValuePair label={"Freshness"} value={summaryQuery.data.decision.freshness_status} />
-                                        </KeyValueGrid>
+                                        <span className={"app-shell__eyebrow"}>{"History & trends"}</span>
+                                        <div className={"property-history-card"}>
+                                            <div className={"listing-dense-row__headline"}>
+                                                <div>
+                                                    <strong>{"Price history"}</strong>
+                                                    <p className={"muted-copy"}>{"Use the compact chart for trend direction, then expand when you need exact timestamps."}</p>
+                                                </div>
+                                                <Button disabled={priceHistoryPoints.length === 0} onClick={() => { setChartOpen(true); }} size={"small"} variant={"secondary"}>{"Expand chart"}</Button>
+                                            </div>
+                                            {priceHistoryPoints.length === 0 ? <p className={"muted-copy"}>{"No historical price snapshots yet."}</p> : <PriceHistoryChart compact points={priceHistoryPoints} />}
+                                        </div>
+                                        <div className={"property-inline-note"}>
+                                            <strong>{summaryQuery.data.latest_change_summary === "" ? "No recent pricing change summary." : summaryQuery.data.latest_change_summary}</strong>
+                                            <span>{primarySignals.length === 0 ? "Price is the only live signal for this property right now." : `${primarySignals.length} tracked signal${primarySignals.length === 1 ? "" : "s"} available.`}</span>
+                                        </div>
                                     </section>
                                 </div>
-                                <section className={"property-detail-group"}>
-                                    <span className={"app-shell__eyebrow"}>{"History & trends"}</span>
-                                    <div className={"property-history-card"}>
-                                        <div className={"listing-dense-row__headline"}>
-                                            <div>
-                                                <strong>{"Price history"}</strong>
-                                                <p className={"muted-copy"}>{"The sparkline stays compact until you need the full chart."}</p>
-                                            </div>
-                                            <Button disabled={priceHistoryPoints.length === 0} onClick={() => { setChartOpen(true); }} size={"small"} variant={"secondary"}>{"Expand chart"}</Button>
-                                        </div>
-                                        {priceHistoryPoints.length === 0 ? <p className={"muted-copy"}>{"No historical price snapshots yet."}</p> : <PriceHistoryChart compact points={priceHistoryPoints} />}
-                                    </div>
-                                    <div className={"property-inline-note"}>
-                                        <strong>{summaryQuery.data.latest_change_summary === "" ? "No recent pricing change summary." : summaryQuery.data.latest_change_summary}</strong>
-                                        <span>{primarySignals.length === 0 ? "Price is the only live signal for this property right now." : `${primarySignals.length} tracked signal${primarySignals.length === 1 ? "" : "s"} available.`}</span>
-                                    </div>
-                                    {summaryQuery.data.signals.length > 0 ? (
-                                        <Tabs
-                                            defaultTabId={"all"}
-                                            items={[
-                                                {
-                                                    id: "all",
-                                                    label: "All signals",
-                                                    panel: (
-                                                        <DataTable
-                                                            caption={"Change signals"}
-                                                            columns={[
-                                                                { cell: (item) => item.label, header: "Signal", id: "label", sortValue: (item) => item.label },
-                                                                { cell: (item) => item.group, header: "Group", id: "group", sortValue: (item) => item.group },
-                                                                { cell: (item) => item.impact, header: "Impact", id: "impact", sortValue: (item) => item.impact },
-                                                                { cell: (item) => item.previous ?? "—", header: "Previous", id: "previous" },
-                                                                { cell: (item) => item.current ?? "—", header: "Current", id: "current" },
-                                                                { cell: (item) => formatDateTime(item.observed_at), header: "Observed at", id: "observed_at", sortValue: (item) => item.observed_at },
-                                                            ]}
-                                                            compact
-                                                            emptyMessage={"No signals detected."}
-                                                            getRowId={(item) => item.field}
-                                                            items={primarySignals}
-                                                            pageSize={10}
-                                                        />
-                                                    ),
-                                                },
-                                                {
-                                                    id: "pricing",
-                                                    label: "Pricing",
-                                                    panel: (
-                                                        <DataTable
-                                                            caption={"Pricing signals"}
-                                                            columns={[
-                                                                { cell: (item) => item.label, header: "Signal", id: "label" },
-                                                                { cell: (item) => item.impact, header: "Impact", id: "impact" },
-                                                                { cell: (item) => item.previous ?? "—", header: "Previous", id: "previous" },
-                                                                { cell: (item) => item.current ?? "—", header: "Current", id: "current" },
-                                                            ]}
-                                                            compact
-                                                            emptyMessage={"No pricing signals."}
-                                                            getRowId={(item) => item.field}
-                                                            items={primarySignals.filter((signal) => signal.group === "pricing")}
-                                                            pageSize={10}
-                                                        />
-                                                    ),
-                                                },
-                                                {
-                                                    id: "data_quality",
-                                                    label: "Data quality",
-                                                    panel: (
-                                                        <DataTable
-                                                            caption={"Data quality signals"}
-                                                            columns={[
-                                                                { cell: (item) => item.label, header: "Signal", id: "label" },
-                                                                { cell: (item) => item.impact, header: "Impact", id: "impact" },
-                                                                { cell: (item) => item.field, header: "Field", id: "field" },
-                                                            ]}
-                                                            compact
-                                                            emptyMessage={"No data quality signals."}
-                                                            getRowId={(item) => item.field}
-                                                            items={primarySignals.filter((signal) => signal.group === "data_quality" || signal.group === "freshness")}
-                                                            pageSize={10}
-                                                        />
-                                                    ),
-                                                },
-                                                {
-                                                    id: "listing_facts",
-                                                    label: "Listing facts changed",
-                                                    panel: (
-                                                        <div className={"property-section-stack"}>
-                                                            <p className={"muted-copy"}>{"This field is marked as Prefill, so changes are shown as listing updates instead of primary monitoring alerts."}</p>
-                                                            <DataTable
-                                                                caption={"Listing facts changed"}
-                                                                columns={[
-                                                                    { cell: (item) => item.field, header: "Field", id: "field" },
-                                                                    { cell: (item) => item.previous ?? "—", header: "Previous", id: "previous" },
-                                                                    { cell: (item) => item.current ?? "—", header: "Current", id: "current" },
-                                                                ]}
-                                                                compact
-                                                                emptyMessage={"No listing fact changes."}
-                                                                getRowId={(item) => item.field}
-                                                                items={listingFactSignals}
-                                                                pageSize={10}
-                                                            />
-                                                        </div>
-                                                    ),
-                                                },
-                                            ]}
-                                        />
-                                    ) : null}
-                                </section>
                             </div>
                         )}
                         {savePropertyMutation.isError ? <ErrorBanner>{"Could not save property. Check the price, source details, and any optional URL."}</ErrorBanner> : null}
                     </PageCard>
                 ) : null}
 
+                {activeSection === "insights" ? (
+                    <PageCard description={"Signals from the latest summary, separated by primary monitoring and prefill-only listing fact changes."} title={"Change Signals"} titleId={"signals"}>
+                        {summaryQuery.data === undefined || summaryQuery.data.signals.length === 0 ? <EmptyState message={"No signals detected for this property yet."} /> : (
+                            <Tabs
+                                defaultTabId={"all"}
+                                items={[
+                                    {
+                                        id: "all",
+                                        label: "All signals",
+                                        panel: (
+                                            <DataTable
+                                                caption={"Change signals"}
+                                                columns={[
+                                                    { cell: (item) => item.label, header: "Signal", id: "label", sortValue: (item) => item.label },
+                                                    { cell: (item) => item.group, header: "Group", id: "group", sortValue: (item) => item.group },
+                                                    { cell: (item) => item.impact, header: "Impact", id: "impact", sortValue: (item) => item.impact },
+                                                    { cell: (item) => item.previous ?? "—", header: "Previous", id: "previous" },
+                                                    { cell: (item) => item.current ?? "—", header: "Current", id: "current" },
+                                                    { cell: (item) => formatDateTime(item.observed_at), header: "Observed at", id: "observed_at", sortValue: (item) => item.observed_at },
+                                                ]}
+                                                compact
+                                                emptyMessage={"No signals detected."}
+                                                getRowId={(item) => item.field}
+                                                items={primarySignals}
+                                                pageSize={10}
+                                            />
+                                        ),
+                                    },
+                                    {
+                                        id: "pricing",
+                                        label: "Pricing",
+                                        panel: (
+                                            <DataTable
+                                                caption={"Pricing signals"}
+                                                columns={[
+                                                    { cell: (item) => item.label, header: "Signal", id: "label" },
+                                                    { cell: (item) => item.impact, header: "Impact", id: "impact" },
+                                                    { cell: (item) => item.previous ?? "—", header: "Previous", id: "previous" },
+                                                    { cell: (item) => item.current ?? "—", header: "Current", id: "current" },
+                                                ]}
+                                                compact
+                                                emptyMessage={"No pricing signals."}
+                                                getRowId={(item) => item.field}
+                                                items={primarySignals.filter((signal) => signal.group === "pricing")}
+                                                pageSize={10}
+                                            />
+                                        ),
+                                    },
+                                    {
+                                        id: "data_quality",
+                                        label: "Data quality",
+                                        panel: (
+                                            <DataTable
+                                                caption={"Data quality signals"}
+                                                columns={[
+                                                    { cell: (item) => item.label, header: "Signal", id: "label" },
+                                                    { cell: (item) => item.impact, header: "Impact", id: "impact" },
+                                                    { cell: (item) => item.field, header: "Field", id: "field" },
+                                                ]}
+                                                compact
+                                                emptyMessage={"No data quality signals."}
+                                                getRowId={(item) => item.field}
+                                                items={primarySignals.filter((signal) => signal.group === "data_quality" || signal.group === "freshness")}
+                                                pageSize={10}
+                                            />
+                                        ),
+                                    },
+                                    {
+                                        id: "listing_facts",
+                                        label: "Listing facts changed",
+                                        panel: (
+                                            <div className={"property-section-stack"}>
+                                                <p className={"muted-copy"}>{"This field is marked as Prefill, so changes are shown as listing updates instead of primary monitoring alerts."}</p>
+                                                <DataTable
+                                                    caption={"Listing facts changed"}
+                                                    columns={[
+                                                        { cell: (item) => item.field, header: "Field", id: "field" },
+                                                        { cell: (item) => item.previous ?? "—", header: "Previous", id: "previous" },
+                                                        { cell: (item) => item.current ?? "—", header: "Current", id: "current" },
+                                                    ]}
+                                                    compact
+                                                    emptyMessage={"No listing fact changes."}
+                                                    getRowId={(item) => item.field}
+                                                    items={listingFactSignals}
+                                                    pageSize={10}
+                                                />
+                                            </div>
+                                        ),
+                                    },
+                                ]}
+                            />
+                        )}
+                    </PageCard>
+                ) : null}
+
+                {activeSection === "insights" && !manualEntryMode ? (
+                    <PageCard description={"Recent automation runs with auto-refresh every 5 seconds."} title={"Automation Runs"}>
+                        <DataTable
+                            caption={"Property automation runs"}
+                            columns={[
+                                { cell: (item) => <StatusBadge tone={runStatusTone(item.status)} value={item.status} />, header: "Status", id: "status", width: "8rem" },
+                                { cell: (item) => item.trigger_kind, header: "Trigger", id: "trigger", width: "8rem" },
+                                { cell: (item) => `${item.attempt_count} / ${item.max_attempts}`, header: "Attempts", id: "attempts", width: "8rem" },
+                                { cell: (item) => item.started_at !== undefined ? formatDateTime(item.started_at) : "—", header: "Started", id: "started_at", sortValue: (item) => item.started_at ?? "", width: "11rem" },
+                                { cell: (item) => item.finished_at !== undefined ? formatDateTime(item.finished_at) : "—", header: "Finished", id: "finished_at", sortValue: (item) => item.finished_at ?? "", width: "11rem" },
+                                {
+                                    cell: (item) => {
+                                        if (item.error_message === undefined || item.error_message === "") {
+                                            return "—";
+                                        }
+
+                                        const truncated = item.error_message.length > 50 ? `${item.error_message.slice(0, 50)}...` : item.error_message;
+                                        return (
+                                            <Tooltip content={item.error_message}>
+                                                <span style={{ color: "#dc2626" }}>{truncated}</span>
+                                            </Tooltip>
+                                        );
+                                    },
+                                    header: "Error",
+                                    id: "error",
+                                },
+                            ]}
+                            compact
+                            emptyMessage={"No automation runs recorded yet."}
+                            getRowId={(item) => item.id}
+                            items={propertyRunsQuery.data ?? []}
+                            pageSize={10}
+                            rowLabel={(item) => `Run ${item.id}`}
+                        />
+                    </PageCard>
+                ) : null}
+
+                {activeSection === "insights" ? (
+                    <PageCard description={"Recent snapshots stay close to pricing analysis so observed changes are easy to trace."} title={"Recent Snapshots"}>
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: "0.75rem", marginBottom: "0.75rem" }}>
+                            <div>
+                                <strong>{"Config filter"}</strong>
+                                <p className={"muted-copy"}>{"Filter snapshots by the config version that produced them."}</p>
+                            </div>
+                            <ActionGroup>
+                                <Select onChange={(event) => { setSnapshotConfigFilter(Number(event.target.value)); }} value={`${snapshotConfigFilter}`}>
+                                    <option value={"0"}>{"All versions"}</option>
+                                    {configVersions.map((config) => <option key={config.id} value={`${config.version}`}>{`Version ${config.version}`}</option>)}
+                                </Select>
+                                <Button onClick={() => { setExportOpen(true); }} size={"small"} variant={"secondary"}>{"Export"}</Button>
+                            </ActionGroup>
+                        </div>
+                        <DataTable
+                            caption={"Recent property snapshots"}
+                            columns={[
+                                { cell: (item) => item.id, header: "Snapshot", id: "id", sortValue: (item) => item.id },
+                                { cell: (item) => formatDateTime(item.observed_at), header: "Observed", id: "observed_at", sortValue: (item) => item.observed_at },
+                                { cell: (item) => <StatusBadge tone={item.is_valid ? "success" : "warning"} value={item.is_valid ? "valid" : "invalid"} />, header: "Status", id: "status" },
+                                { align: "right", cell: (item) => `${Object.keys(item.values).length}`, header: "Fields", id: "fields", sortValue: (item) => Object.keys(item.values).length },
+                            ]}
+                            compact
+                            emptyMessage={"No runs have been recorded for this property yet."}
+                            getRowId={(item) => item.id}
+                            items={recentRuns}
+                            onRowClick={(item) => { void navigate(`/runs/${item.id}`); }}
+                            pageSize={8}
+                            rowLabel={(item) => `Open run ${item.id}`}
+                        />
+                    </PageCard>
+                ) : null}
+
                 {activeSection === "notes-decisions" ? (
-                    <PageCard description={"Read-only reasoning history and qualitative context. Update these fields in Configuration."} title={"Notes & Decisions"} titleId={"notes-decisions"}>
+                    <PageCard description={"Edit decision context, notes, and supporting references directly inside the section where they are reviewed."} title={"Notes & Decisions"} titleId={"notes-decisions"}>
                         <div className={"property-section-stack"}>
+                            <FormGrid variant={"two-column"}>
+                                <Field label={"Decision status"}>
+                                    <Select aria-label={"Decision status"} onChange={(event) => { setMetadataDraft((current) => ({ ...current, businessStage: event.target.value })); }} value={metadataDraft.businessStage}>
+                                        <option value={""}>{"Not set"}</option>
+                                        <option value={"candidate"}>{"Candidate"}</option>
+                                        <option value={"shortlisted"}>{"Shortlisted"}</option>
+                                        <option value={"rejected"}>{"Rejected"}</option>
+                                    </Select>
+                                </Field>
+                                <Field label={"Priority"}>
+                                    <Select aria-label={"Priority"} onChange={(event) => { setMetadataDraft((current) => ({ ...current, priorityLevel: event.target.value })); }} value={metadataDraft.priorityLevel}>
+                                        <option value={""}>{"Not set"}</option>
+                                        <option value={"low"}>{"Low"}</option>
+                                        <option value={"medium"}>{"Medium"}</option>
+                                        <option value={"high"}>{"High"}</option>
+                                        <option value={"critical"}>{"Critical"}</option>
+                                    </Select>
+                                </Field>
+                                <Field label={"Target price"}>
+                                    <Input aria-label={"Target price"} min={0} onChange={(event) => { setMetadataDraft((current) => ({ ...current, targetPrice: event.target.value })); }} prefix={"€"} type={"number"} value={metadataDraft.targetPrice} />
+                                </Field>
+                                <Field label={"Expected rent"}>
+                                    <Input aria-label={"Expected rent"} min={0} onChange={(event) => { setMetadataDraft((current) => ({ ...current, expectedRent: event.target.value })); }} prefix={"€"} type={"number"} value={metadataDraft.expectedRent} />
+                                </Field>
+                                <Field label={"Expected yield (%)"}>
+                                    <Input aria-label={"Expected yield (%)"} min={0} onChange={(event) => { setMetadataDraft((current) => ({ ...current, expectedYieldPercent: event.target.value })); }} step={"0.1"} type={"number"} value={metadataDraft.expectedYieldPercent} />
+                                </Field>
+                                <Field fullWidth label={"Notes"}>
+                                    <Textarea aria-label={"Notes"} onChange={(event) => { setMetadataDraft((current) => ({ ...current, acquisitionNotes: event.target.value })); }} rows={4} value={metadataDraft.acquisitionNotes} />
+                                </Field>
+                                <Field fullWidth label={"Thesis"}>
+                                    <Textarea aria-label={"Thesis"} onChange={(event) => { setMetadataDraft((current) => ({ ...current, dealThesis: event.target.value })); }} rows={4} value={metadataDraft.dealThesis} />
+                                </Field>
+                                <Field fullWidth hint={"One reference per line as label|value."} label={"External references"}>
+                                    <Textarea aria-label={"External references"} onChange={(event) => { setMetadataDraft((current) => ({ ...current, externalReferencesText: event.target.value })); }} rows={4} value={metadataDraft.externalReferencesText} />
+                                </Field>
+                                <Field fullWidth hint={"One attachment per line as label|url."} label={"Attachments"}>
+                                    <Textarea aria-label={"Attachments"} onChange={(event) => { setMetadataDraft((current) => ({ ...current, attachmentsText: event.target.value })); }} rows={4} value={metadataDraft.attachmentsText} />
+                                </Field>
+                            </FormGrid>
+                            <ActionGroup>
+                                <Button disabled={isPropertySaveDisabled} onClick={handlePropertySave}>{savePropertyMutation.isPending ? "Saving..." : "Save notes & decisions"}</Button>
+                            </ActionGroup>
+                            {savePropertyMutation.isError ? <ErrorBanner>{"Could not save property. Check the price, source details, and any optional URL."}</ErrorBanner> : null}
                             <section className={"property-detail-group"}>
-                                <span className={"app-shell__eyebrow"}>{"Free-form notes"}</span>
-                                <p>{metadataDraft.acquisitionNotes.trim() === "" ? "No notes captured yet." : metadataDraft.acquisitionNotes}</p>
-                            </section>
-                            <section className={"property-detail-group"}>
-                                <span className={"app-shell__eyebrow"}>{"Decision thesis"}</span>
-                                <p>{metadataDraft.dealThesis.trim() === "" ? "No thesis captured yet." : metadataDraft.dealThesis}</p>
+                                <span className={"app-shell__eyebrow"}>{"Reference pack"}</span>
+                                {externalReferences.length === 0 && attachments.length === 0 ? <EmptyState message={"No references or attachments have been saved for this property yet."} /> : (
+                                    <div className={"property-section-stack"}>
+                                        <div>
+                                            <strong>{"External references"}</strong>
+                                            {externalReferences.length === 0 ? <p className={"muted-copy"}>{"No external references saved."}</p> : (
+                                                <ItemList>
+                                                    {externalReferences.map((reference) => (
+                                                        <ListRow key={`${reference.label}-${reference.value}`}>
+                                                            <ListRowMain>
+                                                                <div>
+                                                                    <h3 className={"list-row__title"}>{reference.label}</h3>
+                                                                    <p className={"list-row__meta"}>
+                                                                        {isExternalHTTPURL(reference.value) ? <a className={"property-detail-anchor"} href={reference.value} rel={"noreferrer"} target={"_blank"}>{reference.value}</a> : reference.value}
+                                                                    </p>
+                                                                </div>
+                                                            </ListRowMain>
+                                                        </ListRow>
+                                                    ))}
+                                                </ItemList>
+                                            )}
+                                        </div>
+                                        <div>
+                                            <strong>{"Attachments"}</strong>
+                                            {attachments.length === 0 ? <p className={"muted-copy"}>{"No attachments saved."}</p> : (
+                                                <ItemList>
+                                                    {attachments.map((attachment) => (
+                                                        <ListRow key={`${attachment.label}-${attachment.url}`}>
+                                                            <ListRowMain>
+                                                                <div>
+                                                                    <h3 className={"list-row__title"}>{attachment.label}</h3>
+                                                                    <p className={"list-row__meta"}>
+                                                                        <a className={"property-detail-anchor"} href={attachment.url} rel={"noreferrer"} target={"_blank"}>{attachment.url}</a>
+                                                                    </p>
+                                                                </div>
+                                                            </ListRowMain>
+                                                        </ListRow>
+                                                    ))}
+                                                </ItemList>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
                             </section>
                             <section className={"property-detail-group"}>
                                 <span className={"app-shell__eyebrow"}>{"Timestamped decision log"}</span>
@@ -1465,7 +1768,7 @@ export const PropertyDetailPage = (): JSX.Element => {
                 {activeSection === "configuration" ? (
                     <>
                         <PageCard
-                            description={"All property mutations live here. The available controls adapt to the selected tracking mode."}
+                            description={"Manage property identity, tracking mode, source wiring, and operational controls here."}
                             title={"Configuration"}
                             titleId={"configuration"}
                         >
@@ -1473,12 +1776,12 @@ export const PropertyDetailPage = (): JSX.Element => {
                                 <Field fullWidth hint={"Manual tracking removes URL, source, scraping, and extraction controls."} label={"Tracking mode"}>
                                     <div className={"dashboard-grid dashboard-grid--double"}>
                                         <label className={"properties-table__column-toggle"}>
-                                            <input checked={trackingMode === "manual"} onChange={() => { setTrackingMode("manual"); }} type={"radio"} />
-                                            <span>{"Manual Tracking"}</span>
-                                        </label>
-                                        <label className={"properties-table__column-toggle"}>
                                             <input checked={trackingMode === "automatic"} onChange={() => { setTrackingMode("automatic"); }} type={"radio"} />
                                             <span>{"Automatic Tracking"}</span>
+                                        </label>
+                                        <label className={"properties-table__column-toggle"}>
+                                            <input checked={trackingMode === "manual"} onChange={() => { setTrackingMode("manual"); }} type={"radio"} />
+                                            <span>{"Manual Tracking"}</span>
                                         </label>
                                     </div>
                                 </Field>
@@ -1500,38 +1803,6 @@ export const PropertyDetailPage = (): JSX.Element => {
                                         </Field>
                                     </>
                                 ) : null}
-                                <Field label={"Decision status"}>
-                                    <Select onChange={(event) => { setMetadataDraft((current) => ({ ...current, businessStage: event.target.value })); }} value={metadataDraft.businessStage}>
-                                        <option value={""}>{"Not set"}</option>
-                                        <option value={"candidate"}>{"Candidate"}</option>
-                                        <option value={"shortlisted"}>{"Shortlisted"}</option>
-                                        <option value={"rejected"}>{"Rejected"}</option>
-                                    </Select>
-                                </Field>
-                                <Field label={"Priority"}>
-                                    <Select onChange={(event) => { setMetadataDraft((current) => ({ ...current, priorityLevel: event.target.value })); }} value={metadataDraft.priorityLevel}>
-                                        <option value={""}>{"Not set"}</option>
-                                        <option value={"low"}>{"Low"}</option>
-                                        <option value={"medium"}>{"Medium"}</option>
-                                        <option value={"high"}>{"High"}</option>
-                                        <option value={"critical"}>{"Critical"}</option>
-                                    </Select>
-                                </Field>
-                                <Field label={"Target price"}>
-                                    <Input min={0} onChange={(event) => { setMetadataDraft((current) => ({ ...current, targetPrice: event.target.value })); }} prefix={"€"} type={"number"} value={metadataDraft.targetPrice} />
-                                </Field>
-                                <Field label={"Expected rent"}>
-                                    <Input min={0} onChange={(event) => { setMetadataDraft((current) => ({ ...current, expectedRent: event.target.value })); }} prefix={"€"} type={"number"} value={metadataDraft.expectedRent} />
-                                </Field>
-                                <Field label={"Expected yield (%)"}>
-                                    <Input min={0} onChange={(event) => { setMetadataDraft((current) => ({ ...current, expectedYieldPercent: event.target.value })); }} step={"0.1"} type={"number"} value={metadataDraft.expectedYieldPercent} />
-                                </Field>
-                                <Field fullWidth label={"Notes"}>
-                                    <Textarea onChange={(event) => { setMetadataDraft((current) => ({ ...current, acquisitionNotes: event.target.value })); }} rows={4} value={metadataDraft.acquisitionNotes} />
-                                </Field>
-                                <Field fullWidth label={"Thesis"}>
-                                    <Textarea onChange={(event) => { setMetadataDraft((current) => ({ ...current, dealThesis: event.target.value })); }} rows={4} value={metadataDraft.dealThesis} />
-                                </Field>
                             </FormGrid>
                             {manualEntryMode ? manualAttributeEditor : null}
                             <ActionGroup>
@@ -1751,73 +2022,6 @@ export const PropertyDetailPage = (): JSX.Element => {
                                     })}
                                 </ItemList>
                             )}
-                        </PageCard>
-                        {!manualEntryMode ? (
-                            <PageCard description={"Recent automation runs with auto-refresh every 5 seconds."} title={"Automation Runs"}>
-                                <DataTable
-                                    caption={"Property automation runs"}
-                                    columns={[
-                                        { cell: (item) => <StatusBadge tone={runStatusTone(item.status)} value={item.status} />, header: "Status", id: "status", width: "8rem" },
-                                        { cell: (item) => item.trigger_kind, header: "Trigger", id: "trigger", width: "8rem" },
-                                        { cell: (item) => `${item.attempt_count} / ${item.max_attempts}`, header: "Attempts", id: "attempts", width: "8rem" },
-                                        { cell: (item) => item.started_at !== undefined ? formatDateTime(item.started_at) : "—", header: "Started", id: "started_at", sortValue: (item) => item.started_at ?? "", width: "11rem" },
-                                        { cell: (item) => item.finished_at !== undefined ? formatDateTime(item.finished_at) : "—", header: "Finished", id: "finished_at", sortValue: (item) => item.finished_at ?? "", width: "11rem" },
-                                        {
-                                            cell: (item) => {
-                                                if (item.error_message === undefined || item.error_message === "") {
-                                                    return "—";
-                                                }
-
-                                                const truncated = item.error_message.length > 50 ? `${item.error_message.slice(0, 50)}...` : item.error_message;
-                                                return (
-                                                    <Tooltip content={item.error_message}>
-                                                        <span style={{ color: "#dc2626" }}>{truncated}</span>
-                                                    </Tooltip>
-                                                );
-                                            },
-                                            header: "Error",
-                                            id: "error",
-                                        },
-                                    ]}
-                                    compact
-                                    emptyMessage={"No automation runs recorded yet."}
-                                    getRowId={(item) => item.id}
-                                    items={propertyRunsQuery.data ?? []}
-                                    pageSize={10}
-                                    rowLabel={(item) => `Run ${item.id}`}
-                                />
-                            </PageCard>
-                        ) : null}
-                        <PageCard description={"Recent snapshots stay directly attached to the property for fast scanning."} title={"Recent Snapshots"}>
-                            <div style={{ display: "flex", justifyContent: "space-between", gap: "0.75rem", marginBottom: "0.75rem" }}>
-                                <div>
-                                    <strong>{"Config filter"}</strong>
-                                    <p className={"muted-copy"}>{"Filter snapshots by the config version that produced them."}</p>
-                                </div>
-                                <ActionGroup>
-                                    <Select onChange={(event) => { setSnapshotConfigFilter(Number(event.target.value)); }} value={`${snapshotConfigFilter}`}>
-                                        <option value={"0"}>{"All versions"}</option>
-                                        {configVersions.map((config) => <option key={config.id} value={`${config.version}`}>{`Version ${config.version}`}</option>)}
-                                    </Select>
-                                    <Button onClick={() => { setExportOpen(true); }} size={"small"} variant={"secondary"}>{"Export"}</Button>
-                                </ActionGroup>
-                            </div>
-                            <DataTable
-                                caption={"Recent property snapshots"}
-                                columns={[
-                                    { cell: (item) => item.id, header: "Snapshot", id: "id", sortValue: (item) => item.id },
-                                    { cell: (item) => formatDateTime(item.observed_at), header: "Observed", id: "observed_at", sortValue: (item) => item.observed_at },
-                                    { cell: (item) => <StatusBadge tone={item.is_valid ? "success" : "warning"} value={item.is_valid ? "valid" : "invalid"} />, header: "Status", id: "status" },
-                                    { align: "right", cell: (item) => `${Object.keys(item.values).length}`, header: "Fields", id: "fields", sortValue: (item) => Object.keys(item.values).length },
-                                ]}
-                                compact
-                                emptyMessage={"No runs have been recorded for this property yet."}
-                                getRowId={(item) => item.id}
-                                items={recentRuns}
-                                onRowClick={(item) => { void navigate(`/runs/${item.id}`); }}
-                                pageSize={8}
-                                rowLabel={(item) => `Open run ${item.id}`}
-                            />
                         </PageCard>
                         {!manualEntryMode ? (
                             <PageCard description={"Compare any two saved configs, review the selector diff, and restore a previous version without losing history."} title={"Config History"}>

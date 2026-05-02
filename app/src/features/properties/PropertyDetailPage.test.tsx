@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ToastProvider } from "@/components/ui/ToastProvider";
 import { PropertyDetailPage } from "@/features/properties/PropertyDetailPage";
+import { formatDateTime } from "@/lib/format/date";
 import type { FieldDefinitionUsage } from "@/services/fields/fields.types";
 import type {
     Property,
@@ -268,10 +269,10 @@ describe("PropertyDetailPage", () => {
         renderPropertyDetailPage();
 
         expect(await screen.findByText("Scheduled")).toBeInTheDocument();
+        expect(screen.getByText(formatDateTime(PROPERTY.next_run_at as string))).toBeInTheDocument();
+        expect(screen.getByText(formatDateTime(PROPERTY.last_run_at as string))).toBeInTheDocument();
         fireEvent.click(screen.getByRole("button", { name: "Configuration" }));
         expect(screen.getAllByText("5 minutes").length).toBeGreaterThan(0);
-        expect(screen.getByText("Jan 1, 2024, 12:05 PM")).toBeInTheDocument();
-        expect(screen.getByText("Jan 1, 2024, 11:55 AM")).toBeInTheDocument();
     });
 
     it("switches sections without scrolling and only renders the active panel", async () => {
@@ -279,6 +280,11 @@ describe("PropertyDetailPage", () => {
 
         await screen.findByText("Sunny flat");
         expect(screen.queryByText("Selector builder")).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole("button", { name: "Notes & Decisions" }));
+
+        expect(screen.getByLabelText("Target price")).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Save notes & decisions" })).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole("button", { name: "Configuration" }));
 
@@ -296,6 +302,42 @@ describe("PropertyDetailPage", () => {
             .filter((label): label is string => label === "Overview" || label === "Insights" || label === "Notes & Decisions" || label === "Configuration");
 
         expect(navLabels).toEqual(["Overview", "Insights", "Notes & Decisions", "Configuration"]);
+    });
+
+    it("keeps note editing inside notes and decisions while configuration stays operational", async () => {
+        renderPropertyDetailPage();
+
+        await screen.findByText("Sunny flat");
+        fireEvent.click(screen.getByRole("button", { name: "Notes & Decisions" }));
+
+        expect(screen.getByLabelText("Decision status")).toBeInTheDocument();
+        expect(screen.getByLabelText("Notes")).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Save notes & decisions" })).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole("button", { name: "Configuration" }));
+
+        expect(screen.queryByLabelText("Decision status")).not.toBeInTheDocument();
+        expect(screen.queryByLabelText("Notes")).not.toBeInTheDocument();
+        expect(screen.getByText("Save run configuration")).toBeInTheDocument();
+    });
+
+    it("saves notes and decisions from the notes section", async () => {
+        renderPropertyDetailPage();
+
+        fireEvent.click(await screen.findByRole("button", { name: "Notes & Decisions" }));
+        fireEvent.change(screen.getByLabelText("Target price"), { target: { value: "210000" } });
+        fireEvent.change(screen.getByLabelText("Notes"), { target: { value: "Proceed if the seller accepts a quick close." } });
+
+        fireEvent.click(screen.getByRole("button", { name: "Save notes & decisions" }));
+
+        await waitFor(() => {
+            expect(updatePropertyMock).toHaveBeenCalledWith("prop_1", expect.objectContaining({
+                metadata: expect.objectContaining({
+                    acquisition_notes: "Proceed if the seller accepts a quick close.",
+                    target_price: 210000,
+                }),
+            }));
+        });
     });
 
     it("saves structured duration controls as schedule seconds", async () => {

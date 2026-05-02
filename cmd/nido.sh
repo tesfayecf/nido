@@ -29,11 +29,11 @@ Commands:
 	docker-build <tag> <path> Build the arm64 Docker image and save it as a tar archive.
 	sqlite <command> [args]   Run the SQLite helper commands.
 	garage <command> [args]   Run the Garage helper commands.
+	backend-dev               Build and run the backend development binary.
 	backend-build             Build the production backend binary.
 	backend-run               Run the built backend binary.
-	backend-dev               Build and run the backend development binary.
 	backend-migrate           Run backend migrations.
-	seed [variant]            Populate the local database with deterministic dummy data.
+	backend-seed [variant]    Populate the local database with deterministic dummy data.
 	backend-test              Run backend tests.
 	frontend-install          Install frontend dependencies.
 	frontend-dev              Run the frontend Vite dev server.
@@ -42,16 +42,16 @@ Commands:
 	frontend-typecheck        Run frontend type checking.
 	frontend-test             Run frontend tests.
 	frontend-lint             Run frontend lint.
-	app-build                 Build the backend binary and frontend bundle.
 	app-dev                   Run the backend development binary and frontend dev together.
+	app-build                 Build the backend binary and frontend bundle.
 	app-start                 Build both sides and run backend + frontend preview.
 
 Environment:
 	GO_BIN                    Path to the Go toolchain. Default: ./third-party/go/bin/go
 	PNPM_BIN                  pnpm executable to use. Default: pnpm
 	SERVER_BIN                Backend binary output path. Default: ./server/.install/bin/server
-	NIDO_DATABASE_PATH          SQLite database path. Default: ./.sqlite/nido.db
-	NIDO_HTTP_ADDR              Backend listen address. Default: :8080
+	NIDO_DATABASE_PATH        SQLite database path. Default: ./.sqlite/nido.db
+	NIDO_HTTP_ADDR            Backend listen address. Default: :8080
 	APP_API_ORIGIN            Frontend API origin baked into the build. Default: http://127.0.0.1:8080
 	APP_DEV_BACKEND_ORIGIN    Backend origin used by Vite dev proxy. Default: APP_API_ORIGIN
 	APP_PREVIEW_HOST          Host passed to vite preview. Default: 127.0.0.1
@@ -327,7 +327,7 @@ case "${command_name}" in
 	backend-migrate)
 		backend_migrate
 		;;
-	seed)
+	backend-seed)
 		seed_database "${2:-}"
 		;;
 	backend-test)

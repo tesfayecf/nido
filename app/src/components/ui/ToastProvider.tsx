@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
 import type { PropsWithChildren, ReactNode } from "react";
 
 import { Button } from "@/components/ui/Button";
@@ -20,13 +20,15 @@ const ToastContext = createContext<ToastContextValue | null>(null);
 
 export const ToastProvider = ({ children }: PropsWithChildren): JSX.Element => {
     const [toasts, setToasts] = useState<ToastDefinition[]>([]);
+    const nextToastIdRef = useRef(0);
 
     const dismissToast = useCallback((id: number): void => {
         setToasts((current) => current.filter((toast) => toast.id !== id));
     }, []);
 
     const pushToast = useCallback((message: ReactNode, tone: ToastTone = "info"): void => {
-        const id = Date.now();
+        nextToastIdRef.current += 1;
+        const id = nextToastIdRef.current;
         setToasts((current) => [...current, { id, message, tone }]);
         window.setTimeout(() => {
             setToasts((current) => current.filter((toast) => toast.id !== id));

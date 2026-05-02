@@ -51,6 +51,13 @@ describe("buildPortfolioDashboardModel", () => {
         expect(model.priceMovement.increases).toBe(1);
         expect(model.priceMovement.stagnant).toBe(1);
         expect(model.topOpportunities[0]?.propertyId).toBe("prop_1");
+        expect(model.topOpportunities[0]).toMatchObject({
+            bathrooms: 2,
+            deltaAbsolute: -10000,
+            deltaPercent: -5,
+            pricePerSquareMeter: 2500,
+            rooms: 4,
+        });
         expect(model.priceChanges).toHaveLength(2);
     });
 });
