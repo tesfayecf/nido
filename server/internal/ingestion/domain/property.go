@@ -76,7 +76,10 @@ type FieldSelector struct {
 	ComparisonOperator    string         `json:"comparison_operator,omitempty"`
 	ComparisonValue       string         `json:"comparison_value,omitempty"`
 	FieldRole             FieldRole      `json:"field_role,omitempty"`
+	PropertyOverride      bool           `json:"property_override,omitempty"`
 	Required              bool           `json:"required"`
+	TemplateFieldName     string         `json:"template_field_name,omitempty"`
+	TemplateSignature     string         `json:"template_signature,omitempty"`
 }
 
 type fieldSelectorPayload struct {
@@ -98,8 +101,11 @@ type fieldSelectorPayload struct {
 	ComparisonOperator    string         `json:"comparison_operator,omitempty"`
 	ComparisonValue       string         `json:"comparison_value,omitempty"`
 	FieldRole             FieldRole      `json:"field_role,omitempty"`
+	PropertyOverride      bool           `json:"property_override,omitempty"`
 	Required              bool           `json:"required"`
 	Selectors             []string       `json:"selectors,omitempty"`
+	TemplateFieldName     string         `json:"template_field_name,omitempty"`
+	TemplateSignature     string         `json:"template_signature,omitempty"`
 }
 
 // UnmarshalJSON keeps old selector arrays compatible with the new structured model.
@@ -120,12 +126,15 @@ func (field *FieldSelector) UnmarshalJSON(data []byte) error {
 		MultiValue:            payload.MultiValue,
 		Name:                  strings.TrimSpace(payload.Name),
 		PartialMatch:          strings.TrimSpace(payload.PartialMatch),
+		PropertyOverride:      payload.PropertyOverride,
 		RegexPattern:          strings.TrimSpace(payload.RegexPattern),
 		Required:              payload.Required,
 		SelectorType:          payload.SelectorType,
 		SelectorValue:         strings.TrimSpace(payload.SelectorValue),
 		SplitDelimiter:        strings.TrimSpace(payload.SplitDelimiter),
 		TextMode:              payload.TextMode,
+		TemplateFieldName:     strings.TrimSpace(payload.TemplateFieldName),
+		TemplateSignature:     strings.TrimSpace(payload.TemplateSignature),
 		Transform:             strings.TrimSpace(payload.Transform),
 		UseDefaultWhenMissing: payload.UseDefaultWhenMissing,
 	}
@@ -181,12 +190,15 @@ func (field FieldSelector) MarshalJSON() ([]byte, error) {
 		MultiValue:            field.MultiValue,
 		Name:                  strings.TrimSpace(field.Name),
 		PartialMatch:          strings.TrimSpace(field.PartialMatch),
+		PropertyOverride:      field.PropertyOverride,
 		RegexPattern:          strings.TrimSpace(field.RegexPattern),
 		Required:              field.Required,
 		SelectorType:          field.SelectorType,
 		SelectorValue:         strings.TrimSpace(field.SelectorValue),
 		SplitDelimiter:        strings.TrimSpace(field.SplitDelimiter),
 		TextMode:              field.TextMode,
+		TemplateFieldName:     strings.TrimSpace(field.TemplateFieldName),
+		TemplateSignature:     strings.TrimSpace(field.TemplateSignature),
 		Transform:             strings.TrimSpace(field.Transform),
 		UseDefaultWhenMissing: field.UseDefaultWhenMissing,
 	}

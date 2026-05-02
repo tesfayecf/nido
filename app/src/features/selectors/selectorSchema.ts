@@ -28,6 +28,7 @@ export interface SelectorFieldDraft {
     readonly comparisonOperator: "" | "eq" | "gt" | "lt" | "contains";
     readonly comparisonValue: string;
     readonly fieldRole: FieldRole;
+    readonly propertyOverride: boolean;
     readonly templateFieldName?: string;
     readonly templateSignature?: string;
 }
@@ -53,6 +54,9 @@ interface LegacyFieldSelector {
     readonly comparison_operator?: "" | "eq" | "gt" | "lt" | "contains";
     readonly comparison_value?: string;
     readonly field_role?: FieldRole;
+    readonly property_override?: boolean;
+    readonly template_field_name?: string;
+    readonly template_signature?: string;
 }
 
 const DEFAULT_TEXT_MODE: TextMode = "innerText";
@@ -127,6 +131,9 @@ export const normalizeFieldSelector = (raw: LegacyFieldSelector): FieldSelector 
         comparison_operator: raw.comparison_operator?.trim() !== "" ? raw.comparison_operator : undefined,
         comparison_value: raw.comparison_value?.trim() !== "" ? raw.comparison_value?.trim() : undefined,
         field_role: normalizeFieldRole(raw.field_role, raw.name ?? ""),
+        property_override: raw.property_override ?? false,
+        template_field_name: raw.template_field_name?.trim() !== "" ? raw.template_field_name?.trim() : undefined,
+        template_signature: raw.template_signature?.trim() !== "" ? raw.template_signature?.trim() : undefined,
     };
 };
 
@@ -151,6 +158,7 @@ export const createEmptySelectorDraft = (): SelectorFieldDraft => ({
     comparisonOperator: "",
     comparisonValue: "",
     fieldRole: "prefill",
+    propertyOverride: false,
     templateFieldName: undefined,
     templateSignature: undefined,
 });
@@ -180,8 +188,9 @@ export const selectorToDraft = (selector: FieldSelector): SelectorFieldDraft => 
     comparisonOperator: selector.comparison_operator ?? "",
     comparisonValue: selector.comparison_value ?? "",
     fieldRole: normalizeFieldRole(selector.field_role, selector.name),
-    templateFieldName: undefined,
-    templateSignature: undefined,
+    propertyOverride: selector.property_override ?? false,
+    templateFieldName: selector.template_field_name,
+    templateSignature: selector.template_signature,
 });
 
 export const draftToSelector = (draft: SelectorFieldDraft): FieldSelector => ({
@@ -207,10 +216,81 @@ export const draftToSelector = (draft: SelectorFieldDraft): FieldSelector => ({
     comparison_operator: draft.comparisonOperator !== "" ? draft.comparisonOperator : undefined,
     comparison_value: draft.comparisonValue.trim() !== "" ? draft.comparisonValue.trim() : undefined,
     field_role: normalizeFieldRole(draft.fieldRole, draft.name),
+    property_override: draft.propertyOverride,
+    template_field_name: draft.templateFieldName,
+    template_signature: draft.templateSignature,
 });
 
 export const buildFieldSelectorSignature = (field: FieldSelector): string => {
-    return JSON.stringify(field);
+    const {
+        property_override: _propertyOverride,
+        template_field_name: _templateFieldName,
+        template_signature: _templateSignature,
+        ...signatureField
+    } = field;
+    return JSON.stringify(normalizeFieldSelector(signatureField));
+};
+
+export type FieldMappingState = "matched" | "overridden" | "stale" | "unmatched";
+
+export interface FieldMappingStateInfo {
+    readonly reason: string;
+    readonly sourceLabel: string;
+    readonly state: FieldMappingState;
+}
+
+export const getFieldMappingState = (
+    field: SelectorFieldDraft,
+    templateField: FieldSelector | undefined,
+    templateName: string,
+): FieldMappingStateInfo => {
+    const templateLabel = templateName.trim() === "" ? "selected template" : templateName;
+    if (field.templateFieldName === undefined || field.templateSignature === undefined) {
+        return {
+            reason: "No template linkage is saved for this field.",
+            sourceLabel: "Manual/property field",
+            state: "unmatched",
+        };
+    }
+
+    if (templateField === undefined) {
+        return {
+            reason: `Template field "${field.templateFieldName}" no longer exists.`,
+            sourceLabel: `From template ${templateLabel}`,
+            state: "stale",
+        };
+    }
+
+    const currentTemplateSignature = buildFieldSelectorSignature(templateField);
+    if (currentTemplateSignature !== field.templateSignature) {
+        return {
+            reason: `Template field "${field.templateFieldName}" changed since this property mapping was saved.`,
+            sourceLabel: `From template ${templateLabel}`,
+            state: "stale",
+        };
+    }
+
+    if (field.propertyOverride) {
+        return {
+            reason: "This property keeps its own mapping and will not receive template updates until reverted.",
+            sourceLabel: "Manual property override",
+            state: "overridden",
+        };
+    }
+
+    if (buildFieldSelectorSignature(draftToSelector(field)) !== field.templateSignature) {
+        return {
+            reason: "This property keeps its own mapping and will not receive template updates until reverted.",
+            sourceLabel: "Manual property override",
+            state: "overridden",
+        };
+    }
+
+    return {
+        reason: `Actively follows template field "${field.templateFieldName}".`,
+        sourceLabel: `From template ${templateLabel}`,
+        state: "matched",
+    };
 };
 
 export const parseSelectorConfigJson = (configJson?: string): FieldSelector[] => {

@@ -521,7 +521,7 @@ describe("PropertyDetailPage", () => {
 
         await waitFor(() => {
             expect(screen.getByText("rooms")).toBeInTheDocument();
-            expect(screen.getAllByText("template:linked").length).toBeGreaterThan(0);
+            expect(screen.getAllByText("template:matched").length).toBeGreaterThan(0);
         });
 
         fireEvent.click(screen.getByRole("button", { name: "Modify first field" }));
