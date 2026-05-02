@@ -56,6 +56,7 @@ export const AUTHENTICATED_SECTIONS: readonly NavSection[] = [
     {
         items: [
             { icon: "settings", label: "Settings", to: "/settings" },
+            { icon: "bookmark", label: "Field Candidates", to: "/settings/field-candidates" },
         ],
         title: "Account",
     },
@@ -80,6 +81,7 @@ const routeMeta: readonly [RegExp, RouteMeta][] = [
     [/^\/runs$/, { section: "Advanced", title: "Runs" }],
     [/^\/tags$/, { section: "Advanced", title: "Tags" }],
     [/^\/settings$/, { section: "Account", title: "Settings" }],
+    [/^\/settings\/field-candidates$/, { section: "Account", title: "Field Candidates" }],
     [/^\/login$/, { section: "Access", title: "Sign In" }],
 ];
 

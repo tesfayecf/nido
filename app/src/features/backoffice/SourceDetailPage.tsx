@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
-import { SelectorBuilder } from "@/components/selectors/SelectorBuilder";
+import { getExtractionMethodLabel, SelectorBuilder } from "@/components/selectors/SelectorBuilder";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -18,6 +18,7 @@ import { KeyValueGrid, KeyValuePair } from "@/components/ui/KeyValueGrid";
 import { PageCard } from "@/components/ui/PageCard";
 import { PageStack } from "@/components/ui/PageStack";
 import { RowActions } from "@/components/ui/RowActions";
+import { Select } from "@/components/ui/Select";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useToast } from "@/components/ui/ToastProvider";
 import { FieldEditorDialog } from "@/features/backoffice/FieldEditorDialog";
@@ -66,6 +67,8 @@ export const SourceDetailPage = (): JSX.Element => {
     const [configError, setConfigError] = useState<string | null>(null);
     const [previewFailures, setPreviewFailures] = useState<string[]>([]);
     const [previewMap, setPreviewMap] = useState<Map<string, PropertyPreviewFieldResult>>(new Map());
+    const [fieldFilter, setFieldFilter] = useState("all");
+    const [fieldSearch, setFieldSearch] = useState("");
     const [editOpen, setEditOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [fieldEditor, setFieldEditor] = useState<{ initial?: SelectorFieldDraft; mode: "add" | "edit"; targetId?: string; } | null>(null);
@@ -92,8 +95,8 @@ export const SourceDetailPage = (): JSX.Element => {
         },
     });
     const previewMutation = useMutation({
-        mutationFn: () => previewExtraction({
-            fields: selectorFields.map(draftToSelector).filter((field) => field.name !== ""),
+        mutationFn: (fields: SelectorFieldDraft[]) => previewExtraction({
+            fields: fields.map(draftToSelector).filter((field) => field.name !== ""),
             url: previewUrl,
         }),
         onSuccess(result) {
@@ -157,16 +160,30 @@ export const SourceDetailPage = (): JSX.Element => {
     const validationMessages = useMemo(() => validateSelectorDrafts(selectorFields), [selectorFields]);
     const fieldRows = selectorFields
         .filter((field) => field.name.trim() !== "")
-        .map((field) => ({
-            draft: field,
-            id: field.id,
-            mode: field.extractionMode,
-            name: field.name,
-            required: field.required ? "Required" : "Optional",
-            role: field.fieldRole === "tracked" ? "Tracked" : "Prefill",
-            roleValue: field.fieldRole,
-            selector: field.selectorValue,
-        }));
+        .map((field) => {
+            const extractionMethod = getExtractionMethodLabel(field);
+
+            return {
+                draft: field,
+                extractionMethod,
+                id: field.id,
+                matchStatus: previewMap.get(field.name.trim())?.success === true ? "Matched" : previewMap.has(field.name.trim()) ? "Unmatched" : "Not tested",
+                mode: field.extractionMode,
+                name: field.name,
+                required: field.required ? "Required" : "Optional",
+                role: field.fieldRole === "tracked" ? "Tracked" : "Prefill",
+                roleValue: field.fieldRole,
+                selector: field.selectorValue,
+                sourceStatus: field.fieldName.trim() !== "" ? "Mapped" : extractionMethod === "Direct Mapping" ? "Direct" : "Derived",
+                sourceStatusValue: field.fieldName.trim() !== "" ? "mapped" : extractionMethod === "Direct Mapping" ? "direct" : "derived",
+            };
+        });
+    const filteredFieldRows = fieldRows.filter((row) => {
+        const matchesSearch = fieldSearch.trim() === "" || row.name.toLowerCase().includes(fieldSearch.trim().toLowerCase());
+        const matchesStatus = fieldFilter === "all" || row.sourceStatusValue === fieldFilter || row.matchStatus.toLowerCase().replace(" ", "-") === fieldFilter;
+
+        return matchesSearch && matchesStatus;
+    });
     const hasPrefillFields = fieldRows.some((row) => row.roleValue === "prefill");
     const hasTrackedFields = fieldRows.some((row) => row.roleValue === "tracked");
     const noPrefillMessage = hasPrefillFields
@@ -215,7 +232,7 @@ export const SourceDetailPage = (): JSX.Element => {
     const editorContent = (
         <PageStack>
             <PageCard
-                action={<Button as={Link} to={"/sources"} variant={"secondary"}>{"Back to templates"}</Button>}
+                action={isCreateMode ? <Button as={Link} to={"/sources"} variant={"secondary"}>{"Back to templates"}</Button> : undefined}
                 description={"Build a reusable template that both speeds up property intake and defines which fields stay under live monitoring."}
                 title={isCreateMode ? "Create Template" : `Edit ${formState.name}`}
             >
@@ -249,11 +266,11 @@ export const SourceDetailPage = (): JSX.Element => {
                         <SelectorBuilder fieldDefinitions={fieldDefinitionsQuery.data} fields={selectorFields} onChange={setSelectorFields} previewByFieldName={previewMap} />
                         : null}
 
-                    <ActionGroup>
+                    <ActionGroup className={"source-template-editor-actions"}>
                         {isCreateMode ? (
                             <>
                                 <Button onClick={() => { setSelectorFields((currentFields) => [...currentFields, createEmptySelectorDraft()]); }} variant={"secondary"}>{"Add field"}</Button>
-                                <Button disabled={previewUrl.trim() === "" || validationMessages.length > 0} isLoading={previewMutation.isPending} onClick={() => { previewMutation.mutate(); }} variant={"secondary"}>
+                                <Button disabled={previewUrl.trim() === "" || validationMessages.length > 0} isLoading={previewMutation.isPending} onClick={() => { previewMutation.mutate(selectorFields); }} variant={"secondary"}>
                                     {previewMutation.isPending ? "Checking..." : "Preview template"}
                                 </Button>
                             </>
@@ -358,18 +375,48 @@ export const SourceDetailPage = (): JSX.Element => {
                 >
                     {noPrefillMessage}
                     {noTrackedMessage}
+                    <FormGrid as={"div"} className={"source-template-field-controls"} variant={"inline"}>
+                        <Field label={"Filter fields"}>
+                            <Select onChange={(event) => { setFieldFilter(event.target.value); }} value={fieldFilter}>
+                                <option value={"all"}>{"All fields"}</option>
+                                <option value={"mapped"}>{"Mapped fields"}</option>
+                                <option value={"direct"}>{"Direct fields"}</option>
+                                <option value={"derived"}>{"Derived / extracted fields"}</option>
+                                <option value={"matched"}>{"Preview matched"}</option>
+                                <option value={"unmatched"}>{"Preview unmatched"}</option>
+                                <option value={"not-tested"}>{"Not tested"}</option>
+                            </Select>
+                        </Field>
+                        <Field label={"Search by field name"}>
+                            <Input onChange={(event) => { setFieldSearch(event.target.value); }} placeholder={"price, area, location"} value={fieldSearch} />
+                        </Field>
+                        <Field label={"Preview URL"}>
+                            <Input onChange={(event) => { setPreviewUrl(event.target.value); }} placeholder={"https://example.com/property"} type={"url"} value={previewUrl} />
+                        </Field>
+                    </FormGrid>
                     <DataTable
                         caption={"Configured source fields"}
                         columns={[
                             { cell: (item) => item.name, header: "Field", id: "name", sortValue: (item) => item.name },
-                            { cell: (item) => item.role, header: "Role", id: "role", sortValue: (item) => item.role },
-                            { cell: (item) => item.mode, header: "Type", id: "mode", sortValue: (item) => item.mode },
-                            { cell: (item) => item.selector, header: "Source", id: "selector" },
-                            { cell: (item) => item.required, header: "Status", id: "required", sortValue: (item) => item.required },
+                            { cell: (item) => <StatusBadge tone={item.sourceStatusValue === "derived" ? "warning" : item.sourceStatusValue === "mapped" ? "success" : "neutral"} value={item.sourceStatus} />, header: "Source mapping", id: "sourceStatus", sortValue: (item) => item.sourceStatus },
+                            { cell: (item) => item.extractionMethod, header: "Extraction method", id: "extractionMethod", sortValue: (item) => item.extractionMethod },
+                            { cell: (item) => <StatusBadge tone={item.matchStatus === "Matched" ? "success" : item.matchStatus === "Unmatched" ? "warning" : "neutral"} value={item.matchStatus} />, header: "Match status", id: "matchStatus", sortValue: (item) => item.matchStatus },
+                            { cell: (item) => `${item.role} · ${item.required}`, header: "Role", id: "role", sortValue: (item) => item.role },
+                            { cell: (item) => item.selector, header: "Selector", id: "selector", wrap: true },
                             {
                                 align: "right",
                                 cell: (item) => (
                                     <RowActions>
+                                        <button
+                                            aria-label={`Test field ${item.name}`}
+                                            className={"icon-button"}
+                                            disabled={previewUrl.trim() === "" || validationMessages.length > 0}
+                                            onClick={() => { previewMutation.mutate([item.draft]); }}
+                                            title={"Test field"}
+                                            type={"button"}
+                                        >
+                                            <Icon name={"play"} />
+                                        </button>
                                         <button
                                             aria-label={`Edit field ${item.name}`}
                                             className={"icon-button"}
@@ -398,7 +445,7 @@ export const SourceDetailPage = (): JSX.Element => {
                         compact
                         emptyMessage={"No selector fields are configured yet."}
                         getRowId={(item) => item.id}
-                        items={fieldRows}
+                        items={filteredFieldRows}
                         pageSize={12}
                     />
                 </PageCard>
