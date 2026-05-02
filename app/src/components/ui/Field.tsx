@@ -1,5 +1,6 @@
 /* eslint-disable react/jsx-props-no-spreading */
-import type { HTMLAttributes, LabelHTMLAttributes, PropsWithChildren, ReactNode } from "react";
+import { cloneElement, isValidElement, useId } from "react";
+import type { HTMLAttributes, LabelHTMLAttributes, PropsWithChildren, ReactElement, ReactNode } from "react";
 
 import { ContextualHelp } from "@/components/ui/ContextualHelp";
 import { classNames } from "@/lib/ui/classNames";
@@ -22,6 +23,11 @@ type FieldProps = SharedFieldProps & ({
     readonly as?: "label";
 } & LabelHTMLAttributes<HTMLLabelElement>);
 
+type LabelableElementProps = {
+    readonly "aria-labelledby"?: string;
+    readonly id?: string;
+};
+
 export const Field = ({
     as,
     children,
@@ -34,8 +40,11 @@ export const Field = ({
     variant = "default",
     ...restProps
 }: FieldProps): JSX.Element => {
-    const resolvedElement = as ?? (variant === "actions" ? "div" : "label");
+    const resolvedElement = hint !== undefined ? "div" : as ?? (variant === "actions" ? "div" : "label");
+    const labelId = useId();
     const hintTitle = typeof label === "string" || typeof label === "number" ? `${label}` : "this field";
+    const childElement = isValidElement(children) ? children as ReactElement<LabelableElementProps> : null;
+    const controlId = childElement?.props.id;
     const sharedClassName = classNames(
         "field",
         variant === "actions" && "field--actions",
@@ -44,16 +53,26 @@ export const Field = ({
         fullWidth && "field--full-width",
         className,
     );
+    const labelledChildren = hint !== undefined && label !== undefined && childElement !== null
+        ? cloneElement(childElement, {
+            "aria-labelledby": childElement.props["aria-labelledby"] ?? labelId,
+        })
+        : children;
+    const labelContent = label === undefined
+        ? null
+        : controlId !== undefined
+            ? <label className={"field__label"} htmlFor={controlId} id={labelId}>{label}</label>
+            : <span className={"field__label"} id={labelId}>{label}</span>;
     const content = (
         <>
-            {variant === "checkbox" ? children : null}
+            {variant === "checkbox" ? labelledChildren : null}
             {label !== undefined ? (
                 <span className={"field__label-row"}>
-                    <span className={"field__label"}>{label}</span>
+                    {labelContent}
                     {hint !== undefined ? <ContextualHelp content={hint} title={hintTitle} /> : null}
                 </span>
             ) : null}
-            {variant === "checkbox" ? null : children}
+            {variant === "checkbox" ? null : labelledChildren}
             {error !== undefined ? <p className={"field__error"} role={"alert"}>{error}</p> : null}
         </>
     );
