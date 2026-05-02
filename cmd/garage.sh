@@ -3,7 +3,11 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-GARAGE_BIN="${ROOT_DIR}/third-party/garage/garage"
+DEFAULT_GARAGE_BIN="${ROOT_DIR}/third-party/garage/garage"
+if [[ -z "${GARAGE_BIN:-}" && ! -x "${DEFAULT_GARAGE_BIN}" ]]; then
+	DEFAULT_GARAGE_BIN="garage"
+fi
+GARAGE_BIN="${GARAGE_BIN:-${DEFAULT_GARAGE_BIN}}"
 GARAGE_CONFIG="${ROOT_DIR}/config/garage.toml"
 GARAGE_ZONE="${GARAGE_ZONE:-dc1}"
 GARAGE_CAPACITY="${GARAGE_CAPACITY:-1G}"
@@ -30,8 +34,16 @@ EOF
 }
 
 ensure_garage() {
-	if [[ ! -x "${GARAGE_BIN}" ]]; then
-		echo "Garage binary not found at ${GARAGE_BIN}" >&2
+	if [[ "${GARAGE_BIN}" == */* ]]; then
+		if [[ ! -x "${GARAGE_BIN}" ]]; then
+			echo "Garage binary not found at ${GARAGE_BIN}" >&2
+			exit 1
+		fi
+		return
+	fi
+
+	if ! command -v "${GARAGE_BIN}" >/dev/null 2>&1; then
+		echo "Garage binary not found: ${GARAGE_BIN}" >&2
 		exit 1
 	fi
 }

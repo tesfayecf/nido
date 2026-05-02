@@ -26,6 +26,9 @@ Usage: cmd/nido.sh <command>
 
 Commands:
 	config                    Print the resolved tool and runtime configuration.
+	docker-build <tag> <path> Build the arm64 Docker image and save it as a tar archive.
+	sqlite <command> [args]   Run the SQLite helper commands.
+	garage <command> [args]   Run the Garage helper commands.
 	backend-build             Build the production backend binary.
 	backend-run               Run the built backend binary.
 	backend-dev               Build and run the backend development binary.
@@ -251,6 +254,26 @@ frontend_lint() {
 	)
 }
 
+docker_build() {
+	local image_tag="${1:-}"
+	local output_path="${2:-}"
+
+	if [[ -z "${image_tag}" || -z "${output_path}" ]]; then
+		echo "docker-build requires a tag and output path" >&2
+		exit 1
+	fi
+
+	bash "${ROOT_DIR}/cmd/docker.sh" build-tar "${image_tag}" "${output_path}"
+}
+
+sqlite_command() {
+	bash "${ROOT_DIR}/cmd/sqlite.sh" "$@"
+}
+
+garage_command() {
+	bash "${ROOT_DIR}/cmd/garage.sh" "$@"
+}
+
 cleanup_background() {
 	if [[ -n "${BACKGROUND_PID}" ]] && kill -0 "${BACKGROUND_PID}" >/dev/null 2>&1; then
 		kill "${BACKGROUND_PID}" >/dev/null 2>&1 || true
@@ -282,6 +305,15 @@ command_name="${1:-help}"
 case "${command_name}" in
 	config)
 		print_config
+		;;
+	docker-build)
+		docker_build "${2:-}" "${3:-}"
+		;;
+	sqlite)
+		sqlite_command "${@:2}"
+		;;
+	garage)
+		garage_command "${@:2}"
 		;;
 	backend-build)
 		backend_build

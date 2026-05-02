@@ -3,7 +3,11 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-GO_BIN="${ROOT_DIR}/third-party/go/bin/go"
+DEFAULT_GO_BIN="${ROOT_DIR}/third-party/go/bin/go"
+if [[ -z "${GO_BIN:-}" && ! -x "${DEFAULT_GO_BIN}" ]]; then
+	DEFAULT_GO_BIN="go"
+fi
+GO_BIN="${GO_BIN:-${DEFAULT_GO_BIN}}"
 DATABASE_PATH="${NIDO_DATABASE_PATH:-${ROOT_DIR}/.sqlite/nido.db}"
 
 usage() {
@@ -25,6 +29,29 @@ ensure_sqlite_cli() {
 	fi
 }
 
+ensure_command() {
+	local executable="$1"
+	local label="$2"
+
+	if [[ "${executable}" == */* ]]; then
+		if [[ ! -x "${executable}" ]]; then
+			echo "${label} not found at ${executable}" >&2
+			exit 1
+		fi
+		return
+	fi
+
+	if ! command -v "${executable}" >/dev/null 2>&1; then
+		echo "${label} not found: ${executable}" >&2
+		exit 1
+	fi
+}
+
+run_go() {
+	ensure_command "${GO_BIN}" "Go toolchain"
+	GOTOOLCHAIN=local "${GO_BIN}" "$@"
+}
+
 command_name="${1:-}"
 case "${command_name}" in
 	path)
@@ -34,7 +61,7 @@ case "${command_name}" in
 		mkdir -p "$(dirname "${DATABASE_PATH}")"
 		(
 			cd "${ROOT_DIR}/server"
-			NIDO_DATABASE_PATH="${DATABASE_PATH}" GOTOOLCHAIN=local "${GO_BIN}" run ./cmd/server migrate
+			NIDO_DATABASE_PATH="${DATABASE_PATH}" run_go run ./cmd/server migrate
 		)
 		;;
 	tables)
