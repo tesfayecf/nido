@@ -160,20 +160,24 @@ export const SourceDetailPage = (): JSX.Element => {
     const validationMessages = useMemo(() => validateSelectorDrafts(selectorFields), [selectorFields]);
     const fieldRows = selectorFields
         .filter((field) => field.name.trim() !== "")
-        .map((field) => ({
-            draft: field,
-            extractionMethod: getExtractionMethodLabel(field),
-            id: field.id,
-            matchStatus: previewMap.get(field.name.trim())?.success === true ? "Matched" : previewMap.has(field.name.trim()) ? "Unmatched" : "Not tested",
-            mode: field.extractionMode,
-            name: field.name,
-            required: field.required ? "Required" : "Optional",
-            role: field.fieldRole === "tracked" ? "Tracked" : "Prefill",
-            roleValue: field.fieldRole,
-            selector: field.selectorValue,
-            sourceStatus: field.fieldName.trim() !== "" ? "Mapped" : getExtractionMethodLabel(field) === "Direct Mapping" ? "Direct" : "Derived",
-            sourceStatusValue: field.fieldName.trim() !== "" ? "mapped" : getExtractionMethodLabel(field) === "Direct Mapping" ? "direct" : "derived",
-        }));
+        .map((field) => {
+            const extractionMethod = getExtractionMethodLabel(field);
+
+            return {
+                draft: field,
+                extractionMethod,
+                id: field.id,
+                matchStatus: previewMap.get(field.name.trim())?.success === true ? "Matched" : previewMap.has(field.name.trim()) ? "Unmatched" : "Not tested",
+                mode: field.extractionMode,
+                name: field.name,
+                required: field.required ? "Required" : "Optional",
+                role: field.fieldRole === "tracked" ? "Tracked" : "Prefill",
+                roleValue: field.fieldRole,
+                selector: field.selectorValue,
+                sourceStatus: field.fieldName.trim() !== "" ? "Mapped" : extractionMethod === "Direct Mapping" ? "Direct" : "Derived",
+                sourceStatusValue: field.fieldName.trim() !== "" ? "mapped" : extractionMethod === "Direct Mapping" ? "direct" : "derived",
+            };
+        });
     const filteredFieldRows = fieldRows.filter((row) => {
         const matchesSearch = fieldSearch.trim() === "" || row.name.toLowerCase().includes(fieldSearch.trim().toLowerCase());
         const matchesStatus = fieldFilter === "all" || row.sourceStatusValue === fieldFilter || row.matchStatus.toLowerCase().replace(" ", "-") === fieldFilter;

@@ -94,6 +94,7 @@ const PROPERTY_RUNS_REFETCH_INTERVAL_MS = 5000;
 const AUTOFILL_DEBOUNCE_MS = 300;
 const MIN_RETRY_BACKOFF_MS = 500;
 const BASIS_POINTS_PER_PERCENT = 100;
+const OVERVIEW_ATTRIBUTE_PREVIEW_LIMIT = 4;
 
 interface PropertyMetadataDraft {
     readonly acquisitionNotes: string;
@@ -1439,7 +1440,7 @@ export const PropertyDetailPage = (): JSX.Element => {
                                                 </span>
                                             ) : "Not available"}
                                         />
-                                        {propertyFactRows.slice(0, 4).map((item) => <KeyValuePair key={item.field} label={item.field} value={item.value === "" ? "Not available" : item.value} />)}
+                                        {propertyFactRows.slice(0, OVERVIEW_ATTRIBUTE_PREVIEW_LIMIT).map((item) => <KeyValuePair key={item.field} label={item.field} value={item.value === "" ? "Not available" : item.value} />)}
                                     </KeyValueGrid>
                                 </section>
                                 <section className={"property-detail-group"}>

@@ -52,9 +52,8 @@ const readJsonRecord = <TValue,>(key: string, fallback: TValue): TValue => {
     }
 };
 
-const collectCandidates = (settings: WorkspaceSettings): FieldCandidateRow[] => {
-    const ignored = new Set(readJsonRecord<string[]>(IGNORED_FIELD_CANDIDATES_KEY, []));
-    const mapped = readJsonRecord<Record<string, string>>(MAPPED_FIELD_CANDIDATES_KEY, {});
+const collectCandidates = (settings: WorkspaceSettings, ignoredFields: readonly string[], mappedFields: Readonly<Record<string, string>>): FieldCandidateRow[] => {
+    const ignored = new Set(ignoredFields);
     const allNames = new Set<string>();
     const groupsByName = new Map<string, string[]>();
 
@@ -68,7 +67,7 @@ const collectCandidates = (settings: WorkspaceSettings): FieldCandidateRow[] => 
     }
 
     return [...allNames].sort((left, right) => left.localeCompare(right)).map((field) => {
-        const mappedTo = mapped[field];
+        const mappedTo = mappedFields[field];
         return {
             field,
             groups: [...new Set(groupsByName.get(field) ?? [])],
@@ -83,9 +82,12 @@ const updateFieldMappings = (settings: WorkspaceSettings, sourceField: string, t
     field_mappings: Object.fromEntries(
         mappingGroups.map((group) => {
             const currentValues = settings.field_mappings[group.key];
+            const shouldAddMappedField = targetField !== null
+                && currentValues.includes(sourceField)
+                && !currentValues.includes(targetField);
             const nextValues = currentValues
                 .filter((field) => field !== sourceField)
-                .concat(targetField !== null && currentValues.includes(sourceField) && !currentValues.includes(targetField) ? [targetField] : []);
+                .concat(shouldAddMappedField ? [targetField] : []);
 
             return [group.key, nextValues];
         }),
@@ -102,7 +104,7 @@ export const FieldCandidatesPage = (): JSX.Element => {
     const [ignoredFields, setIgnoredFields] = useState<string[]>(() => readJsonRecord<string[]>(IGNORED_FIELD_CANDIDATES_KEY, []));
     const [mappedFields, setMappedFields] = useState<Record<string, string>>(() => readJsonRecord<Record<string, string>>(MAPPED_FIELD_CANDIDATES_KEY, {}));
     const [pendingMappings, setPendingMappings] = useState<Record<string, string>>({});
-    const candidates = useMemo(() => collectCandidates(settings), [settings, ignoredFields, mappedFields]);
+    const candidates = useMemo(() => collectCandidates(settings, ignoredFields, mappedFields), [ignoredFields, mappedFields, settings]);
     const fieldOptions = fieldsQuery.data ?? [];
 
     const saveIgnored = (values: string[]): void => {
