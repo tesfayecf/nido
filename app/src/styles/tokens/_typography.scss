@@ -1,0 +1,19 @@
+
+$font-sans: "IBM Plex Sans", "Inter", "Segoe UI", sans-serif;
+$font-display: $font-sans;
+
+:root {
+    --font-sans: "IBM Plex Sans", "Inter", "Segoe UI", sans-serif;
+    --font-display: "IBM Plex Sans", "Inter", "Segoe UI", sans-serif;
+    --text-xs: 0.75rem;
+    --text-sm: 0.875rem;
+    --text-base: 0.9375rem;
+    --text-lg: 1.0625rem;
+    --text-xl: 1.1875rem;
+    --text-2xl: 1.375rem;
+    --text-3xl: 1.625rem;
+    --text-4xl: 2.125rem;
+    --line-height-tight: 1.2;
+    --line-height-body: 1.6;
+    --line-height-relaxed: 1.75;
+}

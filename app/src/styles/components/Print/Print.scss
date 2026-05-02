@@ -1,0 +1,90 @@
+/* Compact audit pass for comfortable 100% zoom usage. */
+html,
+body {
+    overflow-x: hidden;
+}
+
+.page-stack {
+    gap: var(--space-3);
+}
+
+.page-card__header,
+.page-card__body {
+    padding: var(--space-3) var(--space-4);
+}
+
+.selector-builder__grid {
+    gap: var(--space-3);
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+}
+
+.data-table th,
+.data-table td {
+    padding: var(--space-2) var(--space-3);
+}
+
+.sparkline--compact {
+    height: 7rem;
+}
+
+.property-history-card {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    display: grid;
+    gap: var(--space-3);
+    padding: var(--space-3);
+}
+
+.print-summary {
+    display: grid;
+    gap: var(--space-4);
+}
+
+.print-summary__header,
+.print-summary__metrics {
+    align-items: flex-start;
+    display: flex;
+    gap: var(--space-3);
+    justify-content: space-between;
+}
+
+.print-summary__metrics {
+    flex-direction: column;
+    text-align: right;
+}
+
+.print-summary__list {
+    display: grid;
+    gap: var(--space-2);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.print-summary__list li {
+    display: grid;
+    gap: var(--space-1);
+}
+
+@media print {
+    .app-shell__sidebar,
+    .app-header,
+    .print-hidden,
+    .skip-link {
+        display: none !important;
+    }
+
+    .app-shell,
+    .app-shell__panel,
+    .app-shell__content,
+    .page-stack {
+        display: block;
+        padding: 0;
+    }
+
+    .page-card {
+        border: none;
+        box-shadow: none;
+        padding: 0;
+    }
+}

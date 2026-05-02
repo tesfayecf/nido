@@ -1,0 +1,108 @@
+.app-nav__brand {
+    align-items: center;
+    display: flex;
+    gap: var(--space-3);
+}
+
+.app-nav__brand-mark {
+    align-items: center;
+    background: var(--color-accent);
+    border-radius: var(--radius-md);
+    color: var(--color-surface-strong);
+    display: inline-flex;
+    flex-shrink: 0;
+    font-weight: 700;
+    height: 2rem;
+    justify-content: center;
+    width: 2rem;
+}
+
+.app-nav__brand-copy {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.app-nav__brand h2 {
+    font-family: var(--font-sans);
+    font-size: var(--text-lg);
+    font-weight: 700;
+    line-height: 1;
+    margin: var(--space-1) 0 0;
+}
+
+.app-shell--nav-collapsed .app-nav__brand-copy,
+.app-shell--nav-collapsed .app-nav__link-label,
+.app-shell--nav-collapsed .app-nav__section-label,
+.app-shell--nav-collapsed .app-nav__identity-copy,
+.app-shell--nav-collapsed .app-nav__user-controls,
+.app-shell--nav-collapsed .app-nav__footer .button,
+.app-shell--nav-collapsed .app-nav__footer .button--secondary {
+    display: none;
+}
+
+.app-shell--nav-collapsed .app-nav__brand {
+    justify-content: center;
+}
+
+.app-shell--nav-collapsed .app-nav__list {
+    align-items: center;
+}
+
+.app-shell--nav-collapsed .app-nav__link {
+    justify-content: center;
+    padding: var(--space-2);
+}
+
+.app-shell--nav-collapsed .app-nav__identity {
+    justify-content: center;
+}
+
+.app-nav__sections {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.app-nav__section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.app-nav__list {
+    display: grid;
+    gap: var(--space-1);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.app-nav__link {
+    align-items: center;
+    border-radius: var(--radius-md);
+    color: var(--color-text-secondary);
+    display: flex;
+    font-size: var(--text-sm);
+    font-weight: 500;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+}
+
+.app-nav__link-icon {
+    flex-shrink: 0;
+    height: 1rem;
+    width: 1rem;
+}
+
+.app-nav__link-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.app-nav__link:hover,
+.app-nav__link--active {
+    background: var(--color-accent-soft);
+    color: var(--color-text);
+}

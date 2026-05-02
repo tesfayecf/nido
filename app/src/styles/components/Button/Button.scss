@@ -1,0 +1,71 @@
+@use "../../mixins/layout";
+
+.button {
+    @include layout.flex-center(inline-flex);
+    border: 1px solid transparent;
+    border-radius: calc(var(--radius-md));
+    box-shadow: var(--button-shadow, none);
+    color: var(--color-text);
+    cursor: pointer;
+    font-size: var(--text-sm);
+    font-weight: 700;
+    gap: var(--space-2);
+    line-height: var(--line-height-tight);
+    max-width: 100%;
+    min-height: 2.75rem;
+    min-width: 0;
+    padding: 0.78rem 1.1rem;
+    text-align: center;
+    text-decoration: none;
+    transition: background-color var(--duration-normal) ease, border-color var(--duration-normal) ease, box-shadow var(--duration-normal) ease, color var(--duration-normal) ease, transform var(--duration-fast) ease;
+    user-select: none;
+    vertical-align: top;
+}
+
+.button:hover:not(:disabled) {
+    transform: translateY(-1px);
+}
+
+.button:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.button:focus-visible {
+    box-shadow: 0 0 0 3px var(--color-focus-ring), var(--button-shadow, none);
+    outline: none;
+}
+
+.button:disabled {
+    box-shadow: none;
+    cursor: not-allowed;
+    opacity: 0.65;
+    transform: none;
+}
+
+.button--primary {
+    --button-shadow: none;
+    background: color-mix(in srgb, var(--color-accent) 88%, white);
+    border-color: color-mix(in srgb, var(--color-accent) 72%, black);
+    color: var(--color-surface-strong);
+}
+
+.button--primary:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--color-accent) 78%, white);
+    border-color: color-mix(in srgb, var(--color-accent) 72%, black);
+}
+
+.button--secondary {
+    --button-shadow: none;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--color-surface) 96%, transparent), color-mix(in srgb, var(--color-surface-muted) 92%, var(--color-surface)));
+    border-color: color-mix(in srgb, var(--color-border-strong) 78%, var(--color-surface-muted));
+    color: var(--color-text);
+}
+
+.button--secondary:hover:not(:disabled) {
+    background: linear-gradient(180deg, color-mix(in srgb, var(--color-surface) 94%, var(--color-accent-soft)), color-mix(in srgb, var(--color-surface-muted) 74%, var(--color-accent-soft)));
+    border-color: color-mix(in srgb, var(--color-accent) 26%, var(--color-border-strong));
+}
+
+.button--pill {
+    border-radius: var(--radius-pill);
+}

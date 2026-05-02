@@ -1,0 +1,33 @@
+
+$space-scale: (
+    1: 0.25rem,
+    2: 0.5rem,
+    3: 0.75rem,
+    4: 1rem,
+    5: 1.25rem,
+    "5-5": 1.5rem,
+    6: 1.75rem,
+    7: 2.5rem,
+    8: 3.5rem,
+);
+
+:root {
+    --space-1: 0.25rem;
+    --space-2: 0.5rem;
+    --space-3: 0.75rem;
+    --space-4: 1rem;
+    --space-5: 1.25rem;
+    --space-5-5: 1.5rem;
+    --space-6: 1.75rem;
+    --space-7: 2.5rem;
+    --space-8: 3.5rem;
+    --container-md: 48rem;
+    --container-lg: 64rem;
+    --container-xl: 80rem;
+    --nav-width: 15rem;
+    --nav-width-collapsed: 3.5rem;
+    --shell-header-height: 3.25rem;
+    --control-height-sm: 2rem;
+    --control-height-md: 2.5rem;
+    --control-height-lg: 3rem;
+}
