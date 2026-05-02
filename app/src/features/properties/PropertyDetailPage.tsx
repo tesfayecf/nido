@@ -698,7 +698,7 @@ export const PropertyDetailPage = (): JSX.Element => {
 
         const metadataValues = Object.values(fieldMetadataById);
         const hasMissingTemplateField = missingTemplateField;
-        const hasModifiedTemplateField = metadataValues.some((metadata) => metadata.origin === "template" && metadata.status === "modified");
+        const hasModifiedTemplateField = metadataValues.some((metadata) => metadata.origin === "template" && (metadata.status === "overridden" || metadata.status === "stale"));
         const hasManualFields = metadataValues.some((metadata) => metadata.origin === "manual");
 
         return hasMissingTemplateField || hasModifiedTemplateField || hasManualFields;
@@ -2073,11 +2073,11 @@ export const PropertyDetailPage = (): JSX.Element => {
                                         <DataTable
                                             caption={"Current extracted values"}
                                             columns={[
-                                                 { cell: (item) => item.field, header: "Field", id: "field", sortValue: (item) => item.field },
-                                                 { cell: (item) => item.value, header: "Value", id: "value" },
-                                                 { cell: (item) => item.source, header: "Source", id: "source" },
-                                                 { cell: (item) => formatMappingState(item.state), header: "State", id: "state" },
-                                                 {
+                                                { cell: (item) => item.field, header: "Field", id: "field", sortValue: (item) => item.field },
+                                                { cell: (item) => item.value, header: "Value", id: "value" },
+                                                { cell: (item) => item.source, header: "Source", id: "source" },
+                                                { cell: (item) => formatMappingState(item.state), header: "State", id: "state" },
+                                                {
                                                     align: "right",
                                                     cell: (item) => (
                                                         <RowActions>

@@ -295,7 +295,7 @@ export const SelectorBuilder = ({
                                                         </label>
                                                     </div>
 
-                                                     <div className={"selector-builder__grid"}>
+                                                    <div className={"selector-builder__grid"}>
                                                         <div className={"selector-builder__state-card"}>
                                                             <span className={`selector-builder__meta-badge selector-builder__meta-badge--${metadata.status}`}>
                                                                 {getFieldStatusLabel(metadata)}

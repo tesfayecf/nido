@@ -228,7 +228,7 @@ export const buildFieldSelectorSignature = (field: FieldSelector): string => {
         template_signature: _templateSignature,
         ...signatureField
     } = field;
-    return JSON.stringify(signatureField);
+    return JSON.stringify(normalizeFieldSelector(signatureField));
 };
 
 export type FieldMappingState = "matched" | "overridden" | "stale" | "unmatched";
