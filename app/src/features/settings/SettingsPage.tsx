@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 
 import { ThemeToggle } from "@/components/shell/ThemeToggle";
 import { ActionGroup } from "@/components/ui/ActionGroup";
@@ -17,7 +18,6 @@ import { PageCard } from "@/components/ui/PageCard";
 import { PageStack } from "@/components/ui/PageStack";
 import { Select } from "@/components/ui/Select";
 import { Tabs } from "@/components/ui/Tabs";
-import { Textarea } from "@/components/ui/Textarea";
 import { useToast } from "@/components/ui/ToastProvider";
 import { applyThemePreference, getStoredThemePreference, THEME_STORAGE_KEY } from "@/hooks/useTheme";
 import { formatDateTime } from "@/lib/format/date";
@@ -45,8 +45,6 @@ import {
 } from "@/features/settings/settingsBackup";
 import {
     DEFAULT_WORKSPACE_SETTINGS,
-    formatMultilineValue,
-    parseMultilineValue,
     readWorkspaceSettings,
     saveWorkspaceSettings,
     WORKSPACE_SETTINGS_STORAGE_KEY,
@@ -93,11 +91,6 @@ export const SettingsPage = (): JSX.Element => {
     const [confirmPassword, setConfirmPassword] = useState("");
     const [preferences, setPreferences] = useState<NotificationPreferencesDraft>(DEFAULT_NOTIFICATION_PREFERENCES);
     const [workspaceSettings, setWorkspaceSettings] = useState<WorkspaceSettings>(() => readWorkspaceSettings());
-    const [priceFieldsText, setPriceFieldsText] = useState("");
-    const [areaFieldsText, setAreaFieldsText] = useState("");
-    const [comparableFieldsText, setComparableFieldsText] = useState("");
-    const [locationFieldsText, setLocationFieldsText] = useState("");
-    const [typeFieldsText, setTypeFieldsText] = useState("");
     const [pendingBackupImport, setPendingBackupImport] = useState<{ backup: ImportedBackup; fileName: string; } | null>(null);
     const [resetOpen, setResetOpen] = useState(false);
     const [platformSettingsDraft, setPlatformSettingsDraft] = useState<PlatformSettings | null>(null);
@@ -105,11 +98,6 @@ export const SettingsPage = (): JSX.Element => {
 
     const syncWorkspaceSettingsDraft = (nextSettings: WorkspaceSettings): void => {
         setWorkspaceSettings(nextSettings);
-        setPriceFieldsText(formatMultilineValue(nextSettings.field_mappings.price_fields));
-        setAreaFieldsText(formatMultilineValue(nextSettings.field_mappings.area_fields));
-        setComparableFieldsText(formatMultilineValue(nextSettings.field_mappings.comparable_fields));
-        setLocationFieldsText(formatMultilineValue(nextSettings.field_mappings.location_fields));
-        setTypeFieldsText(formatMultilineValue(nextSettings.field_mappings.type_fields));
     };
 
     const setDisplayDensity = (density: WorkspaceSettings["preferences"]["density"]): void => {
@@ -129,17 +117,6 @@ export const SettingsPage = (): JSX.Element => {
                 ...current.preferences,
                 display_currency: currency,
                 display_locale: locale,
-            },
-        }));
-    };
-
-    const applyThresholdPreset = (cheapBelowPercent: number, expensiveAbovePercent: number): void => {
-        setWorkspaceSettings((current) => ({
-            ...current,
-            thresholds: {
-                ...current.thresholds,
-                cheap_below_percent: cheapBelowPercent,
-                expensive_above_percent: expensiveAbovePercent,
             },
         }));
     };
@@ -279,18 +256,8 @@ export const SettingsPage = (): JSX.Element => {
     };
 
     const persistWorkspaceSettings = (): void => {
-        const nextSettings: WorkspaceSettings = {
-            ...workspaceSettings,
-            field_mappings: {
-                area_fields: parseMultilineValue(areaFieldsText),
-                comparable_fields: parseMultilineValue(comparableFieldsText),
-                location_fields: parseMultilineValue(locationFieldsText),
-                price_fields: parseMultilineValue(priceFieldsText),
-                type_fields: parseMultilineValue(typeFieldsText),
-            },
-        };
-        syncWorkspaceSettingsDraft(nextSettings);
-        saveWorkspaceSettings(nextSettings);
+        syncWorkspaceSettingsDraft(workspaceSettings);
+        saveWorkspaceSettings(workspaceSettings);
         pushToast("Workspace settings applied immediately on this device.", "success");
     };
 
@@ -487,22 +454,6 @@ export const SettingsPage = (): JSX.Element => {
                                                 <section className={"settings-preferences-panel settings-preferences-panel--wide"}>
                                                     <div className={"settings-preferences-panel__header"}>
                                                         <div>
-                                                            <span className={"app-shell__eyebrow"}>{"Mappings"}</span>
-                                                            <h3 className={"settings-preferences-panel__title"}>{"Default field aliases"}</h3>
-                                                            <p className={"muted-copy settings-preferences-panel__copy"}>{"Keep the common import aliases close at hand without making the threshold controls sprawl."}</p>
-                                                        </div>
-                                                        <ActionGroup className={"settings-preferences-panel__actions"}>
-                                                            <Button onClick={() => { setWorkspaceSettings((current) => ({ ...current, preferences: { ...current.preferences, default_field_mappings_text: DEFAULT_WORKSPACE_SETTINGS.preferences.default_field_mappings_text } })); }} size={"small"} variant={"ghost"}>{"Restore default mappings"}</Button>
-                                                        </ActionGroup>
-                                                    </div>
-                                                    <Field fullWidth hint={"One mapping per line as source -> canonical field."} label={"Default field mappings"}>
-                                                        <Textarea onChange={(event) => { setWorkspaceSettings((current) => ({ ...current, preferences: { ...current.preferences, default_field_mappings_text: event.target.value } })); }} rows={4} value={workspaceSettings.preferences.default_field_mappings_text} />
-                                                    </Field>
-                                                </section>
-
-                                                <section className={"settings-preferences-panel settings-preferences-panel--wide"}>
-                                                    <div className={"settings-preferences-panel__header"}>
-                                                        <div>
                                                             <span className={"app-shell__eyebrow"}>{"Notifications"}</span>
                                                             <h3 className={"settings-preferences-panel__title"}>{"Personal delivery"}</h3>
                                                             <p className={"muted-copy settings-preferences-panel__copy"}>{"Keep the most common notification combinations one click away and reduce scanning fatigue."}</p>
@@ -589,7 +540,16 @@ export const SettingsPage = (): JSX.Element => {
                             label: "Operations settings",
                             panel: (
                                 <PageStack>
-                                    <PageCard description={"Keep the fast property flow lightweight while still defining safe defaults for advanced behavior."} title={"Property intake defaults"}>
+                                    <PageCard description={"Field mapping and candidate review now live on a dedicated page so runtime controls stay separate."} title={"Field Candidates"}>
+                                        <KeyValueGrid compact>
+                                            <KeyValuePair label={"Suggested fields"} value={"Review active, ignored, and mapped candidates in one focused workflow."} />
+                                            <KeyValuePair label={"Accepted fields"} value={"Keep canonical mappings away from pause and retry controls."} />
+                                        </KeyValueGrid>
+                                        <ActionGroup>
+                                            <Button as={Link} to={"/settings/field-candidates"} variant={"secondary"}>{"Open Field Candidates"}</Button>
+                                        </ActionGroup>
+                                    </PageCard>
+                                    <PageCard description={"Keep the fast property flow lightweight while defining safe defaults for new automatic tracking."} title={"Property intake defaults"}>
                                         <FormGrid
                                             onSubmit={(event) => {
                                                 event.preventDefault();
@@ -624,21 +584,18 @@ export const SettingsPage = (): JSX.Element => {
                                             <Field hint={"Run extraction preview automatically when the user opens the additional-fields section."} label={"Auto preview on create"} variant={"checkbox"}>
                                                 <input checked={workspaceSettings.operations.auto_preview_on_create} onChange={(event) => { setWorkspaceSettings((current) => ({ ...current, operations: { ...current.operations, auto_preview_on_create: event.target.checked } })); }} type={"checkbox"} />
                                             </Field>
-                                            <Field fullWidth label={"Price field candidates"}>
-                                                <Textarea onChange={(event) => { setPriceFieldsText(event.target.value); }} rows={4} value={priceFieldsText} />
-                                            </Field>
-                                            <Field fullWidth label={"Area field candidates"}>
-                                                <Textarea onChange={(event) => { setAreaFieldsText(event.target.value); }} rows={4} value={areaFieldsText} />
-                                            </Field>
-                                            <Field fullWidth label={"Comparable fields"}>
-                                                <Textarea onChange={(event) => { setComparableFieldsText(event.target.value); }} rows={4} value={comparableFieldsText} />
-                                            </Field>
-                                            <Field fullWidth label={"Location fields"}>
-                                                <Textarea onChange={(event) => { setLocationFieldsText(event.target.value); }} rows={4} value={locationFieldsText} />
-                                            </Field>
-                                            <Field fullWidth label={"Type fields"}>
-                                                <Textarea onChange={(event) => { setTypeFieldsText(event.target.value); }} rows={4} value={typeFieldsText} />
-                                            </Field>
+                                            <ActionGroup>
+                                                <Button type={"submit"}>{"Save intake defaults"}</Button>
+                                            </ActionGroup>
+                                        </FormGrid>
+                                    </PageCard>
+                                    <PageCard description={"Pause and resume runtime automation without mixing these controls with field configuration."} title={"Operational pause controls"}>
+                                        <FormGrid
+                                            onSubmit={(event) => {
+                                                event.preventDefault();
+                                                persistWorkspaceSettings();
+                                            }}
+                                        >
                                             <Field fullWidth hint={"Pause automation by source only; property-level pauses are intentionally avoided."} label={"Paused sources"}>
                                                 <MultiSelect
                                                     onChange={(values) => { setWorkspaceSettings((current) => ({ ...current, operations: { ...current.operations, paused_source_ids: values } })); }}
@@ -656,7 +613,7 @@ export const SettingsPage = (): JSX.Element => {
                                                 />
                                             </Field>
                                             <ActionGroup>
-                                                <Button type={"submit"}>{"Save intake defaults"}</Button>
+                                                <Button type={"submit"}>{"Save operational settings"}</Button>
                                             </ActionGroup>
                                         </FormGrid>
                                     </PageCard>

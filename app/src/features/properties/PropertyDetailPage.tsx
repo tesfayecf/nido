@@ -1156,7 +1156,15 @@ export const PropertyDetailPage = (): JSX.Element => {
             ? buildPriceIntelligence(summaryQuery.data, summariesQuery.data ?? [summaryQuery.data], workspaceSettings)
             : undefined;
     }, [summariesQuery.data, summaryQuery.data, workspaceSettings]);
-    const sourceSummary = sourcesQuery.data?.find((source) => source.id === propertyQuery.data?.source_id)?.name ?? (propertyQuery.data?.url ? "Custom URL" : "Manual tracking");
+    const source = sourcesQuery.data?.find((candidate) => candidate.id === propertyQuery.data?.source_id);
+    const sourceSummary = source?.name ?? (propertyQuery.data?.url ? "Custom URL" : "Manual tracking");
+    const sourceConfigLink = propertyQuery.data?.source_id !== undefined ? `/sources/${propertyQuery.data.source_id}` : undefined;
+    const missingFieldCount = extractedValueRows.filter((row) => row.value.trim() === "").length;
+    const extractionHealthLabel = latestSnapshot === undefined
+        ? "Not available"
+        : latestSnapshot.is_valid
+            ? missingFieldCount > 0 ? `${missingFieldCount} missing fields` : "Healthy"
+            : latestSnapshot.error_message ?? "Extraction error";
     const externalReferences = useMemo(() => parseReferenceLines(metadataDraft.externalReferencesText), [metadataDraft.externalReferencesText]);
     const attachments = useMemo(() => parseAttachmentLines(metadataDraft.attachmentsText), [metadataDraft.attachmentsText]);
     const decisionEntries: DecisionEntry[] = [];
@@ -1413,47 +1421,67 @@ export const PropertyDetailPage = (): JSX.Element => {
                     >
                         {propertyQuery.isError ? <ErrorBanner>{"Could not load property."}</ErrorBanner> : null}
                         {propertyQuery.data !== undefined ? (
-                            <KeyValueGrid compact>
-                                <KeyValuePair label={"Tracking mode"} value={trackingMode === "manual" ? "Manual Tracking" : "Automatic Tracking"} />
-                                <KeyValuePair label={"Current status"} value={<StatusBadge tone={automationStatusTone} value={automationStatus} />} />
-                                <KeyValuePair label={"Property status"} value={<StatusBadge tone={propertyQuery.data.status === "active" ? "success" : propertyQuery.data.status === "degraded" ? "warning" : propertyQuery.data.status === "inactive" ? "danger" : "neutral"} value={propertyQuery.data.status} />} />
-                                <KeyValuePair label={"Source summary"} value={sourceSummary} />
-                                <KeyValuePair label={"Current price"} value={attributes.totalPrice ?? "Not captured"} />
-                                <KeyValuePair label={"Last run"} value={propertyQuery.data.last_run_at === undefined ? "No runs yet" : formatDateTime(propertyQuery.data.last_run_at)} />
-                                <KeyValuePair label={"Next run"} value={propertyQuery.data.next_run_at === undefined ? manualEntryMode ? "Manual only" : "Waiting for save" : formatDateTime(propertyQuery.data.next_run_at)} />
-                                <KeyValuePair label={"Updated"} value={propertyQuery.data.updated_at === undefined ? "—" : formatDateTime(propertyQuery.data.updated_at)} />
-                                <KeyValuePair label={"Bookmark"} value={isBookmarked ? "Bookmarked" : "Not bookmarked"} />
-                            </KeyValueGrid>
+                            <div className={"property-overview-grid"}>
+                                <section className={"property-detail-group"}>
+                                    <span className={"app-shell__eyebrow"}>{"Core attributes"}</span>
+                                    <KeyValueGrid compact>
+                                        <KeyValuePair label={"Price (current)"} value={attributes.totalPrice ?? summaryQuery.data?.current_values.price ?? "Not available"} />
+                                        <KeyValuePair label={"Location"} value={latestValues.location ?? latestValues.city ?? latestValues.district ?? "Not available"} />
+                                        <KeyValuePair label={"Rooms"} value={attributes.rooms ?? latestValues.rooms ?? "Not available"} />
+                                        <KeyValuePair label={"Area"} value={attributes.surfaceArea ?? latestValues.area ?? latestValues.area_m2 ?? "Not available"} />
+                                        <KeyValuePair label={"Source"} value={sourceSummary} />
+                                        <KeyValuePair
+                                            label={"Listing URL"}
+                                            value={propertyQuery.data.url !== "" ? (
+                                                <span className={"status-with-copy"}>
+                                                    <a className={"property-detail-anchor"} href={propertyQuery.data.url} rel={"noreferrer"} target={"_blank"}>{"Open listing"}</a>
+                                                    <CopyButton label={"Copy property URL"} value={propertyQuery.data.url} />
+                                                </span>
+                                            ) : "Not available"}
+                                        />
+                                        {propertyFactRows.slice(0, 4).map((item) => <KeyValuePair key={item.field} label={item.field} value={item.value === "" ? "Not available" : item.value} />)}
+                                    </KeyValueGrid>
+                                </section>
+                                <section className={"property-detail-group"}>
+                                    <span className={"app-shell__eyebrow"}>{"Price snapshot"}</span>
+                                    <KeyValueGrid compact>
+                                        <KeyValuePair label={"Latest change"} value={summaryQuery.data?.latest_change_summary !== undefined && summaryQuery.data.latest_change_summary !== "" ? summaryQuery.data.latest_change_summary : "Not available"} />
+                                        <KeyValuePair label={"Last update"} value={latestSnapshot?.observed_at !== undefined ? formatDateTime(latestSnapshot.observed_at) : propertyQuery.data.updated_at === undefined ? "Not available" : formatDateTime(propertyQuery.data.updated_at)} />
+                                        <KeyValuePair label={"Last run"} value={propertyQuery.data.last_run_at === undefined ? "Not available" : formatDateTime(propertyQuery.data.last_run_at)} />
+                                    </KeyValueGrid>
+                                </section>
+                                <section className={"property-detail-group"}>
+                                    <span className={"app-shell__eyebrow"}>{"Status indicators"}</span>
+                                    <KeyValueGrid compact>
+                                        <KeyValuePair label={"Tracking status"} value={<StatusBadge tone={automationStatusTone} value={automationStatus} />} />
+                                        <KeyValuePair label={"Property status"} value={<StatusBadge tone={propertyQuery.data.status === "active" ? "success" : propertyQuery.data.status === "degraded" ? "warning" : propertyQuery.data.status === "inactive" ? "danger" : "neutral"} value={propertyQuery.data.status} />} />
+                                        <KeyValuePair label={"Extraction health"} value={<StatusBadge tone={latestSnapshot?.is_valid === false ? "danger" : missingFieldCount > 0 ? "warning" : latestSnapshot === undefined ? "neutral" : "success"} value={extractionHealthLabel} />} />
+                                        <KeyValuePair label={"Next run"} value={propertyQuery.data.next_run_at === undefined ? manualEntryMode ? "Manual only" : "Not available" : formatDateTime(propertyQuery.data.next_run_at)} />
+                                    </KeyValueGrid>
+                                </section>
+                                <section className={"property-detail-group"}>
+                                    <span className={"app-shell__eyebrow"}>{"Source summary"}</span>
+                                    <KeyValueGrid compact>
+                                        <KeyValuePair label={"Source name"} value={sourceSummary} />
+                                        <KeyValuePair label={"Last sync"} value={propertyQuery.data.last_run_at === undefined ? "Not available" : formatDateTime(propertyQuery.data.last_run_at)} />
+                                        <KeyValuePair label={"Source config"} value={sourceConfigLink === undefined ? "Not available" : <Link className={"property-detail-anchor"} to={sourceConfigLink}>{"Open source config"}</Link>} />
+                                        <KeyValuePair label={"Bookmark"} value={isBookmarked ? "Bookmarked" : "Not bookmarked"} />
+                                    </KeyValueGrid>
+                                </section>
+                            </div>
                         ) : null}
                     </PageCard>
                 ) : null}
 
                 {activeSection === "overview" ? (
                     <PageCard
-                        description={"Stable profile details, source context, and tags for quick orientation before deeper analysis."}
-                        title={"Property Profile"}
+                        description={"All remaining captured fields and tags are shown explicitly so missing values are not mistaken for empty UI."}
+                        title={"Captured fields"}
                         titleId={"profile"}
                     >
                         <div className={"property-detail-group-grid"}>
                             <section className={"property-detail-group"}>
-                                <span className={"app-shell__eyebrow"}>{"Source & identity"}</span>
-                                <KeyValueGrid compact>
-                                    <KeyValuePair
-                                        label={"Listing URL"}
-                                        value={propertyQuery.data?.url !== undefined && propertyQuery.data.url !== "" ? (
-                                            <span className={"status-with-copy"}>
-                                                <a className={"property-detail-anchor"} href={propertyQuery.data.url} rel={"noreferrer"} target={"_blank"}>{"Open listing"}</a>
-                                                <CopyButton label={"Copy property URL"} value={propertyQuery.data.url} />
-                                            </span>
-                                        ) : "Manual property"}
-                                    />
-                                    <KeyValuePair label={"Source template"} value={sourceSummary} />
-                                    <KeyValuePair label={"Created"} value={propertyQuery.data?.created_at === undefined ? "—" : formatDateTime(propertyQuery.data.created_at)} />
-                                    <KeyValuePair label={"Updated"} value={propertyQuery.data?.updated_at === undefined ? "—" : formatDateTime(propertyQuery.data.updated_at)} />
-                                </KeyValueGrid>
-                            </section>
-                            <section className={"property-detail-group"}>
-                                <span className={"app-shell__eyebrow"}>{"Listing attributes"}</span>
+                                <span className={"app-shell__eyebrow"}>{"All captured attributes"}</span>
                                 {propertyFactRows.length === 0 ? <EmptyState message={"No property facts have been captured yet. Run the source again or add details manually."} /> : (
                                     <KeyValueGrid compact>
                                         {propertyFactRows.map((item) => <KeyValuePair key={item.field} label={item.field} value={item.value} />)}

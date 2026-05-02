@@ -4,6 +4,20 @@
     gap: var(--space-5);
 }
 
+.source-template-editor-actions {
+    background: color-mix(in srgb, var(--color-surface) 96%, transparent);
+    border-top: 1px solid var(--color-border);
+    bottom: calc(-1 * var(--space-5));
+    margin: var(--space-2) calc(-1 * var(--space-5)) calc(-1 * var(--space-5));
+    padding: var(--space-4) var(--space-5);
+    position: sticky;
+    z-index: 1;
+}
+
+.source-template-field-controls {
+    margin-bottom: var(--space-4);
+}
+
 .selector-builder__identity-grid,
 .selector-builder__grid {
     display: grid;
@@ -212,6 +226,37 @@
     gap: var(--space-2);
     grid-column: 1 / -1;
     padding: var(--space-3);
+}
+
+.selector-builder__strategy-panel {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    display: grid;
+    gap: var(--space-3);
+    grid-column: 1 / -1;
+    padding: var(--space-4);
+}
+
+.selector-builder__strategy-description {
+    background: color-mix(in srgb, var(--color-surface-muted) 72%, var(--color-surface));
+    border-radius: var(--radius-sm);
+    color: var(--color-text-secondary);
+    display: grid;
+    gap: var(--space-2);
+    padding: var(--space-3);
+}
+
+.selector-builder__strategy-description strong {
+    color: var(--color-text);
+}
+
+.selector-builder__strategy-description code {
+    background: color-mix(in srgb, var(--color-surface) 84%, var(--color-background-strong));
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    display: inline-flex;
+    padding: 0.35rem 0.45rem;
+    width: fit-content;
 }
 
 .selector-builder__field-header,

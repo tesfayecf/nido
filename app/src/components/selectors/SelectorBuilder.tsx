@@ -52,8 +52,52 @@ const TRANSFORM_OPTIONS = [
 
 const SELECTOR_TABLE_COLUMN_COUNT = 6;
 
+type ExtractionStrategy = "delimiter" | "direct" | "partial" | "regex";
+
+const EXTRACTION_STRATEGIES: { description: string; example: string; label: string; value: ExtractionStrategy; }[] = [
+    { description: "Use the selected text or attribute value exactly as captured.", example: "Example: .price → €425,000", label: "Direct Mapping", value: "direct" },
+    { description: "Capture a specific pattern or capture group from the selected value.", example: "Example: (\\d+[,.]?\\d*)", label: "Regex", value: "regex" },
+    { description: "Keep the portion of the captured value that contains expected text.", example: "Example: asking price", label: "Partial Match", value: "partial" },
+    { description: "Split the captured value around a delimiter before returning it.", example: "Example: comma in €425,000, Dublin", label: "Delimiter-Based", value: "delimiter" },
+] as const;
+
+const getExtractionStrategy = (field: SelectorFieldDraft): ExtractionStrategy => {
+    if (field.regexPattern.trim() !== "") {
+        return "regex";
+    }
+
+    if (field.partialMatch.trim() !== "") {
+        return "partial";
+    }
+
+    if (field.splitDelimiter.trim() !== "" || field.multiValue) {
+        return "delimiter";
+    }
+
+    return "direct";
+};
+
+export const getExtractionMethodLabel = (field: SelectorFieldDraft): string => {
+    const strategy = EXTRACTION_STRATEGIES.find((option) => option.value === getExtractionStrategy(field));
+    return strategy?.label ?? "Direct Mapping";
+};
+
 const updateField = (fields: SelectorFieldDraft[], fieldId: string, patch: Partial<SelectorFieldDraft>): SelectorFieldDraft[] => {
     return fields.map((field) => field.id === fieldId ? { ...field, ...patch } : field);
+};
+
+const resetStrategyInputs = (field: SelectorFieldDraft, strategy: ExtractionStrategy): Partial<SelectorFieldDraft> => {
+    switch (strategy) {
+        case "regex":
+            return { multiValue: false, partialMatch: "", regexPattern: field.regexPattern, splitDelimiter: "" };
+        case "partial":
+            return { multiValue: false, partialMatch: field.partialMatch, regexPattern: "", splitDelimiter: "" };
+        case "delimiter":
+            return { multiValue: field.multiValue, partialMatch: "", regexPattern: "", splitDelimiter: field.splitDelimiter };
+        case "direct":
+        default:
+            return { multiValue: false, partialMatch: "", regexPattern: "", splitDelimiter: "" };
+    }
 };
 
 const previewTone = (field?: PropertyPreviewFieldResult): string => {
@@ -459,40 +503,69 @@ export const SelectorBuilder = ({
                                                             </Field>
                                                         ) : null}
 
-                                                        <Field hint={"Capture the first regex match or group."} label={"Regex extraction"}>
-                                                            <Input
-                                                                onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { regexPattern: event.target.value })); }}
-                                                                placeholder={"\\d+[.,]?\\d*"}
-                                                                type={"text"}
-                                                                value={field.regexPattern}
-                                                            />
-                                                        </Field>
-
-                                                        <Field label={"Partial match"}>
-                                                            <Input
-                                                                onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { partialMatch: event.target.value })); }}
-                                                                placeholder={"Text to keep"}
-                                                                type={"text"}
-                                                                value={field.partialMatch}
-                                                            />
-                                                        </Field>
-
-                                                        <Field hint={"Split text and keep first value unless multi-value is enabled."} label={"Split delimiter"}>
-                                                            <Input
-                                                                onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { splitDelimiter: event.target.value })); }}
-                                                                placeholder={","}
-                                                                type={"text"}
-                                                                value={field.splitDelimiter}
-                                                            />
-                                                        </Field>
-
-                                                        <Field label={"Return multiple values"} variant={"checkbox"}>
-                                                            <input
-                                                                checked={field.multiValue}
-                                                                onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { multiValue: event.target.checked })); }}
-                                                                type={"checkbox"}
-                                                            />
-                                                        </Field>
+                                                        <section className={"selector-builder__strategy-panel"}>
+                                                            <Field
+                                                                fullWidth
+                                                                hint={"Choose one post-capture strategy. Switching clears inputs that do not apply to the new strategy."}
+                                                                label={"Extraction strategy"}
+                                                            >
+                                                                <Select
+                                                                    onChange={(event) => {
+                                                                        const strategy = event.target.value as ExtractionStrategy;
+                                                                        onChange((currentFields) => updateField(currentFields, field.id, resetStrategyInputs(field, strategy)));
+                                                                    }}
+                                                                    value={getExtractionStrategy(field)}
+                                                                >
+                                                                    {EXTRACTION_STRATEGIES.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                                                                </Select>
+                                                            </Field>
+                                                            {EXTRACTION_STRATEGIES.filter((option) => option.value === getExtractionStrategy(field)).map((option) => (
+                                                                <div className={"selector-builder__strategy-description"} key={option.value}>
+                                                                    <strong>{option.label}</strong>
+                                                                    <span>{option.description}</span>
+                                                                    <code>{option.example}</code>
+                                                                </div>
+                                                            ))}
+                                                            {getExtractionStrategy(field) === "regex" ? (
+                                                                <Field fullWidth hint={"Capture the first regex match or capture group."} label={"Regex Pattern"}>
+                                                                    <Input
+                                                                        onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { regexPattern: event.target.value })); }}
+                                                                        placeholder={"\\d+[.,]?\\d*"}
+                                                                        type={"text"}
+                                                                        value={field.regexPattern}
+                                                                    />
+                                                                </Field>
+                                                            ) : null}
+                                                            {getExtractionStrategy(field) === "partial" ? (
+                                                                <Field fullWidth hint={"Only values containing this text are kept."} label={"Partial Match Text"}>
+                                                                    <Input
+                                                                        onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { partialMatch: event.target.value })); }}
+                                                                        placeholder={"Text to keep"}
+                                                                        type={"text"}
+                                                                        value={field.partialMatch}
+                                                                    />
+                                                                </Field>
+                                                            ) : null}
+                                                            {getExtractionStrategy(field) === "delimiter" ? (
+                                                                <>
+                                                                    <Field fullWidth hint={"Split captured text and keep the first value unless multi-value is enabled."} label={"Delimiter Character"}>
+                                                                        <Input
+                                                                            onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { splitDelimiter: event.target.value })); }}
+                                                                            placeholder={","}
+                                                                            type={"text"}
+                                                                            value={field.splitDelimiter}
+                                                                        />
+                                                                    </Field>
+                                                                    <Field fullWidth label={"Return multiple values"} variant={"checkbox"}>
+                                                                        <input
+                                                                            checked={field.multiValue}
+                                                                            onChange={(event) => { onChange((currentFields) => updateField(currentFields, field.id, { multiValue: event.target.checked })); }}
+                                                                            type={"checkbox"}
+                                                                        />
+                                                                    </Field>
+                                                                </>
+                                                            ) : null}
+                                                        </section>
 
                                                         <Field hint={"Optional boolean output such as price > 500000."} label={"Boolean comparison"}>
                                                             <Select

@@ -24,7 +24,6 @@ export interface WorkspaceOperationSettings {
 }
 
 export interface WorkspacePreferenceSettings {
-    readonly default_field_mappings_text: string;
     readonly density: "comfortable" | "compact";
     readonly display_currency: string;
     readonly display_locale: string;
@@ -59,7 +58,6 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
         paused_tag_ids: [],
     },
     preferences: {
-        default_field_mappings_text: "price -> price\ntotal_price -> price\nasking_price -> price\narea_m2 -> area",
         density: "comfortable",
         display_currency: "EUR",
         display_locale: "en-IE",
@@ -125,7 +123,6 @@ export const normalizeWorkspaceSettings = (value: unknown): WorkspaceSettings =>
             paused_tag_ids: readStringArray(operations.paused_tag_ids, DEFAULT_WORKSPACE_SETTINGS.operations.paused_tag_ids),
         },
         preferences: {
-            default_field_mappings_text: readString(preferences.default_field_mappings_text, DEFAULT_WORKSPACE_SETTINGS.preferences.default_field_mappings_text),
             density: readString(preferences.density, DEFAULT_WORKSPACE_SETTINGS.preferences.density) as WorkspacePreferenceSettings["density"],
             display_currency: readString(preferences.display_currency, DEFAULT_WORKSPACE_SETTINGS.preferences.display_currency),
             display_locale: readString(preferences.display_locale, DEFAULT_WORKSPACE_SETTINGS.preferences.display_locale),
