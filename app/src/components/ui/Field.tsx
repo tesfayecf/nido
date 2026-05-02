@@ -1,6 +1,8 @@
 /* eslint-disable react/jsx-props-no-spreading */
-import type { HTMLAttributes, LabelHTMLAttributes, PropsWithChildren, ReactNode } from "react";
+import { cloneElement, isValidElement, useId } from "react";
+import type { HTMLAttributes, LabelHTMLAttributes, PropsWithChildren, ReactElement, ReactNode } from "react";
 
+import { ContextualHelp } from "@/components/ui/ContextualHelp";
 import { classNames } from "@/lib/ui/classNames";
 
 export type FieldVariant = "actions" | "checkbox" | "default";
@@ -21,6 +23,31 @@ type FieldProps = SharedFieldProps & ({
     readonly as?: "label";
 } & LabelHTMLAttributes<HTMLLabelElement>);
 
+type LabelableElementProps = {
+    readonly "aria-labelledby"?: string;
+    readonly id?: string;
+};
+
+const getHelpTitle = (value: ReactNode, depth = 0): string => {
+    if (depth > 10) {
+        return "";
+    }
+
+    if (typeof value === "string" || typeof value === "number") {
+        return `${value}`;
+    }
+
+    if (Array.isArray(value)) {
+        return value.map((item) => getHelpTitle(item, depth + 1)).filter((item) => item !== "").join(" ").trim();
+    }
+
+    if (isValidElement<{ children?: ReactNode; }>(value)) {
+        return getHelpTitle(value.props.children ?? "", depth + 1);
+    }
+
+    return "";
+};
+
 export const Field = ({
     as,
     children,
@@ -33,7 +60,11 @@ export const Field = ({
     variant = "default",
     ...restProps
 }: FieldProps): JSX.Element => {
-    const resolvedElement = as ?? (variant === "actions" ? "div" : "label");
+    const resolvedElement = hint !== undefined ? "div" : as ?? (variant === "actions" ? "div" : "label");
+    const labelId = useId();
+    const hintTitle = getHelpTitle(label) || "additional information";
+    const childElement = isValidElement(children) ? children as ReactElement<LabelableElementProps> : null;
+    const controlId = childElement?.props.id;
     const sharedClassName = classNames(
         "field",
         variant === "actions" && "field--actions",
@@ -42,20 +73,26 @@ export const Field = ({
         fullWidth && "field--full-width",
         className,
     );
+    const labelledChildren = hint !== undefined && label !== undefined && childElement !== null
+        ? cloneElement(childElement, {
+            "aria-labelledby": childElement.props["aria-labelledby"] ?? labelId,
+        })
+        : children;
+    const labelContent = label === undefined
+        ? null
+        : controlId !== undefined
+            ? <label className={"field__label"} htmlFor={controlId} id={labelId}>{label}</label>
+            : <span className={"field__label"} id={labelId}>{label}</span>;
     const content = (
         <>
-            {variant === "checkbox" ? (
-                <>
-                    {children}
-                    {label !== undefined ? <span className={"field__label"}>{label}</span> : null}
-                </>
-            ) : (
-                <>
-                    {label !== undefined ? <span className={"field__label"}>{label}</span> : null}
-                    {children}
-                </>
-            )}
-            {hint !== undefined ? <p className={"field__hint"}>{hint}</p> : null}
+            {variant === "checkbox" ? labelledChildren : null}
+            {label !== undefined ? (
+                <span className={"field__label-row"}>
+                    {labelContent}
+                    {hint !== undefined ? <ContextualHelp content={hint} title={hintTitle} /> : null}
+                </span>
+            ) : null}
+            {variant === "checkbox" ? null : labelledChildren}
             {error !== undefined ? <p className={"field__error"} role={"alert"}>{error}</p> : null}
         </>
     );

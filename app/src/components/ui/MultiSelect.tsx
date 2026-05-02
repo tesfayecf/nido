@@ -11,6 +11,7 @@ interface MultiSelectOption {
 }
 
 interface MultiSelectProps {
+    readonly "aria-labelledby"?: string;
     readonly className?: string;
     readonly disabled?: boolean;
     readonly emptyMessage?: string;
@@ -22,6 +23,7 @@ interface MultiSelectProps {
 }
 
 export const MultiSelect = ({
+    "aria-labelledby": ariaLabelledBy,
     className,
     disabled = false,
     emptyMessage = "No options found.",
@@ -72,6 +74,7 @@ export const MultiSelect = ({
             <button
                 aria-controls={listboxId}
                 aria-expanded={open}
+                aria-labelledby={ariaLabelledBy}
                 className={"multi-select__trigger field__control"}
                 disabled={disabled}
                 onClick={() => {

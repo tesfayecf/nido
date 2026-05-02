@@ -8,6 +8,7 @@ import { SelectorBuilder } from "@/components/selectors/SelectorBuilder";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { ContextualHelp } from "@/components/ui/ContextualHelp";
 import { DataTable } from "@/components/ui/DataTable";
 import { Dialog } from "@/components/ui/Dialog";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
@@ -1182,7 +1183,7 @@ export const PropertyDetailPage = (): JSX.Element => {
     }
 
     const templateRoleSummary = noTemplateSelected
-        ? <p className={"muted-copy"}>{"Select a source template to prefill property facts and define what Nido should monitor after creation."}</p>
+        ? null
         : (
             <div className={"property-detail-group-grid"}>
                 <div className={"property-inline-note"}>
@@ -1198,9 +1199,9 @@ export const PropertyDetailPage = (): JSX.Element => {
 
     const manualAttributeEditor = (
         <div className={"property-section-stack"}>
-            <div className={"property-inline-note"}>
+            <div className={"page-card__title-row"}>
                 <strong>{"Manual attribute schema"}</strong>
-                <span>{"Define the fields you want to track and enter the values for the next timestamped snapshot."}</span>
+                <ContextualHelp content={"Define the fields you want to track and enter the values for the next timestamped snapshot."} title={"Manual attribute schema"} />
             </div>
             {manualAttributeRows.map((row) => (
                 <FormGrid key={row.id} variant={"two-column"}>
@@ -1305,25 +1306,23 @@ export const PropertyDetailPage = (): JSX.Element => {
                         </>
                     ) : null}
                 </FormGrid>
-                {!manualEntryMode ? (
+                {!manualEntryMode && !noTemplateSelected ? (
                     <div className={"property-template-summary"}>
-                        <div>
+                        <div className={"page-card__title-row"}>
                             <strong>{"What this template will do"}</strong>
-                            <p className={"muted-copy"}>{"Templates can speed up intake and define what Nido keeps monitoring after the property is created."}</p>
+                            <ContextualHelp content={"Templates can speed up intake and define what Nido keeps monitoring after the property is created."} title={"What this template will do"} />
                         </div>
                         {templateRoleSummary}
                     </div>
                 ) : null}
                 {manualEntryMode ? manualAttributeEditor : (
                     <div style={{ display: "grid", gap: "0.75rem", marginTop: "1rem" }}>
-                        <Button onClick={() => { setAdditionalFieldsOpen((open) => !open); }} type={"button"} variant={"secondary"}>
-                            {additionalFieldsOpen ? "Hide source fields" : "Review source fields"}
-                        </Button>
-                        <p className={"muted-copy"}>
-                            {additionalFieldsOpen
-                                ? "Price is required now. Other source fields can prefill property facts so you can create the property faster."
-                                : "Price is required now. Other source fields can prefill property facts so you can create the property faster."}
-                        </p>
+                        <div className={"page-card__title-row"}>
+                            <Button onClick={() => { setAdditionalFieldsOpen((open) => !open); }} type={"button"} variant={"secondary"}>
+                                {additionalFieldsOpen ? "Hide source fields" : "Review source fields"}
+                            </Button>
+                            <ContextualHelp content={"Price is required now. Other source fields can prefill property facts so you can create the property faster."} title={"Source fields"} />
+                        </div>
                     </div>
                 )}
                 {savePropertyMutation.isError ? <ErrorBanner>{"Could not save property. Check the price, source details, and any optional URL."}</ErrorBanner> : null}
@@ -1584,9 +1583,9 @@ export const PropertyDetailPage = (): JSX.Element => {
                                         <span className={"app-shell__eyebrow"}>{"History & trends"}</span>
                                         <div className={"property-history-card"}>
                                             <div className={"listing-dense-row__headline"}>
-                                                <div>
+                                                <div className={"page-card__title-row"}>
                                                     <strong>{"Price history"}</strong>
-                                                    <p className={"muted-copy"}>{"Use the compact chart for trend direction, then expand when you need exact timestamps."}</p>
+                                                    <ContextualHelp content={"Use the compact chart for trend direction, then expand when you need exact timestamps."} title={"Price history"} />
                                                 </div>
                                                 <Button disabled={priceHistoryPoints.length === 0} onClick={() => { setChartOpen(true); }} size={"small"} variant={"secondary"}>{"Expand chart"}</Button>
                                             </div>
@@ -1676,7 +1675,10 @@ export const PropertyDetailPage = (): JSX.Element => {
                                         label: "Listing facts changed",
                                         panel: (
                                             <div className={"property-section-stack"}>
-                                                <p className={"muted-copy"}>{"This field is marked as Prefill, so changes are shown as listing updates instead of primary monitoring alerts."}</p>
+                                                <div className={"page-card__title-row"}>
+                                                    <strong>{"Listing fact updates"}</strong>
+                                                    <ContextualHelp content={"This field is marked as Prefill, so changes are shown as listing updates instead of primary monitoring alerts."} title={"Listing fact updates"} />
+                                                </div>
                                                 <DataTable
                                                     caption={"Listing facts changed"}
                                                     columns={[
@@ -1739,9 +1741,9 @@ export const PropertyDetailPage = (): JSX.Element => {
                 {activeSection === "insights" ? (
                     <PageCard description={"Recent snapshots stay close to pricing analysis so observed changes are easy to trace."} title={"Recent Snapshots"}>
                         <div style={{ display: "flex", justifyContent: "space-between", gap: "0.75rem", marginBottom: "0.75rem" }}>
-                            <div>
+                            <div className={"page-card__title-row"}>
                                 <strong>{"Config filter"}</strong>
-                                <p className={"muted-copy"}>{"Filter snapshots by the config version that produced them."}</p>
+                                <ContextualHelp content={"Filter snapshots by the config version that produced them."} title={"Config filter"} />
                             </div>
                             <ActionGroup>
                                 <Select onChange={(event) => { setSnapshotConfigFilter(Number(event.target.value)); }} value={`${snapshotConfigFilter}`}>

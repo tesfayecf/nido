@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import type { FocusEvent } from "react";
+import type { FocusEvent, ReactNode } from "react";
 
 import { Icon } from "@/components/ui/Icon";
 import { classNames } from "@/lib/ui/classNames";
@@ -8,7 +8,7 @@ const CONTEXTUAL_HELP_OPEN_EVENT = "nido:contextual-help-open";
 
 interface ContextualHelpProps {
     readonly className?: string;
-    readonly content: string;
+    readonly content: ReactNode;
     readonly title: string;
 }
 
@@ -112,9 +112,9 @@ export const ContextualHelp = ({ className, content, title }: ContextualHelpProp
                 <Icon className={"contextual-help__icon"} name={"info"} />
             </button>
             {open ? (
-                <span className={"contextual-help__popover"} id={popoverId} role={"tooltip"}>
+                <div className={"contextual-help__popover"} id={popoverId} role={"tooltip"}>
                     {content}
-                </span>
+                </div>
             ) : null}
         </span>
     );

@@ -402,7 +402,7 @@ describe("PropertyDetailPage", () => {
 
         const selectorSection = screen.getByText("Source & extraction configuration").closest("section");
         expect(selectorSection).not.toBeNull();
-        expect(screen.getByText("Price is required now. Other source fields can prefill property facts so you can create the property faster.")).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Show help for Source fields" })).toBeInTheDocument();
         expect(selectorSection?.querySelector('button[type="submit"]')?.textContent).toBe("Create Property");
         expect(document.querySelectorAll('form#property-create-form button[type="submit"]').length).toBe(0);
     });

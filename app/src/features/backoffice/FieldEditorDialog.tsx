@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 
-import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
@@ -88,9 +87,6 @@ export const FieldEditorDialog = ({
                     {messages.map((message) => <ErrorBanner key={message}>{message}</ErrorBanner>)}
                 </div>
             ) : null}
-            <ActionGroup>
-                <span className={"muted-copy"}>{"Field name and a valid selector are required before saving."}</span>
-            </ActionGroup>
         </Dialog>
     );
 };

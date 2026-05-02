@@ -7,6 +7,7 @@ import { getExtractionMethodLabel, SelectorBuilder } from "@/components/selector
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { ContextualHelp } from "@/components/ui/ContextualHelp";
 import { DataTable } from "@/components/ui/DataTable";
 import { Dialog } from "@/components/ui/Dialog";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
@@ -289,11 +290,11 @@ export const SourceDetailPage = (): JSX.Element => {
             </PageCard>
 
             <PageCard description={"Preview results update the field cards above so you can see what is ready and what needs attention."} title={"Validation"}>
-                {previewFailures.length === 0 ? <p className={"muted-copy"}>{"Preview a page to verify that each field finds the right value."}</p> : (
+                {previewFailures.length > 0 ? (
                     <div className={"selector-builder__validation-list"}>
                         {previewFailures.map((failure) => <ErrorBanner key={failure}>{failure}</ErrorBanner>)}
                     </div>
-                )}
+                ) : null}
             </PageCard>
         </PageStack>
     );
@@ -337,13 +338,13 @@ export const SourceDetailPage = (): JSX.Element => {
                                 <KeyValuePair label={"Prefill coverage"} value={`${sourceHealthQuery.data.prefillCoverage}%`} />
                             </KeyValueGrid>
                             <div className={"property-detail-group-grid"} style={{ marginTop: "1rem" }}>
-                                <div className={"property-inline-note"}>
+                                <div className={"page-card__title-row"}>
                                     <strong>{"Tracked field health"}</strong>
-                                    <span>{"Shows whether live monitoring fields are still extracting reliably across recent runs."}</span>
+                                    <ContextualHelp content={"Shows whether live monitoring fields are still extracting reliably across recent runs."} title={"Tracked field health"} />
                                 </div>
-                                <div className={"property-inline-note"}>
+                                <div className={"page-card__title-row"}>
                                     <strong>{"Prefill coverage"}</strong>
-                                    <span>{"Shows how often intake-oriented listing facts are available when this template is used."}</span>
+                                    <ContextualHelp content={"Shows how often intake-oriented listing facts are available when this template is used."} title={"Prefill coverage"} />
                                 </div>
                             </div>
                             <DataTable

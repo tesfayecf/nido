@@ -7,6 +7,7 @@ import { ThemeToggle } from "@/components/shell/ThemeToggle";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { ContextualHelp } from "@/components/ui/ContextualHelp";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Field } from "@/components/ui/Field";
 import { FormGrid } from "@/components/ui/FormGrid";
@@ -397,8 +398,10 @@ export const SettingsPage = (): JSX.Element => {
                                                     <div className={"settings-preferences-panel__header"}>
                                                         <div>
                                                             <span className={"app-shell__eyebrow"}>{"Display"}</span>
-                                                            <h3 className={"settings-preferences-panel__title"}>{"Workspace view"}</h3>
-                                                            <p className={"muted-copy settings-preferences-panel__copy"}>{"Keep formatting and density close to the presets you use most often."}</p>
+                                                            <div className={"settings-preferences-panel__title-row"}>
+                                                                <h3 className={"settings-preferences-panel__title"}>{"Workspace view"}</h3>
+                                                                <ContextualHelp content={"Keep formatting and density close to the presets you use most often."} title={"Workspace view"} />
+                                                            </div>
                                                         </div>
                                                         <ActionGroup className={"settings-preferences-panel__actions"}>
                                                             {DISPLAY_PRESETS.map((preset) => {
@@ -438,8 +441,10 @@ export const SettingsPage = (): JSX.Element => {
                                                     <div className={"settings-preferences-panel__header"}>
                                                         <div>
                                                             <span className={"app-shell__eyebrow"}>{"Pricing"}</span>
-                                                            <h3 className={"settings-preferences-panel__title"}>{"Deal evaluation"}</h3>
-                                                            <p className={"muted-copy settings-preferences-panel__copy"}>{"Adjust how aggressively the workspace labels listings as cheap or expensive."}</p>
+                                                            <div className={"settings-preferences-panel__title-row"}>
+                                                                <h3 className={"settings-preferences-panel__title"}>{"Deal evaluation"}</h3>
+                                                                <ContextualHelp content={"Adjust how aggressively the workspace labels listings as cheap or expensive."} title={"Deal evaluation"} />
+                                                            </div>
                                                         </div>
                                                     </div>
                                                     <FormGrid as={"div"} className={"settings-preferences-panel__fields"} variant={"two-column"}>
@@ -456,8 +461,10 @@ export const SettingsPage = (): JSX.Element => {
                                                     <div className={"settings-preferences-panel__header"}>
                                                         <div>
                                                             <span className={"app-shell__eyebrow"}>{"Notifications"}</span>
-                                                            <h3 className={"settings-preferences-panel__title"}>{"Personal delivery"}</h3>
-                                                            <p className={"muted-copy settings-preferences-panel__copy"}>{"Keep the most common notification combinations one click away and reduce scanning fatigue."}</p>
+                                                            <div className={"settings-preferences-panel__title-row"}>
+                                                                <h3 className={"settings-preferences-panel__title"}>{"Personal delivery"}</h3>
+                                                                <ContextualHelp content={"Keep the most common notification combinations one click away and reduce scanning fatigue."} title={"Personal delivery"} />
+                                                            </div>
                                                         </div>
                                                         <ActionGroup className={"settings-preferences-panel__actions"}>
                                                             {NOTIFICATION_CHANNEL_PRESETS.map((preset) => {
@@ -522,7 +529,10 @@ export const SettingsPage = (): JSX.Element => {
                                                 </section>
                                             </div>
                                             <div className={"settings-preferences-footer"}>
-                                                <p className={"muted-copy settings-preferences-help"}>{"Workspace formatting and personal notifications are saved together on this device."}</p>
+                                                <div className={"settings-preferences-footer__help"}>
+                                                    <span className={"muted-copy"}>{"Saved locally"}</span>
+                                                    <ContextualHelp content={"Workspace formatting and personal notifications are saved together on this device."} title={"Preference storage"} />
+                                                </div>
                                                 <ActionGroup>
                                                     <Button type={"submit"}>{"Save preferences"}</Button>
                                                 </ActionGroup>
