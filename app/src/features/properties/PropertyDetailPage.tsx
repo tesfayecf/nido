@@ -1086,7 +1086,7 @@ export const PropertyDetailPage = (): JSX.Element => {
             const metadata = draft === undefined ? undefined : fieldMetadataById[draft.id];
             return {
                 field,
-                source: metadata?.sourceLabel ?? "Unmapped latest snapshot value",
+                source: metadata?.sourceLabel ?? "Latest snapshot (no mapping)",
                 state: metadata?.status ?? "unmatched" as const,
                 value,
             };
