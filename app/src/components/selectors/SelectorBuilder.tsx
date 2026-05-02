@@ -12,8 +12,11 @@ import type { FieldDefinitionUsage } from "@/services/fields/fields.types";
 import type { PropertyPreviewFieldResult, SelectorType } from "@/services/properties/properties.types";
 
 interface SelectorBuilderFieldMetadata {
+    readonly currentValue?: string;
     readonly origin: "manual" | "template";
-    readonly status: "linked" | "manual" | "modified";
+    readonly reason: string;
+    readonly sourceLabel: string;
+    readonly status: "matched" | "overridden" | "stale" | "unmatched";
 }
 
 interface SelectorBuilderProps {
@@ -21,6 +24,8 @@ interface SelectorBuilderProps {
     readonly fieldDefinitions?: FieldDefinitionUsage[];
     readonly fieldMetadataById?: Record<string, SelectorBuilderFieldMetadata>;
     readonly onChange: Dispatch<SetStateAction<SelectorFieldDraft[]>>;
+    readonly onOverrideField?: (fieldId: string) => void;
+    readonly onRevertField?: (fieldId: string) => void;
     readonly previewByFieldName?: Map<string, PropertyPreviewFieldResult>;
 }
 
@@ -87,13 +92,15 @@ const getFieldOriginLabel = (metadata: SelectorBuilderFieldMetadata): string => 
 
 const getFieldStatusLabel = (metadata: SelectorBuilderFieldMetadata): string => {
     switch (metadata.status) {
-        case "linked":
-            return "Linked";
-        case "modified":
-            return "Modified";
-        case "manual":
+        case "matched":
+            return "Matched (Template Active)";
+        case "overridden":
+            return "Overridden (Property Level)";
+        case "stale":
+            return "Stale";
+        case "unmatched":
         default:
-            return "Manual";
+            return "Unmatched";
     }
 };
 
@@ -104,6 +111,8 @@ export const SelectorBuilder = ({
     fieldMetadataById,
     fields,
     onChange,
+    onOverrideField,
+    onRevertField,
     previewByFieldName,
 }: SelectorBuilderProps): JSX.Element => {
     const [expandedFieldId, setExpandedFieldId] = useState<string | null>(null);
@@ -193,7 +202,12 @@ export const SelectorBuilder = ({
                             const preview = previewByFieldName?.get(field.name.trim());
                             const needsAttribute = field.extractionMode === "attribute" || field.selectorType === "attribute";
                             const expanded = expandedFieldId === field.id;
-                            const metadata = fieldMetadataById?.[field.id] ?? { origin: "manual", status: "manual" } satisfies SelectorBuilderFieldMetadata;
+                            const metadata = fieldMetadataById?.[field.id] ?? {
+                                origin: "manual",
+                                reason: "No template linkage is saved for this field.",
+                                sourceLabel: "Manual/property field",
+                                status: "unmatched",
+                            } satisfies SelectorBuilderFieldMetadata;
 
                             return (
                                 <Fragment key={field.id}>
@@ -221,7 +235,10 @@ export const SelectorBuilder = ({
                                                 {getFieldRoleLabel(field.fieldRole)}
                                             </span>
                                         </td>
-                                        <td>{getFieldTypeLabel(field)}</td>
+                                        <td>
+                                            <span>{getFieldTypeLabel(field)}</span>
+                                            <span className={"selector-builder__source-label"}>{metadata.currentValue ?? "No current value yet"}</span>
+                                        </td>
                                         <td>
                                             <span className={`selector-builder__meta-badge selector-builder__meta-badge--${metadata.origin}`}>
                                                 {getFieldOriginLabel(metadata)}
@@ -244,6 +261,16 @@ export const SelectorBuilder = ({
                                                 >
                                                     {"Remove"}
                                                 </Button>
+                                                {metadata.status === "matched" && onOverrideField !== undefined ? (
+                                                    <Button onClick={() => { onOverrideField(field.id); }} size={"small"} variant={"ghost"}>
+                                                        {"Override"}
+                                                    </Button>
+                                                ) : null}
+                                                {(metadata.status === "overridden" || metadata.status === "stale") && onRevertField !== undefined ? (
+                                                    <Button onClick={() => { onRevertField(field.id); }} size={"small"} variant={"ghost"}>
+                                                        {metadata.status === "stale" ? "Review / revert" : "Revert to template"}
+                                                    </Button>
+                                                ) : null}
                                             </div>
                                         </td>
                                     </tr>
@@ -268,7 +295,14 @@ export const SelectorBuilder = ({
                                                         </label>
                                                     </div>
 
-                                                    <div className={"selector-builder__grid"}>
+                                                     <div className={"selector-builder__grid"}>
+                                                        <div className={"selector-builder__state-card"}>
+                                                            <span className={`selector-builder__meta-badge selector-builder__meta-badge--${metadata.status}`}>
+                                                                {getFieldStatusLabel(metadata)}
+                                                            </span>
+                                                            <strong>{metadata.sourceLabel}</strong>
+                                                            <span>{metadata.reason}</span>
+                                                        </div>
                                                         <Field label={"Field name"}>
                                                             <Input
                                                                 onChange={(event) => {

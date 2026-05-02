@@ -27,7 +27,10 @@ export interface FieldSelector {
     readonly comparison_operator?: "" | "eq" | "gt" | "lt" | "contains";
     readonly comparison_value?: string;
     readonly field_role?: FieldRole;
+    readonly property_override?: boolean;
     readonly required: boolean;
+    readonly template_field_name?: string;
+    readonly template_signature?: string;
 }
 
 export interface PropertyExtractionConfig {

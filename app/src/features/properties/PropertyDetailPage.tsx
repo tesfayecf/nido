@@ -64,6 +64,7 @@ import {
     createDefaultSelectorDrafts,
     createEmptySelectorDraft,
     draftToSelector,
+    getFieldMappingState,
     parseSelectorConfigJson,
     selectorToDraft,
     validateSelectorDrafts,
@@ -311,6 +312,20 @@ const formatFieldName = (value: string): string => value
     .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
     .join(" ");
 
+const formatMappingState = (value: "matched" | "overridden" | "stale" | "unmatched"): string => {
+    switch (value) {
+        case "matched":
+            return "Matched (Template Active)";
+        case "overridden":
+            return "Overridden (Property Level)";
+        case "stale":
+            return "Stale";
+        case "unmatched":
+        default:
+            return "Unmatched";
+    }
+};
+
 const buildManualAttributePayload = (rows: readonly ManualAttributeDraft[]): PropertyManualData | undefined => {
     const payload: PropertyManualData = {};
     for (const row of rows) {
@@ -469,12 +484,14 @@ const PROPERTY_SECTIONS: { readonly id: PropertySectionId; readonly label: strin
 
 const toTemplateFieldDraft = (field: ReturnType<typeof parseSelectorConfigJson>[number]): SelectorFieldDraft => ({
     ...selectorToDraft(field),
+    propertyOverride: false,
     templateFieldName: field.name,
     templateSignature: buildFieldSelectorSignature(field),
 });
 
 const stripTemplateFieldMetadata = (field: SelectorFieldDraft): SelectorFieldDraft => ({
     ...field,
+    propertyOverride: false,
     templateFieldName: undefined,
     templateSignature: undefined,
 });
@@ -648,18 +665,22 @@ export const PropertyDetailPage = (): JSX.Element => {
     );
     const noTemplateSelected = sourceId.trim() === "";
     const createURLHint = getCreateURLHint(url, autofillStatus, autofillMessage, sourceId.trim() !== "", manualEntryMode);
-    const fieldMetadataById = useMemo<Record<string, { origin: "manual" | "template"; status: "linked" | "manual" | "modified"; }>>(() => {
+    const templateFieldsByName = useMemo(
+        () => new Map(sourceTemplateFields.map((field) => [field.name, field])),
+        [sourceTemplateFields],
+    );
+    const fieldMetadataById = useMemo<Record<string, { currentValue?: string; origin: "manual" | "template"; reason: string; sourceLabel: string; status: "matched" | "overridden" | "stale" | "unmatched"; }>>(() => {
         return Object.fromEntries(fieldRows.map((field) => {
-            if (field.templateFieldName === undefined || field.templateSignature === undefined) {
-                return [field.id, { origin: "manual", status: "manual" }] as const;
-            }
-
+            const templateField = field.templateFieldName === undefined ? undefined : templateFieldsByName.get(field.templateFieldName);
+            const mappingState = getFieldMappingState(field, templateField, selectedSource?.name ?? "");
             return [field.id, {
-                origin: "template",
-                status: buildFieldSelectorSignature(draftToSelector(field)) === field.templateSignature ? "linked" : "modified",
+                origin: mappingState.state === "unmatched" ? "manual" : "template",
+                reason: mappingState.reason,
+                sourceLabel: mappingState.sourceLabel,
+                status: mappingState.state,
             }] as const;
         }));
-    }, [fieldRows]);
+    }, [fieldRows, selectedSource?.name, templateFieldsByName]);
     const priceHistoryPoints = useMemo(() => buildPriceHistoryPoints(snapshotsQuery.data ?? []), [snapshotsQuery.data]);
     const missingTemplateField = useMemo(() => {
         if (sourceId.trim() === "" || sourceTemplateFields.length === 0) {
@@ -682,6 +703,10 @@ export const PropertyDetailPage = (): JSX.Element => {
 
         return hasMissingTemplateField || hasModifiedTemplateField || hasManualFields;
     }, [fieldMetadataById, missingTemplateField, sourceId, sourceTemplateFields.length]);
+    const unmatchedTemplateFields = useMemo(() => {
+        const mappedTemplateNames = new Set(fieldRows.map((field) => field.templateFieldName ?? field.name.trim()).filter((name) => name !== ""));
+        return sourceTemplateFields.filter((field) => !mappedTemplateNames.has(field.name));
+    }, [fieldRows, sourceTemplateFields]);
 
     useEffect(() => {
         if (isCreateMode) {
@@ -716,7 +741,6 @@ export const PropertyDetailPage = (): JSX.Element => {
             return;
         }
 
-        const templateFieldsByName = new Map(sourceTemplateFields.map((field) => [field.name, field]));
         setFieldRows((currentFields) => {
             let changed = false;
             const nextFields = currentFields.map((field) => {
@@ -739,7 +763,48 @@ export const PropertyDetailPage = (): JSX.Element => {
 
             return changed ? nextFields : currentFields;
         });
-    }, [isCreateMode, manualEntryMode, sourceId, sourceTemplateFields]);
+    }, [isCreateMode, manualEntryMode, sourceId, sourceTemplateFields, templateFieldsByName]);
+
+    const revertTemplateField = (fieldId: string): void => {
+        setFieldRows((currentFields) => currentFields.map((field) => {
+            const templateFieldName = field.templateFieldName ?? field.name;
+            const templateField = templateFieldsByName.get(templateFieldName);
+            if (field.id !== fieldId || templateField === undefined) {
+                return field;
+            }
+
+            return { ...toTemplateFieldDraft(templateField), id: field.id };
+        }));
+        pushToast("Mapping reverted to the current template field.", "success");
+    };
+
+    const overrideTemplateField = (fieldId: string): void => {
+        setFieldRows((currentFields) => currentFields.map((field) => {
+            if (field.id !== fieldId) {
+                return field;
+            }
+
+            const templateField = field.templateFieldName === undefined ? undefined : templateFieldsByName.get(field.templateFieldName);
+            return {
+                ...field,
+                propertyOverride: true,
+                templateSignature: templateField === undefined ? field.templateSignature : buildFieldSelectorSignature(templateField),
+            };
+        }));
+        pushToast("Property override enabled. Revert to template when you want updates again.", "success");
+    };
+
+    const addTemplateMapping = (fieldName: string): void => {
+        const templateField = templateFieldsByName.get(fieldName);
+        if (templateField === undefined) {
+            pushToast(`Could not create mapping for ${fieldName}: source field is missing.`, "error");
+            return;
+        }
+
+        setFieldRows((currentFields) => [...currentFields, toTemplateFieldDraft(templateField)]);
+        setAdditionalFieldsOpen(true);
+        pushToast(`Mapping created for ${formatFieldName(fieldName)}. Save configuration to persist it.`, "success");
+    };
 
     useEffect(() => {
         if (isTemplateDetached && !previousDetachedRef.current) {
@@ -1012,8 +1077,17 @@ export const PropertyDetailPage = (): JSX.Element => {
             }
         }
 
-        return Object.entries(values).map(([field, value]) => ({ field, value }));
-    }, [fieldDefinitionsQuery.data, fieldRows, latestSnapshot?.values]);
+        return Object.entries(values).map(([field, value]) => {
+            const draft = fieldRows.find((row) => row.name.trim() === field);
+            const metadata = draft === undefined ? undefined : fieldMetadataById[draft.id];
+            return {
+                field,
+                source: metadata?.sourceLabel ?? "Unmapped latest snapshot value",
+                state: metadata?.status ?? "unmatched" as const,
+                value,
+            };
+        });
+    }, [fieldDefinitionsQuery.data, fieldMetadataById, fieldRows, latestSnapshot?.values]);
     const latestValues = useMemo(() => Object.fromEntries(extractedValueRows.map((item) => [item.field, item.value])), [extractedValueRows]);
     useEffect(() => {
         if (isCreateMode) {
@@ -1266,7 +1340,20 @@ export const PropertyDetailPage = (): JSX.Element => {
                             </Button>
                         </div>
                     ) : null}
-                    <SelectorBuilder fieldDefinitions={fieldDefinitionsQuery.data} fieldMetadataById={fieldMetadataById} fields={fieldRows} onChange={setFieldRows} previewByFieldName={previewMap} />
+                    {unmatchedTemplateFields.length > 0 ? (
+                        <div className={"property-unmatched-fields"} role={"status"}>
+                            <strong>{"Unmatched template fields"}</strong>
+                            <span>{"These source fields are not mapped on this property yet. Create mappings explicitly so they are not silently ignored."}</span>
+                            <div className={"property-unmatched-fields__actions"}>
+                                {unmatchedTemplateFields.map((field) => (
+                                    <Button key={field.name} onClick={() => { addTemplateMapping(field.name); }} size={"small"} variant={"secondary"}>
+                                        {`Create mapping: ${formatFieldName(field.name)}`}
+                                    </Button>
+                                ))}
+                            </div>
+                        </div>
+                    ) : null}
+                    <SelectorBuilder fieldDefinitions={fieldDefinitionsQuery.data} fieldMetadataById={fieldMetadataById} fields={fieldRows} onChange={setFieldRows} onOverrideField={overrideTemplateField} onRevertField={revertTemplateField} previewByFieldName={previewMap} />
                     <ActionGroup>
                         <Button onClick={() => { setFieldRows((rows) => [...rows, createEmptySelectorDraft()]); }} variant={"secondary"}>{"Add field"}</Button>
                         <Button disabled={previewMutation.isPending || url.trim() === "" || validationMessages.length > 0} onClick={() => { previewMutation.mutate(); }} variant={"secondary"}>{previewMutation.isPending ? "Previewing..." : "Preview extraction"}</Button>
@@ -1844,7 +1931,20 @@ export const PropertyDetailPage = (): JSX.Element => {
                                         </Button>
                                     </div>
                                 ) : null}
-                                <SelectorBuilder fieldDefinitions={fieldDefinitionsQuery.data} fieldMetadataById={fieldMetadataById} fields={fieldRows} onChange={setFieldRows} previewByFieldName={previewMap} />
+                                {unmatchedTemplateFields.length > 0 ? (
+                                    <div className={"property-unmatched-fields"} role={"status"}>
+                                        <strong>{"Unmatched template fields"}</strong>
+                                        <span>{"These source fields are not mapped on this property yet. Create mappings explicitly so they are not silently ignored."}</span>
+                                        <div className={"property-unmatched-fields__actions"}>
+                                            {unmatchedTemplateFields.map((field) => (
+                                                <Button key={field.name} onClick={() => { addTemplateMapping(field.name); }} size={"small"} variant={"secondary"}>
+                                                    {`Create mapping: ${formatFieldName(field.name)}`}
+                                                </Button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ) : null}
+                                <SelectorBuilder fieldDefinitions={fieldDefinitionsQuery.data} fieldMetadataById={fieldMetadataById} fields={fieldRows} onChange={setFieldRows} onOverrideField={overrideTemplateField} onRevertField={revertTemplateField} previewByFieldName={previewMap} />
                                 <ActionGroup>
                                     <Button onClick={() => { setFieldRows((rows) => [...rows, createEmptySelectorDraft()]); }} variant={"secondary"}>{"Add field"}</Button>
                                     <Button disabled={previewMutation.isPending || url.trim() === "" || validationMessages.length > 0} onClick={() => { previewMutation.mutate(); }} variant={"secondary"}>{previewMutation.isPending ? "Previewing..." : "Preview extraction"}</Button>
@@ -1973,9 +2073,11 @@ export const PropertyDetailPage = (): JSX.Element => {
                                         <DataTable
                                             caption={"Current extracted values"}
                                             columns={[
-                                                { cell: (item) => item.field, header: "Field", id: "field", sortValue: (item) => item.field },
-                                                { cell: (item) => item.value, header: "Value", id: "value" },
-                                                {
+                                                 { cell: (item) => item.field, header: "Field", id: "field", sortValue: (item) => item.field },
+                                                 { cell: (item) => item.value, header: "Value", id: "value" },
+                                                 { cell: (item) => item.source, header: "Source", id: "source" },
+                                                 { cell: (item) => formatMappingState(item.state), header: "State", id: "state" },
+                                                 {
                                                     align: "right",
                                                     cell: (item) => (
                                                         <RowActions>
