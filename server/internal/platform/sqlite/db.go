@@ -331,7 +331,7 @@ CREATE TABLE IF NOT EXISTS properties (
 CREATE INDEX IF NOT EXISTS idx_properties_status ON properties(status);
 CREATE INDEX IF NOT EXISTS idx_properties_next_run_at ON properties(next_run_at);
 CREATE INDEX IF NOT EXISTS idx_properties_source_id ON properties(source_id);
-CREATE INDEX IF NOT EXISTS idx_properties_created_id ON properties(created_at DESC, id DESC);
+CREATE INDEX IF NOT EXISTS idx_properties_created_at_id ON properties(created_at DESC, id DESC);
 
 CREATE TABLE IF NOT EXISTS property_extraction_configs (
     id TEXT PRIMARY KEY,

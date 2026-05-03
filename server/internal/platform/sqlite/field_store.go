@@ -398,7 +398,7 @@ func (s *Store) ListAnalyticsRecords(ctx context.Context) ([]ingestiondomain.Ana
 			AND pfv.field_definition_id IS NOT NULL
 			AND pfv.validation_status = ?
 		LEFT JOIN field_definitions fd ON fd.id = pfv.field_definition_id
-		ORDER BY p.label ASC, p.url ASC, p.id ASC, COALESCE(fd.display_name, '') ASC, COALESCE(fd.id, '') ASC`,
+		ORDER BY p.label ASC, p.url ASC, p.id ASC, COALESCE(fd.display_name, '') ASC, fd.id IS NULL, fd.id ASC`,
 		ingestiondomain.FieldValidationStatusValid,
 	)
 	if err != nil {
