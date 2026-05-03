@@ -736,7 +736,7 @@ export const SettingsPage = (): JSX.Element => {
                                             <KeyValuePair label={"Conflict strategy"} value={"Full restores overwrite the current workspace data deterministically before local settings are applied."} />
                                         </KeyValueGrid>
                                     </PageCard>
-                                     <PageCard description={"Download a full, portable snapshot before risky edits or environment changes."} title={"Download backup"}>
+                                    <PageCard description={"Download a full, portable snapshot before risky edits or environment changes."} title={"Download backup"}>
                                         <KeyValueGrid compact>
                                             <KeyValuePair label={"Includes"} value={"Properties, sources, tags, relationships, field definitions, platform settings, workspace settings, notification preferences, and theme preference"} />
                                             <KeyValuePair label={"Format"} value={`Versioned JSON backup v${FULL_SETTINGS_BACKUP_VERSION}`} />
@@ -767,7 +767,7 @@ export const SettingsPage = (): JSX.Element => {
                                             <Button onClick={() => { backupFileInputRef.current?.click(); }} variant={"secondary"}>{"Upload backup"}</Button>
                                         </ActionGroup>
                                     </PageCard>
-                                     <PageCard description={"Remove custom local settings and return this browser to the default Nido setup."} title={"Reset local settings"}>
+                                    <PageCard description={"Remove custom local settings and return this browser to the default Nido setup."} title={"Reset local settings"}>
                                         <KeyValueGrid compact>
                                             <KeyValuePair label={"Resets"} value={"Workspace settings, notification preferences, theme, saved table layout, bookmarks groups, and nav state"} />
                                             <KeyValuePair label={"Does not remove"} value={"Tracked properties, source templates, runs, tags, or server-side account data"} />
@@ -775,7 +775,7 @@ export const SettingsPage = (): JSX.Element => {
                                         <ActionGroup>
                                             <Button onClick={() => { setResetOpen(true); }} variant={"destructive"}>{"Reset local settings"}</Button>
                                         </ActionGroup>
-                                     </PageCard>
+                                    </PageCard>
                                     <PageCard description={"Deletes server-side workspace data and resets this browser to defaults. Create a backup first if you may need to recover."} title={"Reset application"}>
                                         <KeyValueGrid compact>
                                             <KeyValuePair label={"Deletes"} value={"Properties, sources, runs, tags, platform settings, users, sessions, alerts, notifications, and local settings"} />
@@ -785,7 +785,7 @@ export const SettingsPage = (): JSX.Element => {
                                             <Button onClick={() => { setResetAppOpen(true); }} variant={"destructive"}>{"Reset application"}</Button>
                                         </ActionGroup>
                                     </PageCard>
-                                 </PageStack>
+                                </PageStack>
                             ),
                         },
                     ]}
