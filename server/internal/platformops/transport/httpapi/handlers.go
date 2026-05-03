@@ -2,6 +2,8 @@ package httpapi
 
 import (
 	"net/http"
+	"net/url"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -46,6 +48,35 @@ func Register(mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, s
 		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{"item": backup})
 	})))
 
+	mux.Handle("POST /api/v1/backoffice/platform/backup-files", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		file, err := service.CreateWorkspaceBackupFile(r.Context())
+		if err != nil {
+			platformhttp.WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		platformhttp.WriteJSON(w, http.StatusCreated, map[string]any{"item": file})
+	})))
+
+	mux.Handle("GET /api/v1/backoffice/platform/backup-files", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		files, err := service.ListWorkspaceBackupFiles()
+		if err != nil {
+			platformhttp.WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{"items": files, "count": len(files)})
+	})))
+
+	mux.Handle("GET /api/v1/backoffice/platform/backup-files/{name}", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path, err := service.BackupFilePath(r.PathValue("name"))
+		if err != nil {
+			platformhttp.WriteError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		fileName := filepath.Base(path)
+		w.Header().Set("Content-Disposition", "attachment; filename*=UTF-8''"+url.PathEscape(fileName))
+		http.ServeFile(w, r, path)
+	})))
+
 	mux.Handle("POST /api/v1/backoffice/platform/restore", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var request platformopsdomain.WorkspaceBackup
 		if !platformhttp.DecodeJSON(w, r, &request) {
@@ -56,6 +87,14 @@ func Register(mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, s
 			return
 		}
 		platformhttp.WriteJSON(w, http.StatusOK, map[string]string{"status": "restored"})
+	})))
+
+	mux.Handle("POST /api/v1/backoffice/platform/reset", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := service.ResetWorkspace(r.Context()); err != nil {
+			platformhttp.WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		platformhttp.WriteJSON(w, http.StatusOK, map[string]string{"status": "reset"})
 	})))
 
 	mux.Handle("GET /api/v1/backoffice/platform/summary", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

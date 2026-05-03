@@ -21,7 +21,7 @@ import { Tabs } from "@/components/ui/Tabs";
 import { useToast } from "@/components/ui/ToastProvider";
 import { applyThemePreference, getStoredThemePreference, THEME_STORAGE_KEY } from "@/hooks/useTheme";
 import { formatDateTime } from "@/lib/format/date";
-import { downloadWorkspaceBackupData, restoreWorkspaceBackupData } from "@/services/backup/backup.service";
+import { createWorkspaceBackupFile, downloadWorkspaceBackupData, getMigrationStatus, listWorkspaceBackupFiles, resetWorkspaceData, restoreWorkspaceBackupData } from "@/services/backup/backup.service";
 import { authKeys } from "@/services/auth/auth.keys";
 import { changePassword, getCurrentUser, updateProfile } from "@/services/auth/auth.service";
 import { sourceKeys } from "@/services/backoffice-sources/sources.keys";
@@ -84,6 +84,14 @@ export const SettingsPage = (): JSX.Element => {
         queryFn: getPlatformSettings,
         queryKey: ["platform", "settings"],
     });
+    const migrationStatusQuery = useQuery({
+        queryFn: getMigrationStatus,
+        queryKey: ["platform", "migration-status"],
+    });
+    const backupFilesQuery = useQuery({
+        queryFn: listWorkspaceBackupFiles,
+        queryKey: ["platform", "backup-files"],
+    });
 
     const [displayName, setDisplayName] = useState("");
     const [currentPassword, setCurrentPassword] = useState("");
@@ -93,6 +101,7 @@ export const SettingsPage = (): JSX.Element => {
     const [workspaceSettings, setWorkspaceSettings] = useState<WorkspaceSettings>(() => readWorkspaceSettings());
     const [pendingBackupImport, setPendingBackupImport] = useState<{ backup: ImportedBackup; fileName: string; } | null>(null);
     const [resetOpen, setResetOpen] = useState(false);
+    const [resetAppOpen, setResetAppOpen] = useState(false);
     const [platformSettingsDraft, setPlatformSettingsDraft] = useState<PlatformSettings | null>(null);
     const backupFileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -226,6 +235,29 @@ export const SettingsPage = (): JSX.Element => {
                     : "Legacy settings backup restored on this device.",
                 "success",
             );
+        },
+    });
+
+    const createServerBackupMutation = useMutation({
+        mutationFn: createWorkspaceBackupFile,
+        onError() {
+            pushToast("Could not create the server backup file.", "error");
+        },
+        onSuccess(file) {
+            void queryClient.invalidateQueries({ queryKey: ["platform", "backup-files"] });
+            pushToast(`Server backup created: ${file.name}`, "success");
+        },
+    });
+
+    const resetWorkspaceMutation = useMutation({
+        mutationFn: resetWorkspaceData,
+        onError() {
+            pushToast("Could not reset the application.", "error");
+        },
+        onSuccess() {
+            resetLocalSettings();
+            setResetAppOpen(false);
+            pushToast("Application reset to its initial state.", "success");
         },
     });
 
@@ -713,6 +745,18 @@ export const SettingsPage = (): JSX.Element => {
                                             <Button isLoading={exportBackupMutation.isPending} onClick={() => { exportBackupMutation.mutate(); }}>{"Download backup"}</Button>
                                         </ActionGroup>
                                     </PageCard>
+                                    <PageCard description={"Server-side recovery files are persisted in /app/backups and survive container recreation when the backup volume is mounted."} title={"Server backup storage"}>
+                                        <KeyValueGrid compact>
+                                            <KeyValuePair label={"Migration state"} value={migrationStatusQuery.data === undefined ? "Loading" : `${migrationStatusQuery.data.state} (${migrationStatusQuery.data.current_version} → ${migrationStatusQuery.data.target_version})`} />
+                                            <KeyValuePair label={"Strategy"} value={migrationStatusQuery.data?.strategy ?? "safe-auto"} />
+                                            <KeyValuePair label={"Latest pre-migration backup"} value={migrationStatusQuery.data?.backup_path ?? "None recorded for this process"} />
+                                            <KeyValuePair label={"Stored files"} value={`${backupFilesQuery.data?.length ?? 0} backup file(s) available`} />
+                                        </KeyValueGrid>
+                                        {migrationStatusQuery.data?.error !== undefined ? <ErrorBanner>{migrationStatusQuery.data.error}</ErrorBanner> : null}
+                                        <ActionGroup className={"settings-data-movement__actions"}>
+                                            <Button isLoading={createServerBackupMutation.isPending} onClick={() => { createServerBackupMutation.mutate(); }} variant={"secondary"}>{"Create server backup"}</Button>
+                                        </ActionGroup>
+                                    </PageCard>
                                     <PageCard description={"Upload a backup to restore the full workspace or recover a legacy device-only export."} title={"Upload backup"}>
                                         <KeyValueGrid compact>
                                             <KeyValuePair label={"Supported backup"} value={`Nido backup v${FULL_SETTINGS_BACKUP_VERSION} and legacy local-settings backup v${LEGACY_SETTINGS_BACKUP_VERSION}`} />
@@ -730,6 +774,15 @@ export const SettingsPage = (): JSX.Element => {
                                         </KeyValueGrid>
                                         <ActionGroup>
                                             <Button onClick={() => { setResetOpen(true); }} variant={"destructive"}>{"Reset local settings"}</Button>
+                                        </ActionGroup>
+                                    </PageCard>
+                                    <PageCard description={"Deletes server-side workspace data and resets this browser to defaults. Create a backup first if you may need to recover."} title={"Reset application"}>
+                                        <KeyValueGrid compact>
+                                            <KeyValuePair label={"Deletes"} value={"Properties, sources, runs, tags, platform settings, users, sessions, alerts, notifications, and local settings"} />
+                                            <KeyValuePair label={"Safety"} value={"Requires confirmation and runs as one backend transaction"} />
+                                        </KeyValueGrid>
+                                        <ActionGroup>
+                                            <Button onClick={() => { setResetAppOpen(true); }} variant={"destructive"}>{"Reset application"}</Button>
                                         </ActionGroup>
                                     </PageCard>
                                 </PageStack>
@@ -765,6 +818,15 @@ export const SettingsPage = (): JSX.Element => {
                 onOpenChange={setResetOpen}
                 open={resetOpen}
                 title={"Reset local settings"}
+            />
+            <ConfirmDialog
+                confirmLabel={"Reset application"}
+                description={"Reset the entire application? This deletes server-side workspace data, users, sessions, alerts, notifications, and local settings. Download or create a backup before continuing."}
+                isPending={resetWorkspaceMutation.isPending}
+                onConfirm={() => { resetWorkspaceMutation.mutate(); }}
+                onOpenChange={setResetAppOpen}
+                open={resetAppOpen}
+                title={"Reset application"}
             />
         </PageStack>
     );

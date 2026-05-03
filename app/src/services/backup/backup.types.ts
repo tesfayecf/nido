@@ -38,3 +38,20 @@ export interface WorkspaceDataBackup {
     readonly sources: Source[];
     readonly tags: Tag[];
 }
+
+export interface BackupFileInfo {
+    readonly created_at: string;
+    readonly name: string;
+    readonly path: string;
+    readonly size_bytes: number;
+}
+
+export interface MigrationStatus {
+    readonly backup_path?: string;
+    readonly current_version: number;
+    readonly error?: string;
+    readonly pending: boolean;
+    readonly state: string;
+    readonly strategy: string;
+    readonly target_version: number;
+}

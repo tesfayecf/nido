@@ -62,10 +62,13 @@ COPY docker/entrypoint.sh /entrypoint.sh
 COPY --from=frontend-build /src/app/.dist /usr/share/nginx/html
 COPY --from=backend-build /out/nido /usr/local/bin/nido
 
-RUN chmod +x /entrypoint.sh
+RUN mkdir -p /app/backups && chmod +x /entrypoint.sh
 
 ENV NIDO_HTTP_ADDR=127.0.0.1:18080 \
 	NIDO_DATABASE_PATH=/data/nido.db \
+	NIDO_BACKUP_DIR=/app/backups \
+	AUTO_MIGRATE=true \
+	MIGRATION_STRATEGY=safe-auto \
 	NIDO_BOOTSTRAP_ADMIN_EMAIL=admin@local \
 	NIDO_BOOTSTRAP_ADMIN_NAME="Local Admin" \
 	NIDO_BOOTSTRAP_ADMIN_PASSWORD=dev-password \

@@ -14,6 +14,7 @@ import (
 type Config struct {
 	HTTP            HTTPConfig
 	Database        DatabaseConfig
+	Migration       MigrationConfig
 	ObjectStore     ObjectStoreConfig
 	BootstrapSource BootstrapSourceConfig
 	Scheduler       SchedulerConfig
@@ -31,6 +32,13 @@ type HTTPConfig struct {
 // DatabaseConfig controls the SQLite file location.
 type DatabaseConfig struct {
 	Path string
+}
+
+// MigrationConfig controls schema migration execution and backup storage.
+type MigrationConfig struct {
+	AutoMigrate bool
+	Strategy    string
+	BackupDir   string
 }
 
 // ObjectStoreConfig controls the object-store implementation.
@@ -114,6 +122,11 @@ func Load() (Config, error) {
 		Database: DatabaseConfig{
 			Path: envOrDefault("NIDO_DATABASE_PATH", "./.sqlite/nido.db"),
 		},
+		Migration: MigrationConfig{
+			AutoMigrate: boolEnvOrDefaultFromAliases(true, "AUTO_MIGRATE", "NIDO_AUTO_MIGRATE"),
+			Strategy:    strings.ToLower(envFromAliasesOrDefault("safe-auto", "MIGRATION_STRATEGY", "NIDO_MIGRATION_STRATEGY")),
+			BackupDir:   envOrDefault("NIDO_BACKUP_DIR", "/app/backups"),
+		},
 		ObjectStore: ObjectStoreConfig{
 			Driver:            strings.ToLower(envOrDefault("NIDO_OBJECT_STORE_DRIVER", "memory")),
 			S3Endpoint:        strings.TrimSpace(os.Getenv("NIDO_S3_ENDPOINT")),
@@ -175,6 +188,17 @@ func Load() (Config, error) {
 
 	if cfg.ObjectStore.Driver == "" {
 		cfg.ObjectStore.Driver = "memory"
+	}
+	if cfg.Migration.Strategy == "" {
+		cfg.Migration.Strategy = "safe-auto"
+	}
+	switch cfg.Migration.Strategy {
+	case "safe-auto", "manual":
+	default:
+		return Config{}, fmt.Errorf("unsupported migration strategy %q", cfg.Migration.Strategy)
+	}
+	if strings.TrimSpace(cfg.Migration.BackupDir) == "" {
+		cfg.Migration.BackupDir = "/app/backups"
 	}
 
 	if cfg.ObjectStore.Driver == "s3" {
@@ -247,6 +271,29 @@ func boolEnvOrDefault(name string, fallback bool) bool {
 	}
 
 	return parsed
+}
+
+func boolEnvOrDefaultFromAliases(fallback bool, names ...string) bool {
+	for _, name := range names {
+		value := strings.TrimSpace(os.Getenv(name))
+		if value == "" {
+			continue
+		}
+		parsed, err := strconv.ParseBool(value)
+		if err != nil {
+			return fallback
+		}
+		return parsed
+	}
+	return fallback
+}
+
+func envFromAliasesOrDefault(fallback string, names ...string) string {
+	value := envFromAliases(names...)
+	if value == "" {
+		return fallback
+	}
+	return value
 }
 
 func intEnvOrDefault(name string, fallback int) int {

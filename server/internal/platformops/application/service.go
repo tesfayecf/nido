@@ -9,6 +9,9 @@ import (
 	"net/http"
 	"net/smtp"
 	"net/url"
+	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -22,6 +25,7 @@ import (
 type Store interface {
 	ExportWorkspaceBackup(ctx context.Context) (platformopsdomain.WorkspaceBackup, error)
 	RestoreWorkspaceBackup(ctx context.Context, backup platformopsdomain.WorkspaceBackup) error
+	ResetWorkspace(ctx context.Context) error
 	GetPlatformSettings(ctx context.Context) (platformopsdomain.PlatformSettings, error)
 	SavePlatformSettings(ctx context.Context, settings platformopsdomain.PlatformSettings) error
 	CreateIntegrationDeliveryLog(ctx context.Context, log platformopsdomain.IntegrationDeliveryLog) error
@@ -38,6 +42,7 @@ type Service struct {
 	events     *platformevents.Broker
 	scheduler  *ingestionapp.PropertyScheduler
 	cfg        platformconfig.NotificationsConfig
+	backupDir  string
 	httpClient *http.Client
 
 	digestCtx    context.Context
@@ -46,7 +51,9 @@ type Service struct {
 
 const weeklyDigestInterval = 7 * 24 * time.Hour
 
-func NewService(logger *slog.Logger, store Store, events *platformevents.Broker, scheduler *ingestionapp.PropertyScheduler, cfg platformconfig.NotificationsConfig) *Service {
+var backupFileNamePattern = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
+
+func NewService(logger *slog.Logger, store Store, events *platformevents.Broker, scheduler *ingestionapp.PropertyScheduler, cfg platformconfig.NotificationsConfig, backupDir string) *Service {
 	digestCtx, digestCancel := context.WithCancel(context.Background())
 	return &Service{
 		logger:       logger,
@@ -54,6 +61,7 @@ func NewService(logger *slog.Logger, store Store, events *platformevents.Broker,
 		events:       events,
 		scheduler:    scheduler,
 		cfg:          cfg,
+		backupDir:    backupDir,
 		httpClient:   &http.Client{Timeout: 10 * time.Second},
 		digestCtx:    digestCtx,
 		digestCancel: digestCancel,
@@ -144,6 +152,69 @@ func (s *Service) ExportWorkspaceBackup(ctx context.Context) (platformopsdomain.
 
 func (s *Service) RestoreWorkspaceBackup(ctx context.Context, backup platformopsdomain.WorkspaceBackup) error {
 	if err := s.store.RestoreWorkspaceBackup(ctx, backup); err != nil {
+		return err
+	}
+	return s.reconcileRuntimeState(ctx)
+}
+
+func (s *Service) CreateWorkspaceBackupFile(ctx context.Context) (platformopsdomain.BackupFileInfo, error) {
+	backup, err := s.ExportWorkspaceBackup(ctx)
+	if err != nil {
+		return platformopsdomain.BackupFileInfo{}, err
+	}
+	if err := os.MkdirAll(s.backupDir, 0o755); err != nil {
+		return platformopsdomain.BackupFileInfo{}, fmt.Errorf("create backup directory: %w", err)
+	}
+	timestamp := time.Now().UTC().Format("2006-01-02T15-04-05")
+	name := fmt.Sprintf("workspace_%s_v%d.json", timestamp, backup.SchemaVersion)
+	path := filepath.Join(s.backupDir, name)
+	payload, err := json.MarshalIndent(backup, "", "  ")
+	if err != nil {
+		return platformopsdomain.BackupFileInfo{}, fmt.Errorf("marshal workspace backup: %w", err)
+	}
+	if err := os.WriteFile(path, payload, 0o600); err != nil {
+		return platformopsdomain.BackupFileInfo{}, fmt.Errorf("write workspace backup file: %w", err)
+	}
+	return backupFileInfo(path)
+}
+
+func (s *Service) ListWorkspaceBackupFiles() ([]platformopsdomain.BackupFileInfo, error) {
+	entries, err := os.ReadDir(s.backupDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []platformopsdomain.BackupFileInfo{}, nil
+		}
+		return nil, fmt.Errorf("list backup directory: %w", err)
+	}
+	items := make([]platformopsdomain.BackupFileInfo, 0, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		item, err := backupFileInfo(filepath.Join(s.backupDir, entry.Name()))
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, nil
+}
+
+func (s *Service) BackupFilePath(name string) (string, error) {
+	trimmed := strings.TrimSpace(name)
+	base := filepath.Base(filepath.Clean(trimmed))
+	if base == "." || base == "" || base != trimmed || !backupFileNamePattern.MatchString(base) {
+		return "", fmt.Errorf("invalid backup file name")
+	}
+	path := filepath.Join(s.backupDir, base)
+	if _, err := os.Stat(path); err != nil {
+		return "", fmt.Errorf("backup file not found: %w", err)
+	}
+	return path, nil
+}
+
+func (s *Service) ResetWorkspace(ctx context.Context) error {
+	if err := s.store.ResetWorkspace(ctx); err != nil {
 		return err
 	}
 	return s.reconcileRuntimeState(ctx)
@@ -455,6 +526,19 @@ func mustJSON(value any) json.RawMessage {
 		return json.RawMessage(`{}`)
 	}
 	return encoded
+}
+
+func backupFileInfo(path string) (platformopsdomain.BackupFileInfo, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return platformopsdomain.BackupFileInfo{}, fmt.Errorf("stat backup file: %w", err)
+	}
+	return platformopsdomain.BackupFileInfo{
+		Name:      filepath.Base(path),
+		Path:      path,
+		SizeBytes: info.Size(),
+		CreatedAt: info.ModTime().UTC(),
+	}, nil
 }
 
 func NormalizeWebhookURL(raw string) string {

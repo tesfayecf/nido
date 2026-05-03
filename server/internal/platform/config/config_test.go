@@ -76,3 +76,32 @@ func TestLoadParsesFetcherMinRequestGap(t *testing.T) {
 		t.Fatalf("unexpected fetcher min request gap %s", cfg.Fetcher.MinRequestGap)
 	}
 }
+
+func TestLoadParsesMigrationControlsFromPortableEnvNames(t *testing.T) {
+	t.Setenv("AUTO_MIGRATE", "false")
+	t.Setenv("MIGRATION_STRATEGY", "manual")
+	t.Setenv("NIDO_BACKUP_DIR", "/custom/backups")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+
+	if cfg.Migration.AutoMigrate {
+		t.Fatalf("expected auto migrate to be disabled")
+	}
+	if cfg.Migration.Strategy != "manual" {
+		t.Fatalf("unexpected migration strategy %q", cfg.Migration.Strategy)
+	}
+	if cfg.Migration.BackupDir != "/custom/backups" {
+		t.Fatalf("unexpected backup dir %q", cfg.Migration.BackupDir)
+	}
+}
+
+func TestLoadRejectsUnsupportedMigrationStrategy(t *testing.T) {
+	t.Setenv("MIGRATION_STRATEGY", "unsafe")
+
+	if _, err := Load(); err == nil {
+		t.Fatalf("expected unsupported migration strategy error")
+	}
+}
