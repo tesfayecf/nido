@@ -1,6 +1,7 @@
 import { DataTable } from "@/components/ui/DataTable";
 import type { DataTableProps } from "@/components/ui/DataTable";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { Skeleton } from "@/components/ui/Skeleton";
 
 interface QueryDataTableProps<TItem> extends DataTableProps<TItem> {
     readonly errorMessage: string;
@@ -25,10 +26,42 @@ export const QueryDataTable = <TItem,>({
     loadingMessage,
     onRowClick,
     pageSize,
+    pageSizeOptions,
+    paginationStorageKey,
     rowLabel,
+    virtualizeThreshold,
 }: QueryDataTableProps<TItem>): JSX.Element => {
     if (isLoading) {
-        return <p className={"state-message state-message--loading"}>{loadingMessage}</p>;
+        return (
+            <div aria-busy={"true"} className={"data-table-shell data-table-shell--skeleton"} role={"status"}>
+                <span className={"sr-only"}>{loadingMessage}</span>
+                <table className={compact === true ? "data-table data-table--compact" : "data-table"}>
+                    {caption !== undefined ? <caption className={"sr-only"}>{caption}</caption> : null}
+                    <thead>
+                        <tr>
+                            {columns.map((column) => (
+                                <th key={column.id} scope={"col"} style={column.width !== undefined ? { width: column.width } : undefined}>
+                                    {column.header}
+                                </th>
+                            ))}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {Array.from({ length: Math.min(5, pageSize ?? 5) }, (_, rowIndex) => (
+                            <tr className={"data-table__row"} key={rowIndex}>
+                                {columns.map((column) => (
+                                    <td key={`${rowIndex}-${column.id}`}>
+                                        <div className={"data-table__cell-content"}>
+                                            <Skeleton aria-hidden={"true"} className={"data-table__skeleton"} />
+                                        </div>
+                                    </td>
+                                ))}
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        );
     }
 
     if (isError) {
@@ -48,7 +81,10 @@ export const QueryDataTable = <TItem,>({
             items={items}
             onRowClick={onRowClick}
             pageSize={pageSize}
+            pageSizeOptions={pageSizeOptions}
+            paginationStorageKey={paginationStorageKey}
             rowLabel={rowLabel}
+            virtualizeThreshold={virtualizeThreshold}
         />
     );
 };

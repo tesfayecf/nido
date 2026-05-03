@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { Link, useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/Button";
@@ -26,7 +27,7 @@ import { alertRuleKeys } from "@/services/alert-rules/alert-rules.keys";
 import { listAlertRules, setAlertRuleEnabled } from "@/services/alert-rules/alert-rules.service";
 import { stringifyComparisonIds } from "@/features/properties/propertyCompare";
 import { propertyKeys } from "@/services/properties/properties.keys";
-import { deleteProperty, ingestProperty, listProperties, listPropertySummaries, updateProperty } from "@/services/properties/properties.service";
+import { deleteProperty, getProperty, ingestProperty, listProperties, listPropertySummaries, updateProperty } from "@/services/properties/properties.service";
 import type { Property, PropertyStatus, PropertySummary } from "@/services/properties/properties.types";
 import { tagKeys } from "@/services/tags/tags.keys";
 import { listPropertyTags, listTags, setPropertyTags } from "@/services/tags/tags.service";
@@ -40,7 +41,9 @@ import {
 } from "@/features/properties/propertyTableState";
 
 const TABLE_STORAGE_KEY = "nido.properties.table";
+const TABLE_PAGE_STORAGE_KEY = "nido.properties.table.pagination";
 const MIN_COLUMN_WIDTH = 96;
+const PROPERTY_PAGE_SIZE_OPTIONS = [25, 50, 100, 250];
 
 interface PropertyRow {
     readonly bathrooms?: number;
@@ -105,7 +108,10 @@ export const PropertiesPage = (): JSX.Element => {
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [alertAction, setAlertAction] = useState<"disable" | "enable" | null>(null);
     const columnMenuRef = useRef<HTMLDivElement | null>(null);
+    const tableShellRef = useRef<HTMLDivElement | null>(null);
     const resizeStateRef = useRef<{ readonly columnId: string; readonly startWidth: number; readonly startX: number; } | null>(null);
+    const [page, setPage] = useState(() => readStoredNumber(`${TABLE_PAGE_STORAGE_KEY}:page`, 0));
+    const [pageSize, setPageSize] = useState(() => readStoredNumber(`${TABLE_PAGE_STORAGE_KEY}:page-size`, 50));
 
     const propertiesQuery = useQuery<Property[]>({
         queryFn: () => listProperties(),
@@ -365,6 +371,17 @@ export const PropertiesPage = (): JSX.Element => {
             return sortDirection === "asc" ? order : -order;
         });
     }, [filteredRows, sortColumnId, sortDirection]);
+    const totalPages = Math.max(1, Math.ceil(sortedRows.length / pageSize));
+    const pageStart = page * pageSize;
+    const pagedRows = sortedRows.slice(pageStart, pageStart + pageSize);
+    const rowVirtualizer = useVirtualizer({
+        count: pagedRows.length,
+        estimateSize: () => 56,
+        getScrollElement: () => tableShellRef.current,
+        initialRect: { height: Math.min(pagedRows.length, pageSize) * 56, width: 0 },
+        overscan: 10,
+    });
+    const virtualRows = rowVirtualizer.getVirtualItems();
 
     const visibleColumns = useMemo(() => {
         const hiddenIds = new Set(tableState.hiddenColumnIds);
@@ -382,6 +399,27 @@ export const PropertiesPage = (): JSX.Element => {
 
         return Array.from(new Set(locations)).sort((left, right) => left.localeCompare(right));
     }, [rows]);
+
+    useEffect(() => {
+        setPage((current) => Math.min(current, Math.max(0, totalPages - 1)));
+    }, [totalPages]);
+
+    useEffect(() => {
+        sessionStorage.setItem(`${TABLE_PAGE_STORAGE_KEY}:page`, `${page}`);
+        sessionStorage.setItem(`${TABLE_PAGE_STORAGE_KEY}:page-size`, `${pageSize}`);
+    }, [page, pageSize]);
+
+    useEffect(() => {
+        tableShellRef.current?.scrollTo({ top: 0 });
+    }, [page]);
+
+    const prefetchPropertyDetail = (propertyId: string): void => {
+        void queryClient.prefetchQuery({
+            queryFn: () => getProperty(propertyId),
+            queryKey: propertyKeys.detail(propertyId),
+            staleTime: 30_000,
+        });
+    };
 
     return (
         <PageStack>
@@ -472,7 +510,7 @@ export const PropertiesPage = (): JSX.Element => {
                     sortedRows.length === 0 && rows.length === 0 ? 
                         <p className={"muted-copy"}>{"No properties are being tracked yet."}</p>
                         : (
-                            <div className={"properties-table__shell"}>
+                            <div className={"properties-table__shell"} ref={tableShellRef}>
                                 <table className={"properties-table"}>
                                     <thead>
                                         <tr>
@@ -552,19 +590,22 @@ export const PropertiesPage = (): JSX.Element => {
                                             </tr>
                                         ) : null}
                                     </thead>
-                                    <tbody>
-                                        {sortedRows.map((row) => {
+                                    <tbody style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
+                                        {virtualRows.map((virtualRow) => {
+                                            const row = pagedRows[virtualRow.index];
                                             const isBookmarked = bookmarkedIds.has(row.id);
                                             return (
                                                 <tr
                                                     aria-label={`Open property ${row.label.trim() !== "" ? row.label : row.url.trim() !== "" ? row.url : row.id}`}
-                                                    className={"properties-table__row properties-table__row--interactive"}
+                                                    className={"properties-table__row properties-table__row--interactive properties-table__row--virtual"}
+                                                    data-index={virtualRow.index}
                                                     key={row.id}
                                                     onClick={(event) => {
                                                         if (!isEventFromInteractiveElement(event.target, event.currentTarget)) {
                                                             void navigate(`/properties/${row.id}`);
                                                         }
                                                     }}
+                                                    onFocus={() => { prefetchPropertyDetail(row.id); }}
                                                     onKeyDown={(event) => {
                                                         if (isEventFromInteractiveElement(event.target, event.currentTarget)) {
                                                             return;
@@ -575,7 +616,9 @@ export const PropertiesPage = (): JSX.Element => {
                                                             void navigate(`/properties/${row.id}`);
                                                         }
                                                     }}
+                                                    onMouseEnter={() => { prefetchPropertyDetail(row.id); }}
                                                     role={"button"}
+                                                    style={{ transform: `translateY(${virtualRow.start}px)` }}
                                                     tabIndex={0}
                                                 >
                                                     <td>
@@ -625,6 +668,27 @@ export const PropertiesPage = (): JSX.Element => {
                                     </tbody>
                                 </table>
                             </div>
+                            {totalPages > 1 ? (
+                                <div className={"data-table__pagination"}>
+                                    <span>{`Page ${page + 1} of ${totalPages} · ${sortedRows.length} properties`}</span>
+                                    <div className={"action-group"}>
+                                        <label className={"data-table__page-size"}>
+                                            <span>{"Rows"}</span>
+                                            <select
+                                                onChange={(event) => {
+                                                    setPageSize(Number(event.target.value));
+                                                    setPage(0);
+                                                }}
+                                                value={pageSize}
+                                            >
+                                                {PROPERTY_PAGE_SIZE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                                            </select>
+                                        </label>
+                                        <Button disabled={page === 0} onClick={() => { setPage((current) => Math.max(0, current - 1)); }} size={"small"} variant={"secondary"}>{"Previous"}</Button>
+                                        <Button disabled={page >= totalPages - 1} onClick={() => { setPage((current) => Math.min(totalPages - 1, current + 1)); }} size={"small"} variant={"secondary"}>{"Next"}</Button>
+                                    </div>
+                                </div>
+                            ) : null}
                         )
                     : null}
             </PageCard>
@@ -890,6 +954,13 @@ const matchesNumericRange = (value: number | undefined, filter: NumericRangeFilt
 
 const matchesExactNumber = (value: number | undefined, filter: string): boolean => {
     return filter === "" || (value !== undefined && `${formatNumber(value)}` === filter);
+};
+
+const readStoredNumber = (key: string, fallback: number): number => {
+    const storedValue = sessionStorage.getItem(key);
+    const parsedValue = storedValue === null ? fallback : Number(storedValue);
+
+    return Number.isInteger(parsedValue) && parsedValue > 0 ? parsedValue : fallback;
 };
 
 const INTERACTIVE_SELECTOR = [
