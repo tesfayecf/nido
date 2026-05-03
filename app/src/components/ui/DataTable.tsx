@@ -93,7 +93,7 @@ export const DataTable = <TItem,>({
     });
     const virtualRows = shouldVirtualize ? rowVirtualizer.getVirtualItems() : [];
     const visibleRows = shouldVirtualize
-        ? (virtualRows.length > 0
+        ? virtualRows.length > 0
             ? virtualRows.flatMap((virtualRow) => {
                 const item = pagedItems[virtualRow.index];
                 return item === undefined ? [] : [{ item, virtualRow }];
@@ -101,7 +101,7 @@ export const DataTable = <TItem,>({
             : pagedItems.slice(0, Math.min(pagedItems.length, 20)).map((item, index) => ({
                 item,
                 virtualRow: { start: index * (compact ? 30 : 38) },
-            })))
+            }))
         : pagedItems.map((item) => ({ item, virtualRow: null }));
 
     useEffect(() => {
