@@ -189,8 +189,28 @@ export const DataTable = <TItem,>({
                                 {pageSizeOptions.map((option) => <option key={option} value={option}>{option}</option>)}
                             </select>
                         </label>
-                        <Button disabled={page === 0} onClick={() => { setPage((current) => Math.max(0, current - 1)); }} size={"small"} variant={"secondary"}>{"Previous"}</Button>
-                        <Button disabled={page >= totalPages - 1} onClick={() => { setPage((current) => Math.min(totalPages - 1, current + 1)); }} size={"small"} variant={"secondary"}>{"Next"}</Button>
+                        <Button
+                            disabled={page === 0}
+                            onClick={() => {
+                                setPage((current) => Math.max(0, current - 1));
+                                scrollToTop(scrollRef.current);
+                            }}
+                            size={"small"}
+                            variant={"secondary"}
+                        >
+                            {"Previous"}
+                        </Button>
+                        <Button
+                            disabled={page >= totalPages - 1}
+                            onClick={() => {
+                                setPage((current) => Math.min(totalPages - 1, current + 1));
+                                scrollToTop(scrollRef.current);
+                            }}
+                            size={"small"}
+                            variant={"secondary"}
+                        >
+                            {"Next"}
+                        </Button>
                     </div>
                 </div>
             ) : null}
