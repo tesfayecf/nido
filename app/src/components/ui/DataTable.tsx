@@ -92,6 +92,17 @@ export const DataTable = <TItem,>({
         overscan: 8,
     });
     const virtualRows = shouldVirtualize ? rowVirtualizer.getVirtualItems() : [];
+    const visibleRows = shouldVirtualize
+        ? (virtualRows.length > 0
+            ? virtualRows.flatMap((virtualRow) => {
+                const item = pagedItems[virtualRow.index];
+                return item === undefined ? [] : [{ item, virtualRow }];
+            })
+            : pagedItems.slice(0, Math.min(pagedItems.length, 20)).map((item, index) => ({
+                item,
+                virtualRow: { start: index * (compact ? 30 : 38) },
+            })))
+        : pagedItems.map((item) => ({ item, virtualRow: null }));
 
     useEffect(() => {
         setPage((current) => Math.min(current, Math.max(0, totalPages - 1)));
@@ -142,7 +153,7 @@ export const DataTable = <TItem,>({
                     </tr>
                 </thead>
                 <tbody style={shouldVirtualize ? { height: `${rowVirtualizer.getTotalSize()}px` } : undefined}>
-                    {(shouldVirtualize ? virtualRows.map((virtualRow) => ({ item: pagedItems[virtualRow.index], virtualRow })) : pagedItems.map((item) => ({ item, virtualRow: null }))).map(({ item, virtualRow }) => (
+                    {visibleRows.map(({ item, virtualRow }) => (
                         <DataTableRow
                             columns={columns}
                             getRowId={getRowId}
@@ -165,7 +176,7 @@ export const DataTable = <TItem,>({
                                 onChange={(event) => {
                                     setCurrentPageSize(Number(event.target.value));
                                     setPage(0);
-                                    scrollRef.current?.scrollTo({ top: 0 });
+                                    scrollToTop(scrollRef.current);
                                 }}
                                 value={currentPageSize}
                             >
@@ -247,6 +258,19 @@ const readStoredPageSize = (paginationStorageKey: string | undefined, fallback: 
     const nextPageSize = value === null ? fallback : Number(value);
 
     return Number.isInteger(nextPageSize) && nextPageSize > 0 ? nextPageSize : fallback;
+};
+
+const scrollToTop = (element: HTMLElement | null): void => {
+    if (element === null) {
+        return;
+    }
+
+    if (typeof element.scrollTo === "function") {
+        element.scrollTo({ top: 0 });
+        return;
+    }
+
+    element.scrollTop = 0;
 };
 
 const INTERACTIVE_SELECTOR = [

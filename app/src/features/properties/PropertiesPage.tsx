@@ -382,6 +382,15 @@ export const PropertiesPage = (): JSX.Element => {
         overscan: 10,
     });
     const virtualRows = rowVirtualizer.getVirtualItems();
+    const visiblePagedRows = virtualRows.length > 0
+        ? virtualRows.flatMap((virtualRow) => {
+            const row = pagedRows[virtualRow.index];
+            return row === undefined ? [] : [{ row, virtualStart: virtualRow.start }];
+        })
+        : pagedRows.slice(0, Math.min(pagedRows.length, 20)).map((row, index) => ({
+            row,
+            virtualStart: index * 56,
+        }));
 
     const visibleColumns = useMemo(() => {
         const hiddenIds = new Set(tableState.hiddenColumnIds);
@@ -410,7 +419,7 @@ export const PropertiesPage = (): JSX.Element => {
     }, [page, pageSize]);
 
     useEffect(() => {
-        tableShellRef.current?.scrollTo({ top: 0 });
+        scrollToTop(tableShellRef.current);
     }, [page]);
 
     const prefetchPropertyDetail = (propertyId: string): void => {
@@ -510,6 +519,7 @@ export const PropertiesPage = (): JSX.Element => {
                     sortedRows.length === 0 && rows.length === 0 ? 
                         <p className={"muted-copy"}>{"No properties are being tracked yet."}</p>
                         : (
+                            <>
                             <div className={"properties-table__shell"} ref={tableShellRef}>
                                 <table className={"properties-table"}>
                                     <thead>
@@ -591,14 +601,13 @@ export const PropertiesPage = (): JSX.Element => {
                                         ) : null}
                                     </thead>
                                     <tbody style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
-                                        {virtualRows.map((virtualRow) => {
-                                            const row = pagedRows[virtualRow.index];
+                                        {visiblePagedRows.map(({ row, virtualStart }) => {
                                             const isBookmarked = bookmarkedIds.has(row.id);
                                             return (
                                                 <tr
                                                     aria-label={`Open property ${row.label.trim() !== "" ? row.label : row.url.trim() !== "" ? row.url : row.id}`}
                                                     className={"properties-table__row properties-table__row--interactive properties-table__row--virtual"}
-                                                    data-index={virtualRow.index}
+                                                    data-index={row.id}
                                                     key={row.id}
                                                     onClick={(event) => {
                                                         if (!isEventFromInteractiveElement(event.target, event.currentTarget)) {
@@ -618,7 +627,7 @@ export const PropertiesPage = (): JSX.Element => {
                                                     }}
                                                     onMouseEnter={() => { prefetchPropertyDetail(row.id); }}
                                                     role={"button"}
-                                                    style={{ transform: `translateY(${virtualRow.start}px)` }}
+                                                    style={{ transform: `translateY(${virtualStart}px)` }}
                                                     tabIndex={0}
                                                 >
                                                     <td>
@@ -689,6 +698,7 @@ export const PropertiesPage = (): JSX.Element => {
                                     </div>
                                 </div>
                             ) : null}
+                            </>
                         )
                     : null}
             </PageCard>
@@ -961,6 +971,19 @@ const readStoredNumber = (key: string, fallback: number): number => {
     const parsedValue = storedValue === null ? fallback : Number(storedValue);
 
     return Number.isInteger(parsedValue) && parsedValue > 0 ? parsedValue : fallback;
+};
+
+const scrollToTop = (element: HTMLElement | null): void => {
+    if (element === null) {
+        return;
+    }
+
+    if (typeof element.scrollTo === "function") {
+        element.scrollTo({ top: 0 });
+        return;
+    }
+
+    element.scrollTop = 0;
 };
 
 const INTERACTIVE_SELECTOR = [

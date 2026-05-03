@@ -31,6 +31,8 @@ describe("QueryDataTable", () => {
         );
 
         expect(screen.getByText("Loading rows...")).toBeInTheDocument();
+        expect(screen.getByRole("status")).toHaveAttribute("aria-busy", "true");
+        expect(screen.getAllByRole("row")).toHaveLength(6);
 
         rerender(
             <QueryDataTable<Row>

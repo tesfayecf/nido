@@ -96,6 +96,7 @@ describe("PropertiesPage", () => {
         setAlertRuleEnabledMock.mockReset();
         setPropertyTagsMock.mockReset();
         updatePropertyMock.mockReset();
+        sessionStorage.clear();
 
         listAlertRulesMock.mockResolvedValue([]);
         listBookmarksMock.mockResolvedValue([]);
@@ -126,4 +127,27 @@ describe("PropertiesPage", () => {
         });
         expect(router.state.location.pathname).toBe("/properties");
     });
+
+    it("keeps the custom properties table paginated for large portfolios", async () => {
+        listPropertiesMock.mockResolvedValue(Array.from({ length: 60 }, (_, index) => buildProperty(index + 1)));
+
+        renderPropertiesPage();
+
+        expect(await screen.findByText("Page 1 of 2 · 60 properties")).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Open property Property 1" })).toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: "Open property Property 60" })).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole("button", { name: "Next" }));
+
+        expect(screen.getByText("Page 2 of 2 · 60 properties")).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Open property Property 60" })).toBeInTheDocument();
+    });
+});
+
+const buildProperty = (index: number): Property => ({
+    id: `prop_${index}`,
+    label: `Property ${index}`,
+    status: "active",
+    updated_at: "2024-01-01T12:00:00.000Z",
+    url: `https://example.com/listing-${index}`,
 });
