@@ -13,6 +13,8 @@ SERVER_DIR="${ROOT_DIR}/server"
 APP_DIR="${ROOT_DIR}/app"
 SERVER_BIN="${SERVER_BIN:-${SERVER_DIR}/.install/bin/server}"
 DATABASE_PATH="${NIDO_DATABASE_PATH:-${ROOT_DIR}/.sqlite/nido.db}"
+AUTO_MIGRATE="${AUTO_MIGRATE:-true}"
+MIGRATION_STRATEGY="${MIGRATION_STRATEGY:-safe-auto}"
 BACKEND_HTTP_ADDR="${NIDO_HTTP_ADDR:-:8080}"
 APP_API_ORIGIN="${APP_API_ORIGIN:-${VITE_API_ORIGIN:-http://127.0.0.1:8080}}"
 APP_DEV_BACKEND_ORIGIN="${APP_DEV_BACKEND_ORIGIN:-${VITE_BACKEND_ORIGIN:-${APP_API_ORIGIN}}}"
@@ -51,6 +53,8 @@ Environment:
 	PNPM_BIN                  pnpm executable to use. Default: pnpm
 	SERVER_BIN                Backend binary output path. Default: ./server/.install/bin/server
 	NIDO_DATABASE_PATH        SQLite database path. Default: ./.sqlite/nido.db
+	AUTO_MIGRATE              Enable automatic migrations. Default: true
+	MIGRATION_STRATEGY        Migration strategy. Default: safe-auto
 	NIDO_HTTP_ADDR            Backend listen address. Default: :8080
 	APP_API_ORIGIN            Frontend API origin baked into the build. Default: http://127.0.0.1:8080
 	APP_DEV_BACKEND_ORIGIN    Backend origin used by Vite dev proxy. Default: APP_API_ORIGIN
@@ -121,6 +125,8 @@ GO_BIN=${GO_BIN}
 PNPM_BIN=${PNPM_BIN}
 SERVER_BIN=${SERVER_BIN}
 NIDO_DATABASE_PATH=${DATABASE_PATH}
+AUTO_MIGRATE=${AUTO_MIGRATE}
+MIGRATION_STRATEGY=${MIGRATION_STRATEGY}
 NIDO_HTTP_ADDR=${BACKEND_HTTP_ADDR}
 APP_API_ORIGIN=${APP_API_ORIGIN}
 APP_DEV_BACKEND_ORIGIN=${APP_DEV_BACKEND_ORIGIN}

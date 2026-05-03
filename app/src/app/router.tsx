@@ -22,7 +22,6 @@ import { PropertyDetailPage } from "@/features/properties/PropertyDetailPage";
 import { PropertyPrintPage } from "@/features/properties/PropertyPrintPage";
 import { FieldAnalysisPage } from "@/features/properties/FieldAnalysisPage";
 import { SettingsPage } from "@/features/settings/SettingsPage";
-import { FieldCandidatesPage } from "@/features/settings/FieldCandidatesPage";
 import { TagsPage } from "@/features/tags/TagsPage";
 
 export const router = createBrowserRouter([
@@ -130,10 +129,6 @@ export const router = createBrowserRouter([
                     {
                         path: "settings",
                         element: <SettingsPage />,
-                    },
-                    {
-                        path: "settings/field-candidates",
-                        element: <FieldCandidatesPage />,
                     },
                 ],
             },

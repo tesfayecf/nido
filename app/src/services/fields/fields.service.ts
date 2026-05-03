@@ -1,6 +1,6 @@
 import { apiRequest, type ItemEnvelope, type ListEnvelope, type StatusEnvelope } from "@/lib/api/client";
 
-import type { AssignUnmappedFieldRequest, FieldDefinition, FieldDefinitionUsage, UnmappedFieldGroup } from "@/services/fields/fields.types";
+import type { FieldDefinition, FieldDefinitionUsage } from "@/services/fields/fields.types";
 
 export const listFields = async (): Promise<FieldDefinitionUsage[]> => {
     const response = await apiRequest<ListEnvelope<FieldDefinitionUsage>>({
@@ -35,22 +35,5 @@ export const deleteField = async (fieldId: string): Promise<void> => {
         auth: true,
         method: "DELETE",
         path: `/api/v1/backoffice/fields/${fieldId}`,
-    });
-};
-
-export const listUnmappedFields = async (): Promise<UnmappedFieldGroup[]> => {
-    const response = await apiRequest<ListEnvelope<UnmappedFieldGroup>>({
-        auth: true,
-        path: "/api/v1/backoffice/fields/unmapped",
-    });
-    return response.items;
-};
-
-export const assignUnmappedField = async (request: AssignUnmappedFieldRequest): Promise<void> => {
-    await apiRequest<StatusEnvelope, AssignUnmappedFieldRequest>({
-        auth: true,
-        body: request,
-        method: "POST",
-        path: "/api/v1/backoffice/fields/unmapped/assign",
     });
 };

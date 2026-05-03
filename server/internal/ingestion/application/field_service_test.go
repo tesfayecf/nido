@@ -3,7 +3,6 @@ package application
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"testing"
 	"time"
 
@@ -49,10 +48,6 @@ func (s *fieldServiceStoreStub) UpdateFieldDefinition(context.Context, ingestion
 }
 
 func (s *fieldServiceStoreStub) DeleteFieldDefinition(context.Context, string) error { return nil }
-
-func (s *fieldServiceStoreStub) ListUnmappedFieldGroups(context.Context) ([]ingestiondomain.UnmappedFieldGroup, error) {
-	return nil, nil
-}
 
 func (s *fieldServiceStoreStub) ListAnalyticsRecords(context.Context) ([]ingestiondomain.AnalyticsPropertyRecord, error) {
 	return nil, nil
@@ -107,49 +102,5 @@ func TestFieldServiceCreateFieldDefinition(t *testing.T) {
 	}
 	if !store.createdField.CreatedAt.Equal(now) || !store.createdField.UpdatedAt.Equal(now) {
 		t.Fatalf("expected normalized timestamps, got created=%s updated=%s", store.createdField.CreatedAt, store.createdField.UpdatedAt)
-	}
-}
-
-func TestFieldServiceAssignUnmappedFieldCreatesNewConfigAndRemaps(t *testing.T) {
-	t.Parallel()
-
-	now := time.Date(2026, time.April, 24, 12, 0, 0, 0, time.UTC)
-	store := &fieldServiceStoreStub{
-		fieldByName: ingestiondomain.FieldDefinition{ID: "field-price", Name: "price"},
-		latestConfig: ingestiondomain.PropertyExtractionConfig{
-			Fields: []ingestiondomain.FieldSelector{
-				{Name: "headline", SelectorValue: ".headline"},
-			},
-			PropertyID: "prop-1",
-			Version:    2,
-		},
-		property: ingestiondomain.Property{ID: "prop-1"},
-		source:   ingestiondomain.Source{},
-	}
-	service := NewFieldService(nil, store, fixedClock{now: now})
-
-	if err := service.AssignUnmappedField(context.Background(), "prop-1", "headline", "price"); err != nil {
-		t.Fatalf("assign unmapped field: %v", err)
-	}
-
-	if len(store.createdConfigs) != 1 {
-		t.Fatalf("expected one new config, got %d", len(store.createdConfigs))
-	}
-	if got := store.createdConfigs[0].Fields[0].FieldName; got != "price" {
-		t.Fatalf("expected canonical field mapping in new config, got %q", got)
-	}
-	if len(store.remapCalls) != 1 {
-		t.Fatalf("expected one remap call, got %d", len(store.remapCalls))
-	}
-}
-
-func TestFieldServiceAssignUnmappedFieldRejectsUnknownField(t *testing.T) {
-	t.Parallel()
-
-	service := NewFieldService(nil, &fieldServiceStoreStub{}, fixedClock{now: time.Now().UTC()})
-
-	err := service.AssignUnmappedField(context.Background(), "prop-1", "headline", "price")
-	if !errors.Is(err, ErrFieldDefinitionNotFound) {
-		t.Fatalf("expected field not found error, got %v", err)
 	}
 }

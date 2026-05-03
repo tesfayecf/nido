@@ -134,7 +134,7 @@ func TestComputeChangeSignals_NeutralStatusChange(t *testing.T) {
 
 func TestComputeChangeSignals_MissingCriticalFields(t *testing.T) {
 	now := time.Now().UTC()
-	// Valid snapshot with only a title — price/location/size missing
+	// Valid snapshot with only a title — price/location/area missing
 	current := makeSnapshot(map[string]string{"title": "Nice flat"}, true, now)
 	var previous ingestiondomain.PropertySnapshot // zero value
 
@@ -146,7 +146,7 @@ func TestComputeChangeSignals_MissingCriticalFields(t *testing.T) {
 			missingCount++
 		}
 	}
-	// price, location, size/area/sqm — at minimum price and location should be flagged
+	// price, location, and area should be flagged
 	if missingCount == 0 {
 		t.Error("expected data quality signals for missing critical fields")
 	}
@@ -166,7 +166,7 @@ func TestComputeChangeSignals_StaleData(t *testing.T) {
 
 func TestComputeChangeSignals_FreshData_NoFreshnessSignal(t *testing.T) {
 	now := time.Now().UTC()
-	current := makeSnapshot(map[string]string{"price": "250000", "title": "t", "location": "l", "size": "100"}, true, now)
+	current := makeSnapshot(map[string]string{"price": "250000", "title": "t", "location": "l", "area_m2": "100"}, true, now)
 	previous := makeSnapshot(map[string]string{"price": "250000"}, true, now.Add(-time.Hour))
 
 	signals := ComputeChangeSignals(current, previous, baseProperty)
@@ -338,9 +338,9 @@ func TestDeriveDecisionContext_DealThesisTruncated(t *testing.T) {
 	}
 }
 
-func TestDeriveDecisionContext_PricePerSqm(t *testing.T) {
+func TestDeriveDecisionContext_PricePerSqmUsesAreaField(t *testing.T) {
 	now := time.Now().UTC()
-	snap := makeSnapshot(map[string]string{"price": "200000", "size": "100"}, true, now)
+	snap := makeSnapshot(map[string]string{"price": "200000", "area_m2": "100"}, true, now)
 
 	ctx := DeriveDecisionContext(baseProperty, snap)
 

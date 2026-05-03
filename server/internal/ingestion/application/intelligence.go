@@ -23,8 +23,20 @@ const (
 	significantPriceChangePct = 2.0
 )
 
-// criticalFieldNames are field names whose absence degrades data quality.
-var criticalFieldNames = []string{"price", "title", "location", "size", "area", "sqm"}
+var areaFieldNames = []string{"area_m2", "area"}
+
+type requiredFieldGroup struct {
+	fieldName  string
+	candidates []string
+}
+
+// requiredFieldGroups are the direct fields analytics and intelligence depend on.
+var requiredFieldGroups = []requiredFieldGroup{
+	{fieldName: "price", candidates: []string{"price"}},
+	{fieldName: "title", candidates: []string{"title"}},
+	{fieldName: "location", candidates: []string{"location"}},
+	{fieldName: "area", candidates: areaFieldNames},
+}
 
 // ComputeChangeSignals derives deterministic intelligence signals by comparing two snapshots.
 // Both snapshots may be zero-value (no prior data) — all operations are null-safe.
@@ -74,8 +86,8 @@ func ComputeChangeSignals(
 	}
 
 	// ── €/m² change ───────────────────────────────────────────────────────────
-	currentSqm, hasCurrentSqm := extractFirstNumericField(currentValues, "size", "sqm", "area")
-	previousSqm, hasPreviousSqm := extractFirstNumericField(previousValues, "size", "sqm", "area")
+	currentSqm, hasCurrentSqm := extractFirstNumericField(currentValues, areaFieldNames...)
+	previousSqm, hasPreviousSqm := extractFirstNumericField(previousValues, areaFieldNames...)
 
 	if hasCurrentPrice && hasCurrentSqm && currentSqm > 0 {
 		currentPPM := currentPrice / currentSqm
@@ -177,18 +189,18 @@ func ComputeChangeSignals(
 
 	// ── Missing critical fields ───────────────────────────────────────────────
 	if current.IsValid {
-		for _, fieldName := range criticalFieldNames {
-			val := strings.TrimSpace(currentValues[fieldName])
-			if val == "" {
-				signals = append(signals, ingestiondomain.ChangeSignal{
-					Field:      fieldName,
-					Label:      fmt.Sprintf("Critical field %q is missing", fieldName),
-					Current:    "",
-					ObservedAt: observedAt,
-					Impact:     ingestiondomain.ChangeImpactNegative,
-					Group:      ingestiondomain.ChangeGroupDataQuality,
-				})
+		for _, group := range requiredFieldGroups {
+			if hasAnyFieldValue(currentValues, group.candidates...) {
+				continue
 			}
+			signals = append(signals, ingestiondomain.ChangeSignal{
+				Field:      group.fieldName,
+				Label:      fmt.Sprintf("Critical field %q is missing", group.fieldName),
+				Current:    "",
+				ObservedAt: observedAt,
+				Impact:     ingestiondomain.ChangeImpactNegative,
+				Group:      ingestiondomain.ChangeGroupDataQuality,
+			})
 		}
 	}
 
@@ -289,7 +301,7 @@ func DeriveDecisionContext(
 
 	// €/m²
 	if ctx.CurrentPrice != nil {
-		if sqm, ok := extractFirstNumericField(values, "size", "sqm", "area"); ok && sqm > 0 {
+		if sqm, ok := extractFirstNumericField(values, areaFieldNames...); ok && sqm > 0 {
 			ppm := *ctx.CurrentPrice / sqm
 			ctx.CurrentPricePerSqm = &ppm
 		}
@@ -361,6 +373,15 @@ func decodeStringValues(raw json.RawMessage) map[string]string {
 		return map[string]string{}
 	}
 	return out
+}
+
+func hasAnyFieldValue(values map[string]string, fieldNames ...string) bool {
+	for _, name := range fieldNames {
+		if strings.TrimSpace(values[name]) != "" {
+			return true
+		}
+	}
+	return false
 }
 
 // extractFirstNumericField tries each field name in order and returns the first parseable int64.

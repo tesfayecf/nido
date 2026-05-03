@@ -19,20 +19,13 @@ var ErrFieldDefinitionNotFound = errors.New("field definition not found")
 type FieldStore interface {
 	ListFieldDefinitions(ctx context.Context) ([]ingestiondomain.FieldDefinitionUsage, error)
 	GetFieldDefinition(ctx context.Context, fieldID string) (ingestiondomain.FieldDefinition, error)
-	GetFieldDefinitionByName(ctx context.Context, fieldName string) (ingestiondomain.FieldDefinition, error)
 	CreateFieldDefinition(ctx context.Context, field ingestiondomain.FieldDefinition) error
 	UpdateFieldDefinition(ctx context.Context, field ingestiondomain.FieldDefinition) error
 	DeleteFieldDefinition(ctx context.Context, fieldID string) error
-	ListUnmappedFieldGroups(ctx context.Context) ([]ingestiondomain.UnmappedFieldGroup, error)
 	ListAnalyticsRecords(ctx context.Context) ([]ingestiondomain.AnalyticsPropertyRecord, error)
-	RemapPropertyFieldValues(ctx context.Context, propertyID, selectorName, fieldName string) error
-	GetLatestPropertyConfig(ctx context.Context, propertyID string) (ingestiondomain.PropertyExtractionConfig, error)
-	GetProperty(ctx context.Context, propertyID string) (ingestiondomain.Property, error)
-	GetSource(ctx context.Context, sourceID string) (ingestiondomain.Source, error)
-	CreatePropertyConfigVersion(ctx context.Context, config ingestiondomain.PropertyExtractionConfig) error
 }
 
-// FieldService manages canonical field definitions and unmapped groups.
+// FieldService manages canonical field definitions and analytics records.
 type FieldService struct {
 	logger *slog.Logger
 	store  FieldStore
@@ -112,120 +105,8 @@ func (s *FieldService) DeleteFieldDefinition(ctx context.Context, fieldID string
 	return err
 }
 
-func (s *FieldService) ListUnmappedFieldGroups(ctx context.Context) ([]ingestiondomain.UnmappedFieldGroup, error) {
-	return s.store.ListUnmappedFieldGroups(ctx)
-}
-
 func (s *FieldService) ListAnalyticsRecords(ctx context.Context) ([]ingestiondomain.AnalyticsPropertyRecord, error) {
 	return s.store.ListAnalyticsRecords(ctx)
-}
-
-func (s *FieldService) AssignUnmappedField(ctx context.Context, propertyID, selectorName, fieldName string) error {
-	fieldName = strings.TrimSpace(fieldName)
-	selectorName = strings.TrimSpace(selectorName)
-	propertyID = strings.TrimSpace(propertyID)
-	if propertyID == "" || selectorName == "" || fieldName == "" {
-		return fmt.Errorf("property id, selector name, and field name are required")
-	}
-	if _, err := s.store.GetFieldDefinitionByName(ctx, fieldName); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return ErrFieldDefinitionNotFound
-		}
-		return err
-	}
-
-	property, err := s.store.GetProperty(ctx, propertyID)
-	if err != nil {
-		return err
-	}
-	config, err := s.store.GetLatestPropertyConfig(ctx, propertyID)
-	if err != nil {
-		return err
-	}
-
-	resolvedFields, err := s.resolveFields(ctx, property.SourceID, config.Fields)
-	if err != nil {
-		return err
-	}
-
-	found := false
-	customFields := config.Fields
-	for index, field := range customFields {
-		if strings.EqualFold(strings.TrimSpace(field.Name), selectorName) {
-			customFields[index].FieldName = fieldName
-			found = true
-			break
-		}
-	}
-	if !found {
-		for _, field := range resolvedFields {
-			if strings.EqualFold(strings.TrimSpace(field.Name), selectorName) {
-				field.FieldName = fieldName
-				customFields = append(customFields, field)
-				found = true
-				break
-			}
-		}
-	}
-	if !found {
-		return fmt.Errorf("selector field not found")
-	}
-
-	normalizedFields, err := normalizeConfiguredFields(customFields)
-	if err != nil {
-		return err
-	}
-	next := ingestiondomain.PropertyExtractionConfig{
-		ID:            id.New("pconf"),
-		PropertyID:    propertyID,
-		Fields:        normalizedFields,
-		Version:       max(config.Version, 0) + 1,
-		CreatedAt:     s.clock.Now().UTC(),
-		ChangeSummary: fmt.Sprintf("Field mapping updated for %s.", selectorName),
-	}
-	if err := s.store.CreatePropertyConfigVersion(ctx, next); err != nil {
-		return err
-	}
-	if err := s.store.RemapPropertyFieldValues(ctx, propertyID, selectorName, fieldName); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (s *FieldService) resolveFields(ctx context.Context, sourceID string, customFields []ingestiondomain.FieldSelector) ([]ingestiondomain.FieldSelector, error) {
-	resolved := make([]ingestiondomain.FieldSelector, 0)
-	indexByName := make(map[string]int)
-
-	if strings.TrimSpace(sourceID) != "" {
-		source, err := s.store.GetSource(ctx, sourceID)
-		if err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return nil, err
-		}
-		for _, field := range fieldsFromSource(source) {
-			field.Name = strings.TrimSpace(field.Name)
-			if field.Name == "" || strings.TrimSpace(field.SelectorValue) == "" {
-				continue
-			}
-			indexByName[field.Name] = len(resolved)
-			resolved = append(resolved, field)
-		}
-	}
-
-	for _, field := range customFields {
-		field.Name = strings.TrimSpace(field.Name)
-		if field.Name == "" || strings.TrimSpace(field.SelectorValue) == "" {
-			continue
-		}
-		if idx, ok := indexByName[field.Name]; ok {
-			resolved[idx] = field
-			continue
-		}
-		indexByName[field.Name] = len(resolved)
-		resolved = append(resolved, field)
-	}
-
-	return resolved, nil
 }
 
 func normalizeFieldDefinitionInput(field ingestiondomain.FieldDefinition, now time.Time, keepID bool) (ingestiondomain.FieldDefinition, error) {

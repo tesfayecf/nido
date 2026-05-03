@@ -325,44 +325,6 @@ func (s *Store) UpsertPropertyFieldValues(ctx context.Context, snapshot ingestio
 	return nil
 }
 
-// ListUnmappedFieldGroups returns grouped normalized values that still need mapping.
-func (s *Store) ListUnmappedFieldGroups(ctx context.Context) ([]ingestiondomain.UnmappedFieldGroup, error) {
-	rows, err := s.db.QueryContext(ctx, `
-		SELECT
-			pfv.property_id,
-			p.label,
-			pfv.selector_name,
-			MIN(pfv.value_text) AS sample_value,
-			MAX(pfv.observed_at) AS observed_at,
-			COUNT(*) AS value_count,
-			MAX(pfv.config_version) AS config_version
-		FROM property_field_values pfv
-		INNER JOIN properties p ON p.id = pfv.property_id
-		WHERE pfv.field_definition_id IS NULL
-		GROUP BY pfv.property_id, p.label, pfv.selector_name
-		ORDER BY observed_at DESC, pfv.property_id DESC, pfv.selector_name DESC`)
-	if err != nil {
-		return nil, fmt.Errorf("list unmapped field groups: %w", err)
-	}
-	defer rows.Close()
-
-	items := make([]ingestiondomain.UnmappedFieldGroup, 0)
-	for rows.Next() {
-		var item ingestiondomain.UnmappedFieldGroup
-		var observedAt string
-		if err := rows.Scan(&item.PropertyID, &item.PropertyLabel, &item.SelectorName, &item.SampleValue, &observedAt, &item.ValueCount, &item.ConfigVersion); err != nil {
-			return nil, fmt.Errorf("scan unmapped field group: %w", err)
-		}
-		item.ObservedAt, err = parseTime(observedAt)
-		if err != nil {
-			return nil, err
-		}
-		items = append(items, item)
-	}
-
-	return items, rows.Err()
-}
-
 // ListAnalyticsRecords returns the latest normalized field values for each property.
 func (s *Store) ListAnalyticsRecords(ctx context.Context) ([]ingestiondomain.AnalyticsPropertyRecord, error) {
 	rows, err := s.db.QueryContext(ctx, `

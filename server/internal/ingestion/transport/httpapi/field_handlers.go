@@ -10,13 +10,7 @@ import (
 	platformhttp "nido/server/internal/platform/httpapi"
 )
 
-type fieldAssignmentRequest struct {
-	FieldName    string `json:"field_name"`
-	PropertyID   string `json:"property_id"`
-	SelectorName string `json:"selector_name"`
-}
-
-// RegisterFields binds canonical field and unmapped-field routes.
+// RegisterFields binds canonical field and analytics routes.
 func RegisterFields(mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, service *app.FieldService) {
 	mux.Handle("GET /api/v1/backoffice/fields", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fields, err := service.ListFieldDefinitions(r.Context())
@@ -77,31 +71,6 @@ func RegisterFields(mux *http.ServeMux, requireAuth func(http.Handler) http.Hand
 			return
 		}
 		platformhttp.WriteJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
-	})))
-
-	mux.Handle("GET /api/v1/backoffice/fields/unmapped", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		items, err := service.ListUnmappedFieldGroups(r.Context())
-		if err != nil {
-			platformhttp.WriteError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-		platformhttp.WritePaginatedJSON(w, r, http.StatusOK, items, nil)
-	})))
-
-	mux.Handle("POST /api/v1/backoffice/fields/unmapped/assign", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var request fieldAssignmentRequest
-		if !platformhttp.DecodeJSON(w, r, &request) {
-			return
-		}
-		if err := service.AssignUnmappedField(r.Context(), request.PropertyID, request.SelectorName, request.FieldName); err != nil {
-			status := http.StatusBadRequest
-			if errors.Is(err, app.ErrFieldDefinitionNotFound) {
-				status = http.StatusNotFound
-			}
-			platformhttp.WriteError(w, status, err.Error())
-			return
-		}
-		platformhttp.WriteJSON(w, http.StatusOK, map[string]string{"status": "updated"})
 	})))
 
 	mux.Handle("GET /api/v1/backoffice/analytics/dataset", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

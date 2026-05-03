@@ -21,19 +21,3 @@ export interface FieldDefinitionUsage extends FieldDefinition {
     readonly properties_using: number;
     readonly value_count: number;
 }
-
-export interface UnmappedFieldGroup {
-    readonly property_id: string;
-    readonly property_label?: string;
-    readonly selector_name: string;
-    readonly sample_value?: string;
-    readonly observed_at: string;
-    readonly value_count: number;
-    readonly config_version?: number;
-}
-
-export interface AssignUnmappedFieldRequest {
-    readonly property_id: string;
-    readonly selector_name: string;
-    readonly field_name: string;
-}

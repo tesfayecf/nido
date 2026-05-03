@@ -3,14 +3,6 @@ export interface WorkspaceThresholdSettings {
     readonly expensive_above_percent: number;
 }
 
-export interface WorkspaceFieldMappings {
-    readonly area_fields: string[];
-    readonly comparable_fields: string[];
-    readonly location_fields: string[];
-    readonly price_fields: string[];
-    readonly type_fields: string[];
-}
-
 export interface WorkspaceOperationSettings {
     readonly allow_empty_price_on_create: boolean;
     readonly auto_preview_on_create: boolean;
@@ -30,7 +22,6 @@ export interface WorkspacePreferenceSettings {
 }
 
 export interface WorkspaceSettings {
-    readonly field_mappings: WorkspaceFieldMappings;
     readonly operations: WorkspaceOperationSettings;
     readonly preferences: WorkspacePreferenceSettings;
     readonly thresholds: WorkspaceThresholdSettings;
@@ -38,22 +29,7 @@ export interface WorkspaceSettings {
 
 export const WORKSPACE_SETTINGS_STORAGE_KEY = "nido.workspace-settings";
 
-export const FIELD_MAPPING_GROUPS: { key: keyof WorkspaceFieldMappings; label: string; }[] = [
-    { key: "price_fields", label: "Price" },
-    { key: "area_fields", label: "Area" },
-    { key: "location_fields", label: "Location" },
-    { key: "type_fields", label: "Type" },
-    { key: "comparable_fields", label: "Comparable" },
-];
-
 export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
-    field_mappings: {
-        area_fields: ["area_m2", "surface_area", "surface", "area", "size_m2", "surface_m2", "m2"],
-        comparable_fields: ["location", "district", "neighborhood", "city", "type", "property_type"],
-        location_fields: ["location", "district", "neighborhood", "city"],
-        price_fields: ["price", "total_price", "price_amount", "listing_price", "asking_price"],
-        type_fields: ["type", "property_type", "listing_type"],
-    },
     operations: {
         allow_empty_price_on_create: true,
         auto_preview_on_create: false,
@@ -102,16 +78,8 @@ export const normalizeWorkspaceSettings = (value: unknown): WorkspaceSettings =>
     const thresholds = isObject(value.thresholds) ? value.thresholds : {};
     const preferences = isObject(value.preferences) ? value.preferences : {};
     const operations = isObject(value.operations) ? value.operations : {};
-    const fieldMappings = isObject(value.field_mappings) ? value.field_mappings : {};
 
     return {
-        field_mappings: {
-            area_fields: readStringArray(fieldMappings.area_fields, DEFAULT_WORKSPACE_SETTINGS.field_mappings.area_fields),
-            comparable_fields: readStringArray(fieldMappings.comparable_fields, DEFAULT_WORKSPACE_SETTINGS.field_mappings.comparable_fields),
-            location_fields: readStringArray(fieldMappings.location_fields, DEFAULT_WORKSPACE_SETTINGS.field_mappings.location_fields),
-            price_fields: readStringArray(fieldMappings.price_fields, DEFAULT_WORKSPACE_SETTINGS.field_mappings.price_fields),
-            type_fields: readStringArray(fieldMappings.type_fields, DEFAULT_WORKSPACE_SETTINGS.field_mappings.type_fields),
-        },
         operations: {
             allow_empty_price_on_create: typeof operations.allow_empty_price_on_create === "boolean"
                 ? operations.allow_empty_price_on_create

@@ -57,19 +57,6 @@ type PropertyFieldValue struct {
 	CreatedAt         time.Time `json:"created_at"`
 }
 
-// UnmappedFieldGroup summarizes a set of captured values that still need canonical mapping.
-type UnmappedFieldGroup struct {
-	PropertyID      string    `json:"property_id"`
-	PropertyLabel   string    `json:"property_label,omitempty"`
-	SelectorName    string    `json:"selector_name"`
-	SampleValue     string    `json:"sample_value,omitempty"`
-	ObservedAt      time.Time `json:"observed_at"`
-	ValueCount      int       `json:"value_count"`
-	ConfigVersion   int       `json:"config_version,omitempty"`
-	AssignedField   string    `json:"assigned_field,omitempty"`
-	AssignedFieldID string    `json:"assigned_field_id,omitempty"`
-}
-
 // AnalyticsPropertyRecord stores the latest normalized values for one property.
 type AnalyticsPropertyRecord struct {
 	PropertyID    string            `json:"property_id"`

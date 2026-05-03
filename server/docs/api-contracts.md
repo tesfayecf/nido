@@ -28,7 +28,7 @@ Active route groups:
 | Sources | `GET/POST /api/v1/backoffice/sources`, `GET/DELETE /api/v1/backoffice/sources/{sourceID}` |
 | Properties | `/api/v1/backoffice/properties*`, property config routes, preview, ingest, snapshots, and property-run routes |
 | Runs | `GET /api/v1/backoffice/runs`, `GET/DELETE /api/v1/backoffice/runs/{runID}` |
-| Fields and analytics | `/api/v1/backoffice/fields*`, `/api/v1/backoffice/fields/unmapped*`, `GET /api/v1/backoffice/analytics/dataset` |
+| Fields and analytics | `/api/v1/backoffice/fields*`, `GET /api/v1/backoffice/analytics/dataset` |
 | Tags | `/api/v1/backoffice/tags*`, `/api/v1/backoffice/properties/{propertyID}/tags*` |
 | Platform | `/api/v1/backoffice/platform/settings`, `/summary`, `/deliveries`, `/test/{channel}` |
 

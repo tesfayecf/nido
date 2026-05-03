@@ -583,15 +583,6 @@ export const SettingsPage = (): JSX.Element => {
                             label: "Operations settings",
                             panel: (
                                 <PageStack>
-                                    <PageCard description={"Field mapping and candidate review now live on a dedicated page so runtime controls stay separate."} title={"Field Candidates"}>
-                                        <KeyValueGrid compact>
-                                            <KeyValuePair label={"Suggested fields"} value={"Review active, ignored, and mapped candidates in one focused workflow."} />
-                                            <KeyValuePair label={"Accepted fields"} value={"Keep canonical mappings away from pause and retry controls."} />
-                                        </KeyValueGrid>
-                                        <ActionGroup>
-                                            <Button as={"a"} href={"/settings/field-candidates"} variant={"secondary"}>{"Open Field Candidates"}</Button>
-                                        </ActionGroup>
-                                    </PageCard>
                                     <PageCard description={"Keep the fast property flow lightweight while defining safe defaults for new automatic tracking."} title={"Property intake defaults"}>
                                         <FormGrid
                                             onSubmit={(event) => {

@@ -21,11 +21,15 @@ export interface PriceIntelligence {
     readonly target_price?: number;
 }
 
+const AREA_FIELDS = ["area_m2", "area"] as const;
+const COMPARABLE_FIELDS = ["location", "type"] as const;
+const PRICE_FIELDS = ["price"] as const;
+
 const parseValue = (value: string | undefined): number | undefined => {
     return value !== undefined ? parseNumeric(value) : undefined;
 };
 
-const readMappedNumber = (values: Record<string, string>, candidates: readonly string[]): number | undefined => {
+const readFirstNumber = (values: Record<string, string>, candidates: readonly string[]): number | undefined => {
     for (const key of candidates) {
         const parsed = parseValue(values[key]);
         if (parsed !== undefined) {
@@ -45,21 +49,21 @@ const buildComparableTokens = (values: Record<string, string>, fields: readonly 
         .filter((token): token is string => token !== undefined);
 };
 
-const buildComparableSet = (summary: PropertySummary, settings: WorkspaceSettings): Set<string> => {
-    return new Set(buildComparableTokens(summary.current_values, settings.field_mappings.comparable_fields));
+const buildComparableSet = (summary: PropertySummary): Set<string> => {
+    return new Set(buildComparableTokens(summary.current_values, COMPARABLE_FIELDS));
 };
 
-const readCurrentPrice = (summary: PropertySummary, settings: WorkspaceSettings): number | undefined => {
+const readCurrentPrice = (summary: PropertySummary): number | undefined => {
     return summary.decision.current_price
-        ?? readMappedNumber(summary.current_values, settings.field_mappings.price_fields);
+        ?? readFirstNumber(summary.current_values, PRICE_FIELDS);
 };
 
-const readPricePerUnit = (summary: PropertySummary, settings: WorkspaceSettings): number | undefined => {
+const readPricePerUnit = (summary: PropertySummary): number | undefined => {
     return summary.decision.current_price_per_sqm
-        ?? readMappedNumber(summary.current_values, ["price_per_m2", "price_per_sqm", "eur_m2"])
+        ?? readFirstNumber(summary.current_values, ["price_per_m2", "price_per_sqm", "eur_m2"])
         ?? (() => {
-            const price = readCurrentPrice(summary, settings);
-            const area = readMappedNumber(summary.current_values, settings.field_mappings.area_fields);
+            const price = readCurrentPrice(summary);
+            const area = readFirstNumber(summary.current_values, AREA_FIELDS);
             if (price === undefined || area === undefined || area < 0.01) {
                 return undefined;
             }
@@ -71,16 +75,15 @@ const readPricePerUnit = (summary: PropertySummary, settings: WorkspaceSettings)
 const buildComparableCandidates = (
     summary: PropertySummary,
     summaries: readonly PropertySummary[],
-    settings: WorkspaceSettings,
 ): PropertySummary[] => {
-    const comparableTokens = buildComparableSet(summary, settings);
-    const allOthers = summaries.filter((item) => item.property.id !== summary.property.id && readCurrentPrice(item, settings) !== undefined);
+    const comparableTokens = buildComparableSet(summary);
+    const allOthers = summaries.filter((item) => item.property.id !== summary.property.id && readCurrentPrice(item) !== undefined);
     if (comparableTokens.size === 0) {
         return allOthers;
     }
 
     const matches = allOthers.filter((item) => {
-        const candidateTokens = buildComparableSet(item, settings);
+        const candidateTokens = buildComparableSet(item);
         return Array.from(comparableTokens).some((token) => candidateTokens.has(token));
     });
 
@@ -127,11 +130,11 @@ export const buildPriceIntelligence = (
     summaries: readonly PropertySummary[],
     settings: WorkspaceSettings = DEFAULT_WORKSPACE_SETTINGS,
 ): PriceIntelligence => {
-    const currentPrice = readCurrentPrice(summary, settings);
+    const currentPrice = readCurrentPrice(summary);
     const targetPrice = summary.decision.target_price ?? summary.property.metadata?.target_price;
-    const comparableSummaries = buildComparableCandidates(summary, summaries, settings);
+    const comparableSummaries = buildComparableCandidates(summary, summaries);
     const comparablePrices = comparableSummaries
-        .map((item) => readCurrentPrice(item, settings))
+        .map((item) => readCurrentPrice(item))
         .filter((value): value is number => value !== undefined);
     const marketAverage = comparablePrices.length > 0
         ? comparablePrices.reduce((sum, value) => sum + value, 0) / comparablePrices.length
@@ -148,7 +151,7 @@ export const buildPriceIntelligence = (
         classification: classifyPrice(targetDeltaPercent ?? marketDeltaPercent, settings),
         comparable_count: comparablePrices.length,
         current_price: currentPrice,
-        current_price_per_unit: readPricePerUnit(summary, settings),
+        current_price_per_unit: readPricePerUnit(summary),
         market_average: marketAverage,
         market_delta_absolute: marketDeltaAbsolute,
         market_delta_percent: marketDeltaPercent,

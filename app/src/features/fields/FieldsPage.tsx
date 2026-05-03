@@ -14,13 +14,11 @@ import { Input } from "@/components/ui/Input";
 import { PageCard } from "@/components/ui/PageCard";
 import { PageStack } from "@/components/ui/PageStack";
 import { Select } from "@/components/ui/Select";
-import { Tabs } from "@/components/ui/Tabs";
 import { Textarea } from "@/components/ui/Textarea";
 import { useToast } from "@/components/ui/ToastProvider";
-import { formatDateTime } from "@/lib/format/date";
 import { fieldKeys } from "@/services/fields/fields.keys";
-import { assignUnmappedField, createField, deleteField, listFields, listUnmappedFields, updateField } from "@/services/fields/fields.service";
-import type { FieldDataType, FieldDefinition, FieldDefinitionUsage, UnmappedFieldGroup } from "@/services/fields/fields.types";
+import { createField, deleteField, listFields, updateField } from "@/services/fields/fields.service";
+import type { FieldDataType, FieldDefinition, FieldDefinitionUsage } from "@/services/fields/fields.types";
 
 interface FieldFormState {
     readonly dataType: FieldDataType;
@@ -74,21 +72,14 @@ export const FieldsPage = (): JSX.Element => {
     const [editingField, setEditingField] = useState<FieldDefinitionUsage | null>(null);
     const [form, setForm] = useState<FieldFormState>(EMPTY_FORM);
     const [deleteTarget, setDeleteTarget] = useState<FieldDefinitionUsage | null>(null);
-    const [assignTarget, setAssignTarget] = useState<UnmappedFieldGroup | null>(null);
-    const [assignFieldName, setAssignFieldName] = useState("");
 
     const fieldsQuery = useQuery({
         queryFn: listFields,
         queryKey: fieldKeys.list(),
     });
-    const unmappedQuery = useQuery({
-        queryFn: listUnmappedFields,
-        queryKey: fieldKeys.unmapped(),
-    });
 
     const invalidateAll = (): void => {
         void queryClient.invalidateQueries({ queryKey: fieldKeys.list() });
-        void queryClient.invalidateQueries({ queryKey: fieldKeys.unmapped() });
     };
 
     const createMutation = useMutation({
@@ -127,18 +118,6 @@ export const FieldsPage = (): JSX.Element => {
             pushToast("Field deleted.", "success");
         },
     });
-    const assignMutation = useMutation({
-        mutationFn: assignUnmappedField,
-        onError() {
-            pushToast("Could not assign the unmapped selector.", "error");
-        },
-        onSuccess() {
-            invalidateAll();
-            setAssignTarget(null);
-            setAssignFieldName("");
-            pushToast("Unmapped values linked to the selected field.", "success");
-        },
-    });
 
     const filteredFields = useMemo(() => {
         const normalizedSearch = search.trim().toLowerCase();
@@ -151,8 +130,6 @@ export const FieldsPage = (): JSX.Element => {
                 .some((value) => value.toLowerCase().includes(normalizedSearch));
         });
     }, [fieldsQuery.data, search]);
-
-    const allFields = useMemo(() => [...fieldsQuery.data ?? []].sort((left, right) => left.display_name.localeCompare(right.display_name)), [fieldsQuery.data]);
 
     const openCreate = (): void => {
         setEditingField(null);
@@ -197,7 +174,7 @@ export const FieldsPage = (): JSX.Element => {
                             {"Create field"}
                         </Button>
                     )}
-                    description={"Define shared canonical fields, map legacy outputs, and keep cross-property data analytics-ready."}
+                    description={"Define shared canonical fields and keep cross-property data analytics-ready."}
                     title={"Fields"}
                 >
                     <div className={"selector-builder__identity-grid"}>
@@ -207,143 +184,74 @@ export const FieldsPage = (): JSX.Element => {
                         <div className={"muted-copy"} style={{ alignSelf: "end" }}>{"All fields are managed in one shared list."}</div>
                     </div>
                 </PageCard>
-
-                <Tabs
-                    defaultTabId={"definitions"}
-                    items={[
-                        {
-                            id: "definitions",
-                            label: "Definitions",
-                            panel: (
-                                <>
-                                    {fieldsQuery.isError ? <ErrorBanner>{"Could not load fields."}</ErrorBanner> : null}
-                                    <DataTable
-                                        caption={"Field definitions"}
-                                        columns={[
-                                            {
-                                                cell: (item) => (
-                                                    <div>
-                                                        <strong>{item.display_name}</strong>
-                                                        <div className={"muted-copy"}>{item.name}</div>
-                                                    </div>
-                                                ),
-                                                header: "Field",
-                                                id: "field",
-                                                sortValue: (item) => item.display_name,
-                                            },
-                                            {
-                                                cell: (item) => item.data_type,
-                                                header: "Type",
-                                                id: "type",
-                                                sortValue: (item) => item.data_type,
-                                                width: "8rem",
-                                            },
-                                            {
-                                                cell: (item) => item.unit ?? "—",
-                                                header: "Unit",
-                                                id: "unit",
-                                                width: "8rem",
-                                            },
-                                            {
-                                                cell: (item) => `${item.properties_using} properties · ${item.value_count} values`,
-                                                header: "Usage",
-                                                id: "usage",
-                                                sortValue: (item) => item.properties_using,
-                                                width: "14rem",
-                                            },
-                                            {
-                                                cell: (item) => item.description ?? "—",
-                                                header: "Description",
-                                                id: "description",
-                                                wrap: true,
-                                            },
-                                            {
-                                                align: "right",
-                                                cell: (item) => (
-                                                    <div className={"action-group"}>
-                                                        <Link aria-label={`Analyze ${item.display_name}`} className={"icon-button"} title={"Analyze"} to={`/fields/${encodeURIComponent(item.name)}/analytics`}>
-                                                            <Icon name={"history"} />
-                                                        </Link>
-                                                        <button aria-label={`Edit ${item.display_name}`} className={"icon-button"} onClick={() => { openEdit(item); }} title={"Edit"} type={"button"}>
-                                                            <Icon name={"edit"} />
-                                                        </button>
-                                                        <button aria-label={`Delete ${item.display_name}`} className={"icon-button icon-button--danger"} onClick={() => { setDeleteTarget(item); }} title={"Delete"} type={"button"}>
-                                                            <Icon name={"trash"} />
-                                                        </button>
-                                                    </div>
-                                                ),
-                                                header: "Actions",
-                                                id: "actions",
-                                                width: "12rem",
-                                            },
-                                        ]}
-                                        emptyMessage={"No fields found."}
-                                        getRowId={(item) => item.id}
-                                        items={filteredFields}
-                                        pageSize={15}
-                                    />
-                                </>
-                            ),
-                        },
-                        {
-                            id: "unmapped",
-                            label: "Unmapped values",
-                            panel: (
-                                <>
-                                    {unmappedQuery.isError ? <ErrorBanner>{"Could not load unmapped values."}</ErrorBanner> : null}
-                                    <DataTable
-                                        caption={"Unmapped field groups"}
-                                        columns={[
-                                            {
-                                                cell: (item) => item.property_label ?? item.property_id,
-                                                header: "Property",
-                                                id: "property",
-                                                sortValue: (item) => item.property_label ?? item.property_id,
-                                            },
-                                            {
-                                                cell: (item) => item.selector_name,
-                                                header: "Output",
-                                                id: "selector",
-                                                sortValue: (item) => item.selector_name,
-                                            },
-                                            {
-                                                cell: (item) => item.sample_value ?? "—",
-                                                header: "Sample value",
-                                                id: "sample",
-                                                wrap: true,
-                                            },
-                                            {
-                                                cell: (item) => item.value_count.toLocaleString("en"),
-                                                header: "Values",
-                                                id: "count",
-                                                sortValue: (item) => item.value_count,
-                                                width: "7rem",
-                                            },
-                                            {
-                                                cell: (item) => formatDateTime(item.observed_at),
-                                                header: "Latest",
-                                                id: "observed",
-                                                sortValue: (item) => item.observed_at,
-                                                width: "12rem",
-                                            },
-                                            {
-                                                align: "right",
-                                                cell: (item) => <Button onClick={() => { setAssignTarget(item); }} size={"small"} variant={"secondary"}>{"Assign field"}</Button>,
-                                                header: "Actions",
-                                                id: "actions",
-                                                width: "10rem",
-                                            },
-                                        ]}
-                                        emptyMessage={"No unmapped values found."}
-                                        getRowId={(item) => `${item.property_id}:${item.selector_name}`}
-                                        items={unmappedQuery.data ?? []}
-                                        pageSize={15}
-                                    />
-                                </>
-                            ),
-                        },
-                    ]}
-                />
+                <PageCard description={"Manage the canonical fields used across extracted property data."} title={"Definitions"}>
+                    {fieldsQuery.isError ? <ErrorBanner>{"Could not load fields."}</ErrorBanner> : null}
+                    <DataTable
+                        caption={"Field definitions"}
+                        columns={[
+                            {
+                                cell: (item) => (
+                                    <div>
+                                        <strong>{item.display_name}</strong>
+                                        <div className={"muted-copy"}>{item.name}</div>
+                                    </div>
+                                ),
+                                header: "Field",
+                                id: "field",
+                                sortValue: (item) => item.display_name,
+                            },
+                            {
+                                cell: (item) => item.data_type,
+                                header: "Type",
+                                id: "type",
+                                sortValue: (item) => item.data_type,
+                                width: "8rem",
+                            },
+                            {
+                                cell: (item) => item.unit ?? "—",
+                                header: "Unit",
+                                id: "unit",
+                                width: "8rem",
+                            },
+                            {
+                                cell: (item) => `${item.properties_using} properties · ${item.value_count} values`,
+                                header: "Usage",
+                                id: "usage",
+                                sortValue: (item) => item.properties_using,
+                                width: "14rem",
+                            },
+                            {
+                                cell: (item) => item.description ?? "—",
+                                header: "Description",
+                                id: "description",
+                                wrap: true,
+                            },
+                            {
+                                align: "right",
+                                cell: (item) => (
+                                    <div className={"action-group"}>
+                                        <Link aria-label={`Analyze ${item.display_name}`} className={"icon-button"} title={"Analyze"} to={`/fields/${encodeURIComponent(item.name)}/analytics`}>
+                                            <Icon name={"history"} />
+                                        </Link>
+                                        <button aria-label={`Edit ${item.display_name}`} className={"icon-button"} onClick={() => { openEdit(item); }} title={"Edit"} type={"button"}>
+                                            <Icon name={"edit"} />
+                                        </button>
+                                        <button aria-label={`Delete ${item.display_name}`} className={"icon-button icon-button--danger"} onClick={() => { setDeleteTarget(item); }} title={"Delete"} type={"button"}>
+                                            <Icon name={"trash"} />
+                                        </button>
+                                    </div>
+                                ),
+                                header: "Actions",
+                                id: "actions",
+                                width: "12rem",
+                            },
+                        ]}
+                        emptyMessage={"No fields found."}
+                        getRowId={(item) => item.id}
+                        items={filteredFields}
+                        pageSize={15}
+                    />
+                </PageCard>
             </PageStack>
 
             <Dialog
@@ -440,48 +348,6 @@ export const FieldsPage = (): JSX.Element => {
                 open={deleteTarget !== null}
                 title={"Delete field"}
             />
-
-            <Dialog
-                actions={(
-                    <>
-                        <Button onClick={() => { setAssignTarget(null); }} variant={"secondary"}>{"Cancel"}</Button>
-                        <Button
-                            disabled={assignTarget === null || assignFieldName.trim() === ""}
-                            isLoading={assignMutation.isPending}
-                            onClick={() => {
-                                if (assignTarget !== null) {
-                                    assignMutation.mutate({
-                                        field_name: assignFieldName,
-                                        property_id: assignTarget.property_id,
-                                        selector_name: assignTarget.selector_name,
-                                    });
-                                }
-                            }}
-                        >
-                            {"Assign field"}
-                        </Button>
-                    </>
-                )}
-                onOpenChange={(open) => {
-                    if (!open) {
-                        setAssignTarget(null);
-                    }
-                }}
-                open={assignTarget !== null}
-                title={"Assign unmapped output"}
-            >
-                <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-                    <p className={"muted-copy"}>
-                        {assignTarget === null ? "" : `Link "${assignTarget.selector_name}" on ${assignTarget.property_label ?? assignTarget.property_id} to a canonical field and backfill historical values.`}
-                    </p>
-                    <Field label={"Canonical field"}>
-                        <Select onChange={(event) => { setAssignFieldName(event.target.value); }} value={assignFieldName}>
-                            <option value={""}>{"Select a field"}</option>
-                            {allFields.map((field) => <option key={field.id} value={field.name}>{field.display_name}</option>)}
-                        </Select>
-                    </Field>
-                </div>
-            </Dialog>
         </>
     );
 };
