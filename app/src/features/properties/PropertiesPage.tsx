@@ -33,6 +33,8 @@ import { tagKeys } from "@/services/tags/tags.keys";
 import { listPropertyTags, listTags, setPropertyTags } from "@/services/tags/tags.service";
 import { buildPriceIntelligence } from "@/features/properties/priceIntelligence";
 import { formatCurrency } from "@/lib/format/currency";
+import { scrollToTop } from "@/lib/ui/scroll";
+import { readSessionStorageNumber } from "@/lib/ui/sessionStorage";
 import {
     readPropertiesTableState,
     writePropertiesTableState,
@@ -111,8 +113,8 @@ export const PropertiesPage = (): JSX.Element => {
     const columnMenuRef = useRef<HTMLDivElement | null>(null);
     const tableShellRef = useRef<HTMLDivElement | null>(null);
     const resizeStateRef = useRef<{ readonly columnId: string; readonly startWidth: number; readonly startX: number; } | null>(null);
-    const [page, setPage] = useState(() => readStoredNumber(`${TABLE_PAGE_STORAGE_KEY}:page`, 0));
-    const [pageSize, setPageSize] = useState(() => readStoredNumber(`${TABLE_PAGE_STORAGE_KEY}:page-size`, 50));
+    const [page, setPage] = useState(() => readSessionStorageNumber(`${TABLE_PAGE_STORAGE_KEY}:page`, 0, { allowZero: true }));
+    const [pageSize, setPageSize] = useState(() => readSessionStorageNumber(`${TABLE_PAGE_STORAGE_KEY}:page-size`, 50));
 
     const propertiesQuery = useQuery<Property[]>({
         queryFn: () => listProperties(),
@@ -965,26 +967,6 @@ const matchesNumericRange = (value: number | undefined, filter: NumericRangeFilt
 
 const matchesExactNumber = (value: number | undefined, filter: string): boolean => {
     return filter === "" || (value !== undefined && `${formatNumber(value)}` === filter);
-};
-
-const readStoredNumber = (key: string, fallback: number): number => {
-    const storedValue = sessionStorage.getItem(key);
-    const parsedValue = storedValue === null ? fallback : Number(storedValue);
-
-    return Number.isInteger(parsedValue) && parsedValue > 0 ? parsedValue : fallback;
-};
-
-const scrollToTop = (element: HTMLElement | null): void => {
-    if (element === null) {
-        return;
-    }
-
-    if (typeof element.scrollTo === "function") {
-        element.scrollTo({ top: 0 });
-        return;
-    }
-
-    element.scrollTop = 0;
 };
 
 const INTERACTIVE_SELECTOR = [

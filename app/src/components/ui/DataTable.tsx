@@ -6,6 +6,8 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { classNames } from "@/lib/ui/classNames";
+import { scrollToTop } from "@/lib/ui/scroll";
+import { readSessionStorageNumber } from "@/lib/ui/sessionStorage";
 
 const COMPACT_ROW_HEIGHT = 30;
 const DEFAULT_ROW_HEIGHT = 38;
@@ -56,8 +58,8 @@ export const DataTable = <TItem,>({
     virtualizeThreshold = 50,
 }: DataTableProps<TItem>): JSX.Element => {
     const scrollRef = useRef<HTMLDivElement | null>(null);
-    const [page, setPage] = useState(() => readStoredPage(paginationStorageKey));
-    const [currentPageSize, setCurrentPageSize] = useState(() => readStoredPageSize(paginationStorageKey, pageSize));
+    const [page, setPage] = useState(() => readSessionStorageNumber(paginationStorageKey === undefined ? undefined : `${paginationStorageKey}:page`, 0, { allowZero: true }));
+    const [currentPageSize, setCurrentPageSize] = useState(() => readSessionStorageNumber(paginationStorageKey === undefined ? undefined : `${paginationStorageKey}:page-size`, pageSize));
     const [sortColumnId, setSortColumnId] = useState<string | null>(initialSortColumnId);
     const [sortDirection, setSortDirection] = useState<"asc" | "desc">(initialSortDirection);
 
@@ -248,33 +250,6 @@ const DataTableRow = <TItem,>({ columns, getRowId, item, onRowClick, rowLabel, v
             })}
         </tr>
     );
-};
-
-const readStoredPage = (paginationStorageKey?: string): number => {
-    const value = paginationStorageKey === undefined ? null : sessionStorage.getItem(`${paginationStorageKey}:page`);
-    const page = value === null ? 0 : Number(value);
-
-    return Number.isInteger(page) && page >= 0 ? page : 0;
-};
-
-const readStoredPageSize = (paginationStorageKey: string | undefined, fallback: number): number => {
-    const value = paginationStorageKey === undefined ? null : sessionStorage.getItem(`${paginationStorageKey}:page-size`);
-    const nextPageSize = value === null ? fallback : Number(value);
-
-    return Number.isInteger(nextPageSize) && nextPageSize > 0 ? nextPageSize : fallback;
-};
-
-const scrollToTop = (element: HTMLElement | null): void => {
-    if (element === null) {
-        return;
-    }
-
-    if (typeof element.scrollTo === "function") {
-        element.scrollTo({ top: 0 });
-        return;
-    }
-
-    element.scrollTop = 0;
 };
 
 const INTERACTIVE_SELECTOR = [
