@@ -340,7 +340,7 @@ func (s *Store) ListUnmappedFieldGroups(ctx context.Context) ([]ingestiondomain.
 		INNER JOIN properties p ON p.id = pfv.property_id
 		WHERE pfv.field_definition_id IS NULL
 		GROUP BY pfv.property_id, p.label, pfv.selector_name
-		ORDER BY observed_at DESC, pfv.property_id ASC, pfv.selector_name ASC`)
+		ORDER BY observed_at DESC, pfv.property_id DESC, pfv.selector_name DESC`)
 	if err != nil {
 		return nil, fmt.Errorf("list unmapped field groups: %w", err)
 	}
@@ -398,7 +398,7 @@ func (s *Store) ListAnalyticsRecords(ctx context.Context) ([]ingestiondomain.Ana
 			AND pfv.field_definition_id IS NOT NULL
 			AND pfv.validation_status = ?
 		LEFT JOIN field_definitions fd ON fd.id = pfv.field_definition_id
-		ORDER BY p.label ASC, p.url ASC, p.id ASC, COALESCE(fd.display_name, '') ASC, fd.id IS NULL, fd.id ASC`,
+		ORDER BY p.label ASC, p.url ASC, p.id ASC, COALESCE(fd.display_name, '') ASC, fd.id ASC NULLS LAST`,
 		ingestiondomain.FieldValidationStatusValid,
 	)
 	if err != nil {
