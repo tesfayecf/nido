@@ -44,10 +44,7 @@ func RegisterProperties(mux *http.ServeMux, requireAuth func(http.Handler) http.
 			return
 		}
 
-		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{
-			"items": properties,
-			"count": len(properties),
-		})
+		platformhttp.WritePaginatedJSON(w, r, http.StatusOK, properties, nil)
 	})))
 
 	mux.Handle("POST /api/v1/backoffice/properties", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -107,10 +104,7 @@ func RegisterProperties(mux *http.ServeMux, requireAuth func(http.Handler) http.
 			return
 		}
 
-		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{
-			"items": summaries,
-			"count": len(summaries),
-		})
+		platformhttp.WritePaginatedJSON(w, r, http.StatusOK, summaries, nil)
 	})))
 
 	mux.Handle("GET /api/v1/backoffice/properties/{propertyID}", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -243,7 +237,7 @@ func RegisterProperties(mux *http.ServeMux, requireAuth func(http.Handler) http.
 			return
 		}
 
-		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{"items": configs, "count": len(configs)})
+		platformhttp.WritePaginatedJSON(w, r, http.StatusOK, configs, nil)
 	})))
 
 	mux.Handle("GET /api/v1/backoffice/properties/{propertyID}/config/versions/{version}", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -349,10 +343,7 @@ func RegisterProperties(mux *http.ServeMux, requireAuth func(http.Handler) http.
 			return
 		}
 
-		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{
-			"items": snapshots,
-			"count": len(snapshots),
-		})
+		platformhttp.WritePaginatedJSON(w, r, http.StatusOK, snapshots, nil)
 	})))
 
 	// List property runs (new property_runs table)
@@ -373,10 +364,7 @@ func RegisterProperties(mux *http.ServeMux, requireAuth func(http.Handler) http.
 			return
 		}
 
-		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{
-			"items": runs,
-			"count": len(runs),
-		})
+		platformhttp.WritePaginatedJSON(w, r, http.StatusOK, runs, nil)
 	})))
 
 	// Decision context + change intelligence summary for one property.

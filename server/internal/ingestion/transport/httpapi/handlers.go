@@ -19,10 +19,7 @@ func Register(mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, s
 			return
 		}
 
-		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{
-			"items": sources,
-			"count": len(sources),
-		})
+		platformhttp.WritePaginatedJSON(w, r, http.StatusOK, sources, nil)
 	})))
 
 	mux.Handle("POST /api/v1/backoffice/sources", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -89,10 +86,7 @@ func RegisterRuns(mux *http.ServeMux, requireAuth func(http.Handler) http.Handle
 			return
 		}
 
-		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{
-			"items": runs,
-			"count": len(runs),
-		})
+		platformhttp.WritePaginatedJSON(w, r, http.StatusOK, runs, nil)
 	})))
 
 	mux.Handle("GET /api/v1/backoffice/runs/{runID}", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

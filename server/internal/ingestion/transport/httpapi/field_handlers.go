@@ -24,7 +24,7 @@ func RegisterFields(mux *http.ServeMux, requireAuth func(http.Handler) http.Hand
 			platformhttp.WriteError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
-		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{"items": fields, "count": len(fields)})
+		platformhttp.WritePaginatedJSON(w, r, http.StatusOK, fields, nil)
 	})))
 
 	mux.Handle("POST /api/v1/backoffice/fields", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -85,7 +85,7 @@ func RegisterFields(mux *http.ServeMux, requireAuth func(http.Handler) http.Hand
 			platformhttp.WriteError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
-		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{"items": items, "count": len(items)})
+		platformhttp.WritePaginatedJSON(w, r, http.StatusOK, items, nil)
 	})))
 
 	mux.Handle("POST /api/v1/backoffice/fields/unmapped/assign", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -110,6 +110,6 @@ func RegisterFields(mux *http.ServeMux, requireAuth func(http.Handler) http.Hand
 			platformhttp.WriteError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
-		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{"items": items, "count": len(items)})
+		platformhttp.WritePaginatedJSON(w, r, http.StatusOK, items, nil)
 	})))
 }
