@@ -63,7 +63,7 @@ func Register(mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, s
 			platformhttp.WriteError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
-		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{"items": files, "count": len(files)})
+		platformhttp.WritePaginatedJSON(w, r, http.StatusOK, files, nil)
 	})))
 
 	mux.Handle("GET /api/v1/backoffice/platform/backup-files/{name}", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -113,7 +113,7 @@ func Register(mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, s
 			platformhttp.WriteError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
-		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{"items": logs, "count": len(logs)})
+		platformhttp.WritePaginatedJSON(w, r, http.StatusOK, logs, nil)
 	})))
 
 	mux.Handle("POST /api/v1/backoffice/platform/test/{channel}", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -79,7 +79,7 @@ func (s *Store) UpsertSource(ctx context.Context, source ingestiondomain.Source)
 
 // ListSources returns all known sources.
 func (s *Store) ListSources(ctx context.Context) ([]ingestiondomain.Source, error) {
-	rows, err := s.db.QueryContext(ctx, sourceSelect+` ORDER BY name ASC`)
+	rows, err := s.db.QueryContext(ctx, sourceSelect+` ORDER BY name ASC, id ASC`)
 	if err != nil {
 		return nil, fmt.Errorf("list sources: %w", err)
 	}
@@ -323,7 +323,7 @@ func (s *Store) ListRuns(ctx context.Context, sourceID string, limit int) ([]ing
 		args = append(args, sourceID)
 	}
 
-	query += ` ORDER BY started_at DESC LIMIT ?`
+	query += ` ORDER BY started_at DESC, id DESC LIMIT ?`
 	args = append(args, limit)
 
 	rows, err := s.db.QueryContext(ctx, query, args...)
@@ -721,13 +721,13 @@ func (s *Store) ListBookmarks(ctx context.Context, userID string) ([]engagementd
 		            SELECT values_json
 		            FROM property_snapshots
 		            WHERE property_id = p.id
-		            ORDER BY observed_at DESC
+		            ORDER BY observed_at DESC, id DESC
 		            LIMIT 1
 		        ), '{}')
 		 FROM bookmarks b
 		 JOIN properties p ON p.id = b.property_id
 		 WHERE b.user_id = ?
-		 ORDER BY b.created_at DESC`,
+		 ORDER BY b.created_at DESC, b.property_id DESC`,
 		userID,
 	)
 	if err != nil {
@@ -799,7 +799,7 @@ func (s *Store) CreateWatchlist(ctx context.Context, watchlist engagementdomain.
 
 // ListWatchlists returns watchlists for one user.
 func (s *Store) ListWatchlists(ctx context.Context, userID string) ([]engagementdomain.Watchlist, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, user_id, name, query, source_id, max_price_amount, created_at, updated_at FROM watchlists WHERE user_id = ? ORDER BY created_at DESC`, userID)
+	rows, err := s.db.QueryContext(ctx, `SELECT id, user_id, name, query, source_id, max_price_amount, created_at, updated_at FROM watchlists WHERE user_id = ? ORDER BY created_at DESC, id DESC`, userID)
 	if err != nil {
 		return nil, fmt.Errorf("list watchlists: %w", err)
 	}
@@ -819,7 +819,7 @@ func (s *Store) ListWatchlists(ctx context.Context, userID string) ([]engagement
 
 // ListWatchlistsForEvaluation returns all watchlists used by alert evaluation.
 func (s *Store) ListWatchlistsForEvaluation(ctx context.Context) ([]engagementdomain.Watchlist, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, user_id, name, query, source_id, max_price_amount, created_at, updated_at FROM watchlists ORDER BY created_at DESC`)
+	rows, err := s.db.QueryContext(ctx, `SELECT id, user_id, name, query, source_id, max_price_amount, created_at, updated_at FROM watchlists ORDER BY created_at DESC, id DESC`)
 	if err != nil {
 		return nil, fmt.Errorf("list watchlists for evaluation: %w", err)
 	}
@@ -871,7 +871,7 @@ func (s *Store) CreateAlertRule(ctx context.Context, rule engagementdomain.Alert
 
 // ListAlertRules returns rules for one user.
 func (s *Store) ListAlertRules(ctx context.Context, userID string) ([]engagementdomain.AlertRule, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, user_id, property_id, rule_type, threshold_amount, enabled, created_at, updated_at FROM alert_rules WHERE user_id = ? ORDER BY created_at DESC`, userID)
+	rows, err := s.db.QueryContext(ctx, `SELECT id, user_id, property_id, rule_type, threshold_amount, enabled, created_at, updated_at FROM alert_rules WHERE user_id = ? ORDER BY created_at DESC, id DESC`, userID)
 	if err != nil {
 		return nil, fmt.Errorf("list alert rules: %w", err)
 	}
@@ -891,7 +891,7 @@ func (s *Store) ListAlertRules(ctx context.Context, userID string) ([]engagement
 
 // ListAlertRulesForEvaluation returns all enabled alert rules.
 func (s *Store) ListAlertRulesForEvaluation(ctx context.Context) ([]engagementdomain.AlertRule, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, user_id, property_id, rule_type, threshold_amount, enabled, created_at, updated_at FROM alert_rules WHERE enabled = 1 ORDER BY created_at DESC`)
+	rows, err := s.db.QueryContext(ctx, `SELECT id, user_id, property_id, rule_type, threshold_amount, enabled, created_at, updated_at FROM alert_rules WHERE enabled = 1 ORDER BY created_at DESC, id DESC`)
 	if err != nil {
 		return nil, fmt.Errorf("list alert rules for evaluation: %w", err)
 	}
@@ -978,7 +978,7 @@ func (s *Store) ListNotifications(ctx context.Context, userID string, unreadOnly
 	if unreadOnly {
 		query += ` AND read_at IS NULL`
 	}
-	query += ` ORDER BY created_at DESC LIMIT ?`
+	query += ` ORDER BY created_at DESC, id DESC LIMIT ?`
 	args = append(args, limit)
 
 	rows, err := s.db.QueryContext(ctx, query, args...)
@@ -1527,7 +1527,7 @@ func (s *Store) UpsertProperty(ctx context.Context, property ingestiondomain.Pro
 
 // ListProperties returns all known properties ordered by creation time.
 func (s *Store) ListProperties(ctx context.Context) ([]ingestiondomain.Property, error) {
-	rows, err := s.db.QueryContext(ctx, propertySelect+` ORDER BY created_at DESC`)
+	rows, err := s.db.QueryContext(ctx, propertySelect+` ORDER BY created_at DESC, id DESC`)
 	if err != nil {
 		return nil, fmt.Errorf("list properties: %w", err)
 	}
@@ -1642,7 +1642,7 @@ func (s *Store) UpsertPropertyConfig(ctx context.Context, config ingestiondomain
 func (s *Store) GetLatestPropertyConfig(ctx context.Context, propertyID string) (ingestiondomain.PropertyExtractionConfig, error) {
 	row := s.db.QueryRowContext(
 		ctx,
-		`SELECT id, property_id, fields_json, version, created_at, change_summary FROM property_extraction_configs WHERE property_id = ? ORDER BY version DESC LIMIT 1`,
+		`SELECT id, property_id, fields_json, version, created_at, change_summary FROM property_extraction_configs WHERE property_id = ? ORDER BY version DESC, id DESC LIMIT 1`,
 		propertyID,
 	)
 	config, err := scanPropertyConfig(row)
@@ -1666,7 +1666,7 @@ func (s *Store) ListPropertyConfigs(ctx context.Context, propertyID string) ([]i
 		`SELECT id, property_id, fields_json, version, created_at, change_summary
 		 FROM property_extraction_configs
 		 WHERE property_id = ?
-		 ORDER BY version DESC`,
+		 ORDER BY version DESC, id DESC`,
 		propertyID,
 	)
 	if err != nil {
@@ -1744,7 +1744,7 @@ func (s *Store) ListPropertySnapshots(ctx context.Context, propertyID string, li
 
 	rows, err := s.db.QueryContext(
 		ctx,
-		`SELECT id, property_id, config_version, observed_at, values_json, change_flags_json, is_valid, error_message FROM property_snapshots WHERE property_id = ? ORDER BY observed_at DESC LIMIT ?`,
+		`SELECT id, property_id, config_version, observed_at, values_json, change_flags_json, is_valid, error_message FROM property_snapshots WHERE property_id = ? ORDER BY observed_at DESC, id DESC LIMIT ?`,
 		propertyID,
 		limit,
 	)
@@ -1777,7 +1777,7 @@ func (s *Store) ListAllPropertySnapshots(ctx context.Context, propertyID string,
 		query += ` WHERE property_id = ?`
 		args = append(args, propertyID)
 	}
-	query += ` ORDER BY observed_at DESC LIMIT ?`
+	query += ` ORDER BY observed_at DESC, id DESC LIMIT ?`
 	args = append(args, limit)
 
 	rows, err := s.db.QueryContext(ctx, query, args...)
@@ -1829,7 +1829,7 @@ func (s *Store) DeletePropertySnapshot(ctx context.Context, snapshotID string) e
 func (s *Store) GetLastValidPropertySnapshot(ctx context.Context, propertyID string) (ingestiondomain.PropertySnapshot, error) {
 	snapshot, err := scanPropertySnapshot(s.db.QueryRowContext(
 		ctx,
-		`SELECT id, property_id, config_version, observed_at, values_json, change_flags_json, is_valid, error_message FROM property_snapshots WHERE property_id = ? AND is_valid = 1 ORDER BY observed_at DESC LIMIT 1`,
+		`SELECT id, property_id, config_version, observed_at, values_json, change_flags_json, is_valid, error_message FROM property_snapshots WHERE property_id = ? AND is_valid = 1 ORDER BY observed_at DESC, id DESC LIMIT 1`,
 		propertyID,
 	))
 	if errors.Is(err, sql.ErrNoRows) {
@@ -1846,7 +1846,7 @@ func (s *Store) GetLatestPropertySnapshots(ctx context.Context, propertyID strin
 	}
 	rows, err := s.db.QueryContext(
 		ctx,
-		`SELECT id, property_id, config_version, observed_at, values_json, change_flags_json, is_valid, error_message FROM property_snapshots WHERE property_id = ? ORDER BY observed_at DESC LIMIT ?`,
+		`SELECT id, property_id, config_version, observed_at, values_json, change_flags_json, is_valid, error_message FROM property_snapshots WHERE property_id = ? ORDER BY observed_at DESC, id DESC LIMIT ?`,
 		propertyID,
 		n,
 	)
@@ -2031,7 +2031,7 @@ func (s *Store) GetTag(ctx context.Context, tagID string) (ingestiondomain.Tag, 
 
 // ListTags returns all tags ordered by name.
 func (s *Store) ListTags(ctx context.Context) ([]ingestiondomain.Tag, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, name, color, created_at, updated_at FROM tags ORDER BY name ASC`)
+	rows, err := s.db.QueryContext(ctx, `SELECT id, name, color, created_at, updated_at FROM tags ORDER BY name ASC, id ASC`)
 	if err != nil {
 		return nil, fmt.Errorf("list tags: %w", err)
 	}
@@ -2141,7 +2141,7 @@ func (s *Store) ListPropertyTags(ctx context.Context, propertyID string) ([]inge
 		 FROM tags t
 		 JOIN property_tags pt ON pt.tag_id = t.id
 		 WHERE pt.property_id = ?
-		 ORDER BY t.name ASC`,
+		 ORDER BY t.name ASC, t.id ASC`,
 		propertyID,
 	)
 	if err != nil {
@@ -2270,7 +2270,7 @@ func (s *Store) ListPropertyRuns(ctx context.Context, propertyID string, limit i
 		`SELECT id, property_id, status, trigger_kind, attempt_count, max_attempts, started_at, finished_at, error_message, snapshot_id, created_at
 		 FROM property_runs
 		 WHERE property_id = ?
-		 ORDER BY started_at DESC
+		 ORDER BY started_at DESC, id DESC
 		 LIMIT ?`,
 		propertyID,
 		limit,
@@ -2504,7 +2504,7 @@ func (s *Store) ListIntegrationDeliveryLogs(ctx context.Context, limit int) ([]p
 		ctx,
 		`SELECT id, channel, event_type, target, status, attempt_count, payload_json, response_status, error_message, delivered_at, created_at
 		   FROM integration_delivery_logs
-		  ORDER BY created_at DESC
+		  ORDER BY created_at DESC, id DESC
 		  LIMIT ?`,
 		limit,
 	)

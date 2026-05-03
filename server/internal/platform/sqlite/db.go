@@ -209,6 +209,8 @@ CREATE TABLE IF NOT EXISTS sources (
     updated_at TEXT NOT NULL
 );
 
+CREATE INDEX IF NOT EXISTS idx_sources_name_id ON sources(name ASC, id ASC);
+
 CREATE TABLE IF NOT EXISTS ingestion_runs (
     id TEXT PRIMARY KEY,
     source_id TEXT NOT NULL REFERENCES sources(id),
@@ -225,7 +227,7 @@ CREATE TABLE IF NOT EXISTS ingestion_runs (
     error_message TEXT
 );
 
-CREATE INDEX IF NOT EXISTS idx_ingestion_runs_source_started_at ON ingestion_runs(source_id, started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ingestion_runs_source_started_at ON ingestion_runs(source_id, started_at DESC, id DESC);
 
 CREATE TABLE IF NOT EXISTS ingestion_locks (
     source_id TEXT PRIMARY KEY REFERENCES sources(id) ON DELETE CASCADE,
@@ -287,7 +289,7 @@ CREATE TABLE IF NOT EXISTS alert_rules (
     updated_at TEXT NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_alert_rules_user_id ON alert_rules(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_alert_rules_user_id ON alert_rules(user_id, created_at DESC, id DESC);
 CREATE INDEX IF NOT EXISTS idx_alert_rules_enabled ON alert_rules(enabled, rule_type);
 
 CREATE TABLE IF NOT EXISTS notifications (
@@ -304,7 +306,7 @@ CREATE TABLE IF NOT EXISTS notifications (
     read_at TEXT
 );
 
-CREATE INDEX IF NOT EXISTS idx_notifications_user_created_at ON notifications(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_created_at ON notifications(user_id, created_at DESC, id DESC);
 
 CREATE TABLE IF NOT EXISTS properties (
     id TEXT PRIMARY KEY,
@@ -329,6 +331,7 @@ CREATE TABLE IF NOT EXISTS properties (
 CREATE INDEX IF NOT EXISTS idx_properties_status ON properties(status);
 CREATE INDEX IF NOT EXISTS idx_properties_next_run_at ON properties(next_run_at);
 CREATE INDEX IF NOT EXISTS idx_properties_source_id ON properties(source_id);
+CREATE INDEX IF NOT EXISTS idx_properties_created_at_id ON properties(created_at DESC, id DESC);
 
 CREATE TABLE IF NOT EXISTS property_extraction_configs (
     id TEXT PRIMARY KEY,
@@ -339,7 +342,7 @@ CREATE TABLE IF NOT EXISTS property_extraction_configs (
     change_summary TEXT NOT NULL DEFAULT ''
 );
 
-CREATE INDEX IF NOT EXISTS idx_property_configs_property_version ON property_extraction_configs(property_id, version DESC);
+CREATE INDEX IF NOT EXISTS idx_property_configs_property_version ON property_extraction_configs(property_id, version DESC, id DESC);
 
 CREATE TABLE IF NOT EXISTS property_snapshots (
     id TEXT PRIMARY KEY,
@@ -352,7 +355,7 @@ CREATE TABLE IF NOT EXISTS property_snapshots (
     error_message TEXT
 );
 
-CREATE INDEX IF NOT EXISTS idx_property_snapshots_property_observed ON property_snapshots(property_id, observed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_property_snapshots_property_observed ON property_snapshots(property_id, observed_at DESC, id DESC);
 
 CREATE TABLE IF NOT EXISTS tags (
     id TEXT PRIMARY KEY,
@@ -361,6 +364,8 @@ CREATE TABLE IF NOT EXISTS tags (
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
+
+CREATE INDEX IF NOT EXISTS idx_tags_name_id ON tags(name ASC, id ASC);
 
 CREATE TABLE IF NOT EXISTS property_tags (
     property_id TEXT NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
@@ -386,7 +391,7 @@ CREATE TABLE IF NOT EXISTS property_runs (
     created_at TEXT NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_property_runs_property_started ON property_runs(property_id, started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_property_runs_property_started ON property_runs(property_id, started_at DESC, id DESC);
 CREATE INDEX IF NOT EXISTS idx_property_runs_status ON property_runs(status);
 
 CREATE TABLE IF NOT EXISTS field_definitions (
@@ -463,7 +468,7 @@ CREATE TABLE IF NOT EXISTS integration_delivery_logs (
     created_at TEXT NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_integration_delivery_logs_created_at ON integration_delivery_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_integration_delivery_logs_created_at ON integration_delivery_logs(created_at DESC, id DESC);
 `
 
 var columnMigrations = []columnMigration{

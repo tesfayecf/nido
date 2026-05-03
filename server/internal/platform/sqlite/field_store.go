@@ -82,7 +82,7 @@ func (s *Store) ListFieldDefinitions(ctx context.Context) ([]ingestiondomain.Fie
 		FROM field_definitions fd
 		LEFT JOIN property_field_values pfv ON pfv.field_definition_id = fd.id
 		GROUP BY fd.id, fd.name, fd.display_name, fd.data_type, fd.unit, fd.description, fd.enum_values_json, fd.default_value, fd.use_default_when_missing, fd.comparison_operator, fd.comparison_value, fd.system_defined, fd.created_at, fd.updated_at
-		ORDER BY fd.system_defined DESC, fd.display_name ASC`)
+		ORDER BY fd.system_defined DESC, fd.display_name ASC, fd.id ASC`)
 	if err != nil {
 		return nil, fmt.Errorf("list field definitions: %w", err)
 	}
@@ -340,7 +340,7 @@ func (s *Store) ListUnmappedFieldGroups(ctx context.Context) ([]ingestiondomain.
 		INNER JOIN properties p ON p.id = pfv.property_id
 		WHERE pfv.field_definition_id IS NULL
 		GROUP BY pfv.property_id, p.label, pfv.selector_name
-		ORDER BY observed_at DESC`)
+		ORDER BY observed_at DESC, pfv.property_id DESC, pfv.selector_name DESC`)
 	if err != nil {
 		return nil, fmt.Errorf("list unmapped field groups: %w", err)
 	}
@@ -398,7 +398,7 @@ func (s *Store) ListAnalyticsRecords(ctx context.Context) ([]ingestiondomain.Ana
 			AND pfv.field_definition_id IS NOT NULL
 			AND pfv.validation_status = ?
 		LEFT JOIN field_definitions fd ON fd.id = pfv.field_definition_id
-		ORDER BY p.label ASC, p.url ASC, COALESCE(fd.display_name, '') ASC`,
+		ORDER BY p.label ASC, p.url ASC, p.id ASC, COALESCE(fd.display_name, '') ASC, fd.id ASC NULLS LAST`,
 		ingestiondomain.FieldValidationStatusValid,
 	)
 	if err != nil {

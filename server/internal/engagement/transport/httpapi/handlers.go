@@ -26,7 +26,7 @@ func Register(mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, s
 			return
 		}
 
-		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{"items": items, "count": len(items)})
+		platformhttp.WritePaginatedJSON(w, r, http.StatusOK, items, nil)
 	})))
 
 	mux.Handle("POST /api/v1/me/bookmarks", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -79,7 +79,7 @@ func Register(mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, s
 			return
 		}
 
-		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{"items": items, "count": len(items)})
+		platformhttp.WritePaginatedJSON(w, r, http.StatusOK, items, nil)
 	})))
 
 	mux.Handle("POST /api/v1/me/alert-rules", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -162,7 +162,7 @@ func Register(mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, s
 			return
 		}
 
-		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{"items": items, "count": len(items)})
+		platformhttp.WritePaginatedJSON(w, r, http.StatusOK, items, nil)
 	})))
 
 	mux.Handle("POST /api/v1/me/notifications/{notificationID}/read", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

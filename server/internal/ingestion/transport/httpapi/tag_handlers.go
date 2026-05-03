@@ -19,10 +19,7 @@ func RegisterTags(mux *http.ServeMux, requireAuth func(http.Handler) http.Handle
 			return
 		}
 
-		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{
-			"items": tags,
-			"count": len(tags),
-		})
+		platformhttp.WritePaginatedJSON(w, r, http.StatusOK, tags, nil)
 	})))
 
 	// Create a new tag
@@ -82,10 +79,7 @@ func RegisterTags(mux *http.ServeMux, requireAuth func(http.Handler) http.Handle
 			return
 		}
 
-		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{
-			"items": tags,
-			"count": len(tags),
-		})
+		platformhttp.WritePaginatedJSON(w, r, http.StatusOK, tags, nil)
 	})))
 
 	// Replace all tags for a property

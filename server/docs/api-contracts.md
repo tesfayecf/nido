@@ -10,7 +10,7 @@ The frontend consumes typed JSON envelopes from the backend. This file highlight
 
 ## Core Concepts
 
-- Most list endpoints return `{ items, count }`.
+- List endpoints return `{ data, items, count, pagination, meta? }`; `items` and `count` remain for existing consumers, while new clients should prefer `data` and `pagination`.
 - Most detail endpoints return `{ item }`.
 - Status-only endpoints return `{ status }`.
 - Login returns `{ token, user, expires_at }` directly.
@@ -34,6 +34,11 @@ Active route groups:
 
 Contract notes:
 
+- Collection endpoints enforce pagination with a default page size of 50 and a hard maximum of 100 items per response.
+- Offset pagination uses `page` and `pageSize` (or existing `limit` as a page-size alias); responses include `total`, `page`, `pageSize`, `hasNext`, and `hasPrevious`.
+- Cursor pagination uses `cursor` and `limit`; responses include `nextCursor` and `prevCursor` when adjacent pages are available.
+- Collection responses include `ETag` and `Cache-Control: private, max-age=30, must-revalidate`; clients may send `If-None-Match` and receive `304 Not Modified` for unchanged deterministic requests.
+- List queries are ordered by stable keys such as `created_at`/`observed_at` plus `id` tie-breakers so repeated page reads remain deterministic between mutations.
 - Global runs and property-specific runs are different views and should be documented separately.
 - Stateless preview exists at `POST /api/v1/backoffice/properties/preview`.
 - Property-scoped preview exists at `POST /api/v1/backoffice/properties/{propertyID}/preview`.
