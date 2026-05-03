@@ -156,6 +156,44 @@ func (s *Store) RestoreWorkspaceBackup(ctx context.Context, backup platformopsdo
 	return nil
 }
 
+func (s *Store) ResetWorkspace(ctx context.Context) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin workspace reset transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	for _, statement := range []string{
+		`DELETE FROM integration_delivery_logs`,
+		`DELETE FROM notifications`,
+		`DELETE FROM alert_rules`,
+		`DELETE FROM bookmarks`,
+		`DELETE FROM auth_sessions`,
+		`DELETE FROM users`,
+		`DELETE FROM property_field_values`,
+		`DELETE FROM property_runs`,
+		`DELETE FROM property_tags`,
+		`DELETE FROM property_snapshots`,
+		`DELETE FROM property_extraction_configs`,
+		`DELETE FROM properties`,
+		`DELETE FROM tags`,
+		`DELETE FROM ingestion_locks`,
+		`DELETE FROM artifacts`,
+		`DELETE FROM ingestion_runs`,
+		`DELETE FROM sources`,
+		`DELETE FROM field_definitions`,
+		`DELETE FROM platform_settings`,
+	} {
+		if _, err := tx.ExecContext(ctx, statement); err != nil {
+			return fmt.Errorf("reset workspace data: %w", err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit workspace reset: %w", err)
+	}
+	return nil
+}
+
 func (s *Store) listBackupSources(ctx context.Context) ([]ingestiondomain.Source, error) {
 	rows, err := s.db.QueryContext(ctx, sourceSelect+` ORDER BY created_at ASC`)
 	if err != nil {

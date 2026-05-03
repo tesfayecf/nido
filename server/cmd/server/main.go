@@ -104,6 +104,20 @@ func migrate(cfg config.Config) error {
 	}
 	defer db.Close()
 
+	currentVersion, err := platformsqlite.CurrentSchemaVersion(ctx, db)
+	if err != nil {
+		return err
+	}
+	if currentVersion != platformsqlite.SchemaVersion {
+		if err := platformsqlite.IntegrityCheck(ctx, db); err != nil {
+			return err
+		}
+		backupPath, err := platformsqlite.BackupDatabase(ctx, db, cfg.Migration.BackupDir, currentVersion)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(os.Stdout, "pre-migration backup created at %s\n", backupPath)
+	}
 	if err := platformsqlite.Migrate(ctx, db); err != nil {
 		return err
 	}

@@ -31,6 +31,7 @@ type Runtime struct {
 	cancel            context.CancelFunc
 	propertyScheduler *ingestionapp.PropertyScheduler
 	platformService   *platformopsapp.Service
+	MigrationStatus   platformsqlite.MigrationStatus
 }
 
 // New builds the operational backend runtime.
@@ -43,7 +44,8 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Runtime,
 		return nil, err
 	}
 
-	if err := platformsqlite.Migrate(ctx, db); err != nil {
+	migrationStatus, err := applyMigrationPolicy(ctx, db, cfg.Migration, logger)
+	if err != nil {
 		cancel()
 		_ = db.Close()
 		return nil, err
@@ -92,11 +94,11 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Runtime,
 		},
 	)
 	propertyScheduler.Start()
-	platformService := platformopsapp.NewService(logger, store, eventBroker, propertyScheduler, cfg.Notifications)
+	platformService := platformopsapp.NewService(logger, store, eventBroker, propertyScheduler, cfg.Notifications, cfg.Migration.BackupDir)
 	platformService.Start()
 
 	mux := http.NewServeMux()
-	registerHealthEndpoints(mux, db)
+	registerHealthEndpoints(mux, db, migrationStatus)
 	authhttp.Register(mux, authService)
 	authMiddleware := authhttp.Middleware(authService)
 	engagementhttp.Register(mux, authMiddleware, engagementService)
@@ -113,6 +115,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Runtime,
 		cancel:            cancel,
 		propertyScheduler: propertyScheduler,
 		platformService:   platformService,
+		MigrationStatus:   migrationStatus,
 	}, nil
 }
 
@@ -130,7 +133,7 @@ func (r *Runtime) Close() error {
 	return r.db.Close()
 }
 
-func registerHealthEndpoints(mux *http.ServeMux, db *sql.DB) {
+func registerHealthEndpoints(mux *http.ServeMux, db *sql.DB, migrationStatus platformsqlite.MigrationStatus) {
 	mux.HandleFunc("GET /api/v1/health/live", func(w http.ResponseWriter, r *http.Request) {
 		platformhttp.WriteJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
@@ -145,5 +148,9 @@ func registerHealthEndpoints(mux *http.ServeMux, db *sql.DB) {
 		}
 
 		platformhttp.WriteJSON(w, http.StatusOK, map[string]string{"status": "ready"})
+	})
+
+	mux.HandleFunc("GET /api/v1/platform/migration/status", func(w http.ResponseWriter, r *http.Request) {
+		platformhttp.WriteJSON(w, http.StatusOK, map[string]any{"item": migrationStatus})
 	})
 }

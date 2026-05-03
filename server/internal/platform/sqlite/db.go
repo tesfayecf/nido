@@ -142,6 +142,9 @@ func Migrate(ctx context.Context, db *sql.DB) error {
 	if err := backfillPropertyFieldValues(ctx, db); err != nil {
 		return err
 	}
+	if _, err := db.ExecContext(ctx, fmt.Sprintf("PRAGMA user_version = %d", SchemaVersion)); err != nil {
+		return fmt.Errorf("mark sqlite schema version: %w", err)
+	}
 
 	return nil
 }

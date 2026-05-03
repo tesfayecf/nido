@@ -59,6 +59,83 @@ func TestOpenRecoversCorruptDatabaseFile(t *testing.T) {
 	}
 }
 
+func TestBackupDatabaseCreatesVersionedRestorableFile(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	databasePath := filepath.Join(t.TempDir(), "nido.db")
+	db, err := Open(ctx, config.DatabaseConfig{Path: databasePath})
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
+	defer db.Close()
+	if err := Migrate(ctx, db); err != nil {
+		t.Fatalf("migrate database: %v", err)
+	}
+	execTestStatement(t, db, `INSERT INTO sources (id, name, kind, endpoint_url, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`, "source-1", "Source", "http-json-feed", "https://example.test/feed.json", time.Now().UTC().Format(time.RFC3339Nano), time.Now().UTC().Format(time.RFC3339Nano))
+
+	backupPath, err := BackupDatabase(ctx, db, filepath.Join(t.TempDir(), "backups"), SchemaVersion)
+	if err != nil {
+		t.Fatalf("backup database: %v", err)
+	}
+	if filepath.Ext(backupPath) != ".dump" {
+		t.Fatalf("expected .dump backup, got %s", backupPath)
+	}
+
+	restored, err := Open(ctx, config.DatabaseConfig{Path: backupPath})
+	if err != nil {
+		t.Fatalf("open backup database: %v", err)
+	}
+	defer restored.Close()
+	assertTableCount(t, restored, "sources", 1)
+}
+
+func TestMigrateMarksSchemaVersion(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db, err := Open(ctx, config.DatabaseConfig{Path: filepath.Join(t.TempDir(), "nido.db")})
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
+	defer db.Close()
+
+	if err := Migrate(ctx, db); err != nil {
+		t.Fatalf("migrate database: %v", err)
+	}
+	version, err := CurrentSchemaVersion(ctx, db)
+	if err != nil {
+		t.Fatalf("current schema version: %v", err)
+	}
+	if version != SchemaVersion {
+		t.Fatalf("expected schema version %d, got %d", SchemaVersion, version)
+	}
+}
+
+func TestResetWorkspaceClearsDataTransactionally(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db, err := Open(ctx, config.DatabaseConfig{Path: filepath.Join(t.TempDir(), "nido.db")})
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
+	defer db.Close()
+	if err := Migrate(ctx, db); err != nil {
+		t.Fatalf("migrate database: %v", err)
+	}
+	createdAt := time.Now().UTC().Format(time.RFC3339Nano)
+	execTestStatement(t, db, `INSERT INTO sources (id, name, kind, endpoint_url, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`, "source-1", "Source", "http-json-feed", "https://example.test/feed.json", createdAt, createdAt)
+	execTestStatement(t, db, `INSERT INTO properties (id, url, label, source_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`, "property-1", "https://example.test/property/1", "Property", "source-1", createdAt, createdAt)
+
+	if err := NewStore(db).ResetWorkspace(ctx); err != nil {
+		t.Fatalf("reset workspace: %v", err)
+	}
+	assertTableCount(t, db, "sources", 0)
+	assertTableCount(t, db, "properties", 0)
+	assertTableCount(t, db, "platform_settings", 0)
+}
+
 func TestMigrateBackfillsPropertyFieldValuesOnExistingSnapshots(t *testing.T) {
 	t.Parallel()
 

@@ -24,6 +24,13 @@ type WorkspaceBackup struct {
 	PropertyFieldValues []WorkspaceBackupPropertyFieldValue        `json:"property_field_values"`
 }
 
+type BackupFileInfo struct {
+	Name      string    `json:"name"`
+	Path      string    `json:"path"`
+	SizeBytes int64     `json:"size_bytes"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
 type WorkspaceBackupPropertyTag struct {
 	PropertyID string    `json:"property_id"`
 	TagID      string    `json:"tag_id"`

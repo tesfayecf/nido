@@ -4,8 +4,13 @@ services:
     image: ghcr.io/tesfayecf/nido:latest
     restart: unless-stopped
     env_file: 'nido.env'
+    environment:
+      AUTO_MIGRATE: "true"
+      MIGRATION_STRATEGY: safe-auto
+      NIDO_BACKUP_DIR: /app/backups
     volumes:
       - ./data:/data
+      - ./backups:/app/backups
     network_mode: bridge
     ports:
       - "4000:3000"

@@ -10,12 +10,20 @@ import { ThemeProvider, THEME_STORAGE_KEY } from "@/hooks/useTheme";
 const PREFERENCE_STORAGE_KEY = "nido.notification-preferences";
 const downloadWorkspaceBackupDataMock = vi.fn();
 const restoreWorkspaceBackupDataMock = vi.fn();
+const createWorkspaceBackupFileMock = vi.fn();
+const getMigrationStatusMock = vi.fn();
+const listWorkspaceBackupFilesMock = vi.fn();
+const resetWorkspaceDataMock = vi.fn();
 const getCurrentUserMock = vi.fn();
 const listSourcesMock = vi.fn();
 const listTagsMock = vi.fn();
 
 vi.mock("@/services/backup/backup.service", () => ({
+    createWorkspaceBackupFile: () => createWorkspaceBackupFileMock(),
     downloadWorkspaceBackupData: () => downloadWorkspaceBackupDataMock(),
+    getMigrationStatus: () => getMigrationStatusMock(),
+    listWorkspaceBackupFiles: () => listWorkspaceBackupFilesMock(),
+    resetWorkspaceData: () => resetWorkspaceDataMock(),
     restoreWorkspaceBackupData: (backup: unknown) => restoreWorkspaceBackupDataMock(backup),
 }));
 
@@ -57,12 +65,20 @@ describe("SettingsPage", () => {
         window.localStorage.clear();
         downloadWorkspaceBackupDataMock.mockReset();
         restoreWorkspaceBackupDataMock.mockReset();
+        createWorkspaceBackupFileMock.mockReset();
+        getMigrationStatusMock.mockReset();
+        listWorkspaceBackupFilesMock.mockReset();
+        resetWorkspaceDataMock.mockReset();
         getCurrentUserMock.mockReset();
         listSourcesMock.mockReset();
         listTagsMock.mockReset();
         getCurrentUserMock.mockResolvedValue({ display_name: "Alex", email: "alex@example.com", id: "user_1" });
         listSourcesMock.mockResolvedValue([]);
         listTagsMock.mockResolvedValue([]);
+        createWorkspaceBackupFileMock.mockResolvedValue({ created_at: "2026-05-03T10:00:00Z", name: "workspace_2026-05-03T10-00-00_v1.json", path: "/app/backups/workspace_2026-05-03T10-00-00_v1.json", size_bytes: 128 });
+        getMigrationStatusMock.mockResolvedValue({ current_version: 12, pending: false, state: "ready", strategy: "safe-auto", target_version: 12 });
+        listWorkspaceBackupFilesMock.mockResolvedValue([]);
+        resetWorkspaceDataMock.mockResolvedValue(undefined);
 
         if (!window.matchMedia) {
             Object.defineProperty(window, "matchMedia", {
@@ -82,9 +98,11 @@ describe("SettingsPage", () => {
         fireEvent.click(screen.getByRole("tab", { name: "Recovery & Data Movement" }));
 
         expect(await screen.findByRole("heading", { name: "Download backup" })).toBeInTheDocument();
+        expect(screen.getByRole("heading", { name: "Server backup storage" })).toBeInTheDocument();
         expect(screen.getByRole("heading", { name: "Upload backup" })).toBeInTheDocument();
         expect(screen.getByText("Conflict strategy")).toBeInTheDocument();
         expect(screen.getAllByText("Reset local settings").length).toBeGreaterThan(0);
+        expect(screen.getAllByText("Reset application").length).toBeGreaterThan(0);
         expect(screen.getByText("Export properties, sources, tags, relationships, field definitions, platform settings, and this device’s local settings into one versioned JSON file.")).toBeInTheDocument();
     });
 

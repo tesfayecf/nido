@@ -599,6 +599,11 @@ func newRuntimeServer(t *testing.T) (*httptest.Server, string) {
 			LockTTL:         2 * time.Minute,
 			ShutdownTimeout: 5 * time.Second,
 		},
+		Migration: config.MigrationConfig{
+			AutoMigrate: true,
+			Strategy:    "safe-auto",
+			BackupDir:   filepath.Join(t.TempDir(), "backups"),
+		},
 	}
 
 	runtime, err := New(context.Background(), cfg, slog.New(slog.NewTextHandler(io.Discard, nil)))
