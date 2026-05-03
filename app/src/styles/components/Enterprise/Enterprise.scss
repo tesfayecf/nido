@@ -130,6 +130,23 @@
     width: max-content;
 }
 
+.properties-table thead,
+.properties-table tbody,
+.properties-table tr {
+    display: block;
+}
+
+.properties-table thead tr,
+.properties-table__row--virtual {
+    display: table;
+    table-layout: fixed;
+    width: 100%;
+}
+
+.properties-table tbody {
+    position: relative;
+}
+
 .properties-table th,
 .properties-table td {
     border-bottom: 1px solid var(--color-border);
@@ -157,6 +174,13 @@
 
 .properties-table__row--interactive {
     cursor: pointer;
+}
+
+.properties-table__row--virtual {
+    left: 0;
+    position: absolute;
+    right: 0;
+    top: 0;
 }
 
 .properties-table__row--interactive:hover td,
