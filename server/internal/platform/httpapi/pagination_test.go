@@ -49,7 +49,7 @@ func TestWritePaginatedJSONRejectsOversizedPage(t *testing.T) {
 
 func TestWritePaginatedJSONSupportsCursorAndConditionalGET(t *testing.T) {
 	first := httptest.NewRecorder()
-	WritePaginatedJSON(first, httptest.NewRequest(http.MethodGet, "/items?limit=2", nil), http.StatusOK, []int{1, 2, 3}, nil)
+	WritePaginatedJSON(first, httptest.NewRequest(http.MethodGet, "/items?mode=cursor&limit=2", nil), http.StatusOK, []int{1, 2, 3}, nil)
 
 	var firstPayload struct {
 		Data       []int      `json:"data"`
@@ -75,7 +75,7 @@ func TestWritePaginatedJSONSupportsCursorAndConditionalGET(t *testing.T) {
 		t.Fatalf("unexpected cursor page: %+v", secondPayload)
 	}
 
-	conditionalRequest := httptest.NewRequest(http.MethodGet, "/items?limit=2", nil)
+	conditionalRequest := httptest.NewRequest(http.MethodGet, "/items?mode=cursor&limit=2", nil)
 	conditionalRequest.Header.Set("If-None-Match", first.Header().Get("ETag"))
 	conditional := httptest.NewRecorder()
 	WritePaginatedJSON(conditional, conditionalRequest, http.StatusOK, []int{1, 2, 3}, nil)

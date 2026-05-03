@@ -89,16 +89,21 @@ func WriteCacheableJSON(w http.ResponseWriter, r *http.Request, statusCode int, 
 
 func parsePaginationRequest(r *http.Request) (paginationRequest, error) {
 	query := r.URL.Query()
-	if strings.TrimSpace(query.Get("cursor")) != "" {
+	if strings.TrimSpace(query.Get("cursor")) != "" || strings.EqualFold(strings.TrimSpace(query.Get("mode")), "cursor") {
 		limit, err := parseBoundedPositiveInt(query.Get("limit"), "limit", DefaultPageSize)
 		if err != nil {
 			return paginationRequest{}, err
 		}
-		offset, err := decodeCursor(query.Get("cursor"))
-		if err != nil {
-			return paginationRequest{}, err
+		cursor := query.Get("cursor")
+		offset := 0
+		if strings.TrimSpace(cursor) != "" {
+			var err error
+			offset, err = decodeCursor(cursor)
+			if err != nil {
+				return paginationRequest{}, err
+			}
 		}
-		return paginationRequest{mode: "cursor", pageSize: limit, offset: offset, cursor: query.Get("cursor")}, nil
+		return paginationRequest{mode: "cursor", pageSize: limit, offset: offset, cursor: cursor}, nil
 	}
 
 	page, err := parseBoundedPositiveInt(query.Get("page"), "page", 1)
