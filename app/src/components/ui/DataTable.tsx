@@ -7,6 +7,9 @@ import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { classNames } from "@/lib/ui/classNames";
 
+const COMPACT_ROW_HEIGHT = 30;
+const DEFAULT_ROW_HEIGHT = 38;
+
 export interface DataTableColumn<TItem> {
     readonly align?: "left" | "right";
     readonly cell?: (item: TItem) => ReactNode;
@@ -84,11 +87,12 @@ export const DataTable = <TItem,>({
     const pagedItems = sortedItems.slice(startIndex, startIndex + currentPageSize);
     const totalPages = Math.max(1, Math.ceil(sortedItems.length / currentPageSize));
     const shouldVirtualize = pagedItems.length > virtualizeThreshold;
+    const estimatedRowHeight = compact ? COMPACT_ROW_HEIGHT : DEFAULT_ROW_HEIGHT;
     const rowVirtualizer = useVirtualizer({
         count: pagedItems.length,
-        estimateSize: () => compact ? 30 : 38,
+        estimateSize: () => estimatedRowHeight,
         getScrollElement: () => scrollRef.current,
-        initialRect: { height: Math.min(pagedItems.length, currentPageSize) * (compact ? 30 : 38), width: 0 },
+        initialRect: { height: Math.min(pagedItems.length, currentPageSize) * estimatedRowHeight, width: 0 },
         overscan: 8,
     });
     const virtualRows = shouldVirtualize ? rowVirtualizer.getVirtualItems() : [];
@@ -100,7 +104,7 @@ export const DataTable = <TItem,>({
             })
             : pagedItems.slice(0, Math.min(pagedItems.length, 20)).map((item, index) => ({
                 item,
-                virtualRow: { start: index * (compact ? 30 : 38) },
+                virtualRow: { start: index * estimatedRowHeight },
             }))
         : pagedItems.map((item) => ({ item, virtualRow: null }));
 

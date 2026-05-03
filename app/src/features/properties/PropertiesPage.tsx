@@ -43,6 +43,7 @@ import {
 const TABLE_STORAGE_KEY = "nido.properties.table";
 const TABLE_PAGE_STORAGE_KEY = "nido.properties.table.pagination";
 const MIN_COLUMN_WIDTH = 96;
+const PROPERTY_ROW_HEIGHT = 56;
 const PROPERTY_PAGE_SIZE_OPTIONS = [25, 50, 100, 250];
 
 interface PropertyRow {
@@ -376,9 +377,9 @@ export const PropertiesPage = (): JSX.Element => {
     const pagedRows = sortedRows.slice(pageStart, pageStart + pageSize);
     const rowVirtualizer = useVirtualizer({
         count: pagedRows.length,
-        estimateSize: () => 56,
+        estimateSize: () => PROPERTY_ROW_HEIGHT,
         getScrollElement: () => tableShellRef.current,
-        initialRect: { height: Math.min(pagedRows.length, pageSize) * 56, width: 0 },
+        initialRect: { height: Math.min(pagedRows.length, pageSize) * PROPERTY_ROW_HEIGHT, width: 0 },
         overscan: 10,
     });
     const virtualRows = rowVirtualizer.getVirtualItems();
@@ -389,7 +390,7 @@ export const PropertiesPage = (): JSX.Element => {
         })
         : pagedRows.slice(0, Math.min(pagedRows.length, 20)).map((row, index) => ({
             row,
-            virtualStart: index * 56,
+            virtualStart: index * PROPERTY_ROW_HEIGHT,
         }));
 
     const visibleColumns = useMemo(() => {
