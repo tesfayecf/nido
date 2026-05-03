@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -71,7 +72,8 @@ func Register(mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, s
 			platformhttp.WriteError(w, http.StatusNotFound, err.Error())
 			return
 		}
-		w.Header().Set("Content-Disposition", `attachment; filename="`+filepath.Base(path)+`"`)
+		fileName := filepath.Base(path)
+		w.Header().Set("Content-Disposition", "attachment; filename*=UTF-8''"+url.PathEscape(fileName))
 		http.ServeFile(w, r, path)
 	})))
 

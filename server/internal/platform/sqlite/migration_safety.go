@@ -74,8 +74,7 @@ func BackupDatabase(ctx context.Context, db *sql.DB, backupDir string, schemaVer
 		path = filepath.Join(backupDir, fmt.Sprintf("backup_%s_%s_%d.dump", timestamp, version, attempt))
 	}
 
-	escapedPath := strings.ReplaceAll(path, `'`, `''`)
-	if _, err := db.ExecContext(ctx, fmt.Sprintf("VACUUM INTO '%s'", escapedPath)); err != nil {
+	if _, err := db.ExecContext(ctx, "VACUUM INTO ?", path); err != nil {
 		return "", fmt.Errorf("write sqlite backup: %w", err)
 	}
 	return path, nil

@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -49,6 +50,8 @@ type Service struct {
 }
 
 const weeklyDigestInterval = 7 * 24 * time.Hour
+
+var backupFileNamePattern = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
 
 func NewService(logger *slog.Logger, store Store, events *platformevents.Broker, scheduler *ingestionapp.PropertyScheduler, cfg platformconfig.NotificationsConfig, backupDir string) *Service {
 	digestCtx, digestCancel := context.WithCancel(context.Background())
@@ -198,11 +201,12 @@ func (s *Service) ListWorkspaceBackupFiles() ([]platformopsdomain.BackupFileInfo
 }
 
 func (s *Service) BackupFilePath(name string) (string, error) {
-	name = filepath.Base(strings.TrimSpace(name))
-	if name == "." || name == "" {
-		return "", fmt.Errorf("backup file name is required")
+	trimmed := strings.TrimSpace(name)
+	base := filepath.Base(filepath.Clean(trimmed))
+	if base == "." || base == "" || base != trimmed || !backupFileNamePattern.MatchString(base) {
+		return "", fmt.Errorf("invalid backup file name")
 	}
-	path := filepath.Join(s.backupDir, name)
+	path := filepath.Join(s.backupDir, base)
 	if _, err := os.Stat(path); err != nil {
 		return "", fmt.Errorf("backup file not found: %w", err)
 	}
