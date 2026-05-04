@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -9,7 +10,10 @@ import { Field } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/Input";
 import { PageCard } from "@/components/ui/PageCard";
+import { PageStack } from "@/components/ui/PageStack";
 import { QueryDataTable } from "@/components/ui/QueryDataTable";
+import { SecondarySurfaceHeader } from "@/components/ui/SecondarySurfaceHeader";
+import { DEFAULT_TAG_COLOR, resolveTagColor } from "@/components/tags/tagColors";
 import { useToast } from "@/components/ui/ToastProvider";
 import { tagKeys } from "@/services/tags/tags.keys";
 import { createTag, deleteTag, listTags } from "@/services/tags/tags.service";
@@ -25,7 +29,7 @@ export const TagsPage = (): JSX.Element => {
     const [createOpen, setCreateOpen] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState<Tag | null>(null);
     const [newTagName, setNewTagName] = useState("");
-    const [newTagColor, setNewTagColor] = useState("#3b82f6");
+    const [newTagColor, setNewTagColor] = useState(DEFAULT_TAG_COLOR);
 
     const tagsQuery = useQuery({
         queryFn: listTags,
@@ -41,7 +45,7 @@ export const TagsPage = (): JSX.Element => {
             void queryClient.invalidateQueries({ queryKey: tagKeys.list() });
             setCreateOpen(false);
             setNewTagName("");
-            setNewTagColor("#3b82f6");
+            setNewTagColor(DEFAULT_TAG_COLOR);
             pushToast("Tag created.", "success");
         },
     });
@@ -70,88 +74,109 @@ export const TagsPage = (): JSX.Element => {
         });
     };
 
+    const tags = tagsQuery.data ?? [];
+    const colorCount = new Set(tags.map((tag) => tag.color !== "" ? tag.color : "__default__")).size;
+    const recentTagCount = tags.filter((tag) => Date.now() - new Date(tag.created_at).getTime() <= 1000 * 60 * 60 * 24 * 30).length;
+
     return (
         <>
-            <PageCard
-                action={(
-                    <Button iconBefore={<Icon name={"plus"} />} onClick={() => { setCreateOpen(true); }}>
-                        {"New tag"}
-                    </Button>
-                )}
-                description={"Manage tags for organizing and filtering properties."}
-                title={"Tags"}
-            />
+            <PageStack>
+                <SecondarySurfaceHeader
+                    action={(
+                        <Button iconBefore={<Icon name={"plus"} />} onClick={() => { setCreateOpen(true); }}>
+                            {"Create tag"}
+                        </Button>
+                    )}
+                    description={"Manage tags for organizing and filtering properties."}
+                    summaryAriaLabel={"Tags overview"}
+                    summaryItems={[
+                        {
+                            context: tagsQuery.isLoading ? "Loading tags." : tags.length === 0 ? "No tags have been created yet." : "Tags can be applied across properties and filters.",
+                            label: "Tags",
+                            value: tagsQuery.isLoading ? "—" : `${tags.length}`,
+                        },
+                        {
+                            context: tagsQuery.isLoading ? "Loading color coverage." : colorCount === 0 ? "No colors assigned yet." : "Distinct colors help scanning and filtering.",
+                            label: "Colors",
+                            value: tagsQuery.isLoading ? "—" : `${colorCount}`,
+                        },
+                        {
+                            context: tagsQuery.isLoading ? "Loading recent tags." : "Created in the last 30 days.",
+                            label: "Recent",
+                            value: tagsQuery.isLoading ? "—" : `${recentTagCount}`,
+                        },
+                    ]}
+                    title={"Tags"}
+                />
 
-            <QueryDataTable
-                caption={"Available tags"}
-                className={"tags-table"}
-                columns={[
-                    {
-                        cell: (item) => (
-                            <div style={{ alignItems: "center", display: "flex", gap: "0.5rem" }}>
-                                <span
-                                    aria-hidden
-                                    style={{
-                                        backgroundColor: item.color !== "" ? item.color : "#6b7280",
-                                        borderRadius: "50%",
-                                        display: "inline-block",
-                                        height: "1rem",
-                                        width: "1rem",
-                                    }}
-                                />
-                                <strong>{item.name}</strong>
-                            </div>
-                        ),
-                        header: "Tag",
-                        id: "name",
-                        sortValue: (item) => item.name,
-                        width: "40%",
-                    },
-                    {
-                        cell: (item) => item.color !== "" ? item.color : "—",
-                        header: "Color",
-                        id: "color",
-                        width: "20%",
-                    },
-                    {
-                        cell: (item) => formatMediumDate(item.created_at),
-                        header: "Created",
-                        id: "created_at",
-                        sortValue: (item) => item.created_at,
-                        width: "24%",
-                        wrap: true,
-                    },
-                    {
-                        align: "right",
-                        cell: (item) => (
-                            <button
-                                aria-label={"Delete tag"}
-                                className={"icon-button icon-button--danger"}
-                                onClick={(event) => {
-                                    event.stopPropagation();
-                                    setDeleteTarget(item);
-                                }}
-                                title={"Delete"}
-                                type={"button"}
-                            >
-                                <Icon name={"trash"} />
-                            </button>
-                        ),
-                        header: "Actions",
-                        id: "actions",
-                        width: "16%",
-                    },
-                ]}
-                emptyMessage={"No tags yet. Create your first tag to start organizing properties."}
-                errorMessage={"Could not load tags."}
-                getRowId={(item) => item.id}
-                isError={tagsQuery.isError}
-                isLoading={tagsQuery.isLoading}
-                items={tagsQuery.data ?? []}
-                loadingMessage={"Loading tags..."}
-                pageSize={20}
-                rowLabel={(item) => `Tag: ${item.name}`}
-            />
+                <PageCard description={"Review existing tags, their colors, and destructive actions from one list."} title={"Tag list"}>
+                    <QueryDataTable
+                        caption={"Available tags"}
+                        className={"tags-table"}
+                        columns={[
+                            {
+                                cell: (item) => (
+                                    <div style={{ alignItems: "center", display: "flex", gap: "0.5rem" }}>
+                                        <span
+                                            aria-hidden
+                                            className={"tag-swatch tag-swatch--medium"}
+                                            style={{ "--tag-color": resolveTagColor(item.color) } as CSSProperties}
+                                        />
+                                        <strong>{item.name}</strong>
+                                    </div>
+                                ),
+                                header: "Tag",
+                                id: "name",
+                                sortValue: (item) => item.name,
+                                width: "40%",
+                            },
+                            {
+                                cell: (item) => item.color !== "" ? item.color : "—",
+                                header: "Color",
+                                id: "color",
+                                width: "20%",
+                            },
+                            {
+                                cell: (item) => formatMediumDate(item.created_at),
+                                header: "Created",
+                                id: "created_at",
+                                sortValue: (item) => item.created_at,
+                                width: "24%",
+                                wrap: true,
+                            },
+                            {
+                                align: "right",
+                                cell: (item) => (
+                                    <button
+                                        aria-label={"Delete tag"}
+                                        className={"icon-button icon-button--danger"}
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            setDeleteTarget(item);
+                                        }}
+                                        title={"Delete"}
+                                        type={"button"}
+                                    >
+                                        <Icon name={"trash"} />
+                                    </button>
+                                ),
+                                header: "Actions",
+                                id: "actions",
+                                width: "16%",
+                            },
+                        ]}
+                        emptyMessage={"No tags yet. Create your first tag to start organizing properties."}
+                        errorMessage={"Could not load tags."}
+                        getRowId={(item) => item.id}
+                        isError={tagsQuery.isError}
+                        isLoading={tagsQuery.isLoading}
+                        items={tags}
+                        loadingMessage={"Loading tags..."}
+                        pageSize={20}
+                        rowLabel={(item) => `Tag ${item.name}`}
+                    />
+                </PageCard>
+            </PageStack>
 
             <Dialog
                 actions={(
@@ -169,7 +194,7 @@ export const TagsPage = (): JSX.Element => {
                 )}
                 onOpenChange={setCreateOpen}
                 open={createOpen}
-                title={"Create new tag"}
+                title={"Create tag"}
             >
                 <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
                     <Field label={"Tag name"}>
@@ -181,8 +206,8 @@ export const TagsPage = (): JSX.Element => {
                     </Field>
                     <Field label={"Color"}>
                         <input
+                            className={"tag-color-input"}
                             onChange={(event) => { setNewTagColor(event.target.value); }}
-                            style={{ cursor: "pointer", height: "2.5rem", width: "100%" }}
                             type={"color"}
                             value={newTagColor}
                         />

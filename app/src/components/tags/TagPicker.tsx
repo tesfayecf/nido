@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { useMemo, useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -6,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { Field } from "@/components/ui/Field";
 import { Input } from "@/components/ui/Input";
+import { DEFAULT_TAG_COLOR, resolveTagColor } from "@/components/tags/tagColors";
 import { useToast } from "@/components/ui/ToastProvider";
 import { tagKeys } from "@/services/tags/tags.keys";
 import { createTag, listTags } from "@/services/tags/tags.service";
@@ -27,7 +29,7 @@ export const TagPicker = ({ onChange, onOpenChange, open, selectedTagIds }: TagP
     const queryClient = useQueryClient();
     const { pushToast } = useToast();
     const [newTagName, setNewTagName] = useState("");
-    const [newTagColor, setNewTagColor] = useState("#3b82f6");
+    const [newTagColor, setNewTagColor] = useState(DEFAULT_TAG_COLOR);
     const [localSelection, setLocalSelection] = useState<Set<string>>(new Set(selectedTagIds));
     
     const tagsQuery = useQuery({
@@ -44,7 +46,7 @@ export const TagPicker = ({ onChange, onOpenChange, open, selectedTagIds }: TagP
             void queryClient.invalidateQueries({ queryKey: tagKeys.list() });
             setLocalSelection((prev) => new Set([...prev, data.id]));
             setNewTagName("");
-            setNewTagColor("#3b82f6");
+            setNewTagColor(DEFAULT_TAG_COLOR);
             pushToast("Tag created.", "success");
         },
     });
@@ -97,23 +99,17 @@ export const TagPicker = ({ onChange, onOpenChange, open, selectedTagIds }: TagP
             title={"Edit tags"}
         >
             <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-                <div style={{ border: "1px solid #e5e7eb", borderRadius: "0.5rem", maxHeight: "20rem", overflowY: "auto", padding: "0.5rem" }}>
+                <div className={"tag-picker__list"}>
                     {tags.length === 0 ? (
                         <p className={"muted-copy"} style={{ padding: "1rem", textAlign: "center" }}>
                             {"No tags yet. Create one below."}
                         </p>
                     ) : (
-                        <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+                        <div className={"tag-picker__items"}>
                             {tags.map((tag) => (
                                 <label
+                                    className={"tag-picker__item"}
                                     key={tag.id}
-                                    style={{
-                                        alignItems: "center",
-                                        cursor: "pointer",
-                                        display: "flex",
-                                        gap: "0.5rem",
-                                        padding: "0.5rem",
-                                    }}
                                 >
                                     <input
                                         checked={localSelection.has(tag.id)}
@@ -121,13 +117,9 @@ export const TagPicker = ({ onChange, onOpenChange, open, selectedTagIds }: TagP
                                         type={"checkbox"}
                                     />
                                     <span
-                                        style={{
-                                            backgroundColor: tag.color !== "" ? tag.color : "#6b7280",
-                                            borderRadius: "50%",
-                                            display: "inline-block",
-                                            height: "0.75rem",
-                                            width: "0.75rem",
-                                        }}
+                                        aria-hidden
+                                        className={"tag-swatch tag-swatch--medium"}
+                                        style={{ "--tag-color": resolveTagColor(tag.color) } as CSSProperties}
                                     />
                                     <span>{tag.name}</span>
                                 </label>
@@ -136,9 +128,9 @@ export const TagPicker = ({ onChange, onOpenChange, open, selectedTagIds }: TagP
                     )}
                 </div>
                 
-                <div style={{ borderTop: "1px solid #e5e7eb", paddingTop: "1rem" }}>
-                    <p style={{ fontWeight: 500, marginBottom: "0.5rem" }}>{"Add new tag"}</p>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                <div className={"tag-picker__create"}>
+                    <p className={"tag-picker__create-title"}>{"Add new tag"}</p>
+                    <div className={"tag-picker__create-body"}>
                         <Field label={"Tag name"}>
                             <Input
                                 onChange={(event) => { setNewTagName(event.target.value); }}
@@ -148,8 +140,8 @@ export const TagPicker = ({ onChange, onOpenChange, open, selectedTagIds }: TagP
                         </Field>
                         <Field label={"Color"}>
                             <input
+                                className={"tag-color-input"}
                                 onChange={(event) => { setNewTagColor(event.target.value); }}
-                                style={{ cursor: "pointer", height: "2.5rem", width: "100%" }}
                                 type={"color"}
                                 value={newTagColor}
                             />

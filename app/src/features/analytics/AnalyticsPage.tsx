@@ -168,6 +168,8 @@ export const AnalyticsPage = (): JSX.Element => {
     const showEmptyChart = (chartType === "histogram" && histogramData.length === 0)
         || (chartType === "scatter" && scatterData.length === 0)
         || ((chartType === "bar" || chartType === "bar-horizontal" || chartType === "line") && chartData.length === 0);
+    const chartTypeLabel = CHART_OPTIONS.find((option) => option.value === chartType)?.label ?? chartType;
+    const focusLabel = activeDatum === undefined ? "Dataset overview" : activeDatum.label;
     const isLoading = fieldsQuery.isLoading || datasetQuery.isLoading;
     const isError = fieldsQuery.isError || datasetQuery.isError;
     const isEmpty = !isLoading && !isError && (datasetQuery.data?.length ?? 0) === 0;
@@ -187,6 +189,29 @@ export const AnalyticsPage = (): JSX.Element => {
                     loadingMessage={"Loading analytics..."}
                 >
                     <div style={{ display: "grid", gap: "1rem" }}>
+                        <section aria-label={"Analysis snapshot"} className={"analytics-workbench__snapshot"}>
+                            <div className={"analytics-workbench__snapshot-item"}>
+                                <span className={"analytics-workbench__snapshot-label"}>{"Primary measure"}</span>
+                                <strong className={"analytics-workbench__snapshot-value"}>{resolvedMeasureField?.label ?? "—"}</strong>
+                                <span className={"analytics-workbench__snapshot-meta"}>{metricLabel(metric)}</span>
+                            </div>
+                            <div className={"analytics-workbench__snapshot-item"}>
+                                <span className={"analytics-workbench__snapshot-label"}>{"Current lens"}</span>
+                                <strong className={"analytics-workbench__snapshot-value"}>{chartTypeLabel}</strong>
+                                <span className={"analytics-workbench__snapshot-meta"}>{resolvedParameterFieldName !== "" ? lookupFieldLabel(fieldOptions, resolvedParameterFieldName) : "No grouping field selected."}</span>
+                            </div>
+                            <div className={"analytics-workbench__snapshot-item"}>
+                                <span className={"analytics-workbench__snapshot-label"}>{"Scope"}</span>
+                                <strong className={"analytics-workbench__snapshot-value"}>{`${filteredRecords.length} properties`}</strong>
+                                <span className={"analytics-workbench__snapshot-meta"}>{filters.length === 0 ? "No filters applied." : `${filters.length} filter${filters.length === 1 ? "" : "s"} applied.`}</span>
+                            </div>
+                            <div className={"analytics-workbench__snapshot-item"}>
+                                <span className={"analytics-workbench__snapshot-label"}>{"Focus"}</span>
+                                <strong className={"analytics-workbench__snapshot-value"}>{focusLabel}</strong>
+                                <span className={"analytics-workbench__snapshot-meta"}>{activeDatum === undefined ? "Hover or select a mark to inspect specific records." : `${selectedRecords.length} record${selectedRecords.length === 1 ? "" : "s"} contributing.`}</span>
+                            </div>
+                        </section>
+
                         <PageCard description={"Key signals for the currently filtered dataset."} title={"Summary"}>
                             <KeyValueGrid compact>
                                 <KeyValuePair label={"Properties in scope"} value={summary.total_records.toLocaleString("en")} />
@@ -254,15 +279,30 @@ export const AnalyticsPage = (): JSX.Element => {
                                     <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: "1rem" }}>
                                         <div style={{ alignItems: "center", display: "flex", justifyContent: "space-between", marginBottom: "0.75rem" }}>
                                             <strong>{"Filters"}</strong>
-                                            <Button
-                                                onClick={() => {
-                                                    setFilters((current) => [...current, createFilter(resolvedMeasureFieldName)]);
-                                                }}
-                                                size={"small"}
-                                                variant={"secondary"}
-                                            >
-                                                {"Add filter"}
-                                            </Button>
+                                            <div style={{ display: "flex", gap: "0.5rem" }}>
+                                                {filters.length > 0 ? (
+                                                    <Button
+                                                        onClick={() => {
+                                                            setFilters([]);
+                                                            setSelectedDatumId(null);
+                                                            setHoveredDatumId(null);
+                                                        }}
+                                                        size={"small"}
+                                                        variant={"secondary"}
+                                                    >
+                                                        {"Clear filters"}
+                                                    </Button>
+                                                ) : null}
+                                                <Button
+                                                    onClick={() => {
+                                                        setFilters((current) => [...current, createFilter(resolvedMeasureFieldName)]);
+                                                    }}
+                                                    size={"small"}
+                                                    variant={"secondary"}
+                                                >
+                                                    {"Add filter"}
+                                                </Button>
+                                            </div>
                                         </div>
                                         <div style={{ display: "grid", gap: "0.75rem" }}>
                                             {filters.length === 0 ? <p className={"muted-copy"} style={{ margin: 0 }}>{"No filters applied. Add filters to narrow the active dataset."}</p> : null}
@@ -326,8 +366,20 @@ export const AnalyticsPage = (): JSX.Element => {
 
                         <div style={{ display: "grid", gap: "1rem", gridTemplateColumns: "minmax(0, 1.1fr) minmax(0, 1fr)" }}>
                             <PageCard
+                                action={activeDatum !== undefined ? (
+                                    <Button
+                                        onClick={() => {
+                                            setSelectedDatumId(null);
+                                            setHoveredDatumId(null);
+                                        }}
+                                        size={"small"}
+                                        variant={"secondary"}
+                                    >
+                                        {"Clear selection"}
+                                    </Button>
+                                ) : undefined}
                                 description={activeDatum === undefined ? "Showing the currently filtered properties." : "Hover or click a mark to inspect the exact contributing properties."}
-                                title={activeDatum === undefined ? "Filtered properties" : "Detail inspection"}
+                                title={activeDatum === undefined ? "Records in scope" : "Selected records"}
                             >
                                 {activeDatum !== undefined ? (
                                     <KeyValueGrid compact style={{ marginBottom: "1rem" }}>
@@ -359,7 +411,7 @@ export const AnalyticsPage = (): JSX.Element => {
 
                             <PageCard description={"Use this quick reference to confirm what the current controls are measuring."} title={"Active analysis"}>
                                 <KeyValueGrid compact>
-                                    <KeyValuePair label={"Chart"} value={CHART_OPTIONS.find((option) => option.value === chartType)?.label ?? chartType} />
+                                    <KeyValuePair label={"Chart"} value={chartTypeLabel} />
                                     <KeyValuePair label={"Measure"} value={resolvedMeasureField?.label ?? "—"} />
                                     <KeyValuePair label={"Metric"} value={metricLabel(metric)} />
                                     <KeyValuePair label={"Parameter"} value={resolvedParameterFieldName !== "" ? lookupFieldLabel(fieldOptions, resolvedParameterFieldName) : "None"} />

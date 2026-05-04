@@ -42,7 +42,7 @@ export const AnalyticsChart = ({
     const theme = useChartTheme();
 
     if (chartType === "scatter") {
-        const lookup = buildScatterLookup(scatterData, theme.series, selectedId, theme.surface);
+        const lookup = buildScatterLookup(scatterData, theme.series, theme.accent, selectedId, theme.surface);
         const options = createScatterOptions(theme, lookup.showLegend, onHover, onSelect);
 
         return (
@@ -52,7 +52,7 @@ export const AnalyticsChart = ({
         );
     }
 
-    const lookup = buildCartesianLookup(data, chartType, theme.series, selectedId, theme.surface);
+    const lookup = buildCartesianLookup(data, chartType, theme.series, theme.accent, selectedId, theme.surface);
     const sharedOptions = createCartesianOptions(theme, lookup.showLegend, lookup.lookupByDataset, onHover, onSelect);
 
     if (chartType === "line") {
@@ -89,6 +89,7 @@ const buildCartesianLookup = (
     data: AnalyticsAggregateDatum[],
     chartType: AnalyticsChartType,
     palette: readonly string[],
+    accentColor: string,
     selectedId: string | null,
     surfaceColor: string,
 ): CartesianLookup => {
@@ -99,7 +100,7 @@ const buildCartesianLookup = (
     const lookupByDataset = segments.map(() => new Array<AnalyticsAggregateDatum | undefined>(labels.length).fill(undefined));
 
     const datasets = segments.map((segment, segmentIndex) => {
-        const color = palette[segmentIndex % palette.length] ?? palette[0] ?? "#2f6fed";
+        const color = palette[segmentIndex % palette.length] ?? palette[0] ?? accentColor;
         const values = new Array<number | null>(labels.length).fill(null);
         const backgroundColor = new Array<string>(labels.length).fill(`${color}cc`);
         const pointBackgroundColor = new Array<string>(labels.length).fill(surfaceColor);
@@ -213,6 +214,7 @@ const resolveAggregateId = (
 const buildScatterLookup = (
     data: AnalyticsScatterDatum[],
     palette: readonly string[],
+    accentColor: string,
     selectedId: string | null,
     surfaceColor: string,
 ): {
@@ -224,7 +226,7 @@ const buildScatterLookup = (
     return {
         datasets: segments.map((segment, segmentIndex) => {
             const segmentData = data.filter((item) => item.segment === segment);
-            const color = palette[segmentIndex % palette.length] ?? palette[0] ?? "#2f6fed";
+            const color = palette[segmentIndex % palette.length] ?? palette[0] ?? accentColor;
             return {
                 backgroundColor: color,
                 borderColor: color,

@@ -12,6 +12,7 @@ import { ItemList } from "@/components/ui/ItemList";
 import { ListRow, ListRowFooter, ListRowMain } from "@/components/ui/ListRow";
 import { PageCard } from "@/components/ui/PageCard";
 import { PageStack } from "@/components/ui/PageStack";
+import { SecondarySurfaceHeader } from "@/components/ui/SecondarySurfaceHeader";
 import { Select } from "@/components/ui/Select";
 import { formatCurrency } from "@/lib/format/currency";
 import { formatDateTime } from "@/lib/format/date";
@@ -79,9 +80,32 @@ export const BookmarksPage = (): JSX.Element => {
         saveBookmarkGroups(nextState);
     };
 
+    const groupCount = groupState.groups.length + 1;
+
     return (
         <PageStack>
-            <PageCard description={"Create folders and organize saved properties without changing the underlying bookmark record."} title={"Bookmark Groups"}>
+            <SecondarySurfaceHeader
+                description={"Bookmarks save properties directly, without any watchlist or listing intermediary."}
+                summaryAriaLabel={"Bookmarks overview"}
+                summaryItems={[
+                    {
+                        context: bookmarksQuery.isLoading ? "Loading saved properties." : bookmarks.length === 0 ? "No saved properties yet." : "Saved properties stay available for comparison and revisit.",
+                        label: "Saved properties",
+                        value: bookmarksQuery.isLoading ? "—" : `${bookmarks.length}`,
+                    },
+                    {
+                        context: groupState.groups.length === 0 ? "Create groups to organize shortlist work." : "Groups are stored locally for quick organization.",
+                        label: "Groups",
+                        value: `${groupCount}`,
+                    },
+                    {
+                        context: selectedIds.length === 0 ? "Select 2 to 4 properties to compare." : "Selected properties are ready for compare or removal.",
+                        label: "Selected",
+                        value: `${selectedIds.length}`,
+                    },
+                ]}
+                title={"Bookmarks"}
+            >
                 <FormGrid
                     onSubmit={(event) => {
                         event.preventDefault();
@@ -102,8 +126,8 @@ export const BookmarksPage = (): JSX.Element => {
                         <Button disabled={newGroupName.trim() === ""} type={"submit"}>{"Create group"}</Button>
                     </Field>
                 </FormGrid>
-            </PageCard>
-            <PageCard description={"Bookmarks save properties directly, without any watchlist or listing intermediary."} title={"Bookmarks"}>
+            </SecondarySurfaceHeader>
+            <PageCard description={"Manage saved properties, group assignments, and compare actions from a single list."} title={"Saved properties"}>
                 {selectedIds.length > 0 ? (
                     <div className={"toolbar"}>
                         <strong>{`${selectedIds.length} selected`}</strong>

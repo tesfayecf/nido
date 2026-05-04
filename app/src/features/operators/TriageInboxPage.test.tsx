@@ -47,6 +47,8 @@ const renderTriageInboxPage = (): ReturnType<typeof render> => {
     );
 };
 
+const TEST_TIMEOUT_MS = 30000;
+
 describe("TriageInboxPage", () => {
     beforeEach(() => {
         ingestPropertyMock.mockReset();
@@ -86,5 +88,20 @@ describe("TriageInboxPage", () => {
         await act(async () => {
             resolveIngest?.();
         });
-    });
+    }, TEST_TIMEOUT_MS);
+
+    it("surfaces queue counts and list semantics before the work items", async () => {
+        renderTriageInboxPage();
+
+        await screen.findByText("Sunny flat is degraded");
+
+        const openItems = screen.getByText("Open items");
+        const queueSummary = openItems.closest("section");
+
+        expect(queueSummary).not.toBeNull();
+        expect(queueSummary).toHaveAttribute("aria-label", "Queue summary");
+        expect(screen.getByRole("button", { name: "All severities (4)" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "High (4)" })).toBeInTheDocument();
+        expect(screen.getAllByRole("listitem")).toHaveLength(4);
+    }, TEST_TIMEOUT_MS);
 });

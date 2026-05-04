@@ -3,17 +3,17 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/Button";
-import { DataTable } from "@/components/ui/DataTable";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Field } from "@/components/ui/Field";
 import { FormGrid } from "@/components/ui/FormGrid";
 import { Dialog } from "@/components/ui/Dialog";
 import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/Input";
-import { AsyncContent } from "@/components/ui/AsyncContent";
 import { PageCard } from "@/components/ui/PageCard";
 import { PageStack } from "@/components/ui/PageStack";
+import { QueryDataTable } from "@/components/ui/QueryDataTable";
 import { Select } from "@/components/ui/Select";
+import { SecondarySurfaceHeader } from "@/components/ui/SecondarySurfaceHeader";
 import { useToast } from "@/components/ui/ToastProvider";
 import { parseOptionalNonNegativeInteger } from "@/lib/forms/number";
 import { ALERT_RULE_TYPES, getRuleTypeLabel, getRuleTypeLogic, ruleRequiresThreshold } from "@/services/alert-rules/alert-rules.constants";
@@ -64,6 +64,12 @@ export const AlertsPage = (): JSX.Element => {
     const alertRules = alertRulesQuery.data ?? [];
     const properties = propertiesQuery.data ?? [];
     const propertyLabelById = new Map(properties.map((item) => [item.id, item.label !== "" ? item.label : item.url]));
+    const enabledCount = alertRules.filter((rule) => rule.enabled).length;
+    const thresholdRuleCount = alertRules.filter((rule) => rule.threshold_amount !== undefined).length;
+    const coveredPropertyCount = new Set(alertRules.map((rule) => rule.property_id)).size;
+    const alertCountValue = alertRulesQuery.isLoading ? "—" : `${alertRules.length}`;
+    const enabledCountValue = alertRulesQuery.isLoading ? "—" : `${enabledCount}`;
+    const thresholdCountValue = alertRulesQuery.isLoading ? "—" : `${thresholdRuleCount}`;
     const thresholdNeeded = ruleRequiresThreshold(ruleType);
     const parsedThreshold = parseOptionalNonNegativeInteger(thresholdAmount);
     const submitDisabled = propertyId === "" || (thresholdNeeded && parsedThreshold === undefined);
@@ -71,24 +77,36 @@ export const AlertsPage = (): JSX.Element => {
     return (
         <>
             <PageStack>
-            <PageCard
-                action={(
-                    <Button iconBefore={<Icon name={"plus"} />} onClick={() => { setCreateOpen(true); }}>
-                        {"New alert"}
-                    </Button>
-                )}
-                description={"Active rules stay attached to their property until you delete them."}
-                title={"Alerts"}
-            >
-                <AsyncContent
-                    emptyMessage={"No alert rules have been created yet."}
-                    errorMessage={"Could not load alert rules."}
-                    isEmpty={alertRulesQuery.isSuccess && alertRules.length === 0}
-                    isError={alertRulesQuery.isError}
-                    isLoading={alertRulesQuery.isLoading}
-                    loadingMessage={"Loading alert rules..."}
-                >
-                    <DataTable
+                <SecondarySurfaceHeader
+                    action={(
+                        <Button iconBefore={<Icon name={"plus"} />} onClick={() => { setCreateOpen(true); }}>
+                            {"Create alert"}
+                        </Button>
+                    )}
+                    description={"Active rules stay attached to their property until you delete them."}
+                    summaryAriaLabel={"Alerts overview"}
+                    summaryItems={[
+                        {
+                            context: alertRulesQuery.isLoading ? "Loading alert coverage." : alertRules.length === 0 ? "No rules created yet." : `${coveredPropertyCount} propert${coveredPropertyCount === 1 ? "y" : "ies"} covered.`,
+                            label: "Alert rules",
+                            value: alertCountValue,
+                        },
+                        {
+                            context: alertRulesQuery.isLoading ? "Loading active rule status." : enabledCount === 0 ? "No active rules are running." : "Rules run after each new snapshot.",
+                            label: "Active",
+                            value: enabledCountValue,
+                        },
+                        {
+                            context: alertRulesQuery.isLoading ? "Loading threshold rules." : thresholdRuleCount === 0 ? "No threshold rules configured." : "Threshold rules require numeric values.",
+                            label: "Threshold rules",
+                            value: thresholdCountValue,
+                        },
+                    ]}
+                    title={"Alerts"}
+                />
+
+                <PageCard description={"Review, create, and delete alert rules from one predictable list."} title={"Alert rules"}>
+                    <QueryDataTable
                         caption={"Current alert rules"}
                         columns={[
                             { cell: (item) => getRuleTypeLabel(item.rule_type), header: "Rule", id: "rule", sortValue: (item) => item.rule_type },
@@ -110,12 +128,16 @@ export const AlertsPage = (): JSX.Element => {
                         ]}
                         compact
                         emptyMessage={"No alert rules have been created yet."}
+                        errorMessage={"Could not load alert rules."}
                         getRowId={(item) => item.id}
+                        isError={alertRulesQuery.isError}
+                        isLoading={alertRulesQuery.isLoading}
                         items={alertRules}
+                        loadingMessage={"Loading alert rules..."}
                         pageSize={12}
+                        rowLabel={(item) => `Alert rule ${getRuleTypeLabel(item.rule_type)}`}
                     />
-                </AsyncContent>
-            </PageCard>
+                </PageCard>
             </PageStack>
             <Dialog
                 description={propertyId === ""

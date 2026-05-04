@@ -6,13 +6,19 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ToastProvider } from "@/components/ui/ToastProvider";
 import { PropertyDetailPage } from "@/features/properties/PropertyDetailPage";
 import { formatDateTime } from "@/lib/format/date";
+import { alertRuleKeys } from "@/services/alert-rules/alert-rules.keys";
+import { sourceKeys } from "@/services/backoffice-sources/sources.keys";
+import { bookmarkKeys } from "@/services/bookmarks/bookmarks.keys";
+import { fieldKeys } from "@/services/fields/fields.keys";
 import type { FieldDefinitionUsage } from "@/services/fields/fields.types";
+import { propertyKeys } from "@/services/properties/properties.keys";
 import type {
     Property,
     PropertyExtractionConfig,
     PropertyRun,
     PropertySnapshot,
 } from "@/services/properties/properties.types";
+import { tagKeys } from "@/services/tags/tags.keys";
 
 const createPropertyMock = vi.fn();
 const deletePropertyMock = vi.fn();
@@ -180,13 +186,32 @@ const SUMMARY = {
     signals: [],
 };
 
-const renderPropertyDetailPage = (): ReturnType<typeof render> => {
+const createTestQueryClient = (): QueryClient => {
     const queryClient = new QueryClient({
         defaultOptions: {
             mutations: { retry: false },
             queries: { retry: false },
         },
     });
+
+    queryClient.setQueryData(propertyKeys.detail(PROPERTY.id), PROPERTY);
+    queryClient.setQueryData(propertyKeys.config(PROPERTY.id), CONFIG);
+    queryClient.setQueryData(propertyKeys.summary(PROPERTY.id), SUMMARY);
+    queryClient.setQueryData(propertyKeys.configVersions(PROPERTY.id), [CONFIG]);
+    queryClient.setQueryData(propertyKeys.runs(PROPERTY.id), RUNS);
+    queryClient.setQueryData(propertyKeys.snapshots(PROPERTY.id), []);
+    queryClient.setQueryData(propertyKeys.summaries(), [SUMMARY]);
+    queryClient.setQueryData(fieldKeys.list(), []);
+    queryClient.setQueryData(sourceKeys.list(), []);
+    queryClient.setQueryData(bookmarkKeys.all(), []);
+    queryClient.setQueryData(tagKeys.propertyTags(PROPERTY.id), []);
+    queryClient.setQueryData(alertRuleKeys.all(), []);
+
+    return queryClient;
+};
+
+const renderPropertyDetailPage = (): ReturnType<typeof render> => {
+    const queryClient = createTestQueryClient();
     const router = createMemoryRouter(
         [{ path: "/properties/:propertyId", element: <PropertyDetailPage /> }],
         { initialEntries: ["/properties/prop_1"] },
@@ -268,10 +293,10 @@ describe("PropertyDetailPage", () => {
     it("shows explicit backend-driven scheduling details", async () => {
         renderPropertyDetailPage();
 
-        expect(await screen.findByText("Scheduled")).toBeInTheDocument();
-        expect(screen.getByText(formatDateTime(PROPERTY.next_run_at as string))).toBeInTheDocument();
-        expect(screen.getByText(formatDateTime(PROPERTY.last_run_at as string))).toBeInTheDocument();
-        fireEvent.click(screen.getByRole("button", { name: "Configuration" }));
+        expect((await screen.findAllByText("Scheduled")).length).toBeGreaterThan(0);
+        expect(screen.getByText(new RegExp(formatDateTime(PROPERTY.next_run_at as string)))).toBeInTheDocument();
+        expect(screen.getByText(new RegExp(formatDateTime(PROPERTY.last_run_at as string)))).toBeInTheDocument();
+        fireEvent.click(screen.getByRole("tab", { name: "Configuration" }));
         expect(screen.getAllByText("5 minutes").length).toBeGreaterThan(0);
     });
 
@@ -280,13 +305,15 @@ describe("PropertyDetailPage", () => {
 
         await screen.findByText("Sunny flat");
         expect(screen.queryByText("Selector builder")).not.toBeInTheDocument();
+        expect(screen.getByRole("tabpanel", { name: "Overview" })).toBeInTheDocument();
 
-        fireEvent.click(screen.getByRole("button", { name: "Notes & Decisions" }));
+        fireEvent.click(screen.getByRole("tab", { name: "Notes & Decisions" }));
 
         expect(screen.getByLabelText("Target price")).toBeInTheDocument();
         expect(screen.getByRole("button", { name: "Save notes & decisions" })).toBeInTheDocument();
+        expect(screen.getByRole("tabpanel", { name: "Notes & Decisions" })).toBeInTheDocument();
 
-        fireEvent.click(screen.getByRole("button", { name: "Configuration" }));
+        fireEvent.click(screen.getByRole("tab", { name: "Configuration" }));
 
         expect(window.location.hash).toBe("");
         expect(screen.getByText("Selector builder")).toBeInTheDocument();
@@ -297,24 +324,40 @@ describe("PropertyDetailPage", () => {
         renderPropertyDetailPage();
 
         await screen.findByText("Sunny flat");
-        const navLabels = screen.getAllByRole("button")
-            .map((button) => button.textContent)
+        const navLabels = screen.getAllByRole("tab")
+            .map((tab) => tab.textContent)
             .filter((label): label is string => label === "Overview" || label === "Insights" || label === "Notes & Decisions" || label === "Configuration");
 
         expect(navLabels).toEqual(["Overview", "Insights", "Notes & Decisions", "Configuration"]);
+    });
+
+    it("uses accessible tab semantics and keeps key decision data in the overview first", async () => {
+        renderPropertyDetailPage();
+
+        expect(await screen.findByRole("tablist", { name: "Property sections" })).toBeInTheDocument();
+        expect(screen.getByRole("tab", { name: "Overview" })).toHaveAttribute("aria-selected", "true");
+        expect(screen.getByText("Decision snapshot")).toBeInTheDocument();
+        expect(screen.getByText("Property Facts")).toBeInTheDocument();
+
+        fireEvent.keyDown(screen.getByRole("tab", { name: "Overview" }), { key: "ArrowRight" });
+
+        expect(screen.getByRole("tab", { name: "Insights" })).toHaveAttribute("aria-selected", "true");
+        expect(screen.getByRole("tabpanel", { name: "Insights" })).toBeInTheDocument();
     });
 
     it("keeps note editing inside notes and decisions while configuration stays operational", async () => {
         renderPropertyDetailPage();
 
         await screen.findByText("Sunny flat");
-        fireEvent.click(screen.getByRole("button", { name: "Notes & Decisions" }));
+        fireEvent.click(screen.getByRole("tab", { name: "Notes & Decisions" }));
 
         expect(screen.getByLabelText("Decision status")).toBeInTheDocument();
         expect(screen.getByLabelText("Notes")).toBeInTheDocument();
         expect(screen.getByRole("button", { name: "Save notes & decisions" })).toBeInTheDocument();
+        expect(screen.getByText("Decision summary")).toBeInTheDocument();
+        expect(screen.getByText("Underwriting inputs")).toBeInTheDocument();
 
-        fireEvent.click(screen.getByRole("button", { name: "Configuration" }));
+        fireEvent.click(screen.getByRole("tab", { name: "Configuration" }));
 
         expect(screen.queryByLabelText("Decision status")).not.toBeInTheDocument();
         expect(screen.queryByLabelText("Notes")).not.toBeInTheDocument();
@@ -324,7 +367,7 @@ describe("PropertyDetailPage", () => {
     it("saves notes and decisions from the notes section", async () => {
         renderPropertyDetailPage();
 
-        fireEvent.click(await screen.findByRole("button", { name: "Notes & Decisions" }));
+        fireEvent.click(await screen.findByRole("tab", { name: "Notes & Decisions" }));
         fireEvent.change(screen.getByLabelText("Target price"), { target: { value: "210000" } });
         fireEvent.change(screen.getByLabelText("Notes"), { target: { value: "Proceed if the seller accepts a quick close." } });
 
@@ -343,7 +386,7 @@ describe("PropertyDetailPage", () => {
     it("saves structured duration controls as schedule seconds", async () => {
         renderPropertyDetailPage();
 
-        fireEvent.click(await screen.findByRole("button", { name: "Configuration" }));
+        fireEvent.click(await screen.findByRole("tab", { name: "Configuration" }));
 
         const scheduleInput = document.querySelector<HTMLInputElement>("#prop-schedule-value");
         const scheduleUnit = document.querySelector<HTMLSelectElement>("#prop-schedule-unit");
@@ -452,12 +495,12 @@ describe("PropertyDetailPage", () => {
 
         renderPropertyDetailPage();
 
-        fireEvent.click(await screen.findByRole("button", { name: "Configuration" }));
+        fireEvent.click(await screen.findByRole("tab", { name: "Configuration" }));
         expect(await screen.findByText("Tags")).toBeInTheDocument();
         expect(screen.getByText("Alerts")).toBeInTheDocument();
         expect(screen.getByLabelText("Tag: High Priority")).toBeInTheDocument();
 
-        fireEvent.click(screen.getByRole("button", { name: "Notes & Decisions" }));
+        fireEvent.click(screen.getByRole("tab", { name: "Notes & Decisions" }));
         expect(screen.queryByLabelText("Tag: High Priority")).not.toBeInTheDocument();
         expect(screen.queryByText("Alerts")).not.toBeInTheDocument();
     });

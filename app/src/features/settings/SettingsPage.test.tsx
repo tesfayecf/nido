@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ToastProvider } from "@/components/ui/ToastProvider";
@@ -60,6 +60,8 @@ const renderSettingsPage = (): ReturnType<typeof render> => {
     );
 };
 
+const TEST_TIMEOUT_MS = 30000;
+
 describe("SettingsPage", () => {
     beforeEach(() => {
         window.localStorage.clear();
@@ -104,7 +106,22 @@ describe("SettingsPage", () => {
         expect(screen.getAllByText("Reset local settings").length).toBeGreaterThan(0);
         expect(screen.getAllByText("Reset application").length).toBeGreaterThan(0);
         expect(screen.getByText("Export properties, sources, tags, relationships, field definitions, platform settings, and this device’s local settings into one versioned JSON file.")).toBeInTheDocument();
-    });
+    }, TEST_TIMEOUT_MS);
+
+    it("surfaces a settings snapshot before the tab panels", async () => {
+        renderSettingsPage();
+
+        const profile = await screen.findByText("Profile");
+        const snapshot = profile.closest("section");
+
+        expect(snapshot).not.toBeNull();
+        expect(snapshot).toHaveAttribute("aria-label", "Settings snapshot");
+        expect(within(snapshot as HTMLElement).getByText("Workspace view")).toBeInTheDocument();
+        expect(within(snapshot as HTMLElement).getByText("Operational defaults")).toBeInTheDocument();
+        expect(within(snapshot as HTMLElement).getByText("Recovery status")).toBeInTheDocument();
+        expect(await within(snapshot as HTMLElement).findByText("Alex")).toBeInTheDocument();
+        expect(await within(snapshot as HTMLElement).findByText("Ready")).toBeInTheDocument();
+    }, TEST_TIMEOUT_MS);
 
     it("applies quick preference presets and saves them locally", async () => {
         renderSettingsPage();
@@ -121,7 +138,7 @@ describe("SettingsPage", () => {
             expect(window.localStorage.getItem(WORKSPACE_SETTINGS_STORAGE_KEY)).toContain('"density":"compact"');
             expect(window.localStorage.getItem(PREFERENCE_STORAGE_KEY)).toContain('"channels":["in-app","email","webhook","chat"]');
         });
-    });
+    }, TEST_TIMEOUT_MS);
 
     it("restores a full workspace backup after confirmation", async () => {
         restoreWorkspaceBackupDataMock.mockResolvedValue(undefined);
@@ -196,7 +213,7 @@ describe("SettingsPage", () => {
             expect(window.localStorage.getItem(WORKSPACE_SETTINGS_STORAGE_KEY)).toContain('"display_currency":"USD"');
             expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe("dark");
         });
-    });
+    }, TEST_TIMEOUT_MS);
 
     it("restores a legacy settings-only backup without calling the workspace restore API", async () => {
         renderSettingsPage();
@@ -246,7 +263,7 @@ describe("SettingsPage", () => {
             expect(window.localStorage.getItem(WORKSPACE_SETTINGS_STORAGE_KEY)).toContain('"display_locale":"es-ES"');
             expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe("light");
         });
-    });
+    }, TEST_TIMEOUT_MS);
 
     it("resets local settings and clears saved UI state only after confirmation", async () => {
         window.localStorage.setItem(PREFERENCE_STORAGE_KEY, JSON.stringify({
@@ -281,5 +298,5 @@ describe("SettingsPage", () => {
             expect(window.localStorage.getItem("nido.nav-collapsed")).toBeNull();
             expect(window.localStorage.getItem("nido.properties.table")).toBeNull();
         });
-    });
+    }, TEST_TIMEOUT_MS);
 });

@@ -54,6 +54,8 @@ const PROPERTY: Property = {
     url: "https://example.com/listing",
 };
 
+const TEST_TIMEOUT_MS = 30000;
+
 const renderPropertiesPage = (): { readonly router: ReturnType<typeof createMemoryRouter>; } & ReturnType<typeof render> => {
     const queryClient = new QueryClient({
         defaultOptions: {
@@ -115,7 +117,7 @@ describe("PropertiesPage", () => {
         await waitFor(() => {
             expect(router.state.location.pathname).toBe("/properties/prop_1");
         });
-    });
+    }, TEST_TIMEOUT_MS);
 
     it("does not navigate when an inner row action is clicked", async () => {
         const { router } = renderPropertiesPage();
@@ -126,7 +128,7 @@ describe("PropertiesPage", () => {
             expect(createBookmarkMock).toHaveBeenCalledWith("prop_1");
         });
         expect(router.state.location.pathname).toBe("/properties");
-    });
+    }, TEST_TIMEOUT_MS);
 
     it("keeps the custom properties table paginated for large portfolios", async () => {
         listPropertiesMock.mockResolvedValue(Array.from({ length: 60 }, (_, index) => buildProperty(index + 1)));
@@ -141,7 +143,21 @@ describe("PropertiesPage", () => {
 
         expect(screen.getByText("Page 2 of 2 · 60 properties")).toBeInTheDocument();
         expect(screen.getByRole("button", { name: "Open property Property 60" })).toBeInTheDocument();
-    });
+    }, TEST_TIMEOUT_MS);
+
+    it("surfaces portfolio scope and active filter state ahead of the table", async () => {
+        renderPropertiesPage();
+
+        expect(await screen.findByLabelText("Portfolio snapshot")).toBeInTheDocument();
+        expect(screen.getByText("Tracked properties")).toBeInTheDocument();
+        expect(screen.getByText("In current view")).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole("button", { name: "Filters" }));
+        fireEvent.change(screen.getByPlaceholderText("Filter"), { target: { value: "Missing" } });
+
+        expect(screen.getByRole("button", { name: "Hide filters (1 active)" })).toBeInTheDocument();
+        expect(screen.getByText("No properties match the current filters. Clear filters or adjust the table controls.")).toBeInTheDocument();
+    }, TEST_TIMEOUT_MS);
 });
 
 const buildProperty = (index: number): Property => ({

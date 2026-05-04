@@ -10,7 +10,9 @@ import { Field } from "@/components/ui/Field";
 import { FormGrid } from "@/components/ui/FormGrid";
 import { Input } from "@/components/ui/Input";
 import { PageCard } from "@/components/ui/PageCard";
+import { PageStack } from "@/components/ui/PageStack";
 import { QueryDataTable } from "@/components/ui/QueryDataTable";
+import { SecondarySurfaceHeader } from "@/components/ui/SecondarySurfaceHeader";
 import { Select } from "@/components/ui/Select";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -111,6 +113,8 @@ export const RunsPage = (): JSX.Element => {
     }, [filters.limit, filters.property_id]);
 
     const propertyOptions = useMemo(() => propertiesQuery.data ?? [], [propertiesQuery.data]);
+    const runsInView = runsQuery.data?.items ?? [];
+    const failureCount = runsInView.filter((run) => !run.is_valid && run.error_message !== undefined && run.error_message !== "").length;
     const triggerDisabled = triggerMode === "property"
         ? triggerPropertyId.trim() === ""
         : triggerMode === "source"
@@ -119,35 +123,54 @@ export const RunsPage = (): JSX.Element => {
 
     return (
         <>
-            <PageCard
-                action={<Button onClick={() => { setTriggerOpen(true); }}>{"Create run"}</Button>}
-                description={"Runs are stored as snapshots and managed directly from the table."}
-                title={"Runs"}
-            >
-                <FormGrid
-                    variant={"inline"}
-                    onSubmit={(event) => {
-                        event.preventDefault();
-                        const nextParams = new URLSearchParams(searchParams);
-                        writeParam(nextParams, "property_id", draftPropertyId);
-                        writeParam(nextParams, "limit", draftLimit);
-                        setSearchParams(nextParams);
-                    }}
+            <PageStack>
+                <SecondarySurfaceHeader
+                    action={<Button onClick={() => { setTriggerOpen(true); }}>{"Create run"}</Button>}
+                    description={"Runs are stored as snapshots and managed directly from the table."}
+                    summaryAriaLabel={"Runs overview"}
+                    summaryItems={[
+                        {
+                            context: runsQuery.isLoading ? "Loading run history." : `Limit set to ${filters.limit}.`,
+                            label: "In view",
+                            value: runsQuery.isLoading ? "—" : `${runsInView.length}`,
+                        },
+                        {
+                            context: runsQuery.isLoading ? "Loading run failures." : failureCount === 0 ? "No failed runs in the current scope." : "Review the error column to diagnose failures.",
+                            label: "Failures",
+                            value: runsQuery.isLoading ? "—" : `${failureCount}`,
+                        },
+                        {
+                            context: filters.property_id === "" ? "Showing all properties." : `Filtered to property ${filters.property_id}.`,
+                            label: "Scope",
+                            value: filters.property_id === "" ? "All" : filters.property_id,
+                        },
+                    ]}
+                    title={"Runs"}
                 >
-                    <Field label={"Property id"}>
-                        <Input onChange={(event) => { setDraftPropertyId(event.target.value); }} value={draftPropertyId} />
-                    </Field>
-                    <Field label={"Limit"}>
-                        <Input min={1} onChange={(event) => { setDraftLimit(event.target.value); }} step={1} type={"number"} value={draftLimit} />
-                    </Field>
-                    <Field as={"div"} variant={"actions"}>
-                        <Button type={"submit"}>{"Apply"}</Button>
-                    </Field>
-                </FormGrid>
-            </PageCard>
+                    <FormGrid
+                        variant={"inline"}
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            const nextParams = new URLSearchParams(searchParams);
+                            writeParam(nextParams, "property_id", draftPropertyId);
+                            writeParam(nextParams, "limit", draftLimit);
+                            setSearchParams(nextParams);
+                        }}
+                    >
+                        <Field label={"Property id"}>
+                            <Input onChange={(event) => { setDraftPropertyId(event.target.value); }} value={draftPropertyId} />
+                        </Field>
+                        <Field label={"Limit"}>
+                            <Input min={1} onChange={(event) => { setDraftLimit(event.target.value); }} step={1} type={"number"} value={draftLimit} />
+                        </Field>
+                        <Field as={"div"} variant={"actions"}>
+                            <Button type={"submit"}>{"Apply"}</Button>
+                        </Field>
+                    </FormGrid>
+                </SecondarySurfaceHeader>
 
-            <PageCard description={"Select a row to inspect the full snapshot payload."} title={"Recent Runs"}>
-                <QueryDataTable
+                <PageCard description={"Select a row to inspect the full snapshot payload."} title={"Run history"}>
+                    <QueryDataTable
                     caption={"Recent runs"}
                     columns={[
                         {
@@ -216,8 +239,9 @@ export const RunsPage = (): JSX.Element => {
                     onRowClick={(item) => { void navigate(`/runs/${item.id}`); }}
                     pageSize={12}
                     rowLabel={(item) => `Open run ${item.id}`}
-                />
-            </PageCard>
+                    />
+                </PageCard>
+            </PageStack>
 
             <Dialog
                 onOpenChange={setTriggerOpen}

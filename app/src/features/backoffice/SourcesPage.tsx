@@ -7,8 +7,10 @@ import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Icon } from "@/components/ui/Icon";
 import { PageCard } from "@/components/ui/PageCard";
+import { PageStack } from "@/components/ui/PageStack";
 import { QueryDataTable } from "@/components/ui/QueryDataTable";
 import { RowActions } from "@/components/ui/RowActions";
+import { SecondarySurfaceHeader } from "@/components/ui/SecondarySurfaceHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useToast } from "@/components/ui/ToastProvider";
 import { formatDateTime } from "@/lib/format/date";
@@ -91,25 +93,45 @@ export const SourcesPage = (): JSX.Element => {
             fieldCount: readFieldCount(source.config_json),
         }));
     }, [sources]);
+    const activeCount = sources.filter((source) => source.active !== false).length;
+    const connectedProperties = (propertiesQuery.data ?? []).filter((property) => property.source_id !== undefined && property.source_id !== "");
+    const templatesInUse = new Set(connectedProperties.map((property) => property.source_id)).size;
 
     return (
         <>
-            <PageCard
-                action={(
-                    <Button iconBefore={<Icon name={"plus"} />} onClick={() => { void navigate("/sources/new"); }}>
-                        {"New source"}
-                    </Button>
-                )}
-                title={"Sources"}
-            >
-                <div className={"toolbar"}>
-                    <span className={"muted-copy"}>{`${sources.length} templates`}</span>
-                </div>
-            </PageCard>
+            <PageStack>
+                <SecondarySurfaceHeader
+                    action={(
+                        <Button iconBefore={<Icon name={"plus"} />} onClick={() => { void navigate("/sources/new"); }}>
+                            {"Create source"}
+                        </Button>
+                    )}
+                    description={"Manage reusable source templates and run all linked properties from one predictable workspace."}
+                    summaryAriaLabel={"Sources overview"}
+                    summaryItems={[
+                        {
+                            context: sourcesQuery.isLoading ? "Loading source templates." : sources.length === 0 ? "No source templates configured yet." : `${templatesInUse} template${templatesInUse === 1 ? "" : "s"} linked to properties.`,
+                            label: "Templates",
+                            value: sourcesQuery.isLoading ? "—" : `${sources.length}`,
+                        },
+                        {
+                            context: sourcesQuery.isLoading ? "Loading source status." : activeCount === 0 ? "No active templates are ready to run." : "Active templates can run linked properties.",
+                            label: "Active",
+                            value: sourcesQuery.isLoading ? "—" : `${activeCount}`,
+                        },
+                        {
+                            context: propertiesQuery.isLoading ? "Loading property coverage." : connectedProperties.length === 0 ? "No properties are linked to a source." : "Use row actions to run all linked properties.",
+                            label: "Tracked properties",
+                            value: propertiesQuery.isLoading ? "—" : `${connectedProperties.length}`,
+                        },
+                    ]}
+                    title={"Sources"}
+                />
 
-            <QueryDataTable
-                caption={"Source templates"}
-                columns={[
+                <PageCard description={"Open a template to edit mappings, delete it, or run all linked properties."} title={"Source templates"}>
+                    <QueryDataTable
+                        caption={"Source templates"}
+                        columns={[
                     {
                         cell: (item) => (
                             <div className={"data-table__primary"}>
@@ -187,18 +209,20 @@ export const SourcesPage = (): JSX.Element => {
                         width: "9rem",
                     },
                 ]}
-                compact
-                emptyMessage={"No sources are configured yet."}
-                errorMessage={"Could not load sources."}
-                getRowId={(item) => item.id}
-                isError={sourcesQuery.isError}
-                isLoading={sourcesQuery.isLoading}
-                items={rows}
-                loadingMessage={"Loading sources..."}
-                onRowClick={(item) => { void navigate(`/sources/${item.id}`); }}
-                pageSize={20}
-                rowLabel={(item) => `Open source ${item.name}`}
-            />
+                        compact
+                        emptyMessage={"No sources are configured yet."}
+                        errorMessage={"Could not load sources."}
+                        getRowId={(item) => item.id}
+                        isError={sourcesQuery.isError}
+                        isLoading={sourcesQuery.isLoading}
+                        items={rows}
+                        loadingMessage={"Loading sources..."}
+                        onRowClick={(item) => { void navigate(`/sources/${item.id}`); }}
+                        pageSize={20}
+                        rowLabel={(item) => `Open source template ${item.name}`}
+                    />
+                </PageCard>
+            </PageStack>
 
             <ConfirmDialog
                 confirmLabel={"Delete source"}

@@ -79,7 +79,7 @@ export const TriageInboxPage = (): JSX.Element => {
         },
     });
 
-    const triageItems = useMemo(() => {
+    const allTriageItems = useMemo(() => {
         const items = buildTriageItems({
             notifications: notificationsQuery.data?.items ?? [],
             properties: propertiesQuery.data ?? [],
@@ -87,8 +87,19 @@ export const TriageInboxPage = (): JSX.Element => {
             runs: runsQuery.data?.items ?? [],
         });
 
-        return severityFilter === "" ? items : items.filter((item) => item.severity === severityFilter);
-    }, [notificationsQuery.data?.items, propertiesQuery.data, runsQuery.data?.items, severityFilter]);
+        return items;
+    }, [notificationsQuery.data?.items, propertiesQuery.data, runsQuery.data?.items]);
+    const triageItems = useMemo(() => {
+        return severityFilter === "" ? allTriageItems : allTriageItems.filter((item) => item.severity === severityFilter);
+    }, [allTriageItems, severityFilter]);
+    const severityCounts = useMemo(() => {
+        return {
+            critical: allTriageItems.filter((item) => item.severity === "critical").length,
+            high: allTriageItems.filter((item) => item.severity === "high").length,
+            low: allTriageItems.filter((item) => item.severity === "low").length,
+            medium: allTriageItems.filter((item) => item.severity === "medium").length,
+        } satisfies Record<OperatorSeverity, number>;
+    }, [allTriageItems]);
 
     const isLoading = propertiesQuery.isLoading || runsQuery.isLoading || notificationsQuery.isLoading;
     const isError = propertiesQuery.isError || runsQuery.isError || notificationsQuery.isError;
@@ -99,6 +110,11 @@ export const TriageInboxPage = (): JSX.Element => {
                 description={"This inbox consolidates degraded properties, failed runs, unread notifications, and missing setup so operators can move from overview to action quickly."}
                 title={"Triage inbox"}
             >
+                <section aria-label={"Queue summary"} className={"dashboard-state-grid"} style={{ marginBottom: "1rem" }}>
+                    <TriageSummaryTile context={severityFilter === "" ? "All severities are visible." : `Filtered to ${severityFilter} items.`} label={"Open items"} value={`${allTriageItems.length}`} />
+                    <TriageSummaryTile context={severityCounts.critical === 0 ? "No critical failures are waiting." : "Critical failures should be handled first."} label={"Critical now"} value={`${severityCounts.critical}`} />
+                    <TriageSummaryTile context={severityCounts.high === 0 ? "No high-severity follow-up is waiting." : "High-severity items still need review."} label={"High next"} value={`${severityCounts.high}`} />
+                </section>
                 <div className={"toolbar"}>
                     {SEVERITY_FILTERS.map((option) => (
                         <Button
@@ -110,13 +126,13 @@ export const TriageInboxPage = (): JSX.Element => {
                             }}
                             variant={severityFilter === option.value ? "primary" : "secondary"}
                         >
-                            {option.label}
+                            {`${option.label} (${option.value === "" ? allTriageItems.length : severityCounts[option.value]})`}
                         </Button>
                     ))}
                 </div>
             </PageCard>
 
-            <PageCard description={"Rows are sorted by severity first, then recency."} title={`Work items (${triageItems.length})`}>
+            <PageCard description={"Rows are sorted by severity first, then recency."} title={severityFilter === "" ? `Work items (${triageItems.length})` : `Work items (${triageItems.length} of ${allTriageItems.length})`}>
                 <AsyncContent
                     emptyMessage={"No operational work items need attention right now."}
                     errorMessage={"Could not load triage data."}
@@ -125,7 +141,7 @@ export const TriageInboxPage = (): JSX.Element => {
                     isLoading={isLoading}
                     loadingMessage={"Loading triage inbox..."}
                 >
-                    <div style={{ display: "grid", gap: "0.75rem" }}>
+                    <div role={"list"} style={{ display: "grid", gap: "0.75rem" }}>
                         {triageItems.map((item) => {
                             const propertyId = item.propertyId;
                             const notificationId = item.kind === "notification" ? item.id.replace("notification-", "") : null;
@@ -133,7 +149,7 @@ export const TriageInboxPage = (): JSX.Element => {
                             const isRunPending = propertyId !== undefined && pendingPropertyId === propertyId && runNowMutation.isPending;
 
                             return (
-                                <article key={item.id} style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-md)", display: "grid", gap: "0.75rem", padding: "1rem" }}>
+                                <article key={item.id} role={"listitem"} style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-md)", display: "grid", gap: "0.75rem", padding: "1rem" }}>
                                     <div style={{ alignItems: "flex-start", display: "flex", gap: "0.75rem", justifyContent: "space-between" }}>
                                         <div>
                                             <strong style={{ display: "block" }}>{item.title}</strong>
@@ -203,3 +219,19 @@ const severityTone = (severity: OperatorSeverity): "danger" | "neutral" | "succe
             return "neutral";
     }
 };
+
+const TriageSummaryTile = ({
+    context,
+    label,
+    value,
+}: {
+    readonly context: string;
+    readonly label: string;
+    readonly value: string;
+}): JSX.Element => (
+    <article className={"dashboard-state-tile"}>
+        <span className={"dashboard-state-tile__label"}>{label}</span>
+        <strong className={"dashboard-state-tile__value"}>{value}</strong>
+        <p className={"dashboard-state-tile__context"}>{context}</p>
+    </article>
+);

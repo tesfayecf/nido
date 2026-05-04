@@ -5,15 +5,15 @@ import { Link } from "react-router-dom";
 
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { DataTable } from "@/components/ui/DataTable";
 import { Dialog } from "@/components/ui/Dialog";
-import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Field } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/Input";
 import { PageCard } from "@/components/ui/PageCard";
 import { PageStack } from "@/components/ui/PageStack";
+import { QueryDataTable } from "@/components/ui/QueryDataTable";
 import { Select } from "@/components/ui/Select";
+import { SecondarySurfaceHeader } from "@/components/ui/SecondarySurfaceHeader";
 import { Textarea } from "@/components/ui/Textarea";
 import { useToast } from "@/components/ui/ToastProvider";
 import { fieldKeys } from "@/services/fields/fields.keys";
@@ -165,16 +165,38 @@ export const FieldsPage = (): JSX.Element => {
         updateMutation.mutate({ fieldId: editingField.id, request });
     };
 
+    const fields = fieldsQuery.data ?? [];
+    const fieldsInUse = fields.filter((field) => field.properties_using > 0).length;
+    const enumFields = fields.filter((field) => field.data_type === "enum").length;
+
     return (
         <>
             <PageStack>
-                <PageCard
+                <SecondarySurfaceHeader
                     action={(
                         <Button iconBefore={<Icon name={"plus"} />} onClick={openCreate}>
                             {"Create field"}
                         </Button>
                     )}
                     description={"Define shared canonical fields and keep cross-property data analytics-ready."}
+                    summaryAriaLabel={"Fields overview"}
+                    summaryItems={[
+                        {
+                            context: fieldsQuery.isLoading ? "Loading field definitions." : `${filteredFields.length} matching the current search.`,
+                            label: "Definitions",
+                            value: fieldsQuery.isLoading ? "—" : `${fields.length}`,
+                        },
+                        {
+                            context: fieldsQuery.isLoading ? "Loading usage coverage." : fieldsInUse === 0 ? "No fields are in active use yet." : "These fields already appear across properties.",
+                            label: "In use",
+                            value: fieldsQuery.isLoading ? "—" : `${fieldsInUse}`,
+                        },
+                        {
+                            context: fieldsQuery.isLoading ? "Loading enum fields." : enumFields === 0 ? "No enum definitions configured." : "Enum fields constrain values to explicit options.",
+                            label: "Enum fields",
+                            value: fieldsQuery.isLoading ? "—" : `${enumFields}`,
+                        },
+                    ]}
                     title={"Fields"}
                 >
                     <div className={"selector-builder__identity-grid"}>
@@ -183,10 +205,9 @@ export const FieldsPage = (): JSX.Element => {
                         </Field>
                         <div className={"muted-copy"} style={{ alignSelf: "end" }}>{"All fields are managed in one shared list."}</div>
                     </div>
-                </PageCard>
-                <PageCard description={"Manage the canonical fields used across extracted property data."} title={"Definitions"}>
-                    {fieldsQuery.isError ? <ErrorBanner>{"Could not load fields."}</ErrorBanner> : null}
-                    <DataTable
+                </SecondarySurfaceHeader>
+                <PageCard description={"Manage the canonical fields used across extracted property data."} title={"Field definitions"}>
+                    <QueryDataTable
                         caption={"Field definitions"}
                         columns={[
                             {
@@ -247,9 +268,14 @@ export const FieldsPage = (): JSX.Element => {
                             },
                         ]}
                         emptyMessage={"No fields found."}
+                        errorMessage={"Could not load fields."}
                         getRowId={(item) => item.id}
+                        isError={fieldsQuery.isError}
+                        isLoading={fieldsQuery.isLoading}
                         items={filteredFields}
+                        loadingMessage={"Loading fields..."}
                         pageSize={15}
+                        rowLabel={(item) => `Field ${item.display_name}`}
                     />
                 </PageCard>
             </PageStack>

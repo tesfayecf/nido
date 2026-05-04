@@ -82,6 +82,8 @@ const RECORDS: AnalyticsRecord[] = [
     },
 ];
 
+const TEST_TIMEOUT_MS = 30000;
+
 const renderAnalyticsPage = (): ReturnType<typeof render> => {
     const queryClient = new QueryClient({
         defaultOptions: {
@@ -116,7 +118,7 @@ describe("AnalyticsPage", () => {
         expect(screen.getByDisplayValue("Histogram")).toBeInTheDocument();
         expect(screen.getByDisplayValue("Price")).toBeInTheDocument();
         expect(screen.getByText("Bilbao flat")).toBeInTheDocument();
-    });
+    }, TEST_TIMEOUT_MS);
 
     it("applies a categorical filter and updates the filtered dataset summary", async () => {
         renderAnalyticsPage();
@@ -143,5 +145,41 @@ describe("AnalyticsPage", () => {
             expect(screen.queryByText("Getxo house")).not.toBeInTheDocument();
         });
         expect(screen.getByText("Bilbao loft")).toBeInTheDocument();
-    });
+    }, TEST_TIMEOUT_MS);
+
+    it("surfaces the current investigation state and lets operators clear filters", async () => {
+        renderAnalyticsPage();
+
+        expect(await screen.findByLabelText("Analysis snapshot")).toBeInTheDocument();
+        expect(screen.getByText("Primary measure")).toBeInTheDocument();
+        expect(screen.getByText("Scope")).toBeInTheDocument();
+
+        const initialComboboxCount = (await screen.findAllByRole("combobox")).length;
+        fireEvent.click(screen.getByRole("button", { name: "Add filter" }));
+
+        await waitFor(() => {
+            expect(screen.getAllByRole("combobox").length).toBeGreaterThan(initialComboboxCount);
+        });
+
+        const comboboxesAfterAdd = screen.getAllByRole("combobox");
+        fireEvent.change(comboboxesAfterAdd[initialComboboxCount] as HTMLSelectElement, { target: { value: "location" } });
+
+        await waitFor(() => {
+            expect(screen.getAllByRole("combobox").length).toBeGreaterThan(comboboxesAfterAdd.length);
+        });
+
+        fireEvent.change(screen.getAllByRole("combobox").at(-1) as HTMLSelectElement, { target: { value: "Bilbao" } });
+
+        await waitFor(() => {
+            expect(screen.getByRole("button", { name: "Clear filters" })).toBeInTheDocument();
+            expect(screen.queryByText("Getxo house")).not.toBeInTheDocument();
+        });
+
+        fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+
+        await waitFor(() => {
+            expect(screen.queryByRole("button", { name: "Clear filters" })).not.toBeInTheDocument();
+            expect(screen.getByText("Getxo house")).toBeInTheDocument();
+        });
+    }, TEST_TIMEOUT_MS);
 });

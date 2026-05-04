@@ -8,6 +8,7 @@ import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Field } from "@/components/ui/Field";
 import { FormGrid } from "@/components/ui/FormGrid";
 import { Input } from "@/components/ui/Input";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 import { Toolbar } from "@/components/ui/Toolbar";
 import { ThemeToggle } from "@/components/shell/ThemeToggle";
 import { isApiError } from "@/lib/api/errors";
@@ -79,13 +80,12 @@ export const LoginPage = (): JSX.Element => {
                     </Field>
 
                     <Field label={"Password"}>
-                        <Input
+                        <PasswordInput
                             autoComplete={"current-password"}
                             onChange={(event) => {
                                 setPassword(event.target.value);
                             }}
                             placeholder={"dev-password"}
-                            type={"password"}
                             value={password}
                         />
                     </Field>

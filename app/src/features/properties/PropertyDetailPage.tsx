@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -385,6 +385,7 @@ const formatEuro = (value: number): string => `${Math.round(value).toLocaleStrin
 type PriceMetricTone = "danger" | "neutral" | "success";
 
 interface PriceMetricCardProps {
+    readonly className?: string;
     readonly emphasis?: boolean;
     readonly label: string;
     readonly meta?: string;
@@ -408,6 +409,8 @@ const formatSignedPercent = (value: number | undefined): string => {
     return `${value > 0 ? "+" : ""}${value.toFixed(1)}%`;
 };
 
+const formatPercent = (value: number): string => Number.isInteger(value) ? `${value}%` : `${value.toFixed(1)}%`;
+
 const formatPriceClassification = (value: ReturnType<typeof buildPriceIntelligence>["classification"]): string => {
     return `${value.charAt(0).toUpperCase()}${value.slice(1)}`;
 };
@@ -418,6 +421,10 @@ const getPriceMetricTone = (value: number | undefined): PriceMetricTone => {
     }
 
     return value > 0 ? "danger" : "success";
+};
+
+const toPriceMetricTone = (value: "danger" | "neutral" | "success" | "warning"): PriceMetricTone => {
+    return value === "warning" ? "neutral" : value;
 };
 
 const getPriceClassificationTone = (value: ReturnType<typeof buildPriceIntelligence>["classification"]): "danger" | "success" | "warning" => {
@@ -448,9 +455,11 @@ const getFreshnessTone = (value: string | undefined): "danger" | "neutral" | "su
 
 const isExternalHTTPURL = (value: string): boolean => validateOptionalPropertyURL(value) === undefined;
 
-const PriceMetricCard = ({ emphasis = false, label, meta, tone = "neutral", value }: PriceMetricCardProps): JSX.Element => {
+const PriceMetricCard = ({ className, emphasis = false, label, meta, tone = "neutral", value }: PriceMetricCardProps): JSX.Element => {
+    const cardClassName = ["property-price-metric", emphasis ? "property-price-metric--featured" : undefined, className].filter(Boolean).join(" ");
+
     return (
-        <article className={emphasis ? "property-price-metric property-price-metric--featured" : "property-price-metric"}>
+        <article className={cardClassName}>
             <span className={"property-price-metric__label"}>{label}</span>
             <strong className={`property-price-metric__value property-price-metric__value--${tone}`}>
                 {value}
@@ -476,6 +485,10 @@ const buildPropertyAttributes = (values: Record<string, string>): { pricePerSqua
 const createPriceSelectorDrafts = (): SelectorFieldDraft[] => createDefaultSelectorDrafts().filter((field) => field.name === "price");
 
 type PropertySectionId = "configuration" | "insights" | "notes-decisions" | "overview";
+
+const getPropertySectionPanelId = (sectionId: PropertySectionId): string => `property-section-panel-${sectionId}`;
+
+const getPropertySectionTabId = (sectionId: PropertySectionId): string => `property-section-tab-${sectionId}`;
 
 const PROPERTY_SECTIONS: { readonly id: PropertySectionId; readonly label: string; }[] = [
     { id: "overview", label: "Overview" },
@@ -541,6 +554,7 @@ export const PropertyDetailPage = (): JSX.Element => {
     const [detachmentAlertDismissed, setDetachmentAlertDismissed] = useState(false);
     const previousDetachedRef = useRef(false);
     const previousTemplateIdRef = useRef("");
+    const sectionButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
     const propertyQuery = useQuery({
         enabled: !isCreateMode,
@@ -1182,6 +1196,67 @@ export const PropertyDetailPage = (): JSX.Element => {
         decisionEntries.push({ label: "System signal", timestamp: latestSnapshot?.observed_at, value: summaryQuery.data.latest_change_summary });
     }
 
+    const decisionStatusSummary = metadataDraft.businessStage.trim() !== ""
+        ? formatDecisionStatus(metadataDraft.businessStage)
+        : summaryQuery.data?.decision.stage !== undefined
+            ? formatDecisionStatus(summaryQuery.data.decision.stage)
+            : "Not set";
+    const prioritySummary = metadataDraft.priorityLevel.trim() === "" ? "Not set" : formatFieldName(metadataDraft.priorityLevel);
+    const targetPriceSummary = metadataDraft.targetPrice.trim() !== ""
+        ? formatEuro(Number(metadataDraft.targetPrice))
+        : pricingInsight?.target_price !== undefined
+            ? formatEuro(pricingInsight.target_price)
+            : "Not set";
+    const expectedRentSummary = metadataDraft.expectedRent.trim() === "" ? "Not set" : formatEuro(Number(metadataDraft.expectedRent));
+    const expectedYieldSummary = metadataDraft.expectedYieldPercent.trim() === "" ? "Not set" : formatPercent(Number(metadataDraft.expectedYieldPercent));
+    const currentPriceSummary = attributes.totalPrice ?? summaryQuery.data?.current_values.price ?? "Not available";
+    const currentPriceMeta = attributes.pricePerSquareMeter ?? "Per-square-meter price not captured yet.";
+    const propertyStatusSummary = propertyQuery.data?.status === undefined ? "Not available" : formatFieldName(propertyQuery.data.status);
+    const propertyStatusMeta = summaryQuery.data?.latest_change_summary !== undefined && summaryQuery.data.latest_change_summary !== ""
+        ? summaryQuery.data.latest_change_summary
+        : extractionHealthLabel;
+    const automationMeta = propertyQuery.data?.next_run_at !== undefined
+        ? `Next run ${formatDateTime(propertyQuery.data.next_run_at)}`
+        : propertyQuery.data?.last_run_at !== undefined
+            ? `Last run ${formatDateTime(propertyQuery.data.last_run_at)}`
+            : manualEntryMode ? "Manual-only workflow." : "No automation timing saved yet.";
+    const decisionSummaryMeta = [
+        prioritySummary !== "Not set" ? `Priority ${prioritySummary}` : undefined,
+        targetPriceSummary !== "Not set" ? `Target ${targetPriceSummary}` : undefined,
+    ].filter((item): item is string => item !== undefined).join(" · ") || "Set a decision status, priority, or target price.";
+
+    const handleSectionNavigation = (event: ReactKeyboardEvent<HTMLButtonElement>, index: number): void => {
+        let nextIndex = index;
+
+        switch (event.key) {
+            case "ArrowDown":
+            case "ArrowRight":
+                nextIndex = (index + 1) % PROPERTY_SECTIONS.length;
+                break;
+            case "ArrowLeft":
+            case "ArrowUp":
+                nextIndex = (index - 1 + PROPERTY_SECTIONS.length) % PROPERTY_SECTIONS.length;
+                break;
+            case "Home":
+                nextIndex = 0;
+                break;
+            case "End":
+                nextIndex = PROPERTY_SECTIONS.length - 1;
+                break;
+            default:
+                return;
+        }
+
+        event.preventDefault();
+        const nextSection = PROPERTY_SECTIONS[nextIndex];
+        if (nextSection !== undefined) {
+            setActiveSection(nextSection.id);
+            window.requestAnimationFrame(() => {
+                sectionButtonRefs.current[nextIndex]?.focus();
+            });
+        }
+    };
+
     const templateRoleSummary = noTemplateSelected
         ? null
         : (
@@ -1393,13 +1468,19 @@ export const PropertyDetailPage = (): JSX.Element => {
     return (
         <>
             <PageStack>
-                <nav aria-label={"Property sections"} className={"property-detail-nav"}>
-                    {PROPERTY_SECTIONS.map((section) => (
+                <nav aria-label={"Property sections"} className={"property-detail-nav"} role={"tablist"}>
+                    {PROPERTY_SECTIONS.map((section, index) => (
                         <button
-                            aria-pressed={activeSection === section.id}
+                            aria-controls={getPropertySectionPanelId(section.id)}
+                            aria-selected={activeSection === section.id}
                             className={activeSection === section.id ? "property-detail-nav__link property-detail-nav__link--active" : "property-detail-nav__link"}
+                            id={getPropertySectionTabId(section.id)}
                             key={section.id}
+                            onKeyDown={(event) => { handleSectionNavigation(event, index); }}
                             onClick={() => { setActiveSection(section.id); }}
+                            ref={(node) => { sectionButtonRefs.current[index] = node; }}
+                            role={"tab"}
+                            tabIndex={activeSection === section.id ? 0 : -1}
                             type={"button"}
                         >
                             {section.label}
@@ -1407,96 +1488,135 @@ export const PropertyDetailPage = (): JSX.Element => {
                     ))}
                 </nav>
                 {activeSection === "overview" ? (
-                    <PageCard
-                        action={(
-                            <ActionGroup>
-                                <Button as={Link} to={"/properties"} variant={"secondary"}>{"Back"}</Button>
-                                <Button onClick={() => { setExportOpen(true); }} variant={"secondary"}>{"Export"}</Button>
-                                <Button onClick={() => { window.open(`/properties/${resolvedId}/print`, "_blank", "noopener"); }} variant={"secondary"}>{"Print / PDF"}</Button>
-                            </ActionGroup>
-                        )}
-                        description={"Immediate read-only summary of the latest known property state."}
-                        title={propertyQuery.data?.label !== undefined && propertyQuery.data.label !== "" ? propertyQuery.data.label : propertyQuery.data?.url !== undefined && propertyQuery.data.url !== "" ? propertyQuery.data.url : "Manual property"}
-                        titleId={"overview"}
+                    <div
+                        aria-labelledby={getPropertySectionTabId("overview")}
+                        className={"property-section-panel"}
+                        id={getPropertySectionPanelId("overview")}
+                        role={"tabpanel"}
                     >
-                        {propertyQuery.isError ? <ErrorBanner>{"Could not load property."}</ErrorBanner> : null}
-                        {propertyQuery.data !== undefined ? (
-                            <div className={"property-overview-grid"}>
-                                <section className={"property-detail-group"}>
-                                    <span className={"app-shell__eyebrow"}>{"Core attributes"}</span>
-                                    <KeyValueGrid compact>
-                                        <KeyValuePair label={"Price (current)"} value={attributes.totalPrice ?? summaryQuery.data?.current_values.price ?? "Not available"} />
-                                        <KeyValuePair label={"Location"} value={latestValues.location ?? latestValues.city ?? latestValues.district ?? "Not available"} />
-                                        <KeyValuePair label={"Rooms"} value={attributes.rooms ?? latestValues.rooms ?? "Not available"} />
-                                        <KeyValuePair label={"Area"} value={attributes.surfaceArea ?? latestValues.area ?? latestValues.area_m2 ?? "Not available"} />
-                                        <KeyValuePair label={"Source"} value={sourceSummary} />
-                                        <KeyValuePair
-                                            label={"Listing URL"}
-                                            value={propertyQuery.data.url !== "" ? (
-                                                <span className={"status-with-copy"}>
-                                                    <a className={"property-detail-anchor"} href={propertyQuery.data.url} rel={"noreferrer"} target={"_blank"}>{"Open listing"}</a>
-                                                    <CopyButton label={"Copy property URL"} value={propertyQuery.data.url} />
-                                                </span>
-                                            ) : "Not available"}
-                                        />
-                                        {propertyFactRows.slice(0, OVERVIEW_ATTRIBUTE_PREVIEW_LIMIT).map((item) => <KeyValuePair key={item.field} label={item.field} value={item.value === "" ? "Not available" : item.value} />)}
-                                    </KeyValueGrid>
-                                </section>
-                                <section className={"property-detail-group"}>
-                                    <span className={"app-shell__eyebrow"}>{"Price snapshot"}</span>
-                                    <KeyValueGrid compact>
-                                        <KeyValuePair label={"Latest change"} value={summaryQuery.data?.latest_change_summary !== undefined && summaryQuery.data.latest_change_summary !== "" ? summaryQuery.data.latest_change_summary : "Not available"} />
-                                        <KeyValuePair label={"Last update"} value={latestSnapshot?.observed_at !== undefined ? formatDateTime(latestSnapshot.observed_at) : propertyQuery.data.updated_at === undefined ? "Not available" : formatDateTime(propertyQuery.data.updated_at)} />
-                                    </KeyValueGrid>
-                                </section>
-                                <section className={"property-detail-group"}>
-                                    <span className={"app-shell__eyebrow"}>{"Status indicators"}</span>
-                                    <KeyValueGrid compact>
-                                        <KeyValuePair label={"Tracking status"} value={<StatusBadge tone={automationStatusTone} value={automationStatus} />} />
-                                        <KeyValuePair label={"Property status"} value={<StatusBadge tone={propertyQuery.data.status === "active" ? "success" : propertyQuery.data.status === "degraded" ? "warning" : propertyQuery.data.status === "inactive" ? "danger" : "neutral"} value={propertyQuery.data.status} />} />
-                                        <KeyValuePair label={"Extraction health"} value={<StatusBadge tone={latestSnapshot?.is_valid === false ? "danger" : missingFieldCount > 0 ? "warning" : latestSnapshot === undefined ? "neutral" : "success"} value={extractionHealthLabel} />} />
-                                        <KeyValuePair label={"Next run"} value={propertyQuery.data.next_run_at === undefined ? manualEntryMode ? "Manual only" : "Not available" : formatDateTime(propertyQuery.data.next_run_at)} />
-                                    </KeyValueGrid>
-                                </section>
-                                <section className={"property-detail-group"}>
-                                    <span className={"app-shell__eyebrow"}>{"Source summary"}</span>
-                                    <KeyValueGrid compact>
-                                        <KeyValuePair label={"Source name"} value={sourceSummary} />
-                                        <KeyValuePair label={"Last sync"} value={propertyQuery.data.last_run_at === undefined ? "Not available" : formatDateTime(propertyQuery.data.last_run_at)} />
-                                        <KeyValuePair label={"Source config"} value={sourceConfigLink === undefined ? "Not available" : <Link className={"property-detail-anchor"} to={sourceConfigLink}>{"Open source config"}</Link>} />
-                                        <KeyValuePair label={"Bookmark"} value={isBookmarked ? "Bookmarked" : "Not bookmarked"} />
-                                    </KeyValueGrid>
-                                </section>
-                            </div>
-                        ) : null}
-                    </PageCard>
-                ) : null}
+                        <PageCard
+                            action={(
+                                <ActionGroup>
+                                    <Button as={Link} to={"/properties"} variant={"secondary"}>{"Back"}</Button>
+                                    <Button onClick={() => { setExportOpen(true); }} variant={"secondary"}>{"Export"}</Button>
+                                    <Button onClick={() => { window.open(`/properties/${resolvedId}/print`, "_blank", "noopener"); }} variant={"secondary"}>{"Print / PDF"}</Button>
+                                </ActionGroup>
+                            )}
+                            description={"Immediate read-only summary of the latest known property state, with the most important decision signals surfaced first."}
+                            title={propertyQuery.data?.label !== undefined && propertyQuery.data.label !== "" ? propertyQuery.data.label : propertyQuery.data?.url !== undefined && propertyQuery.data.url !== "" ? propertyQuery.data.url : "Manual property"}
+                            titleId={"overview"}
+                        >
+                            {propertyQuery.isError ? <ErrorBanner>{"Could not load property."}</ErrorBanner> : null}
+                            {propertyQuery.data !== undefined ? (
+                                <>
+                                    <div aria-label={"Key property signals"} className={"property-overview-highlights"}>
+                                        <PriceMetricCard className={"property-overview-highlight"} emphasis label={"Current price"} meta={currentPriceMeta} value={currentPriceSummary} />
+                                        <PriceMetricCard className={"property-overview-highlight"} label={"Decision status"} meta={decisionSummaryMeta} value={decisionStatusSummary} />
+                                        <PriceMetricCard className={"property-overview-highlight"} label={"Property status"} meta={propertyStatusMeta} tone={toPriceMetricTone(propertyQuery.data.status === "active" ? "success" : propertyQuery.data.status === "inactive" ? "danger" : "neutral")} value={propertyStatusSummary} />
+                                        <PriceMetricCard className={"property-overview-highlight"} label={"Tracking status"} meta={automationMeta} tone={toPriceMetricTone(automationStatusTone)} value={automationStatus} />
+                                    </div>
+                                    <div className={"property-overview-layout"}>
+                                        <section className={"property-detail-group property-overview-layout__primary"}>
+                                            <div className={"property-detail-group__header"}>
+                                                <h3 className={"property-detail-group__title"}>{"Core attributes"}</h3>
+                                                <p className={"property-detail-group__description"}>{"Stable listing facts and the source link stay together here for quick property recognition."}</p>
+                                            </div>
+                                            <KeyValueGrid compact>
+                                                <KeyValuePair label={"Price (current)"} value={currentPriceSummary} />
+                                                <KeyValuePair label={"Location"} value={latestValues.location ?? latestValues.city ?? latestValues.district ?? "Not available"} />
+                                                <KeyValuePair label={"Rooms"} value={attributes.rooms ?? latestValues.rooms ?? "Not available"} />
+                                                <KeyValuePair label={"Area"} value={attributes.surfaceArea ?? latestValues.area ?? latestValues.area_m2 ?? "Not available"} />
+                                                <KeyValuePair label={"Source"} value={sourceSummary} />
+                                                <KeyValuePair
+                                                    label={"Listing URL"}
+                                                    value={propertyQuery.data.url !== "" ? (
+                                                        <span className={"status-with-copy"}>
+                                                            <a className={"property-detail-anchor"} href={propertyQuery.data.url} rel={"noreferrer"} target={"_blank"}>{"Open listing"}</a>
+                                                            <CopyButton label={"Copy property URL"} value={propertyQuery.data.url} />
+                                                        </span>
+                                                    ) : "Not available"}
+                                                />
+                                                {propertyFactRows.slice(0, OVERVIEW_ATTRIBUTE_PREVIEW_LIMIT).map((item) => <KeyValuePair key={item.field} label={item.field} value={item.value === "" ? "Not available" : item.value} />)}
+                                            </KeyValueGrid>
+                                        </section>
+                                        <div className={"property-overview-layout__secondary"}>
+                                            <section className={"property-detail-group"}>
+                                                <div className={"property-detail-group__header"}>
+                                                    <h3 className={"property-detail-group__title"}>{"Decision snapshot"}</h3>
+                                                    <p className={"property-detail-group__description"}>{"Keep the current decision stance, priority, and target pricing visible without entering edit mode."}</p>
+                                                </div>
+                                                <KeyValueGrid compact>
+                                                    <KeyValuePair label={"Decision status"} value={decisionStatusSummary} />
+                                                    <KeyValuePair label={"Priority"} value={prioritySummary} />
+                                                    <KeyValuePair label={"Target price"} value={targetPriceSummary} />
+                                                    <KeyValuePair label={"Expected rent"} value={expectedRentSummary} />
+                                                    <KeyValuePair label={"Expected yield"} value={expectedYieldSummary} />
+                                                </KeyValueGrid>
+                                            </section>
+                                            <section className={"property-detail-group"}>
+                                                <div className={"property-detail-group__header"}>
+                                                    <h3 className={"property-detail-group__title"}>{"Operational status"}</h3>
+                                                    <p className={"property-detail-group__description"}>{"Monitoring health stays separate from business facts so the current run state is easy to scan."}</p>
+                                                </div>
+                                                <KeyValueGrid compact>
+                                                    <KeyValuePair label={"Tracking status"} value={<StatusBadge tone={automationStatusTone} value={automationStatus} />} />
+                                                    <KeyValuePair label={"Property status"} value={<StatusBadge tone={propertyQuery.data.status === "active" ? "success" : propertyQuery.data.status === "degraded" ? "warning" : propertyQuery.data.status === "inactive" ? "danger" : "neutral"} value={propertyQuery.data.status} />} />
+                                                    <KeyValuePair label={"Extraction health"} value={<StatusBadge tone={latestSnapshot?.is_valid === false ? "danger" : missingFieldCount > 0 ? "warning" : latestSnapshot === undefined ? "neutral" : "success"} value={extractionHealthLabel} />} />
+                                                    <KeyValuePair label={"Last update"} value={latestSnapshot?.observed_at !== undefined ? formatDateTime(latestSnapshot.observed_at) : propertyQuery.data.updated_at === undefined ? "Not available" : formatDateTime(propertyQuery.data.updated_at)} />
+                                                </KeyValueGrid>
+                                            </section>
+                                            <section className={"property-detail-group"}>
+                                                <div className={"property-detail-group__header"}>
+                                                    <h3 className={"property-detail-group__title"}>{"Source summary"}</h3>
+                                                    <p className={"property-detail-group__description"}>{"Link the listing back to its extraction template and recent source activity."}</p>
+                                                </div>
+                                                <KeyValueGrid compact>
+                                                    <KeyValuePair label={"Source name"} value={sourceSummary} />
+                                                    <KeyValuePair label={"Last sync"} value={propertyQuery.data.last_run_at === undefined ? "Not available" : formatDateTime(propertyQuery.data.last_run_at)} />
+                                                    <KeyValuePair label={"Source config"} value={sourceConfigLink === undefined ? "Not available" : <Link className={"property-detail-anchor"} to={sourceConfigLink}>{"Open source config"}</Link>} />
+                                                    <KeyValuePair label={"Bookmark"} value={isBookmarked ? "Bookmarked" : "Not bookmarked"} />
+                                                </KeyValueGrid>
+                                            </section>
+                                        </div>
+                                    </div>
+                                </>
+                            ) : null}
+                        </PageCard>
 
-                {activeSection === "overview" ? (
-                    <PageCard
-                        description={"All remaining captured fields and tags are shown explicitly so missing values are not mistaken for empty UI."}
-                        title={"Captured fields"}
-                        titleId={"profile"}
-                    >
-                        <div className={"property-detail-group-grid"}>
-                            <section className={"property-detail-group"}>
-                                <span className={"app-shell__eyebrow"}>{"All captured attributes"}</span>
-                                {propertyFactRows.length === 0 ? <EmptyState message={"No property facts have been captured yet. Run the source again or add details manually."} /> : (
-                                    <KeyValueGrid compact>
-                                        {propertyFactRows.map((item) => <KeyValuePair key={item.field} label={item.field} value={item.value} />)}
-                                    </KeyValueGrid>
-                                )}
-                            </section>
-                        </div>
-                        {(propertyTagsQuery.data ?? []).length > 0 ? (
-                            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginTop: "1rem" }}>
-                                {(propertyTagsQuery.data ?? []).map((tag) => <TagBadge key={tag.id} tag={tag} />)}
+                        <PageCard
+                            description={"Mostly stable facts imported from the listing or entered manually. These support context and comparison, but they are not the main live monitoring signal."}
+                            title={"Property Facts"}
+                            titleId={"profile"}
+                        >
+                            <div className={"property-detail-group-grid"}>
+                                <section className={"property-detail-group"}>
+                                    <div className={"property-detail-group__header"}>
+                                        <h3 className={"property-detail-group__title"}>{"All property facts"}</h3>
+                                        <p className={"property-detail-group__description"}>{"Every captured fact stays explicit here so missing values are not mistaken for empty UI."}</p>
+                                    </div>
+                                    {propertyFactRows.length === 0 ? <EmptyState message={"No property facts have been captured yet. Run the source again or add details manually."} /> : (
+                                        <KeyValueGrid compact>
+                                            {propertyFactRows.map((item) => <KeyValuePair key={item.field} label={item.field} value={item.value} />)}
+                                        </KeyValueGrid>
+                                    )}
+                                </section>
                             </div>
-                        ) : null}
-                    </PageCard>
+                            {(propertyTagsQuery.data ?? []).length > 0 ? (
+                                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginTop: "1rem" }}>
+                                    {(propertyTagsQuery.data ?? []).map((tag) => <TagBadge key={tag.id} tag={tag} />)}
+                                </div>
+                            ) : null}
+                        </PageCard>
+                    </div>
                 ) : null}
 
                 {activeSection === "insights" ? (
+                    <div
+                        aria-labelledby={getPropertySectionTabId("insights")}
+                        className={"property-section-panel"}
+                        id={getPropertySectionPanelId("insights")}
+                        role={"tabpanel"}
+                    >
                     <PageCard description={"Separates price inputs, computed metrics, and history so pricing signals are easy to scan."} title={"Price Intelligence"} titleId={"price-intelligence"}>
                         {summaryQuery.data === undefined || pricingInsight === undefined ? <EmptyState message={"Price intelligence will appear after the first property summary is available."} /> : (
                             <div className={"property-section-stack"}>
@@ -1549,8 +1669,8 @@ export const PropertyDetailPage = (): JSX.Element => {
                                     </div>
                                 </section>
 
-                                <div className={"property-detail-group-grid"}>
-                                    <section className={"property-detail-group"}>
+                                <div className={"property-insight-grid"}>
+                                    <section className={"property-detail-group property-insight-grid__breakdown"}>
                                         <span className={"app-shell__eyebrow"}>{"Benchmark breakdown"}</span>
                                         <div className={"property-price-detail-grid"}>
                                             <div className={"property-price-detail"}>
@@ -1579,7 +1699,7 @@ export const PropertyDetailPage = (): JSX.Element => {
                                             </div>
                                         </div>
                                     </section>
-                                    <section className={"property-detail-group"}>
+                                    <section className={"property-detail-group property-insight-grid__history"}>
                                         <span className={"app-shell__eyebrow"}>{"History & trends"}</span>
                                         <div className={"property-history-card"}>
                                             <div className={"listing-dense-row__headline"}>
@@ -1601,6 +1721,7 @@ export const PropertyDetailPage = (): JSX.Element => {
                         )}
                         {savePropertyMutation.isError ? <ErrorBanner>{"Could not save property. Check the price, source details, and any optional URL."}</ErrorBanner> : null}
                     </PageCard>
+                    </div>
                 ) : null}
 
                 {activeSection === "insights" ? (
@@ -1720,7 +1841,7 @@ export const PropertyDetailPage = (): JSX.Element => {
                                         const truncated = item.error_message.length > 50 ? `${item.error_message.slice(0, 50)}...` : item.error_message;
                                         return (
                                             <Tooltip content={item.error_message}>
-                                                <span style={{ color: "#dc2626" }}>{truncated}</span>
+                                                <span style={{ color: "var(--color-danger)" }}>{truncated}</span>
                                             </Tooltip>
                                         );
                                     },
@@ -1773,54 +1894,101 @@ export const PropertyDetailPage = (): JSX.Element => {
                 ) : null}
 
                 {activeSection === "notes-decisions" ? (
-                    <PageCard description={"Edit decision context, notes, and supporting references directly inside the section where they are reviewed."} title={"Notes & Decisions"} titleId={"notes-decisions"}>
+                    <div
+                        aria-labelledby={getPropertySectionTabId("notes-decisions")}
+                        className={"property-section-panel"}
+                        id={getPropertySectionPanelId("notes-decisions")}
+                        role={"tabpanel"}
+                    >
+                    <PageCard description={"Review the current stance first, then add underwriting context, narrative, and supporting references."} title={"Notes & Decisions"} titleId={"notes-decisions"}>
                         <div className={"property-section-stack"}>
-                            <FormGrid variant={"two-column"}>
-                                <Field label={"Decision status"}>
-                                    <Select aria-label={"Decision status"} onChange={(event) => { setMetadataDraft((current) => ({ ...current, businessStage: event.target.value })); }} value={metadataDraft.businessStage}>
-                                        <option value={""}>{"Not set"}</option>
-                                        <option value={"candidate"}>{"Candidate"}</option>
-                                        <option value={"shortlisted"}>{"Shortlisted"}</option>
-                                        <option value={"rejected"}>{"Rejected"}</option>
-                                    </Select>
-                                </Field>
-                                <Field label={"Priority"}>
-                                    <Select aria-label={"Priority"} onChange={(event) => { setMetadataDraft((current) => ({ ...current, priorityLevel: event.target.value })); }} value={metadataDraft.priorityLevel}>
-                                        <option value={""}>{"Not set"}</option>
-                                        <option value={"low"}>{"Low"}</option>
-                                        <option value={"medium"}>{"Medium"}</option>
-                                        <option value={"high"}>{"High"}</option>
-                                        <option value={"critical"}>{"Critical"}</option>
-                                    </Select>
-                                </Field>
-                                <Field label={"Target price"}>
-                                    <Input aria-label={"Target price"} min={0} onChange={(event) => { setMetadataDraft((current) => ({ ...current, targetPrice: event.target.value })); }} prefix={"€"} type={"number"} value={metadataDraft.targetPrice} />
-                                </Field>
-                                <Field label={"Expected rent"}>
-                                    <Input aria-label={"Expected rent"} min={0} onChange={(event) => { setMetadataDraft((current) => ({ ...current, expectedRent: event.target.value })); }} prefix={"€"} type={"number"} value={metadataDraft.expectedRent} />
-                                </Field>
-                                <Field label={"Expected yield (%)"}>
-                                    <Input aria-label={"Expected yield (%)"} min={0} onChange={(event) => { setMetadataDraft((current) => ({ ...current, expectedYieldPercent: event.target.value })); }} step={"0.1"} type={"number"} value={metadataDraft.expectedYieldPercent} />
-                                </Field>
-                                <Field fullWidth label={"Notes"}>
-                                    <Textarea aria-label={"Notes"} onChange={(event) => { setMetadataDraft((current) => ({ ...current, acquisitionNotes: event.target.value })); }} rows={4} value={metadataDraft.acquisitionNotes} />
-                                </Field>
-                                <Field fullWidth label={"Thesis"}>
-                                    <Textarea aria-label={"Thesis"} onChange={(event) => { setMetadataDraft((current) => ({ ...current, dealThesis: event.target.value })); }} rows={4} value={metadataDraft.dealThesis} />
-                                </Field>
-                                <Field fullWidth hint={"One reference per line as label|value."} label={"External references"}>
-                                    <Textarea aria-label={"External references"} onChange={(event) => { setMetadataDraft((current) => ({ ...current, externalReferencesText: event.target.value })); }} rows={4} value={metadataDraft.externalReferencesText} />
-                                </Field>
-                                <Field fullWidth hint={"One attachment per line as label|url."} label={"Attachments"}>
-                                    <Textarea aria-label={"Attachments"} onChange={(event) => { setMetadataDraft((current) => ({ ...current, attachmentsText: event.target.value })); }} rows={4} value={metadataDraft.attachmentsText} />
-                                </Field>
-                            </FormGrid>
+                            <div className={"property-notes-layout"}>
+                                <section className={"property-detail-group"}>
+                                    <div className={"property-detail-group__header"}>
+                                        <h3 className={"property-detail-group__title"}>{"Decision summary"}</h3>
+                                        <p className={"property-detail-group__description"}>{"Set the current decision state and the main target price before adding supporting detail."}</p>
+                                    </div>
+                                    <FormGrid variant={"two-column"}>
+                                        <Field label={"Decision status"}>
+                                            <Select aria-label={"Decision status"} onChange={(event) => { setMetadataDraft((current) => ({ ...current, businessStage: event.target.value })); }} value={metadataDraft.businessStage}>
+                                                <option value={""}>{"Not set"}</option>
+                                                <option value={"candidate"}>{"Candidate"}</option>
+                                                <option value={"shortlisted"}>{"Shortlisted"}</option>
+                                                <option value={"rejected"}>{"Rejected"}</option>
+                                            </Select>
+                                        </Field>
+                                        <Field label={"Priority"}>
+                                            <Select aria-label={"Priority"} onChange={(event) => { setMetadataDraft((current) => ({ ...current, priorityLevel: event.target.value })); }} value={metadataDraft.priorityLevel}>
+                                                <option value={""}>{"Not set"}</option>
+                                                <option value={"low"}>{"Low"}</option>
+                                                <option value={"medium"}>{"Medium"}</option>
+                                                <option value={"high"}>{"High"}</option>
+                                                <option value={"critical"}>{"Critical"}</option>
+                                            </Select>
+                                        </Field>
+                                        <Field label={"Target price"}>
+                                            <Input aria-label={"Target price"} min={0} onChange={(event) => { setMetadataDraft((current) => ({ ...current, targetPrice: event.target.value })); }} prefix={"€"} type={"number"} value={metadataDraft.targetPrice} />
+                                        </Field>
+                                    </FormGrid>
+                                </section>
+                                <section className={"property-detail-group"}>
+                                    <div className={"property-detail-group__header"}>
+                                        <h3 className={"property-detail-group__title"}>{"Underwriting inputs"}</h3>
+                                        <p className={"property-detail-group__description"}>{"Optional economics help compare the property against your expected outcome."}</p>
+                                    </div>
+                                    <FormGrid variant={"two-column"}>
+                                        <Field label={"Expected rent"}>
+                                            <Input aria-label={"Expected rent"} min={0} onChange={(event) => { setMetadataDraft((current) => ({ ...current, expectedRent: event.target.value })); }} prefix={"€"} type={"number"} value={metadataDraft.expectedRent} />
+                                        </Field>
+                                        <Field label={"Expected yield (%)"}>
+                                            <Input aria-label={"Expected yield (%)"} min={0} onChange={(event) => { setMetadataDraft((current) => ({ ...current, expectedYieldPercent: event.target.value })); }} step={"0.1"} type={"number"} value={metadataDraft.expectedYieldPercent} />
+                                        </Field>
+                                    </FormGrid>
+                                </section>
+                            </div>
+                            <section className={"property-detail-group"}>
+                                <div className={"property-detail-group__header"}>
+                                    <h3 className={"property-detail-group__title"}>{"Narrative"}</h3>
+                                    <p className={"property-detail-group__description"}>{"Capture the decision rationale and the most important negotiation or acquisition notes."}</p>
+                                </div>
+                                <FormGrid variant={"two-column"}>
+                                    <Field label={"Notes"}>
+                                        <Textarea aria-label={"Notes"} onChange={(event) => { setMetadataDraft((current) => ({ ...current, acquisitionNotes: event.target.value })); }} rows={5} value={metadataDraft.acquisitionNotes} />
+                                    </Field>
+                                    <Field label={"Thesis"}>
+                                        <Textarea aria-label={"Thesis"} onChange={(event) => { setMetadataDraft((current) => ({ ...current, dealThesis: event.target.value })); }} rows={5} value={metadataDraft.dealThesis} />
+                                    </Field>
+                                </FormGrid>
+                            </section>
+                            <section className={"property-detail-group"}>
+                                <div className={"property-detail-group__header"}>
+                                    <h3 className={"property-detail-group__title"}>{"Supporting references"}</h3>
+                                    <p className={"property-detail-group__description"}>{"Store source documents and external context separately from the main decision narrative."}</p>
+                                </div>
+                                <FormGrid variant={"two-column"}>
+                                    <div className={"property-form-field-stack"}>
+                                        <Field label={"External references"}>
+                                            <Textarea aria-describedby={"property-external-references-help"} aria-label={"External references"} onChange={(event) => { setMetadataDraft((current) => ({ ...current, externalReferencesText: event.target.value })); }} rows={4} value={metadataDraft.externalReferencesText} />
+                                        </Field>
+                                        <p className={"property-form-help"} id={"property-external-references-help"}>{"One reference per line as label|value."}</p>
+                                    </div>
+                                    <div className={"property-form-field-stack"}>
+                                        <Field label={"Attachments"}>
+                                            <Textarea aria-describedby={"property-attachments-help"} aria-label={"Attachments"} onChange={(event) => { setMetadataDraft((current) => ({ ...current, attachmentsText: event.target.value })); }} rows={4} value={metadataDraft.attachmentsText} />
+                                        </Field>
+                                        <p className={"property-form-help"} id={"property-attachments-help"}>{"One attachment per line as label|url."}</p>
+                                    </div>
+                                </FormGrid>
+                            </section>
                             <ActionGroup>
                                 <Button disabled={isPropertySaveDisabled} onClick={handlePropertySave}>{savePropertyMutation.isPending ? "Saving..." : "Save notes & decisions"}</Button>
                             </ActionGroup>
                             {savePropertyMutation.isError ? <ErrorBanner>{"Could not save property. Check the price, source details, and any optional URL."}</ErrorBanner> : null}
                             <section className={"property-detail-group"}>
-                                <span className={"app-shell__eyebrow"}>{"Reference pack"}</span>
+                                <div className={"property-detail-group__header"}>
+                                    <h3 className={"property-detail-group__title"}>{"Reference pack"}</h3>
+                                    <p className={"property-detail-group__description"}>{"Saved links and attachments remain read-only here so you can verify what is already attached to the decision."}</p>
+                                </div>
                                 {externalReferences.length === 0 && attachments.length === 0 ? <EmptyState message={"No references or attachments have been saved for this property yet."} /> : (
                                     <div className={"property-section-stack"}>
                                         <div>
@@ -1865,7 +2033,10 @@ export const PropertyDetailPage = (): JSX.Element => {
                                 )}
                             </section>
                             <section className={"property-detail-group"}>
-                                <span className={"app-shell__eyebrow"}>{"Timestamped decision log"}</span>
+                                <div className={"property-detail-group__header"}>
+                                    <h3 className={"property-detail-group__title"}>{"Timestamped decision log"}</h3>
+                                    <p className={"property-detail-group__description"}>{"Track the most recent decision-state changes and system signals in one chronological list."}</p>
+                                </div>
                                 {decisionEntries.length === 0 ? <EmptyState message={"No decision entries are available yet."} /> : (
                                     <DataTable
                                         caption={"Decision log"}
@@ -1884,10 +2055,16 @@ export const PropertyDetailPage = (): JSX.Element => {
                             </section>
                         </div>
                     </PageCard>
+                    </div>
                 ) : null}
 
                 {activeSection === "configuration" ? (
-                    <>
+                    <div
+                        aria-labelledby={getPropertySectionTabId("configuration")}
+                        className={"property-section-panel"}
+                        id={getPropertySectionPanelId("configuration")}
+                        role={"tabpanel"}
+                    >
                         <PageCard
                             description={"Manage property identity, tracking mode, source wiring, and operational controls here."}
                             title={"Configuration"}
@@ -2242,7 +2419,7 @@ export const PropertyDetailPage = (): JSX.Element => {
                                 )}
                             </PageCard>
                         ) : null}
-                    </>
+                    </div>
                 ) : null}
             </PageStack>
 

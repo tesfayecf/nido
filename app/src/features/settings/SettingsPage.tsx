@@ -12,6 +12,7 @@ import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Field } from "@/components/ui/Field";
 import { FormGrid } from "@/components/ui/FormGrid";
 import { Input } from "@/components/ui/Input";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 import { KeyValueGrid, KeyValuePair } from "@/components/ui/KeyValueGrid";
 import { MultiSelect } from "@/components/ui/MultiSelect";
 import { PageCard } from "@/components/ui/PageCard";
@@ -267,6 +268,21 @@ export const SettingsPage = (): JSX.Element => {
         newPassword.trim() !== "" &&
         !passwordMismatch &&
         newPassword.length >= 8;
+    const defaultSourceName = workspaceSettings.operations.default_source_id === ""
+        ? "No default source"
+        : (sourcesQuery.data ?? []).find((source) => source.id === workspaceSettings.operations.default_source_id)?.name ?? workspaceSettings.operations.default_source_id;
+    const recoveryStatusValue = migrationStatusQuery.data === undefined
+        ? "Checking"
+        : migrationStatusQuery.data.pending
+            ? "Migration pending"
+            : migrationStatusQuery.data.state === "ready"
+                ? "Ready"
+                : migrationStatusQuery.data.state;
+    const recoveryStatusContext = backupFilesQuery.data === undefined
+        ? "Loading backup inventory."
+        : backupFilesQuery.data.length === 0
+            ? "No server backup files saved yet."
+            : `${backupFilesQuery.data.length} server backup file${backupFilesQuery.data.length === 1 ? "" : "s"} available.`;
     const saveWeeklyDigestMutation = useMutation({
         mutationFn: async () => {
             if (platformSettingsDraft === null) {
@@ -353,6 +369,28 @@ export const SettingsPage = (): JSX.Element => {
                 description={"Keep price evaluation defaults, property intake behavior, and recovery/data movement controls clearly separated."}
                 title={"Settings"}
             >
+                <section aria-label={"Settings snapshot"} className={"dashboard-state-grid"} style={{ marginBottom: "1rem" }}>
+                    <SettingsSnapshotTile
+                        context={meQuery.data === undefined ? "Loading account details." : meQuery.data.email}
+                        label={"Profile"}
+                        value={meQuery.data?.display_name?.trim() !== "" ? meQuery.data?.display_name ?? "Loading" : meQuery.data?.email ?? "Loading"}
+                    />
+                    <SettingsSnapshotTile
+                        context={`Density ${workspaceSettings.preferences.density} · theme ${getStoredThemePreference()}`}
+                        label={"Workspace view"}
+                        value={`${workspaceSettings.preferences.display_locale} · ${workspaceSettings.preferences.display_currency}`}
+                    />
+                    <SettingsSnapshotTile
+                        context={`${workspaceSettings.operations.default_schedule_interval_value || "No schedule"} ${workspaceSettings.operations.default_schedule_interval_unit} · ${workspaceSettings.operations.default_retry_max_attempts} retries`}
+                        label={"Operational defaults"}
+                        value={defaultSourceName}
+                    />
+                    <SettingsSnapshotTile
+                        context={recoveryStatusContext}
+                        label={"Recovery status"}
+                        value={recoveryStatusValue}
+                    />
+                </section>
                 <Tabs
                     defaultTabId={"user"}
                     items={[
@@ -399,13 +437,13 @@ export const SettingsPage = (): JSX.Element => {
                                             }}
                                         >
                                             <Field label={"Current password"}>
-                                                <Input autoComplete={"current-password"} id={"settings-current-password"} onChange={(event) => { setCurrentPassword(event.target.value); }} type={"password"} value={currentPassword} />
+                                                <PasswordInput autoComplete={"current-password"} id={"settings-current-password"} onChange={(event) => { setCurrentPassword(event.target.value); }} value={currentPassword} />
                                             </Field>
                                             <Field label={"New password"}>
-                                                <Input autoComplete={"new-password"} id={"settings-new-password"} onChange={(event) => { setNewPassword(event.target.value); }} type={"password"} value={newPassword} />
+                                                <PasswordInput autoComplete={"new-password"} id={"settings-new-password"} onChange={(event) => { setNewPassword(event.target.value); }} value={newPassword} />
                                             </Field>
                                             <Field label={"Confirm new password"}>
-                                                <Input autoComplete={"new-password"} id={"settings-confirm-password"} onChange={(event) => { setConfirmPassword(event.target.value); }} type={"password"} value={confirmPassword} />
+                                                <PasswordInput autoComplete={"new-password"} id={"settings-confirm-password"} onChange={(event) => { setConfirmPassword(event.target.value); }} value={confirmPassword} />
                                             </Field>
                                             {passwordMismatch ? <ErrorBanner>{"New password and confirmation do not match."}</ErrorBanner> : null}
                                             <ActionGroup>
@@ -822,3 +860,19 @@ export const SettingsPage = (): JSX.Element => {
         </PageStack>
     );
 };
+
+const SettingsSnapshotTile = ({
+    context,
+    label,
+    value,
+}: {
+    readonly context: string;
+    readonly label: string;
+    readonly value: string;
+}): JSX.Element => (
+    <article className={"dashboard-state-tile"}>
+        <span className={"dashboard-state-tile__label"}>{label}</span>
+        <strong className={"dashboard-state-tile__value"}>{value}</strong>
+        <p className={"dashboard-state-tile__context"}>{context}</p>
+    </article>
+);

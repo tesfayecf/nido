@@ -26,11 +26,11 @@ interface ChartTheme {
 }
 
 const FALLBACK_THEME: ChartTheme = {
-    accent: "#2f6fed",
+    accent: "#24527a",
     border: "rgba(15, 23, 42, 0.18)",
     grid: "rgba(15, 23, 42, 0.08)",
-    muted: "#667085",
-    series: ["#2f6fed", "#5b6472", "#4f7d6a", "#946c5c", "#7f56d9", "#b54708"],
+    muted: "#6b7280",
+    series: ["#24527a", "#4f6b7a", "#185b43", "#a15c00", "#6c7f92", "#7b6859"],
     surface: "#ffffff",
     text: "#101828",
 };
@@ -58,12 +58,12 @@ const readChartTheme = (): ChartTheme => ({
     grid: readCssVariable("--color-border", FALLBACK_THEME.grid),
     muted: readCssVariable("--color-text-muted", FALLBACK_THEME.muted),
     series: [
-        readCssVariable("--color-accent", FALLBACK_THEME.series[0] ?? FALLBACK_THEME.accent),
-        readCssVariable("--color-text-secondary", FALLBACK_THEME.series[1] ?? FALLBACK_THEME.text),
-        readCssVariable("--color-success", FALLBACK_THEME.series[2] ?? FALLBACK_THEME.accent),
-        readCssVariable("--color-warning", FALLBACK_THEME.series[3] ?? FALLBACK_THEME.accent),
-        "#7f56d9",
-        "#b54708",
+        readCssVariable("--color-chart-series-1", FALLBACK_THEME.series[0] ?? FALLBACK_THEME.accent),
+        readCssVariable("--color-chart-series-2", FALLBACK_THEME.series[1] ?? FALLBACK_THEME.text),
+        readCssVariable("--color-chart-series-3", FALLBACK_THEME.series[2] ?? FALLBACK_THEME.accent),
+        readCssVariable("--color-chart-series-4", FALLBACK_THEME.series[3] ?? FALLBACK_THEME.accent),
+        readCssVariable("--color-chart-series-5", FALLBACK_THEME.series[4] ?? FALLBACK_THEME.accent),
+        readCssVariable("--color-chart-series-6", FALLBACK_THEME.series[5] ?? FALLBACK_THEME.accent),
     ],
     surface: readCssVariable("--color-surface-strong", FALLBACK_THEME.surface),
     text: readCssVariable("--color-text", FALLBACK_THEME.text),

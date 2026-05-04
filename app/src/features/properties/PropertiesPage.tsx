@@ -39,6 +39,7 @@ import {
     readPropertiesTableState,
     writePropertiesTableState,
     type NumericRangeFilter,
+    type PropertiesTableFilters,
     type PropertiesTableState,
 } from "@/features/properties/propertyTableState";
 
@@ -401,6 +402,7 @@ export const PropertiesPage = (): JSX.Element => {
             .map((columnId) => COLUMNS.find((column) => column.id === columnId))
             .filter((column): column is PropertyColumn => column !== undefined && !hiddenIds.has(column.id));
     }, [tableState.hiddenColumnIds, tableState.orderedColumnIds]);
+    const activeFilterCount = countActiveFilters(tableState.filters);
 
     const roomOptions = useMemo(() => buildDiscreteOptions(rows.map((row) => row.rooms)), [rows]);
     const bathroomOptions = useMemo(() => buildDiscreteOptions(rows.map((row) => row.bathrooms)), [rows]);
@@ -440,14 +442,16 @@ export const PropertiesPage = (): JSX.Element => {
                     <div className={"action-group"}>
                         <div className={"properties-table__column-menu"} ref={columnMenuRef}>
                             <Button
+                                aria-controls={"properties-columns-popover"}
                                 aria-expanded={columnMenuOpen}
+                                aria-haspopup={"true"}
                                 onClick={() => { setColumnMenuOpen((open) => !open); }}
                                 variant={"secondary"}
                             >
                                 {"Columns"}
                             </Button>
                             {columnMenuOpen ? (
-                                <div className={"properties-table__column-menu-popover"}>
+                                <div aria-label={"Visible columns"} className={"properties-table__column-menu-popover"} id={"properties-columns-popover"} role={"group"}>
                                     {COLUMNS.map((column) => {
                                         const checked = !tableState.hiddenColumnIds.includes(column.id);
                                         return (
@@ -471,9 +475,35 @@ export const PropertiesPage = (): JSX.Element => {
                                 </div>
                             ) : null}
                         </div>
-                        <Button onClick={() => { setFiltersOpen((open) => !open); }} variant={"secondary"}>
-                            {filtersOpen ? "Hide filters" : "Filters"}
+                        <Button aria-expanded={filtersOpen} onClick={() => { setFiltersOpen((open) => !open); }} variant={"secondary"}>
+                            {filtersOpen
+                                ? activeFilterCount > 0 ? `Hide filters (${activeFilterCount} active)` : "Hide filters"
+                                : activeFilterCount > 0 ? `Filters (${activeFilterCount})` : "Filters"}
                         </Button>
+                        {activeFilterCount > 0 ? (
+                            <Button
+                                onClick={() => {
+                                    setTableState((current) => ({
+                                        ...current,
+                                        filters: {
+                                            bathrooms: "",
+                                            location: "",
+                                            opportunity: "",
+                                            price: { max: "", min: "" },
+                                            pricePerSquareMeter: { max: "", min: "" },
+                                            property: "",
+                                            propertyAge: { max: "", min: "" },
+                                            rooms: "",
+                                            sizeSquareMeters: { max: "", min: "" },
+                                            status: "",
+                                        },
+                                    }));
+                                }}
+                                variant={"secondary"}
+                            >
+                                {"Clear filters"}
+                            </Button>
+                        ) : null}
                         <Button onClick={() => { setExportOpen(true); }} variant={"secondary"}>
                             {"Export"}
                         </Button>
@@ -494,6 +524,28 @@ export const PropertiesPage = (): JSX.Element => {
                 description={"Price-first table view with filters tucked away until needed."}
                 title={"Properties"}
             >
+                <section aria-label={"Portfolio snapshot"} className={"properties-page__summary"}>
+                    <div className={"properties-page__summary-item"}>
+                        <span className={"properties-page__summary-label"}>{"Tracked properties"}</span>
+                        <strong className={"properties-page__summary-value"}>{rows.length}</strong>
+                        <span className={"properties-page__summary-meta"}>{rows.length === 0 ? "No tracked properties yet." : "Across the current workspace."}</span>
+                    </div>
+                    <div className={"properties-page__summary-item"}>
+                        <span className={"properties-page__summary-label"}>{"In current view"}</span>
+                        <strong className={"properties-page__summary-value"}>{sortedRows.length}</strong>
+                        <span className={"properties-page__summary-meta"}>{sortedRows.length === rows.length ? "No rows hidden by filters." : `${rows.length - sortedRows.length} hidden by filters.`}</span>
+                    </div>
+                    <div className={"properties-page__summary-item"}>
+                        <span className={"properties-page__summary-label"}>{"Selected"}</span>
+                        <strong className={"properties-page__summary-value"}>{selectedCount}</strong>
+                        <span className={"properties-page__summary-meta"}>{selectedCount === 0 ? "Select rows to unlock bulk actions." : "Bulk actions are ready."}</span>
+                    </div>
+                    <div className={"properties-page__summary-item"}>
+                        <span className={"properties-page__summary-label"}>{"Active filters"}</span>
+                        <strong className={"properties-page__summary-value"}>{activeFilterCount}</strong>
+                        <span className={"properties-page__summary-meta"}>{filtersOpen ? "Filter controls are visible." : "Open filters to narrow the table."}</span>
+                    </div>
+                </section>
                 {selectedCount > 0 ? (
                     <div className={"toolbar"}>
                         <strong>{`${selectedCount} selected`}</strong>
@@ -521,10 +573,13 @@ export const PropertiesPage = (): JSX.Element => {
                 {!propertiesQuery.isLoading && !summariesQuery.isLoading ? 
                     sortedRows.length === 0 && rows.length === 0 ? 
                         <p className={"muted-copy"}>{"No properties are being tracked yet."}</p>
+                        : sortedRows.length === 0 ? (
+                            <p className={"muted-copy"}>{"No properties match the current filters. Clear filters or adjust the table controls."}</p>
+                        )
                         : (
                             <>
                                 <div className={"properties-table__shell"} ref={tableShellRef}>
-                                    <table className={"properties-table"}>
+                                    <table className={"properties-table"} id={"properties-table"}>
                                         <thead>
                                             <tr>
                                                 <th scope={"col"} style={{ width: 52 }}>
@@ -937,6 +992,43 @@ const readSummaryNumber = (summary: PropertySummary | undefined, keys: readonly 
 
     const parsed = Number(value.replace(/[^0-9.,-]/g, "").replace(/,/g, "."));
     return Number.isFinite(parsed) ? parsed : undefined;
+};
+
+const countActiveFilters = (filters: PropertiesTableFilters): number => {
+    let count = 0;
+
+    if (filters.property.trim() !== "") {
+        count += 1;
+    }
+    if (filters.location.trim() !== "") {
+        count += 1;
+    }
+    if (filters.rooms.trim() !== "") {
+        count += 1;
+    }
+    if (filters.bathrooms.trim() !== "") {
+        count += 1;
+    }
+    if (filters.status.trim() !== "") {
+        count += 1;
+    }
+    if (filters.opportunity.trim() !== "") {
+        count += 1;
+    }
+    if (filters.price.min.trim() !== "" || filters.price.max.trim() !== "") {
+        count += 1;
+    }
+    if (filters.sizeSquareMeters.min.trim() !== "" || filters.sizeSquareMeters.max.trim() !== "") {
+        count += 1;
+    }
+    if (filters.pricePerSquareMeter.min.trim() !== "" || filters.pricePerSquareMeter.max.trim() !== "") {
+        count += 1;
+    }
+    if (filters.propertyAge.min.trim() !== "" || filters.propertyAge.max.trim() !== "") {
+        count += 1;
+    }
+
+    return count;
 };
 
 const matchesTextFilter = (value: string, filter: string): boolean => {

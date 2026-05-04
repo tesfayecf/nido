@@ -11,6 +11,7 @@ import { createBaseChartOptions, isChartJsdom, useChartTheme } from "@/component
 import { PageCard } from "@/components/ui/PageCard";
 import { PageStack } from "@/components/ui/PageStack";
 import { formatCurrency } from "@/lib/format/currency";
+import { formatDateTime } from "@/lib/format/date";
 import { buildPortfolioDashboardModel, type OpportunityCandidate } from "@/features/properties/portfolioDashboard";
 import { propertyKeys } from "@/services/properties/properties.keys";
 import { listPropertySummaries } from "@/services/properties/properties.service";
@@ -44,6 +45,24 @@ export const DashboardPage = (): JSX.Element => {
                 {summariesQuery.isError ? <p className={"state-message state-message--error"}>{"Could not load dashboard data."}</p> : null}
                 {!summariesQuery.isLoading && !summariesQuery.isError ? (
                     <div className={"dashboard-grid"}>
+                        <section aria-label={"Action summary"} className={"dashboard-state-grid"}>
+                            <DashboardStateTile
+                                context={model.topOpportunities[0] === undefined ? "Not enough priced properties to rank yet." : `${formatMoney(model.topOpportunities[0].price ?? 0)} · ${formatDashboardPropertyLabel(model.topOpportunities[0].label)}`}
+                                label={"Lead opportunity"}
+                                value={model.topOpportunities[0] === undefined ? "Waiting for score" : `Score ${model.topOpportunities[0].score}`}
+                            />
+                            <DashboardStateTile
+                                context={`Net ${formatSignedMoney(model.priceMovement.netDelta)} across the latest recorded price changes.`}
+                                label={"Movement window"}
+                                value={model.recentUpdateCount === 0 ? "Quiet" : `${model.recentUpdateCount} changed`}
+                            />
+                            <DashboardStateTile
+                                context={model.totalProperties === 0 ? "No properties tracked yet." : `${stagnantShare}% of tracked properties have no detected price movement.`}
+                                label={"Stagnant stock"}
+                                value={`${model.stagnantCount}`}
+                            />
+                        </section>
+
                         <section className={"dashboard-grid dashboard-grid--summary"}>
                             <MetricCard label={"Properties"} value={`${model.totalProperties}`} />
                             <MetricCard label={"Average price"} value={formatMoney(model.averagePrice)} />
@@ -106,24 +125,32 @@ export const DashboardPage = (): JSX.Element => {
                                     <DashboardInsightChip label={"Static share"} tone={stagnantShare > 60 ? "warning" : "neutral"} value={`${stagnantShare}%`} />
                                 </div>
                             </PageCard>
-                            <PageCard description={"Fast answers for what changed, where the best deals are, and what still needs movement."} title={"Portfolio state"}>
-                                <div className={"dashboard-state-grid"}>
-                                    <DashboardStateTile
-                                        context={model.topOpportunities[0] === undefined ? "Not enough priced properties to rank yet." : `${formatMoney(model.topOpportunities[0].price ?? 0)} · ${formatDashboardPropertyLabel(model.topOpportunities[0].label)}`}
-                                        label={"Lead opportunity"}
-                                        value={model.topOpportunities[0] === undefined ? "Waiting for score" : `Score ${model.topOpportunities[0].score}`}
-                                    />
-                                    <DashboardStateTile
-                                        context={`Net ${formatSignedMoney(model.priceMovement.netDelta)} across the latest recorded price changes.`}
-                                        label={"Movement window"}
-                                        value={model.recentUpdateCount === 0 ? "Quiet" : `${model.recentUpdateCount} changed`}
-                                    />
-                                    <DashboardStateTile
-                                        context={model.totalProperties === 0 ? "No properties tracked yet." : `${stagnantShare}% of tracked properties have no detected price movement.`}
-                                        label={"Stagnant stock"}
-                                        value={`${model.stagnantCount}`}
-                                    />
-                                </div>
+                            <PageCard description={"The latest recorded price deltas stay visible so operators can move from summary into the affected properties."} title={"Recent price changes"}>
+                                {model.priceChanges.length === 0 ? (
+                                    <div className={"dashboard-empty-state"}>
+                                        <strong>{"No recent price changes"}</strong>
+                                        <p className={"muted-copy"}>{"Price movements will appear here after tracked properties record a change."}</p>
+                                    </div>
+                                ) : (
+                                    <div className={"dashboard-event-list"}>
+                                        {model.priceChanges.slice(0, 5).map((change) => (
+                                            <article className={"dashboard-event"} key={`${change.propertyId}-${change.observedAt}`}>
+                                                <div>
+                                                    <strong className={"dashboard-event__title"}>{formatDashboardPropertyLabel(change.label)}</strong>
+                                                    <p className={"muted-copy"} style={{ margin: "0.25rem 0 0" }}>
+                                                        {change.deltaPercent === undefined
+                                                            ? formatSignedMoney(change.deltaAbsolute)
+                                                            : `${formatSignedMoney(change.deltaAbsolute)} · ${formatSignedPercent(change.deltaPercent)}`}
+                                                    </p>
+                                                </div>
+                                                <div className={"dashboard-event__meta"}>
+                                                    <span className={"muted-copy"}>{formatDateTime(change.observedAt)}</span>
+                                                    <Button as={Link} size={"small"} to={`/properties/${change.propertyId}`} variant={"secondary"}>{"Open"}</Button>
+                                                </div>
+                                            </article>
+                                        ))}
+                                    </div>
+                                )}
                             </PageCard>
                         </section>
                     </div>

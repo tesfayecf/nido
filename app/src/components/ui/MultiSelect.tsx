@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { isValidElement, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 import { Input } from "@/components/ui/Input";
@@ -36,6 +36,7 @@ export const MultiSelect = ({
     const [open, setOpen] = useState(false);
     const [search, setSearch] = useState("");
     const rootRef = useRef<HTMLDivElement | null>(null);
+    const triggerRef = useRef<HTMLButtonElement | null>(null);
     const listboxId = useId();
 
     useEffect(() => {
@@ -55,18 +56,38 @@ export const MultiSelect = ({
         };
     }, [open]);
 
+    useEffect(() => {
+        if (!open) {
+            setSearch("");
+            return undefined;
+        }
+
+        const handleKeyDown = (event: KeyboardEvent): void => {
+            if (event.key === "Escape") {
+                setOpen(false);
+                triggerRef.current?.focus();
+            }
+        };
+
+        window.addEventListener("keydown", handleKeyDown);
+        return () => {
+            window.removeEventListener("keydown", handleKeyDown);
+        };
+    }, [open]);
+
     const filteredOptions = useMemo(() => {
         if (search.trim() === "") {
             return options;
         }
 
         const normalizedSearch = search.trim().toLowerCase();
-        return options.filter((option) => `${option.label}`.toLowerCase().includes(normalizedSearch));
+        return options.filter((option) => readOptionText(option).toLowerCase().includes(normalizedSearch));
     }, [options, search]);
 
     const selectedLabels = options
         .filter((option) => values.includes(option.value))
-        .map((option) => option.label)
+        .map((option) => readNodeText(option.label))
+        .filter((label) => label !== "")
         .join(", ");
 
     return (
@@ -74,16 +95,18 @@ export const MultiSelect = ({
             <button
                 aria-controls={listboxId}
                 aria-expanded={open}
+                aria-haspopup={"listbox"}
                 aria-labelledby={ariaLabelledBy}
                 className={"multi-select__trigger field__control"}
                 disabled={disabled}
                 onClick={() => {
                     setOpen((current) => !current);
                 }}
+                ref={triggerRef}
                 type={"button"}
             >
                 <span className={values.length === 0 ? "multi-select__placeholder" : undefined}>
-                    {values.length === 0 ? placeholder : selectedLabels}
+                    {values.length === 0 ? placeholder : selectedLabels !== "" ? selectedLabels : `${values.length} selected`}
                 </span>
                 <span aria-hidden className={"multi-select__count"}>{values.length}</span>
             </button>
@@ -123,4 +146,24 @@ export const MultiSelect = ({
             ) : null}
         </div>
     );
+};
+
+const readOptionText = (option: MultiSelectOption): string => {
+    return `${readNodeText(option.label)} ${readNodeText(option.description)}`.trim();
+};
+
+const readNodeText = (value: ReactNode): string => {
+    if (typeof value === "string" || typeof value === "number") {
+        return `${value}`;
+    }
+
+    if (Array.isArray(value)) {
+        return value.map((item) => readNodeText(item)).filter((item) => item !== "").join(" ").trim();
+    }
+
+    if (isValidElement<{ children?: ReactNode; }>(value)) {
+        return readNodeText(value.props.children ?? "");
+    }
+
+    return "";
 };

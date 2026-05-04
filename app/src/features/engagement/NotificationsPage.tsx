@@ -12,6 +12,7 @@ import { ItemList } from "@/components/ui/ItemList";
 import { ListRow, ListRowFooter, ListRowMain } from "@/components/ui/ListRow";
 import { PageCard } from "@/components/ui/PageCard";
 import { PageStack } from "@/components/ui/PageStack";
+import { SecondarySurfaceHeader } from "@/components/ui/SecondarySurfaceHeader";
 import { formatDateTime } from "@/lib/format/date";
 import { readBooleanParam, readNumberParam, writeParam } from "@/lib/routing/searchParams";
 import { notificationKeys } from "@/services/notifications/notifications.keys";
@@ -49,9 +50,34 @@ export const NotificationsPage = (): JSX.Element => {
         setLimit(`${filters.limit}`);
     }, [filters.limit, filters.unread_only]);
 
+    const notifications = notificationsQuery.data?.items ?? [];
+    const unreadCount = notifications.filter((item) => item.read_at === undefined).length;
+    const linkedPropertyCount = notifications.filter((item) => item.property_id !== undefined).length;
+
     return (
         <PageStack>
-            <PageCard description={"Notifications are generated after property runs satisfy alert conditions."} title={"Notifications"}>
+            <SecondarySurfaceHeader
+                description={"Notifications are generated after property runs satisfy alert conditions."}
+                summaryAriaLabel={"Notifications overview"}
+                summaryItems={[
+                    {
+                        context: notificationsQuery.isLoading ? "Loading notification scope." : filters.unread_only ? "Unread-only filter is active." : "Showing read and unread items.",
+                        label: "In view",
+                        value: notificationsQuery.isLoading ? "—" : `${notifications.length}`,
+                    },
+                    {
+                        context: notificationsQuery.isLoading ? "Loading unread status." : unreadCount === 0 ? "No unread notifications in scope." : "Unread items are ready for review.",
+                        label: "Unread",
+                        value: notificationsQuery.isLoading ? "—" : `${unreadCount}`,
+                    },
+                    {
+                        context: notificationsQuery.isLoading ? "Loading property links." : `Limit set to ${filters.limit}.`,
+                        label: "Property links",
+                        value: notificationsQuery.isLoading ? "—" : `${linkedPropertyCount}`,
+                    },
+                ]}
+                title={"Notifications"}
+            >
                 <FormGrid
                     variant={"inline"}
                     onSubmit={(event) => {
@@ -72,19 +98,19 @@ export const NotificationsPage = (): JSX.Element => {
                         <Button type={"submit"}>{"Apply"}</Button>
                     </Field>
                 </FormGrid>
-            </PageCard>
+            </SecondarySurfaceHeader>
 
-            <PageCard description={"Use the property link to jump directly back into the tracked record that triggered the alert."} title={"Inbox"}>
+            <PageCard description={"Use the property link to jump directly back into the tracked record that triggered the alert."} title={"Notification list"}>
                 <AsyncContent
                     emptyMessage={"No notifications matched the current filters."}
                     errorMessage={"Could not load notifications."}
-                    isEmpty={notificationsQuery.isSuccess && notificationsQuery.data.items.length === 0}
+                    isEmpty={notificationsQuery.isSuccess && notifications.length === 0}
                     isError={notificationsQuery.isError}
                     isLoading={notificationsQuery.isLoading}
                     loadingMessage={"Loading notifications..."}
                 >
                     <ItemList>
-                        {(notificationsQuery.data?.items ?? []).map((item) => {
+                        {notifications.map((item) => {
                             return (
                                 <ListRow key={item.id}>
                                     <ListRowMain>

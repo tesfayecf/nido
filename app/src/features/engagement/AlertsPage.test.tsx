@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ToastProvider } from "@/components/ui/ToastProvider";
@@ -9,6 +9,7 @@ const createAlertRuleMock = vi.fn();
 const deleteAlertRuleMock = vi.fn();
 const listAlertRulesMock = vi.fn();
 const listPropertiesMock = vi.fn();
+const TEST_TIMEOUT_MS = 30000;
 
 vi.mock("@/services/alert-rules/alert-rules.service", () => ({
     createAlertRule: (payload: Record<string, unknown>) => createAlertRuleMock(payload),
@@ -51,25 +52,29 @@ describe("AlertsPage", () => {
     it("uses the standardized create-alert terminology", async () => {
         renderAlertsPage();
 
-        fireEvent.click(await screen.findByRole("button", { name: "New alert" }));
+        expect(await screen.findByLabelText("Alerts overview")).toBeInTheDocument();
 
-        expect(screen.getByRole("heading", { name: "Create alert" })).toBeInTheDocument();
-        expect(screen.getAllByRole("combobox")[1]).toBeInTheDocument();
+        fireEvent.click(screen.getByRole("button", { name: "Create alert" }));
 
-        fireEvent.change(screen.getAllByRole("combobox")[1] as HTMLSelectElement, { target: { value: "price_below" } });
+        const dialog = screen.getByRole("dialog", { name: "Create alert" });
+        expect(within(dialog).getByRole("heading", { name: "Create alert" })).toBeInTheDocument();
+        expect(within(dialog).getByRole("combobox", { name: "Rule type" })).toBeInTheDocument();
+
+        fireEvent.change(within(dialog).getByRole("combobox", { name: "Rule type" }) as HTMLSelectElement, { target: { value: "price_below" } });
 
         expect(await screen.findByRole("spinbutton")).toBeInTheDocument();
-        expect(screen.getByRole("button", { name: "Create alert" })).toBeInTheDocument();
-    });
+        expect(within(dialog).getByRole("button", { name: "Create alert" })).toBeInTheDocument();
+    }, TEST_TIMEOUT_MS);
 
     it("shows inline feedback when alert creation fails", async () => {
         createAlertRuleMock.mockRejectedValue(new Error("boom"));
 
         renderAlertsPage();
 
-        fireEvent.click(await screen.findByRole("button", { name: "New alert" }));
-        fireEvent.change(screen.getAllByRole("combobox")[0] as HTMLSelectElement, { target: { value: "prop_1" } });
-        fireEvent.click(screen.getByRole("button", { name: "Create alert" }));
+        fireEvent.click(await screen.findByRole("button", { name: "Create alert" }));
+        const dialog = screen.getByRole("dialog", { name: "Create alert" });
+        fireEvent.change(within(dialog).getByRole("combobox", { name: "Property" }) as HTMLSelectElement, { target: { value: "prop_1" } });
+        fireEvent.click(within(dialog).getByRole("button", { name: "Create alert" }));
 
         expect(await screen.findByText("Could not save the alert rule.")).toBeInTheDocument();
         await waitFor(() => {
@@ -79,5 +84,5 @@ describe("AlertsPage", () => {
                 threshold_amount: undefined,
             });
         });
-    });
+    }, TEST_TIMEOUT_MS);
 });

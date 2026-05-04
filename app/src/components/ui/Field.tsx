@@ -73,7 +73,7 @@ export const Field = ({
         fullWidth && "field--full-width",
         className,
     );
-    const labelledChildren = hint !== undefined && label !== undefined && childElement !== null
+    const labelledChildren = label !== undefined && childElement !== null
         ? cloneElement(childElement, {
             "aria-labelledby": childElement.props["aria-labelledby"] ?? labelId,
         })
