@@ -41,7 +41,7 @@ import type { PropsWithChildren } from "react";
  * Documents the export const  constant exported by app/src/hooks/useTheme.tsx.
  * Consumers rely on this stable value, so update related docs and tests before changing it.
  */
-THEME_STORAGE_KEYexport const  = "nido-theme";
+export const THEME_STORAGE_KEY = "nido-theme";
 
 type ResolvedTheme = "dark" | "light";
 /**
