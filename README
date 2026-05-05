@@ -93,5 +93,6 @@ Start here:
 1. [Documentation hub](./docs/README.md)
 2. [System overview](./docs/getting-started/system-overview.md)
 3. [Common tasks](./docs/guides/common-tasks.md)
-4. [Backend overview](./server/docs/overview.md)
-5. [Frontend overview](./app/docs/overview.md)
+4. [Frontend documentation hub](./docs/frontend/README.md)
+5. [Backend overview](./server/docs/overview.md)
+6. [Frontend overview](./app/docs/overview.md)
