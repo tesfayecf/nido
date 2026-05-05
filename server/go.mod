@@ -1,3 +1,14 @@
+// File Name: go.mod
+// Purpose: Declares the backend Go module, Go toolchain version, and dependency graph.
+// Responsibilities:
+// - Identify module path nido/server.
+// - Pin direct and indirect Go dependencies.
+// - Provide inputs for reproducible backend builds and tests.
+// Inputs / Outputs: Consumed by Go tooling; outputs resolved module graph with go.sum.
+// Dependencies: Go module proxy/cache and listed modules.
+// Side Effects: Go commands may download modules into the local module cache.
+// Critical Notes: Use Go tooling to update dependency versions and keep go.sum synchronized.
+
 module nido/server
 
 go 1.24.5

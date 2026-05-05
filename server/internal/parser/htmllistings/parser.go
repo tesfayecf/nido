@@ -1,3 +1,40 @@
+/**
+ * File: internal/parser/htmllistings/parser.go
+ *
+ * Purpose:
+ * Parses external property-listing payloads into normalized ingestion data.
+ *
+ * Responsibilities:
+ * - Provide package-specific backend behavior
+ * - Keep dependencies explicit
+ * - Return deterministic values to callers
+ *
+ * Inputs:
+ * - Function parameters, HTTP payloads, environment settings, or repository data as accepted by this file.
+ *
+ * Outputs:
+ * - Typed Go values, HTTP responses, persisted records, or test assertions produced by this file.
+ *
+ * Dependencies:
+ * - bytes
+ * - encoding/json
+ * - fmt
+ * - net/url
+ * - regexp
+ * - strconv
+ * - strings
+ * - github.com/PuerkitoBio/goquery
+ * - github.com/andybalholm/cascadia
+ * - nido/server/internal/ingestion/domain
+ * - nido/server/internal/platform/id
+ *
+ * Side Effects:
+ * - None beyond in-memory transformations unless called dependencies perform effects.
+ *
+ * Critical Notes:
+ * - Keep this documentation synchronized with behavior changes and cross-package contracts.
+ */
+
 package htmllistings
 
 import (
@@ -18,7 +55,22 @@ import (
 
 var digitsPattern = regexp.MustCompile(`\d+`)
 
-// Config describes how to extract listing cards from an HTML page.
+/**
+ * Purpose:
+ * Defines the Config struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type Config struct {
 	ItemSelector        string `json:"item_selector"`
 	TitleSelector       string `json:"title_selector"`
@@ -30,7 +82,25 @@ type Config struct {
 	Currency            string `json:"currency,omitempty"`
 }
 
-// ParseConfig validates and normalizes the source extraction config.
+/**
+ * Purpose:
+ * Performs the ParseConfig operation for this backend package.
+ *
+ * Parameters:
+ * - raw string
+ *
+ * Returns:
+ * - (Config, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func ParseConfig(raw string) (Config, error) {
 	trimmed := strings.TrimSpace(raw)
 	if trimmed == "" {
@@ -78,7 +148,25 @@ func ParseConfig(raw string) (Config, error) {
 	return config, nil
 }
 
-// Parse extracts candidate listings from HTML cards using the source config selectors.
+/**
+ * Purpose:
+ * Performs the Parse operation for this backend package.
+ *
+ * Parameters:
+ * - source domain.Source, payload []byte
+ *
+ * Returns:
+ * - ([]domain.CandidateListing, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func Parse(source domain.Source, payload []byte) ([]domain.CandidateListing, error) {
 	config, err := ParseConfig(source.ConfigJSON)
 	if err != nil {
@@ -114,6 +202,25 @@ func Parse(source domain.Source, payload []byte) ([]domain.CandidateListing, err
 	return items, nil
 }
 
+/**
+ * Purpose:
+ * Performs the validateSelector operation for this backend package.
+ *
+ * Parameters:
+ * - name, selector string, required bool
+ *
+ * Returns:
+ * - error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func validateSelector(name, selector string, required bool) error {
 	trimmed := strings.TrimSpace(selector)
 	if trimmed == "" {
@@ -130,6 +237,25 @@ func validateSelector(name, selector string, required bool) error {
 	return nil
 }
 
+/**
+ * Purpose:
+ * Performs the candidateFromSelection operation for this backend package.
+ *
+ * Parameters:
+ * - item *goquery.Selection, source domain.Source, config Config
+ *
+ * Returns:
+ * - (domain.CandidateListing, bool)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func candidateFromSelection(item *goquery.Selection, source domain.Source, config Config) (domain.CandidateListing, bool) {
 	title := selectionText(item.Find(config.TitleSelector).First())
 	urlValue := selectionAttr(item.Find(config.URLSelector).First(), "href")
@@ -166,6 +292,25 @@ func candidateFromSelection(item *goquery.Selection, source domain.Source, confi
 	}, true
 }
 
+/**
+ * Purpose:
+ * Performs the selectionText operation for this backend package.
+ *
+ * Parameters:
+ * - selection *goquery.Selection
+ *
+ * Returns:
+ * - string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func selectionText(selection *goquery.Selection) string {
 	if selection == nil || selection.Length() == 0 {
 		return ""
@@ -174,6 +319,25 @@ func selectionText(selection *goquery.Selection) string {
 	return strings.Join(strings.Fields(selection.Text()), " ")
 }
 
+/**
+ * Purpose:
+ * Performs the selectionAttr operation for this backend package.
+ *
+ * Parameters:
+ * - selection *goquery.Selection, name string
+ *
+ * Returns:
+ * - string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func selectionAttr(selection *goquery.Selection, name string) string {
 	if selection == nil || selection.Length() == 0 {
 		return ""
@@ -187,6 +351,25 @@ func selectionAttr(selection *goquery.Selection, name string) string {
 	return strings.TrimSpace(value)
 }
 
+/**
+ * Purpose:
+ * Performs the parsePriceAmount operation for this backend package.
+ *
+ * Parameters:
+ * - raw string
+ *
+ * Returns:
+ * - (int64, bool)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func parsePriceAmount(raw string) (int64, bool) {
 	digits := strings.Join(digitsPattern.FindAllString(raw, -1), "")
 	if digits == "" {
@@ -201,6 +384,25 @@ func parsePriceAmount(raw string) (int64, bool) {
 	return amount, true
 }
 
+/**
+ * Purpose:
+ * Performs the resolveURL operation for this backend package.
+ *
+ * Parameters:
+ * - raw, baseURL, fallbackURL string
+ *
+ * Returns:
+ * - (string, bool)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func resolveURL(raw, baseURL, fallbackURL string) (string, bool) {
 	reference, err := url.Parse(strings.TrimSpace(raw))
 	if err != nil {

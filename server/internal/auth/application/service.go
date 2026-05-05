@@ -1,3 +1,42 @@
+/**
+ * File: internal/auth/application/service.go
+ *
+ * Purpose:
+ * Coordinates application-level backend use cases, validation, and persistence boundaries.
+ *
+ * Responsibilities:
+ * - Apply business rules
+ * - Coordinate repositories and domain models
+ * - Return typed results for transport layers
+ *
+ * Inputs:
+ * - Function parameters, HTTP payloads, environment settings, or repository data as accepted by this file.
+ *
+ * Outputs:
+ * - Typed Go values, HTTP responses, persisted records, or test assertions produced by this file.
+ *
+ * Dependencies:
+ * - context
+ * - crypto/rand
+ * - crypto/sha256
+ * - encoding/hex
+ * - errors
+ * - fmt
+ * - log/slog
+ * - strings
+ * - time
+ * - golang.org/x/crypto/bcrypt
+ * - nido/server/internal/auth/domain
+ * - nido/server/internal/platform/config
+ * - nido/server/internal/platform/id
+ *
+ * Side Effects:
+ * - May perform database, network, filesystem, logging, scheduler, or HTTP response effects through collaborators.
+ *
+ * Critical Notes:
+ * - Keep this documentation synchronized with behavior changes and cross-package contracts.
+ */
+
 package application
 
 import (
@@ -31,7 +70,30 @@ var (
 	ErrInvalidProfile = errors.New("invalid profile fields")
 )
 
-// Store defines the persistence contract required by the auth service.
+/**
+ * @critical
+ * Description: Bearer tokens are generated once, stored only as hashes, and authorize protected backend routes.
+ * Why critical: Token disclosure or weak bootstrap credentials can grant access to user and operations APIs.
+ * What can break: Account integrity, workspace data confidentiality, and operational settings.
+ * Failure conditions: Leaked bearer tokens, insecure bootstrap password, missing transport security, or stale sessions not revoked.
+ */
+
+/**
+ * Purpose:
+ * Defines the Store interface used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type Store interface {
 	UpsertUser(ctx context.Context, user authdomain.User, passwordHash string) error
 	GetUserByEmail(ctx context.Context, email string) (authdomain.User, string, error)
@@ -44,19 +106,70 @@ type Store interface {
 	RevokeSession(ctx context.Context, sessionID string, revokedAt time.Time) error
 }
 
-// Service authenticates users and issues bearer sessions.
+/**
+ * Purpose:
+ * Defines the Service struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type Service struct {
 	logger *slog.Logger
 	store  Store
 	cfg    platformconfig.AuthConfig
 }
 
-// NewService builds a new auth service.
+/**
+ * Purpose:
+ * Performs the NewService operation for this backend package.
+ *
+ * Parameters:
+ * - logger *slog.Logger, store Store, cfg platformconfig.AuthConfig
+ *
+ * Returns:
+ * - *Service
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func NewService(logger *slog.Logger, store Store, cfg platformconfig.AuthConfig) *Service {
 	return &Service{logger: logger, store: store, cfg: cfg}
 }
 
-// EnsureBootstrapUser creates or updates the local bootstrap admin.
+/**
+ * Purpose:
+ * Performs the EnsureBootstrapUser operation for this backend package.
+ *
+ * Parameters:
+ * - s *Service
+ *
+ * Returns:
+ * - EnsureBootstrapUser(ctx context.Context) (authdomain.User, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Service) EnsureBootstrapUser(ctx context.Context) (authdomain.User, error) {
 	email := strings.ToLower(strings.TrimSpace(s.cfg.BootstrapAdminEmail))
 	password := strings.TrimSpace(s.cfg.BootstrapAdminPassword)
@@ -88,7 +201,25 @@ func (s *Service) EnsureBootstrapUser(ctx context.Context) (authdomain.User, err
 	return user, nil
 }
 
-// Login validates credentials and returns a new session token.
+/**
+ * Purpose:
+ * Performs the Login operation for this backend package.
+ *
+ * Parameters:
+ * - s *Service
+ *
+ * Returns:
+ * - Login(ctx context.Context, email, password string) (authdomain.User, authdomain.Session, string, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Service) Login(ctx context.Context, email, password string) (authdomain.User, authdomain.Session, string, error) {
 	user, passwordHash, err := s.store.GetUserByEmail(ctx, strings.ToLower(strings.TrimSpace(email)))
 	if err != nil {
@@ -121,7 +252,25 @@ func (s *Service) Login(ctx context.Context, email, password string) (authdomain
 	return user, session, rawToken, nil
 }
 
-// AuthenticateToken validates a bearer token and returns the principal.
+/**
+ * Purpose:
+ * Performs the AuthenticateToken operation for this backend package.
+ *
+ * Parameters:
+ * - s *Service
+ *
+ * Returns:
+ * - AuthenticateToken(ctx context.Context, token string) (authdomain.User, authdomain.Session, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Service) AuthenticateToken(ctx context.Context, token string) (authdomain.User, authdomain.Session, error) {
 	trimmed := strings.TrimSpace(token)
 	if trimmed == "" {
@@ -141,12 +290,48 @@ func (s *Service) AuthenticateToken(ctx context.Context, token string) (authdoma
 	return user, session, nil
 }
 
-// Logout revokes a session.
+/**
+ * Purpose:
+ * Performs the Logout operation for this backend package.
+ *
+ * Parameters:
+ * - s *Service
+ *
+ * Returns:
+ * - Logout(ctx context.Context, sessionID string) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Service) Logout(ctx context.Context, sessionID string) error {
 	return s.store.RevokeSession(ctx, sessionID, time.Now().UTC())
 }
 
-// UpdateProfile updates the mutable profile fields of a user and returns the refreshed record.
+/**
+ * Purpose:
+ * Performs the UpdateProfile operation for this backend package.
+ *
+ * Parameters:
+ * - s *Service
+ *
+ * Returns:
+ * - UpdateProfile(ctx context.Context, userID, displayName string) (authdomain.User, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Service) UpdateProfile(ctx context.Context, userID, displayName string) (authdomain.User, error) {
 	trimmed := strings.TrimSpace(displayName)
 	if trimmed == "" {
@@ -161,7 +346,25 @@ func (s *Service) UpdateProfile(ctx context.Context, userID, displayName string)
 	return s.store.GetUserByID(ctx, userID)
 }
 
-// ChangePassword verifies the current password and stores a new bcrypt hash.
+/**
+ * Purpose:
+ * Performs the ChangePassword operation for this backend package.
+ *
+ * Parameters:
+ * - s *Service
+ *
+ * Returns:
+ * - ChangePassword(ctx context.Context, userID, currentPassword, newPassword string) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Service) ChangePassword(ctx context.Context, userID, currentPassword, newPassword string) error {
 	if len(strings.TrimSpace(newPassword)) < 8 {
 		return ErrPasswordTooWeak
@@ -184,6 +387,25 @@ func (s *Service) ChangePassword(ctx context.Context, userID, currentPassword, n
 	return s.store.UpdateUserPassword(ctx, userID, string(newHash), time.Now().UTC())
 }
 
+/**
+ * Purpose:
+ * Performs the newToken operation for this backend package.
+ *
+ * Parameters:
+ * - None.
+ *
+ * Returns:
+ * - (string, string, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func newToken() (string, string, error) {
 	buffer := make([]byte, 32)
 	if _, err := rand.Read(buffer); err != nil {
@@ -194,6 +416,25 @@ func newToken() (string, string, error) {
 	return rawToken, tokenHash(rawToken), nil
 }
 
+/**
+ * Purpose:
+ * Performs the tokenHash operation for this backend package.
+ *
+ * Parameters:
+ * - token string
+ *
+ * Returns:
+ * - string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func tokenHash(token string) string {
 	sum := sha256.Sum256([]byte(token))
 	return hex.EncodeToString(sum[:])

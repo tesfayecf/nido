@@ -1,3 +1,36 @@
+/**
+ * File: internal/platform/config/config.go
+ *
+ * Purpose:
+ * Loads and normalizes backend runtime configuration from environment variables.
+ *
+ * Responsibilities:
+ * - Read environment-backed settings
+ * - Apply safe defaults
+ * - Expose typed configuration to runtime assembly
+ *
+ * Inputs:
+ * - Function parameters, HTTP payloads, environment settings, or repository data as accepted by this file.
+ *
+ * Outputs:
+ * - Typed Go values, HTTP responses, persisted records, or test assertions produced by this file.
+ *
+ * Dependencies:
+ * - encoding/json
+ * - fmt
+ * - net/url
+ * - os
+ * - strconv
+ * - strings
+ * - time
+ *
+ * Side Effects:
+ * - None beyond in-memory transformations unless called dependencies perform effects.
+ *
+ * Critical Notes:
+ * - Keep this documentation synchronized with behavior changes and cross-package contracts.
+ */
+
 package config
 
 import (
@@ -10,7 +43,22 @@ import (
 	"time"
 )
 
-// Config holds the runtime configuration for the backend server.
+/**
+ * Purpose:
+ * Defines the Config struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type Config struct {
 	HTTP            HTTPConfig
 	Database        DatabaseConfig
@@ -24,24 +72,84 @@ type Config struct {
 	Notifications   NotificationsConfig
 }
 
-// HTTPConfig controls the HTTP server listener.
+/**
+ * Purpose:
+ * Defines the HTTPConfig struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type HTTPConfig struct {
 	Address string
 }
 
-// DatabaseConfig controls the SQLite file location.
+/**
+ * Purpose:
+ * Defines the DatabaseConfig struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type DatabaseConfig struct {
 	Path string
 }
 
-// MigrationConfig controls schema migration execution and backup storage.
+/**
+ * Purpose:
+ * Defines the MigrationConfig struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type MigrationConfig struct {
 	AutoMigrate bool
 	Strategy    string
 	BackupDir   string
 }
 
-// ObjectStoreConfig controls the object-store implementation.
+/**
+ * Purpose:
+ * Defines the ObjectStoreConfig struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type ObjectStoreConfig struct {
 	Driver            string
 	S3Endpoint        string
@@ -52,7 +160,22 @@ type ObjectStoreConfig struct {
 	S3SecretAccessKey string
 }
 
-// SchedulerConfig controls periodic ingestion execution.
+/**
+ * Purpose:
+ * Defines the SchedulerConfig struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type SchedulerConfig struct {
 	Enabled         bool
 	TickInterval    time.Duration
@@ -61,14 +184,44 @@ type SchedulerConfig struct {
 	ShutdownTimeout time.Duration
 }
 
-// BrowserConfig controls the optional server-side browser renderer.
+/**
+ * Purpose:
+ * Defines the BrowserConfig struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type BrowserConfig struct {
 	Command string
 	Args    []string
 	Timeout time.Duration
 }
 
-// FetcherConfig controls shared scraping HTTP behavior.
+/**
+ * Purpose:
+ * Defines the FetcherConfig struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type FetcherConfig struct {
 	Timeout         time.Duration
 	ProxyProvider   string
@@ -78,7 +231,22 @@ type FetcherConfig struct {
 	BreakerTimeout  time.Duration
 }
 
-// AuthConfig controls bootstrap admin identity and session lifetime.
+/**
+ * Purpose:
+ * Defines the AuthConfig struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type AuthConfig struct {
 	BootstrapAdminEmail    string
 	BootstrapAdminName     string
@@ -86,7 +254,22 @@ type AuthConfig struct {
 	SessionTTL             time.Duration
 }
 
-// NotificationsConfig controls optional delivery adapters.
+/**
+ * Purpose:
+ * Defines the NotificationsConfig struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type NotificationsConfig struct {
 	WebhookURL string
 	SMTPHost   string
@@ -96,8 +279,22 @@ type NotificationsConfig struct {
 	SMTPFrom   string
 }
 
-// BootstrapSourceConfig describes the single source that powers the first
-// operational ingestion slice.
+/**
+ * Purpose:
+ * Defines the BootstrapSourceConfig struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type BootstrapSourceConfig struct {
 	ID                      string
 	Name                    string
@@ -113,7 +310,25 @@ type BootstrapSourceConfig struct {
 	FreshnessWindowSeconds  int
 }
 
-// Load builds the runtime configuration from environment variables.
+/**
+ * Purpose:
+ * Performs the Load operation for this backend package.
+ *
+ * Parameters:
+ * - None.
+ *
+ * Returns:
+ * - (Config, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func Load() (Config, error) {
 	cfg := Config{
 		HTTP: HTTPConfig{
@@ -239,6 +454,25 @@ func Load() (Config, error) {
 	return cfg, nil
 }
 
+/**
+ * Purpose:
+ * Performs the envOrDefault operation for this backend package.
+ *
+ * Parameters:
+ * - name, fallback string
+ *
+ * Returns:
+ * - string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func envOrDefault(name, fallback string) string {
 	value := strings.TrimSpace(os.Getenv(name))
 	if value == "" {
@@ -248,6 +482,25 @@ func envOrDefault(name, fallback string) string {
 	return value
 }
 
+/**
+ * Purpose:
+ * Performs the envFromAliases operation for this backend package.
+ *
+ * Parameters:
+ * - names ...string
+ *
+ * Returns:
+ * - string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func envFromAliases(names ...string) string {
 	for _, name := range names {
 		value := strings.TrimSpace(os.Getenv(name))
@@ -259,6 +512,25 @@ func envFromAliases(names ...string) string {
 	return ""
 }
 
+/**
+ * Purpose:
+ * Performs the boolEnvOrDefault operation for this backend package.
+ *
+ * Parameters:
+ * - name string, fallback bool
+ *
+ * Returns:
+ * - bool
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func boolEnvOrDefault(name string, fallback bool) bool {
 	value := strings.TrimSpace(os.Getenv(name))
 	if value == "" {
@@ -273,6 +545,25 @@ func boolEnvOrDefault(name string, fallback bool) bool {
 	return parsed
 }
 
+/**
+ * Purpose:
+ * Performs the boolEnvOrDefaultFromAliases operation for this backend package.
+ *
+ * Parameters:
+ * - fallback bool, names ...string
+ *
+ * Returns:
+ * - bool
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func boolEnvOrDefaultFromAliases(fallback bool, names ...string) bool {
 	for _, name := range names {
 		value := strings.TrimSpace(os.Getenv(name))
@@ -288,6 +579,25 @@ func boolEnvOrDefaultFromAliases(fallback bool, names ...string) bool {
 	return fallback
 }
 
+/**
+ * Purpose:
+ * Performs the envFromAliasesOrDefault operation for this backend package.
+ *
+ * Parameters:
+ * - fallback string, names ...string
+ *
+ * Returns:
+ * - string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func envFromAliasesOrDefault(fallback string, names ...string) string {
 	value := envFromAliases(names...)
 	if value == "" {
@@ -296,6 +606,25 @@ func envFromAliasesOrDefault(fallback string, names ...string) string {
 	return value
 }
 
+/**
+ * Purpose:
+ * Performs the intEnvOrDefault operation for this backend package.
+ *
+ * Parameters:
+ * - name string, fallback int
+ *
+ * Returns:
+ * - int
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func intEnvOrDefault(name string, fallback int) int {
 	value := strings.TrimSpace(os.Getenv(name))
 	if value == "" {
@@ -310,6 +639,25 @@ func intEnvOrDefault(name string, fallback int) int {
 	return parsed
 }
 
+/**
+ * Purpose:
+ * Performs the durationEnvOrDefault operation for this backend package.
+ *
+ * Parameters:
+ * - name string, fallback time.Duration
+ *
+ * Returns:
+ * - time.Duration
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func durationEnvOrDefault(name string, fallback time.Duration) time.Duration {
 	value := strings.TrimSpace(os.Getenv(name))
 	if value == "" {
@@ -324,6 +672,25 @@ func durationEnvOrDefault(name string, fallback time.Duration) time.Duration {
 	return parsed
 }
 
+/**
+ * Purpose:
+ * Performs the durationSeconds operation for this backend package.
+ *
+ * Parameters:
+ * - value time.Duration
+ *
+ * Returns:
+ * - int
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func durationSeconds(value time.Duration) int {
 	if value <= 0 {
 		return 0
@@ -332,6 +699,25 @@ func durationSeconds(value time.Duration) int {
 	return int(value / time.Second)
 }
 
+/**
+ * Purpose:
+ * Performs the durationMillis operation for this backend package.
+ *
+ * Parameters:
+ * - value time.Duration
+ *
+ * Returns:
+ * - int
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func durationMillis(value time.Duration) int {
 	if value <= 0 {
 		return 0
@@ -340,6 +726,25 @@ func durationMillis(value time.Duration) int {
 	return int(value / time.Millisecond)
 }
 
+/**
+ * Purpose:
+ * Performs the splitArgList operation for this backend package.
+ *
+ * Parameters:
+ * - raw string
+ *
+ * Returns:
+ * - []string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func splitArgList(raw string) []string {
 	if strings.TrimSpace(raw) == "" {
 		return nil

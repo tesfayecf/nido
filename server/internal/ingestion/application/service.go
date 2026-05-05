@@ -1,3 +1,44 @@
+/**
+ * File: internal/ingestion/application/service.go
+ *
+ * Purpose:
+ * Coordinates application-level backend use cases, validation, and persistence boundaries.
+ *
+ * Responsibilities:
+ * - Apply business rules
+ * - Coordinate repositories and domain models
+ * - Return typed results for transport layers
+ *
+ * Inputs:
+ * - Function parameters, HTTP payloads, environment settings, or repository data as accepted by this file.
+ *
+ * Outputs:
+ * - Typed Go values, HTTP responses, persisted records, or test assertions produced by this file.
+ *
+ * Dependencies:
+ * - context
+ * - crypto/sha256
+ * - database/sql
+ * - encoding/hex
+ * - encoding/json
+ * - errors
+ * - fmt
+ * - log/slog
+ * - path
+ * - strings
+ * - time
+ * - nido/server/internal/engine
+ * - nido/server/internal/ingestion/domain
+ * - nido/server/internal/platform/id
+ * - nido/server/internal/platform/objectstore
+ *
+ * Side Effects:
+ * - May perform database, network, filesystem, logging, scheduler, or HTTP response effects through collaborators.
+ *
+ * Critical Notes:
+ * - Keep this documentation synchronized with behavior changes and cross-package contracts.
+ */
+
 package application
 
 import (
@@ -31,19 +72,64 @@ var ErrSourceLocked = errors.New("source is already being ingested")
 // ErrSourceRateLimited indicates that source rate limits would be exceeded.
 var ErrSourceRateLimited = errors.New("source rate limit exceeded")
 
-// Connector fetches and parses a source payload.
+/**
+ * Purpose:
+ * Defines the Connector interface used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type Connector interface {
 	Kind() string
 	Fetch(ctx context.Context, source domain.Source) (FetchResult, error)
 	Parse(ctx context.Context, source domain.Source, payload []byte) ([]domain.CandidateListing, error)
 }
 
-// SourceValidator optionally validates whether a source payload is usable for a connector.
+/**
+ * Purpose:
+ * Defines the SourceValidator interface used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type SourceValidator interface {
 	ValidateSource(source domain.Source) error
 }
 
-// Store defines the persistence contract required by the ingestion service.
+/**
+ * Purpose:
+ * Defines the Store interface used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type Store interface {
 	UpsertSource(ctx context.Context, source domain.Source) error
 	ListSources(ctx context.Context) ([]domain.Source, error)
@@ -63,7 +149,22 @@ type Store interface {
 	ReplaceObservedListings(ctx context.Context, sourceID string, observedAt time.Time, candidates []domain.CandidateListing) ([]domain.ListingChange, error)
 }
 
-// FetchResult contains the raw payload returned by a source fetch.
+/**
+ * Purpose:
+ * Defines the FetchResult struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type FetchResult struct {
 	Payload     []byte
 	ContentType string
@@ -74,28 +175,103 @@ type FetchResult struct {
 	ByteCount   int
 }
 
-// Clock abstracts time access for ingestion flows.
+/**
+ * Purpose:
+ * Defines the Clock interface used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type Clock interface {
 	Now() time.Time
 }
 
-// ChangeProcessor reacts to detected listing changes.
+/**
+ * Purpose:
+ * Defines the ChangeProcessor interface used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type ChangeProcessor interface {
 	ProcessIngestionChanges(ctx context.Context, changes []domain.ListingChange) (int, error)
 }
 
-// Publisher emits live transport events.
+/**
+ * Purpose:
+ * Defines the Publisher interface used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type Publisher interface {
 	Publish(eventType string, data any)
 }
 
-// IngestOptions controls how a run is executed.
+/**
+ * Purpose:
+ * Defines the IngestOptions struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type IngestOptions struct {
 	TriggerKind string
 	Force       bool
 }
 
-// Service orchestrates source registration, ingestion execution, and run reads.
+/**
+ * Purpose:
+ * Defines the Service struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type Service struct {
 	logger     *slog.Logger
 	store      Store
@@ -108,7 +284,25 @@ type Service struct {
 	events     Publisher
 }
 
-// NewService builds an ingestion service.
+/**
+ * Purpose:
+ * Performs the NewService operation for this backend package.
+ *
+ * Parameters:
+ * - logger *slog.Logger, store Store, artifacts objectstore.Store, connectors []Connector, clock Clock, lockTTL time.Duration, changes ChangeProcessor, events Publisher
+ *
+ * Returns:
+ * - (*Service, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func NewService(logger *slog.Logger, store Store, artifacts objectstore.Store, connectors []Connector, clock Clock, lockTTL time.Duration, changes ChangeProcessor, events Publisher) (*Service, error) {
 	resolvedClock := clock
 	if resolvedClock == nil {
@@ -144,7 +338,25 @@ func NewService(logger *slog.Logger, store Store, artifacts objectstore.Store, c
 	}, nil
 }
 
-// EnsureSource upserts a source definition used by the first iteration.
+/**
+ * Purpose:
+ * Performs the EnsureSource operation for this backend package.
+ *
+ * Parameters:
+ * - s *Service
+ *
+ * Returns:
+ * - EnsureSource(ctx context.Context, source domain.Source) (domain.Source, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Service) EnsureSource(ctx context.Context, source domain.Source) (domain.Source, error) {
 	normalized, err := s.normalizeAndValidateSource(source)
 	if err != nil {
@@ -158,12 +370,48 @@ func (s *Service) EnsureSource(ctx context.Context, source domain.Source) (domai
 	return normalized, nil
 }
 
-// ListSources returns the configured sources.
+/**
+ * Purpose:
+ * Performs the ListSources operation for this backend package.
+ *
+ * Parameters:
+ * - s *Service
+ *
+ * Returns:
+ * - ListSources(ctx context.Context) ([]domain.Source, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Service) ListSources(ctx context.Context) ([]domain.Source, error) {
 	return s.store.ListSources(ctx)
 }
 
-// ListRuns returns recent ingestion runs.
+/**
+ * Purpose:
+ * Performs the ListRuns operation for this backend package.
+ *
+ * Parameters:
+ * - s *Service
+ *
+ * Returns:
+ * - ListRuns(ctx context.Context, sourceID string, limit int) ([]domain.Run, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Service) ListRuns(ctx context.Context, sourceID string, limit int) ([]domain.Run, error) {
 	if limit <= 0 {
 		limit = 20
@@ -175,7 +423,25 @@ func (s *Service) ListRuns(ctx context.Context, sourceID string, limit int) ([]d
 	return s.store.ListRuns(ctx, sourceID, limit)
 }
 
-// GetRun returns one run with diagnostics.
+/**
+ * Purpose:
+ * Performs the GetRun operation for this backend package.
+ *
+ * Parameters:
+ * - s *Service
+ *
+ * Returns:
+ * - GetRun(ctx context.Context, runID string) (domain.Run, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Service) GetRun(ctx context.Context, runID string) (domain.Run, error) {
 	run, err := s.store.GetRun(ctx, runID)
 	if err != nil {
@@ -185,7 +451,25 @@ func (s *Service) GetRun(ctx context.Context, runID string) (domain.Run, error) 
 	return run, nil
 }
 
-// GetSource returns one configured source.
+/**
+ * Purpose:
+ * Performs the GetSource operation for this backend package.
+ *
+ * Parameters:
+ * - s *Service
+ *
+ * Returns:
+ * - GetSource(ctx context.Context, sourceID string) (domain.Source, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Service) GetSource(ctx context.Context, sourceID string) (domain.Source, error) {
 	source, err := s.store.GetSource(ctx, sourceID)
 	if err != nil {
@@ -195,7 +479,25 @@ func (s *Service) GetSource(ctx context.Context, sourceID string) (domain.Source
 	return source, nil
 }
 
-// DeleteSource removes one configured source.
+/**
+ * Purpose:
+ * Performs the DeleteSource operation for this backend package.
+ *
+ * Parameters:
+ * - s *Service
+ *
+ * Returns:
+ * - DeleteSource(ctx context.Context, sourceID string) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Service) DeleteSource(ctx context.Context, sourceID string) error {
 	err := s.store.DeleteSource(ctx, sourceID)
 	if err != nil {
@@ -205,6 +507,25 @@ func (s *Service) DeleteSource(ctx context.Context, sourceID string) error {
 	return nil
 }
 
+/**
+ * Purpose:
+ * Performs the normalizeSourceForUpsert operation for this backend package.
+ *
+ * Parameters:
+ * - source domain.Source, now time.Time
+ *
+ * Returns:
+ * - domain.Source
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func normalizeSourceForUpsert(source domain.Source, now time.Time) domain.Source {
 	source.ID = strings.TrimSpace(source.ID)
 	source.Name = strings.TrimSpace(source.Name)
@@ -228,6 +549,25 @@ func normalizeSourceForUpsert(source domain.Source, now time.Time) domain.Source
 	return source
 }
 
+/**
+ * Purpose:
+ * Performs the normalizeAndValidateSource operation for this backend package.
+ *
+ * Parameters:
+ * - s *Service
+ *
+ * Returns:
+ * - normalizeAndValidateSource(source domain.Source) (domain.Source, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Service) normalizeAndValidateSource(source domain.Source) (domain.Source, error) {
 	normalized := normalizeSourceForUpsert(source, s.clock.Now().UTC())
 	if normalized.ID == "" {
@@ -243,6 +583,25 @@ func (s *Service) normalizeAndValidateSource(source domain.Source) (domain.Sourc
 	return normalized, nil
 }
 
+/**
+ * Purpose:
+ * Performs the mapLookupError operation for this backend package.
+ *
+ * Parameters:
+ * - err error, notFound error
+ *
+ * Returns:
+ * - error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func mapLookupError(err error, notFound error) error {
 	if errors.Is(err, sql.ErrNoRows) {
 		return notFound
@@ -251,7 +610,25 @@ func mapLookupError(err error, notFound error) error {
 	return err
 }
 
-// IngestSource runs a synchronous ingestion for the supplied source.
+/**
+ * Purpose:
+ * Performs the IngestSource operation for this backend package.
+ *
+ * Parameters:
+ * - s *Service
+ *
+ * Returns:
+ * - IngestSource(ctx context.Context, sourceID string, options IngestOptions) (domain.Run, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Service) IngestSource(ctx context.Context, sourceID string, options IngestOptions) (domain.Run, error) {
 	source, err := s.store.GetSource(ctx, sourceID)
 	if err != nil {
@@ -442,7 +819,25 @@ func (s *Service) IngestSource(ctx context.Context, sourceID string, options Ing
 	return run, nil
 }
 
-// RunDueSources executes all due scheduled sources up to the supplied limit.
+/**
+ * Purpose:
+ * Performs the RunDueSources operation for this backend package.
+ *
+ * Parameters:
+ * - s *Service
+ *
+ * Returns:
+ * - RunDueSources(ctx context.Context, limit int) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Service) RunDueSources(ctx context.Context, limit int) error {
 	sources, now, err := s.dueSources(ctx, limit)
 	if err != nil {
@@ -458,6 +853,25 @@ func (s *Service) RunDueSources(ctx context.Context, limit int) error {
 	return nil
 }
 
+/**
+ * Purpose:
+ * Performs the dueSources operation for this backend package.
+ *
+ * Parameters:
+ * - s *Service
+ *
+ * Returns:
+ * - dueSources(ctx context.Context, limit int) ([]domain.Source, time.Time, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Service) dueSources(ctx context.Context, limit int) ([]domain.Source, time.Time, error) {
 	if limit <= 0 {
 		limit = 10
@@ -472,6 +886,25 @@ func (s *Service) dueSources(ctx context.Context, limit int) ([]domain.Source, t
 	return sources, now, nil
 }
 
+/**
+ * Purpose:
+ * Performs the runDueSource operation for this backend package.
+ *
+ * Parameters:
+ * - s *Service
+ *
+ * Returns:
+ * - runDueSource(ctx context.Context, source domain.Source, now time.Time) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Service) runDueSource(ctx context.Context, source domain.Source, now time.Time) error {
 	if source.FreshnessWindow() > 0 && source.LastRunAt != nil && now.Sub(*source.LastRunAt) < source.FreshnessWindow() {
 		next := nextRunAt(now, source.ScheduleInterval())
@@ -496,6 +929,25 @@ func (s *Service) runDueSource(ctx context.Context, source domain.Source, now ti
 	return nil
 }
 
+/**
+ * Purpose:
+ * Performs the failRun operation for this backend package.
+ *
+ * Parameters:
+ * - s *Service
+ *
+ * Returns:
+ * - failRun(ctx context.Context, source domain.Source, run domain.Run, stage string, cause error, diagnostics map[string]any) (domain.Run, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Service) failRun(ctx context.Context, source domain.Source, run domain.Run, stage string, cause error, diagnostics map[string]any) (domain.Run, error) {
 	finishedAt := s.clock.Now().UTC()
 	message := cause.Error()
@@ -540,6 +992,25 @@ func (s *Service) failRun(ctx context.Context, source domain.Source, run domain.
 	return run, cause
 }
 
+/**
+ * Purpose:
+ * Performs the artifactLocation operation for this backend package.
+ *
+ * Parameters:
+ * - sourceID string, payload []byte, contentType string
+ *
+ * Returns:
+ * - (string, string)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func artifactLocation(sourceID string, payload []byte, contentType string) (string, string) {
 	sum := sha256.Sum256(payload)
 	checksum := hex.EncodeToString(sum[:])
@@ -555,6 +1026,25 @@ func artifactLocation(sourceID string, payload []byte, contentType string) (stri
 	return path.Join("raw", sourceID, checksum+extension), checksum
 }
 
+/**
+ * Purpose:
+ * Performs the nextRunAt operation for this backend package.
+ *
+ * Parameters:
+ * - base time.Time, interval time.Duration
+ *
+ * Returns:
+ * - *time.Time
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func nextRunAt(base time.Time, interval time.Duration) *time.Time {
 	if interval <= 0 {
 		return nil
@@ -564,6 +1054,25 @@ func nextRunAt(base time.Time, interval time.Duration) *time.Time {
 	return &next
 }
 
+/**
+ * Purpose:
+ * Performs the failureClass operation for this backend package.
+ *
+ * Parameters:
+ * - err error
+ *
+ * Returns:
+ * - string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func failureClass(err error) string {
 	var classified interface{ FailureClass() engine.FailureClass }
 	if errors.As(err, &classified) {
@@ -573,6 +1082,25 @@ func failureClass(err error) string {
 	return string(engine.FailureFatal)
 }
 
+/**
+ * Purpose:
+ * Performs the excerpt operation for this backend package.
+ *
+ * Parameters:
+ * - payload []byte, limit int
+ *
+ * Returns:
+ * - string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func excerpt(payload []byte, limit int) string {
 	if limit <= 0 || len(payload) <= limit {
 		return string(payload)
@@ -581,6 +1109,25 @@ func excerpt(payload []byte, limit int) string {
 	return string(payload[:limit])
 }
 
+/**
+ * Purpose:
+ * Performs the maxInt operation for this backend package.
+ *
+ * Parameters:
+ * - a, b int
+ *
+ * Returns:
+ * - int
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func maxInt(a, b int) int {
 	if a > b {
 		return a
@@ -589,6 +1136,25 @@ func maxInt(a, b int) int {
 	return b
 }
 
+/**
+ * Purpose:
+ * Performs the emit operation for this backend package.
+ *
+ * Parameters:
+ * - s *Service
+ *
+ * Returns:
+ * - emit(eventType string, data any)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Service) emit(eventType string, data any) {
 	if s.events == nil {
 		return
@@ -597,8 +1163,43 @@ func (s *Service) emit(eventType string, data any) {
 	s.events.Publish(eventType, data)
 }
 
+/**
+ * Purpose:
+ * Defines the systemClock struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type systemClock struct{}
 
+/**
+ * Purpose:
+ * Performs the Now operation for this backend package.
+ *
+ * Parameters:
+ * - systemClock
+ *
+ * Returns:
+ * - Now() time.Time
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (systemClock) Now() time.Time {
 	return time.Now()
 }

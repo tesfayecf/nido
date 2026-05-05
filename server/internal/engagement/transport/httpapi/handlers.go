@@ -1,3 +1,36 @@
+/**
+ * File: internal/engagement/transport/httpapi/handlers.go
+ *
+ * Purpose:
+ * Exposes HTTP transport handlers and request/response adaptation for this backend area.
+ *
+ * Responsibilities:
+ * - Decode and validate HTTP requests
+ * - Call application services
+ * - Encode stable JSON responses and errors
+ *
+ * Inputs:
+ * - Function parameters, HTTP payloads, environment settings, or repository data as accepted by this file.
+ *
+ * Outputs:
+ * - Typed Go values, HTTP responses, persisted records, or test assertions produced by this file.
+ *
+ * Dependencies:
+ * - net/http
+ * - strconv
+ * - strings
+ * - nido/server/internal/auth/transport/httpapi
+ * - nido/server/internal/engagement/application
+ * - nido/server/internal/engagement/domain
+ * - nido/server/internal/platform/httpapi
+ *
+ * Side Effects:
+ * - May perform database, network, filesystem, logging, scheduler, or HTTP response effects through collaborators.
+ *
+ * Critical Notes:
+ * - Keep this documentation synchronized with behavior changes and cross-package contracts.
+ */
+
 package httpapi
 
 import (
@@ -11,7 +44,25 @@ import (
 	platformhttp "nido/server/internal/platform/httpapi"
 )
 
-// Register binds engagement routes to the supplied mux.
+/**
+ * Purpose:
+ * Performs the Register operation for this backend package.
+ *
+ * Parameters:
+ * - mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, service *app.Service
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func Register(mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, service *app.Service) {
 	mux.Handle("GET /api/v1/me/bookmarks", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		principal, ok := authhttp.CurrentPrincipal(r.Context())
@@ -196,6 +247,25 @@ func Register(mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, s
 	})))
 }
 
+/**
+ * Purpose:
+ * Performs the parseBool operation for this backend package.
+ *
+ * Parameters:
+ * - raw string
+ *
+ * Returns:
+ * - bool
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func parseBool(raw string) bool {
 	parsed, _ := strconv.ParseBool(strings.TrimSpace(raw))
 	return parsed

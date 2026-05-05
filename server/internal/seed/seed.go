@@ -1,3 +1,38 @@
+/**
+ * File: internal/seed/seed.go
+ *
+ * Purpose:
+ * Implements backend behavior for the seed package.
+ *
+ * Responsibilities:
+ * - Provide package-specific backend behavior
+ * - Keep dependencies explicit
+ * - Return deterministic values to callers
+ *
+ * Inputs:
+ * - Function parameters, HTTP payloads, environment settings, or repository data as accepted by this file.
+ *
+ * Outputs:
+ * - Typed Go values, HTTP responses, persisted records, or test assertions produced by this file.
+ *
+ * Dependencies:
+ * - context
+ * - database/sql
+ * - encoding/json
+ * - errors
+ * - fmt
+ * - os
+ * - regexp
+ * - strings
+ * - time
+ *
+ * Side Effects:
+ * - May perform database, network, filesystem, logging, scheduler, or HTTP response effects through collaborators.
+ *
+ * Critical Notes:
+ * - Keep this documentation synchronized with behavior changes and cross-package contracts.
+ */
+
 package seed
 
 import (
@@ -15,13 +50,44 @@ import (
 // ErrProductionEnvironment prevents development data from being written in production.
 var ErrProductionEnvironment = errors.New("seed data is disabled in production environments")
 
-// Options controls deterministic local seed data generation.
+/**
+ * Purpose:
+ * Defines the Options struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type Options struct {
 	Variant string
 	Now     time.Time
 	Env     string
 }
 
+/**
+ * Purpose:
+ * Defines the seedData struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type seedData struct {
 	prefix string
 	now    time.Time
@@ -29,7 +95,25 @@ type seedData struct {
 
 var variantPattern = regexp.MustCompile(`[^a-z0-9-]+`)
 
-// Environment returns the current runtime environment name using common aliases.
+/**
+ * Purpose:
+ * Performs the Environment operation for this backend package.
+ *
+ * Parameters:
+ * - None.
+ *
+ * Returns:
+ * - string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func Environment() string {
 	for _, name := range []string{"NIDO_ENV", "APP_ENV", "ENVIRONMENT", "GO_ENV"} {
 		if value := strings.TrimSpace(os.Getenv(name)); value != "" {
@@ -39,13 +123,49 @@ func Environment() string {
 	return "development"
 }
 
-// IsProduction reports whether an environment name should block local seed data.
+/**
+ * Purpose:
+ * Performs the IsProduction operation for this backend package.
+ *
+ * Parameters:
+ * - env string
+ *
+ * Returns:
+ * - bool
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func IsProduction(env string) bool {
 	normalized := strings.ToLower(strings.TrimSpace(env))
 	return normalized == "prod" || normalized == "production"
 }
 
-// Apply writes a deterministic, idempotent local development dataset.
+/**
+ * Purpose:
+ * Performs the Apply operation for this backend package.
+ *
+ * Parameters:
+ * - ctx context.Context, db *sql.DB, options Options
+ *
+ * Returns:
+ * - error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func Apply(ctx context.Context, db *sql.DB, options Options) error {
 	env := options.Env
 	if env == "" {
@@ -88,6 +208,25 @@ func Apply(ctx context.Context, db *sql.DB, options Options) error {
 	return nil
 }
 
+/**
+ * Purpose:
+ * Performs the normalizeVariant operation for this backend package.
+ *
+ * Parameters:
+ * - raw string
+ *
+ * Returns:
+ * - string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func normalizeVariant(raw string) string {
 	normalized := strings.ToLower(strings.TrimSpace(raw))
 	if normalized == "" {
@@ -102,6 +241,25 @@ func normalizeVariant(raw string) string {
 	return normalized
 }
 
+/**
+ * Purpose:
+ * Performs the reset operation for this backend package.
+ *
+ * Parameters:
+ * - d seedData
+ *
+ * Returns:
+ * - reset(ctx context.Context, tx *sql.Tx) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (d seedData) reset(ctx context.Context, tx *sql.Tx) error {
 	for _, statement := range []string{
 		`DELETE FROM integration_delivery_logs WHERE id LIKE ?`,
@@ -132,6 +290,25 @@ func (d seedData) reset(ctx context.Context, tx *sql.Tx) error {
 	return nil
 }
 
+/**
+ * Purpose:
+ * Performs the insert operation for this backend package.
+ *
+ * Parameters:
+ * - d seedData
+ *
+ * Returns:
+ * - insert(ctx context.Context, tx *sql.Tx) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (d seedData) insert(ctx context.Context, tx *sql.Tx) error {
 	created := formatTime(d.now)
 	lastRun := formatTime(d.now.Add(-2 * time.Hour))
@@ -257,18 +434,94 @@ func (d seedData) insert(ctx context.Context, tx *sql.Tx) error {
 	return nil
 }
 
+/**
+ * Purpose:
+ * Performs the id operation for this backend package.
+ *
+ * Parameters:
+ * - d seedData
+ *
+ * Returns:
+ * - id(suffix string) string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (d seedData) id(suffix string) string {
 	return d.prefix + "-" + suffix
 }
 
+/**
+ * Purpose:
+ * Performs the like operation for this backend package.
+ *
+ * Parameters:
+ * - d seedData
+ *
+ * Returns:
+ * - like() string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (d seedData) like() string {
 	return d.prefix + "-%"
 }
 
+/**
+ * Purpose:
+ * Performs the email operation for this backend package.
+ *
+ * Parameters:
+ * - d seedData
+ *
+ * Returns:
+ * - email() string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (d seedData) email() string {
 	return d.prefix + "-analyst@local"
 }
 
+/**
+ * Purpose:
+ * Performs the boolInt operation for this backend package.
+ *
+ * Parameters:
+ * - value bool
+ *
+ * Returns:
+ * - int
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func boolInt(value bool) int {
 	if value {
 		return 1
@@ -276,10 +529,48 @@ func boolInt(value bool) int {
 	return 0
 }
 
+/**
+ * Purpose:
+ * Performs the formatTime operation for this backend package.
+ *
+ * Parameters:
+ * - value time.Time
+ *
+ * Returns:
+ * - string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func formatTime(value time.Time) string {
 	return value.UTC().Format(time.RFC3339Nano)
 }
 
+/**
+ * Purpose:
+ * Performs the compactJSON operation for this backend package.
+ *
+ * Parameters:
+ * - raw string
+ *
+ * Returns:
+ * - string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func compactJSON(raw string) string {
 	var payload any
 	if err := json.Unmarshal([]byte(raw), &payload); err != nil {

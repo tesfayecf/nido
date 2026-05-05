@@ -1,3 +1,35 @@
+/**
+ * File: internal/auth/transport/httpapi/handlers.go
+ *
+ * Purpose:
+ * Exposes HTTP transport handlers and request/response adaptation for this backend area.
+ *
+ * Responsibilities:
+ * - Decode and validate HTTP requests
+ * - Call application services
+ * - Encode stable JSON responses and errors
+ *
+ * Inputs:
+ * - Function parameters, HTTP payloads, environment settings, or repository data as accepted by this file.
+ *
+ * Outputs:
+ * - Typed Go values, HTTP responses, persisted records, or test assertions produced by this file.
+ *
+ * Dependencies:
+ * - context
+ * - net/http
+ * - strings
+ * - nido/server/internal/auth/application
+ * - nido/server/internal/auth/domain
+ * - nido/server/internal/platform/httpapi
+ *
+ * Side Effects:
+ * - May perform database, network, filesystem, logging, scheduler, or HTTP response effects through collaborators.
+ *
+ * Critical Notes:
+ * - Keep this documentation synchronized with behavior changes and cross-package contracts.
+ */
+
 package httpapi
 
 import (
@@ -10,21 +42,88 @@ import (
 	platformhttp "nido/server/internal/platform/httpapi"
 )
 
+/**
+ * Purpose:
+ * Defines the principalContextKey struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type principalContextKey struct{}
 
-// Principal stores the authenticated actor attached to a request.
+/**
+ * Purpose:
+ * Defines the Principal struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type Principal struct {
 	User    authdomain.User
 	Session authdomain.Session
 }
 
-// CurrentPrincipal returns the authenticated principal from the request context.
+/**
+ * Purpose:
+ * Performs the CurrentPrincipal operation for this backend package.
+ *
+ * Parameters:
+ * - ctx context.Context
+ *
+ * Returns:
+ * - (Principal, bool)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func CurrentPrincipal(ctx context.Context) (Principal, bool) {
 	principal, ok := ctx.Value(principalContextKey{}).(Principal)
 	return principal, ok
 }
 
-// Middleware authenticates bearer tokens and injects the principal into the request context.
+/**
+ * Purpose:
+ * Performs the Middleware operation for this backend package.
+ *
+ * Parameters:
+ * - service *app.Service
+ *
+ * Returns:
+ * - func(http.Handler) http.Handler
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func Middleware(service *app.Service) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -41,7 +140,25 @@ func Middleware(service *app.Service) func(http.Handler) http.Handler {
 	}
 }
 
-// Register binds auth routes to the mux.
+/**
+ * Purpose:
+ * Performs the Register operation for this backend package.
+ *
+ * Parameters:
+ * - mux *http.ServeMux, service *app.Service
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func Register(mux *http.ServeMux, service *app.Service) {
 	requireAuth := Middleware(service)
 
@@ -151,6 +268,25 @@ func Register(mux *http.ServeMux, service *app.Service) {
 	})))
 }
 
+/**
+ * Purpose:
+ * Performs the extractBearerToken operation for this backend package.
+ *
+ * Parameters:
+ * - header string
+ *
+ * Returns:
+ * - string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func extractBearerToken(header string) string {
 	value := strings.TrimSpace(header)
 	if value == "" {

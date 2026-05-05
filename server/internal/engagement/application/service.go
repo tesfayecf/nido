@@ -1,3 +1,41 @@
+/**
+ * File: internal/engagement/application/service.go
+ *
+ * Purpose:
+ * Coordinates application-level backend use cases, validation, and persistence boundaries.
+ *
+ * Responsibilities:
+ * - Apply business rules
+ * - Coordinate repositories and domain models
+ * - Return typed results for transport layers
+ *
+ * Inputs:
+ * - Function parameters, HTTP payloads, environment settings, or repository data as accepted by this file.
+ *
+ * Outputs:
+ * - Typed Go values, HTTP responses, persisted records, or test assertions produced by this file.
+ *
+ * Dependencies:
+ * - context
+ * - encoding/json
+ * - errors
+ * - fmt
+ * - log/slog
+ * - math
+ * - strconv
+ * - strings
+ * - time
+ * - nido/server/internal/engagement/domain
+ * - nido/server/internal/ingestion/domain
+ * - nido/server/internal/platform/id
+ *
+ * Side Effects:
+ * - May perform database, network, filesystem, logging, scheduler, or HTTP response effects through collaborators.
+ *
+ * Critical Notes:
+ * - Keep this documentation synchronized with behavior changes and cross-package contracts.
+ */
+
 package application
 
 import (
@@ -27,7 +65,22 @@ const (
 	significantPriceChangeThresholdPct = 2.0
 )
 
-// Store defines the persistence contract required by the engagement service.
+/**
+ * Purpose:
+ * Defines the Store interface used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type Store interface {
 	AddBookmark(ctx context.Context, userID, propertyID string, createdAt time.Time) error
 	ListBookmarks(ctx context.Context, userID string) ([]engagementdomain.BookmarkedProperty, error)
@@ -43,12 +96,42 @@ type Store interface {
 	SetNotificationReadState(ctx context.Context, userID, notificationID string, readAt *time.Time) error
 }
 
-// Publisher emits live transport events.
+/**
+ * Purpose:
+ * Defines the Publisher interface used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type Publisher interface {
 	Publish(eventType string, data any)
 }
 
-// Service owns bookmarks, alert rules, and notifications.
+/**
+ * Purpose:
+ * Defines the Service struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type Service struct {
 	logger   *slog.Logger
 	store    Store
@@ -56,12 +139,48 @@ type Service struct {
 	events   Publisher
 }
 
-// NewService builds a new engagement service.
+/**
+ * Purpose:
+ * Performs the NewService operation for this backend package.
+ *
+ * Parameters:
+ * - logger *slog.Logger, store Store, notifier Notifier, events Publisher
+ *
+ * Returns:
+ * - *Service
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func NewService(logger *slog.Logger, store Store, notifier Notifier, events Publisher) *Service {
 	return &Service{logger: logger, store: store, notifier: notifier, events: events}
 }
 
-// CreateBookmark saves one property for the user.
+/**
+ * Purpose:
+ * Performs the CreateBookmark operation for this backend package.
+ *
+ * Parameters:
+ * - s *Service
+ *
+ * Returns:
+ * - CreateBookmark(ctx context.Context, userID, propertyID string) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Service) CreateBookmark(ctx context.Context, userID, propertyID string) error {
 	if strings.TrimSpace(propertyID) == "" {
 		return fmt.Errorf("property id is required")
@@ -70,17 +189,71 @@ func (s *Service) CreateBookmark(ctx context.Context, userID, propertyID string)
 	return s.store.AddBookmark(ctx, userID, strings.TrimSpace(propertyID), time.Now().UTC())
 }
 
-// ListBookmarks returns the user's saved properties.
+/**
+ * Purpose:
+ * Performs the ListBookmarks operation for this backend package.
+ *
+ * Parameters:
+ * - s *Service
+ *
+ * Returns:
+ * - ListBookmarks(ctx context.Context, userID string) ([]engagementdomain.BookmarkedProperty, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Service) ListBookmarks(ctx context.Context, userID string) ([]engagementdomain.BookmarkedProperty, error) {
 	return s.store.ListBookmarks(ctx, userID)
 }
 
-// DeleteBookmark removes one saved property.
+/**
+ * Purpose:
+ * Performs the DeleteBookmark operation for this backend package.
+ *
+ * Parameters:
+ * - s *Service
+ *
+ * Returns:
+ * - DeleteBookmark(ctx context.Context, userID, propertyID string) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Service) DeleteBookmark(ctx context.Context, userID, propertyID string) error {
 	return s.store.RemoveBookmark(ctx, userID, propertyID)
 }
 
-// CreateAlertRule persists a new alert rule.
+/**
+ * Purpose:
+ * Performs the CreateAlertRule operation for this backend package.
+ *
+ * Parameters:
+ * - s *Service
+ *
+ * Returns:
+ * - CreateAlertRule(ctx context.Context, input engagementdomain.AlertRule) (engagementdomain.AlertRule, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Service) CreateAlertRule(ctx context.Context, input engagementdomain.AlertRule) (engagementdomain.AlertRule, error) {
 	input.RuleType = strings.TrimSpace(input.RuleType)
 	input.PropertyID = strings.TrimSpace(input.PropertyID)
@@ -111,22 +284,94 @@ func (s *Service) CreateAlertRule(ctx context.Context, input engagementdomain.Al
 	return input, nil
 }
 
-// ListAlertRules returns rules for one user.
+/**
+ * Purpose:
+ * Performs the ListAlertRules operation for this backend package.
+ *
+ * Parameters:
+ * - s *Service
+ *
+ * Returns:
+ * - ListAlertRules(ctx context.Context, userID string) ([]engagementdomain.AlertRule, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Service) ListAlertRules(ctx context.Context, userID string) ([]engagementdomain.AlertRule, error) {
 	return s.store.ListAlertRules(ctx, userID)
 }
 
-// SetAlertRuleEnabled updates the enabled state for one alert rule.
+/**
+ * Purpose:
+ * Performs the SetAlertRuleEnabled operation for this backend package.
+ *
+ * Parameters:
+ * - s *Service
+ *
+ * Returns:
+ * - SetAlertRuleEnabled(ctx context.Context, userID, ruleID string, enabled bool) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Service) SetAlertRuleEnabled(ctx context.Context, userID, ruleID string, enabled bool) error {
 	return s.store.UpdateAlertRuleEnabled(ctx, userID, ruleID, enabled, time.Now().UTC())
 }
 
-// DeleteAlertRule removes one alert rule.
+/**
+ * Purpose:
+ * Performs the DeleteAlertRule operation for this backend package.
+ *
+ * Parameters:
+ * - s *Service
+ *
+ * Returns:
+ * - DeleteAlertRule(ctx context.Context, userID, ruleID string) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Service) DeleteAlertRule(ctx context.Context, userID, ruleID string) error {
 	return s.store.DeleteAlertRule(ctx, userID, ruleID)
 }
 
-// ListNotifications returns notifications for the user.
+/**
+ * Purpose:
+ * Performs the ListNotifications operation for this backend package.
+ *
+ * Parameters:
+ * - s *Service
+ *
+ * Returns:
+ * - ListNotifications(ctx context.Context, userID string, unreadOnly bool, limit int) ([]engagementdomain.Notification, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Service) ListNotifications(ctx context.Context, userID string, unreadOnly bool, limit int) ([]engagementdomain.Notification, error) {
 	if limit <= 0 {
 		limit = 50
@@ -138,18 +383,72 @@ func (s *Service) ListNotifications(ctx context.Context, userID string, unreadOn
 	return s.store.ListNotifications(ctx, userID, unreadOnly, limit)
 }
 
-// MarkNotificationRead records a read timestamp.
+/**
+ * Purpose:
+ * Performs the MarkNotificationRead operation for this backend package.
+ *
+ * Parameters:
+ * - s *Service
+ *
+ * Returns:
+ * - MarkNotificationRead(ctx context.Context, userID, notificationID string) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Service) MarkNotificationRead(ctx context.Context, userID, notificationID string) error {
 	now := time.Now().UTC()
 	return s.store.SetNotificationReadState(ctx, userID, notificationID, &now)
 }
 
-// MarkNotificationUnread clears the read timestamp.
+/**
+ * Purpose:
+ * Performs the MarkNotificationUnread operation for this backend package.
+ *
+ * Parameters:
+ * - s *Service
+ *
+ * Returns:
+ * - MarkNotificationUnread(ctx context.Context, userID, notificationID string) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Service) MarkNotificationUnread(ctx context.Context, userID, notificationID string) error {
 	return s.store.SetNotificationReadState(ctx, userID, notificationID, nil)
 }
 
-// ProcessPropertyRun evaluates alert rules against a new property snapshot.
+/**
+ * Purpose:
+ * Performs the ProcessPropertyRun operation for this backend package.
+ *
+ * Parameters:
+ * - s *Service
+ *
+ * Returns:
+ * - ProcessPropertyRun(ctx context.Context, propertyID string, current, previous ingestiondomain.PropertySnapshot) (int, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Service) ProcessPropertyRun(ctx context.Context, propertyID string, current, previous ingestiondomain.PropertySnapshot) (int, error) {
 	if strings.TrimSpace(propertyID) == "" || !current.IsValid {
 		return 0, nil
@@ -209,6 +508,25 @@ func (s *Service) ProcessPropertyRun(ctx context.Context, propertyID string, cur
 	return created, nil
 }
 
+/**
+ * Purpose:
+ * Performs the ruleMatchesSnapshot operation for this backend package.
+ *
+ * Parameters:
+ * - rule engagementdomain.AlertRule, currentValues, previousValues map[string]string, currentPrice int64, hasCurrentPrice bool, previousPrice int64, hasPreviousPrice bool
+ *
+ * Returns:
+ * - bool
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func ruleMatchesSnapshot(rule engagementdomain.AlertRule, currentValues, previousValues map[string]string, currentPrice int64, hasCurrentPrice bool, previousPrice int64, hasPreviousPrice bool) bool {
 	switch rule.RuleType {
 	case engagementdomain.RuleTypePriceDrop:
@@ -239,6 +557,25 @@ func ruleMatchesSnapshot(rule engagementdomain.AlertRule, currentValues, previou
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the hasFieldChanges operation for this backend package.
+ *
+ * Parameters:
+ * - current, previous map[string]string
+ *
+ * Returns:
+ * - bool
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func hasFieldChanges(current, previous map[string]string) bool {
 	if len(previous) == 0 {
 		return false
@@ -256,6 +593,25 @@ func hasFieldChanges(current, previous map[string]string) bool {
 	return false
 }
 
+/**
+ * Purpose:
+ * Performs the buildNotification operation for this backend package.
+ *
+ * Parameters:
+ * - rule engagementdomain.AlertRule, currentValues map[string]string, currentPrice int64, hasCurrentPrice bool, previousPrice int64, hasPreviousPrice bool
+ *
+ * Returns:
+ * - (engagementdomain.Notification, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func buildNotification(rule engagementdomain.AlertRule, currentValues map[string]string, currentPrice int64, hasCurrentPrice bool, previousPrice int64, hasPreviousPrice bool) (engagementdomain.Notification, error) {
 	titleValue := firstNonEmpty(currentValues["title"], currentValues["url"], rule.PropertyID)
 	body := titleValue
@@ -321,6 +677,25 @@ func buildNotification(rule engagementdomain.AlertRule, currentValues map[string
 	}, nil
 }
 
+/**
+ * Purpose:
+ * Performs the decodeSnapshotValues operation for this backend package.
+ *
+ * Parameters:
+ * - values json.RawMessage
+ *
+ * Returns:
+ * - map[string]string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func decodeSnapshotValues(values json.RawMessage) map[string]string {
 	if len(values) == 0 {
 		return map[string]string{}
@@ -333,6 +708,25 @@ func decodeSnapshotValues(values json.RawMessage) map[string]string {
 	return decoded
 }
 
+/**
+ * Purpose:
+ * Performs the extractPriceAmount operation for this backend package.
+ *
+ * Parameters:
+ * - values map[string]string
+ *
+ * Returns:
+ * - (int64, bool)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func extractPriceAmount(values map[string]string) (int64, bool) {
 	raw := strings.TrimSpace(values["price"])
 	if raw == "" {
@@ -355,6 +749,25 @@ func extractPriceAmount(values map[string]string) (int64, bool) {
 	return amount, true
 }
 
+/**
+ * Purpose:
+ * Performs the optionalInt64 operation for this backend package.
+ *
+ * Parameters:
+ * - valid bool, value int64
+ *
+ * Returns:
+ * - *int64
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func optionalInt64(valid bool, value int64) *int64 {
 	if !valid {
 		return nil
@@ -362,6 +775,25 @@ func optionalInt64(valid bool, value int64) *int64 {
 	return &value
 }
 
+/**
+ * Purpose:
+ * Performs the firstNonEmpty operation for this backend package.
+ *
+ * Parameters:
+ * - values ...string
+ *
+ * Returns:
+ * - string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func firstNonEmpty(values ...string) string {
 	for _, value := range values {
 		if strings.TrimSpace(value) != "" {

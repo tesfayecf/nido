@@ -1,3 +1,41 @@
+/**
+ * File: internal/app/runtime_test.go
+ *
+ * Purpose:
+ * Validates the app package behavior covered by runtime_test.go.
+ *
+ * Responsibilities:
+ * - Set up deterministic test fixtures
+ * - Exercise expected success and failure paths
+ * - Protect backend behavior from regressions
+ *
+ * Inputs:
+ * - Function parameters, HTTP payloads, environment settings, or repository data as accepted by this file.
+ *
+ * Outputs:
+ * - Typed Go values, HTTP responses, persisted records, or test assertions produced by this file.
+ *
+ * Dependencies:
+ * - bytes
+ * - context
+ * - encoding/json
+ * - io
+ * - log/slog
+ * - net/http
+ * - net/http/httptest
+ * - path/filepath
+ * - strings
+ * - testing
+ * - time
+ * - nido/server/internal/platform/config
+ *
+ * Side Effects:
+ * - May perform database, network, filesystem, logging, scheduler, or HTTP response effects through collaborators.
+ *
+ * Critical Notes:
+ * - Keep this documentation synchronized with behavior changes and cross-package contracts.
+ */
+
 package app
 
 import (
@@ -16,6 +54,25 @@ import (
 	"nido/server/internal/platform/config"
 )
 
+/**
+ * Purpose:
+ * Performs the TestRuntimeAllowsLoopbackCORSRequests operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestRuntimeAllowsLoopbackCORSRequests(t *testing.T) {
 	t.Parallel()
 
@@ -90,6 +147,25 @@ func TestRuntimeAllowsLoopbackCORSRequests(t *testing.T) {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the TestRuntimeBackupExportAndRestoreFlow operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestRuntimeBackupExportAndRestoreFlow(t *testing.T) {
 	t.Parallel()
 
@@ -244,6 +320,25 @@ func TestRuntimeBackupExportAndRestoreFlow(t *testing.T) {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the TestRuntimePropertyTrackingFlow operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestRuntimePropertyTrackingFlow(t *testing.T) {
 	t.Parallel()
 
@@ -300,6 +395,25 @@ func TestRuntimePropertyTrackingFlow(t *testing.T) {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the TestRuntimeBookmarksAlertsAndNotificationsFlow operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestRuntimeBookmarksAlertsAndNotificationsFlow(t *testing.T) {
 	t.Parallel()
 
@@ -374,6 +488,25 @@ func TestRuntimeBookmarksAlertsAndNotificationsFlow(t *testing.T) {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the TestRuntimeAnalyticsDatasetUsesLatestNormalizedValues operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestRuntimeAnalyticsDatasetUsesLatestNormalizedValues(t *testing.T) {
 	t.Parallel()
 
@@ -446,6 +579,25 @@ func TestRuntimeAnalyticsDatasetUsesLatestNormalizedValues(t *testing.T) {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the TestRuntimeShouldRejectInvalidEndpointRequestsWhenInputOrAuthIsInvalid operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestRuntimeShouldRejectInvalidEndpointRequestsWhenInputOrAuthIsInvalid(t *testing.T) {
 	t.Parallel()
 
@@ -478,6 +630,25 @@ func TestRuntimeShouldRejectInvalidEndpointRequestsWhenInputOrAuthIsInvalid(t *t
 	}, http.StatusBadRequest, nil)
 }
 
+/**
+ * Purpose:
+ * Performs the TestRuntimeShouldPersistBackofficeDataWhenRequestsAreValid operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestRuntimeShouldPersistBackofficeDataWhenRequestsAreValid(t *testing.T) {
 	t.Parallel()
 
@@ -558,15 +729,69 @@ func TestRuntimeShouldPersistBackofficeDataWhenRequestsAreValid(t *testing.T) {
 	mustJSONRequest(t, http.MethodGet, server.URL+"/api/v1/backoffice/properties/"+property.ID, token, nil, http.StatusNotFound, nil)
 }
 
+/**
+ * Purpose:
+ * Defines the createdProperty struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type createdProperty struct {
 	ID string `json:"id"`
 }
 
+/**
+ * Purpose:
+ * Performs the createSource operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T, baseURL, token string, payload map[string]any
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func createSource(t *testing.T, baseURL, token string, payload map[string]any) {
 	t.Helper()
 	mustJSONRequest(t, http.MethodPost, baseURL+"/api/v1/backoffice/sources", token, payload, http.StatusCreated, nil)
 }
 
+/**
+ * Purpose:
+ * Performs the createProperty operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T, baseURL, token string, payload map[string]any
+ *
+ * Returns:
+ * - createdProperty
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func createProperty(t *testing.T, baseURL, token string, payload map[string]any) createdProperty {
 	t.Helper()
 	if _, ok := payload["manual_data"]; !ok {
@@ -581,6 +806,25 @@ func createProperty(t *testing.T, baseURL, token string, payload map[string]any)
 	return response.Item
 }
 
+/**
+ * Purpose:
+ * Performs the newRuntimeServer operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - (*httptest.Server, string)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func newRuntimeServer(t *testing.T) (*httptest.Server, string) {
 	t.Helper()
 
@@ -619,6 +863,25 @@ func newRuntimeServer(t *testing.T) (*httptest.Server, string) {
 	return server, token
 }
 
+/**
+ * Purpose:
+ * Performs the loginTestUser operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T, baseURL string
+ *
+ * Returns:
+ * - string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func loginTestUser(t *testing.T, baseURL string) string {
 	t.Helper()
 
@@ -635,6 +898,25 @@ func loginTestUser(t *testing.T, baseURL string) string {
 	return response.Token
 }
 
+/**
+ * Purpose:
+ * Performs the mustJSONRequest operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T, method, targetURL, token string, payload any, wantStatus int, out any
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func mustJSONRequest(t *testing.T, method, targetURL, token string, payload any, wantStatus int, out any) {
 	t.Helper()
 

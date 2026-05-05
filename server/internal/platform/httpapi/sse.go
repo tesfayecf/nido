@@ -1,3 +1,34 @@
+/**
+ * File: internal/platform/httpapi/sse.go
+ *
+ * Purpose:
+ * Implements backend behavior for the httpapi package.
+ *
+ * Responsibilities:
+ * - Provide package-specific backend behavior
+ * - Keep dependencies explicit
+ * - Return deterministic values to callers
+ *
+ * Inputs:
+ * - Function parameters, HTTP payloads, environment settings, or repository data as accepted by this file.
+ *
+ * Outputs:
+ * - Typed Go values, HTTP responses, persisted records, or test assertions produced by this file.
+ *
+ * Dependencies:
+ * - encoding/json
+ * - fmt
+ * - net/http
+ * - time
+ * - nido/server/internal/platform/events
+ *
+ * Side Effects:
+ * - None beyond in-memory transformations unless called dependencies perform effects.
+ *
+ * Critical Notes:
+ * - Keep this documentation synchronized with behavior changes and cross-package contracts.
+ */
+
 package httpapi
 
 import (
@@ -9,7 +40,25 @@ import (
 	platformevents "nido/server/internal/platform/events"
 )
 
-// StreamSSE writes broker events as an SSE stream until the request ends.
+/**
+ * Purpose:
+ * Performs the StreamSSE operation for this backend package.
+ *
+ * Parameters:
+ * - w http.ResponseWriter, r *http.Request, events <-chan platformevents.Event
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func StreamSSE(w http.ResponseWriter, r *http.Request, events <-chan platformevents.Event) {
 	flusher, ok := w.(http.Flusher)
 	if !ok {

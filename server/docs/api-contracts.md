@@ -1,3 +1,16 @@
+<!--
+File Name: docs/api-contracts.md
+Purpose: Documents backend behavior for api-contracts.
+Responsibilities:
+- Preserve human-readable backend knowledge.
+- Cross-reference related source folders and files.
+- Keep documentation synchronized with implementation behavior.
+Inputs / Outputs: Markdown consumed by backend contributors and reviewers.
+Dependencies: Backend source files and adjacent documentation.
+Side Effects: None.
+Critical Notes: Update this file when the described backend behavior changes.
+-->
+
 # Backend API Contracts
 
 ## Purpose

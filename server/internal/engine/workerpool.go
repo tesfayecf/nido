@@ -1,3 +1,33 @@
+/**
+ * File: internal/engine/workerpool.go
+ *
+ * Purpose:
+ * Implements backend behavior for the engine package.
+ *
+ * Responsibilities:
+ * - Provide package-specific backend behavior
+ * - Keep dependencies explicit
+ * - Return deterministic values to callers
+ *
+ * Inputs:
+ * - Function parameters, HTTP payloads, environment settings, or repository data as accepted by this file.
+ *
+ * Outputs:
+ * - Typed Go values, HTTP responses, persisted records, or test assertions produced by this file.
+ *
+ * Dependencies:
+ * - context
+ * - errors
+ * - log/slog
+ * - sync
+ *
+ * Side Effects:
+ * - None beyond in-memory transformations unless called dependencies perform effects.
+ *
+ * Critical Notes:
+ * - Keep this documentation synchronized with behavior changes and cross-package contracts.
+ */
+
 package engine
 
 import (
@@ -10,13 +40,43 @@ import (
 // ErrWorkerPoolClosed indicates that no additional tasks can be submitted.
 var ErrWorkerPoolClosed = errors.New("worker pool closed")
 
-// WorkerPoolConfig controls worker-pool execution.
+/**
+ * Purpose:
+ * Defines the WorkerPoolConfig struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type WorkerPoolConfig struct {
 	Workers int
 	Logger  *slog.Logger
 }
 
-// WorkerPool executes scraping work with graceful shutdown semantics.
+/**
+ * Purpose:
+ * Defines the WorkerPool struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type WorkerPool struct {
 	logger *slog.Logger
 	ctx    context.Context
@@ -28,7 +88,25 @@ type WorkerPool struct {
 	wg     sync.WaitGroup
 }
 
-// NewWorkerPool creates and starts a worker pool.
+/**
+ * Purpose:
+ * Performs the NewWorkerPool operation for this backend package.
+ *
+ * Parameters:
+ * - cfg WorkerPoolConfig
+ *
+ * Returns:
+ * - *WorkerPool
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func NewWorkerPool(cfg WorkerPoolConfig) *WorkerPool {
 	workers := cfg.Workers
 	if workers <= 0 {
@@ -61,7 +139,25 @@ func NewWorkerPool(cfg WorkerPoolConfig) *WorkerPool {
 	return pool
 }
 
-// Submit queues a task for execution.
+/**
+ * Purpose:
+ * Performs the Submit operation for this backend package.
+ *
+ * Parameters:
+ * - p *WorkerPool
+ *
+ * Returns:
+ * - Submit(task func(context.Context) error) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func (p *WorkerPool) Submit(task func(context.Context) error) error {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
@@ -73,7 +169,25 @@ func (p *WorkerPool) Submit(task func(context.Context) error) error {
 	return nil
 }
 
-// Shutdown stops accepting new work and waits for active workers.
+/**
+ * Purpose:
+ * Performs the Shutdown operation for this backend package.
+ *
+ * Parameters:
+ * - p *WorkerPool
+ *
+ * Returns:
+ * - Shutdown(ctx context.Context) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func (p *WorkerPool) Shutdown(ctx context.Context) error {
 	p.mu.Lock()
 	if !p.closed {

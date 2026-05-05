@@ -1,3 +1,34 @@
+/**
+ * File: internal/ingestion/application/intelligence_test.go
+ *
+ * Purpose:
+ * Validates the application package behavior covered by intelligence_test.go.
+ *
+ * Responsibilities:
+ * - Set up deterministic test fixtures
+ * - Exercise expected success and failure paths
+ * - Protect backend behavior from regressions
+ *
+ * Inputs:
+ * - Function parameters, HTTP payloads, environment settings, or repository data as accepted by this file.
+ *
+ * Outputs:
+ * - Typed Go values, HTTP responses, persisted records, or test assertions produced by this file.
+ *
+ * Dependencies:
+ * - encoding/json
+ * - math
+ * - testing
+ * - time
+ * - nido/server/internal/ingestion/domain
+ *
+ * Side Effects:
+ * - May perform database, network, filesystem, logging, scheduler, or HTTP response effects through collaborators.
+ *
+ * Critical Notes:
+ * - Keep this documentation synchronized with behavior changes and cross-package contracts.
+ */
+
 package application
 
 import (
@@ -9,8 +40,25 @@ import (
 	ingestiondomain "nido/server/internal/ingestion/domain"
 )
 
-// ── helpers ──────────────────────────────────────────────────────────────────
-
+/**
+ * Purpose:
+ * Performs the makeSnapshot operation for this backend package.
+ *
+ * Parameters:
+ * - values map[string]string, valid bool, observedAt time.Time
+ *
+ * Returns:
+ * - ingestiondomain.PropertySnapshot
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func makeSnapshot(values map[string]string, valid bool, observedAt time.Time) ingestiondomain.PropertySnapshot {
 	raw, _ := json.Marshal(values)
 	return ingestiondomain.PropertySnapshot{
@@ -21,6 +69,25 @@ func makeSnapshot(values map[string]string, valid bool, observedAt time.Time) in
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the findSignal operation for this backend package.
+ *
+ * Parameters:
+ * - signals []ingestiondomain.ChangeSignal, field string
+ *
+ * Returns:
+ * - (ingestiondomain.ChangeSignal, bool)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func findSignal(signals []ingestiondomain.ChangeSignal, field string) (ingestiondomain.ChangeSignal, bool) {
 	for _, s := range signals {
 		if s.Field == field {
@@ -41,8 +108,25 @@ var baseProperty = ingestiondomain.Property{
 	},
 }
 
-// ── ComputeChangeSignals ──────────────────────────────────────────────────────
-
+/**
+ * Purpose:
+ * Performs the TestComputeChangeSignals_PriceDecrease operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestComputeChangeSignals_PriceDecrease(t *testing.T) {
 	now := time.Now().UTC()
 	current := makeSnapshot(map[string]string{"price": "240000", "status": "active"}, true, now)
@@ -69,6 +153,25 @@ func TestComputeChangeSignals_PriceDecrease(t *testing.T) {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the TestComputeChangeSignals_PriceIncrease operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestComputeChangeSignals_PriceIncrease(t *testing.T) {
 	now := time.Now().UTC()
 	current := makeSnapshot(map[string]string{"price": "280000"}, true, now)
@@ -85,6 +188,25 @@ func TestComputeChangeSignals_PriceIncrease(t *testing.T) {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the TestComputeChangeSignals_NoPriceSignalWhenUnchanged operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestComputeChangeSignals_NoPriceSignalWhenUnchanged(t *testing.T) {
 	now := time.Now().UTC()
 	current := makeSnapshot(map[string]string{"price": "260000"}, true, now)
@@ -97,6 +219,25 @@ func TestComputeChangeSignals_NoPriceSignalWhenUnchanged(t *testing.T) {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the TestComputeChangeSignals_StatusChange operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestComputeChangeSignals_StatusChange(t *testing.T) {
 	now := time.Now().UTC()
 	current := makeSnapshot(map[string]string{"status": "sold"}, true, now)
@@ -116,6 +257,25 @@ func TestComputeChangeSignals_StatusChange(t *testing.T) {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the TestComputeChangeSignals_NeutralStatusChange operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestComputeChangeSignals_NeutralStatusChange(t *testing.T) {
 	now := time.Now().UTC()
 	current := makeSnapshot(map[string]string{"status": "price reduced"}, true, now)
@@ -132,6 +292,25 @@ func TestComputeChangeSignals_NeutralStatusChange(t *testing.T) {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the TestComputeChangeSignals_MissingCriticalFields operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestComputeChangeSignals_MissingCriticalFields(t *testing.T) {
 	now := time.Now().UTC()
 	// Valid snapshot with only a title — price/location/area missing
@@ -152,6 +331,25 @@ func TestComputeChangeSignals_MissingCriticalFields(t *testing.T) {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the TestComputeChangeSignals_StaleData operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestComputeChangeSignals_StaleData(t *testing.T) {
 	staleTime := time.Now().UTC().Add(-50 * time.Hour) // > 48h threshold
 	current := makeSnapshot(map[string]string{"price": "250000"}, true, staleTime)
@@ -164,6 +362,25 @@ func TestComputeChangeSignals_StaleData(t *testing.T) {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the TestComputeChangeSignals_FreshData_NoFreshnessSignal operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestComputeChangeSignals_FreshData_NoFreshnessSignal(t *testing.T) {
 	now := time.Now().UTC()
 	current := makeSnapshot(map[string]string{"price": "250000", "title": "t", "location": "l", "area_m2": "100"}, true, now)
@@ -176,6 +393,25 @@ func TestComputeChangeSignals_FreshData_NoFreshnessSignal(t *testing.T) {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the TestComputeChangeSignals_NoData_NoCollectedYetSignal operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestComputeChangeSignals_NoData_NoCollectedYetSignal(t *testing.T) {
 	propWithNoRun := ingestiondomain.Property{ID: "prop-norun"}
 	var current, previous ingestiondomain.PropertySnapshot
@@ -187,6 +423,25 @@ func TestComputeChangeSignals_NoData_NoCollectedYetSignal(t *testing.T) {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the TestComputeChangeSignals_TrackingDegraded operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestComputeChangeSignals_TrackingDegraded(t *testing.T) {
 	now := time.Now().UTC()
 	current := makeSnapshot(map[string]string{}, false, now)
@@ -203,6 +458,25 @@ func TestComputeChangeSignals_TrackingDegraded(t *testing.T) {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the TestComputeChangeSignals_CurrencyStrippedPrice operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestComputeChangeSignals_CurrencyStrippedPrice(t *testing.T) {
 	now := time.Now().UTC()
 	current := makeSnapshot(map[string]string{"price": "€ 250,000"}, true, now)
@@ -219,6 +493,25 @@ func TestComputeChangeSignals_CurrencyStrippedPrice(t *testing.T) {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the TestComputeChangeSignals_PrefillChangesAreListingFactUpdates operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestComputeChangeSignals_PrefillChangesAreListingFactUpdates(t *testing.T) {
 	now := time.Now().UTC()
 	current := makeSnapshot(map[string]string{"location": "Bilbao", "price": "250000"}, true, now)
@@ -241,6 +534,25 @@ func TestComputeChangeSignals_PrefillChangesAreListingFactUpdates(t *testing.T) 
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the TestComputeChangeSignals_TrackedChangesStayPrimary operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestComputeChangeSignals_TrackedChangesStayPrimary(t *testing.T) {
 	now := time.Now().UTC()
 	current := makeSnapshot(map[string]string{"availability": "reserved", "price": "250000"}, true, now)
@@ -260,8 +572,25 @@ func TestComputeChangeSignals_TrackedChangesStayPrimary(t *testing.T) {
 	}
 }
 
-// ── DeriveDecisionContext ─────────────────────────────────────────────────────
-
+/**
+ * Purpose:
+ * Performs the TestDeriveDecisionContext_PriceGap operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestDeriveDecisionContext_PriceGap(t *testing.T) {
 	now := time.Now().UTC()
 	snap := makeSnapshot(map[string]string{"price": "300000"}, true, now)
@@ -286,6 +615,25 @@ func TestDeriveDecisionContext_PriceGap(t *testing.T) {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the TestDeriveDecisionContext_NilSafe_NoSnapshot operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestDeriveDecisionContext_NilSafe_NoSnapshot(t *testing.T) {
 	var snap ingestiondomain.PropertySnapshot
 	ctx := DeriveDecisionContext(baseProperty, snap)
@@ -301,6 +649,25 @@ func TestDeriveDecisionContext_NilSafe_NoSnapshot(t *testing.T) {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the TestDeriveDecisionContext_FreshnessStale operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestDeriveDecisionContext_FreshnessStale(t *testing.T) {
 	stale := time.Now().UTC().Add(-72 * time.Hour)
 	snap := makeSnapshot(map[string]string{}, true, stale)
@@ -312,6 +679,25 @@ func TestDeriveDecisionContext_FreshnessStale(t *testing.T) {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the TestDeriveDecisionContext_FreshnessFresh operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestDeriveDecisionContext_FreshnessFresh(t *testing.T) {
 	now := time.Now().UTC()
 	snap := makeSnapshot(map[string]string{}, true, now)
@@ -323,6 +709,25 @@ func TestDeriveDecisionContext_FreshnessFresh(t *testing.T) {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the TestDeriveDecisionContext_DealThesisTruncated operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestDeriveDecisionContext_DealThesisTruncated(t *testing.T) {
 	longThesis := make([]rune, 200)
 	for i := range longThesis {
@@ -338,6 +743,25 @@ func TestDeriveDecisionContext_DealThesisTruncated(t *testing.T) {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the TestDeriveDecisionContext_PricePerSqmUsesAreaField operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestDeriveDecisionContext_PricePerSqmUsesAreaField(t *testing.T) {
 	now := time.Now().UTC()
 	snap := makeSnapshot(map[string]string{"price": "200000", "area_m2": "100"}, true, now)
@@ -349,8 +773,25 @@ func TestDeriveDecisionContext_PricePerSqmUsesAreaField(t *testing.T) {
 	}
 }
 
-// ── BuildLatestChangeSummary ──────────────────────────────────────────────────
-
+/**
+ * Purpose:
+ * Performs the TestBuildLatestChangeSummary_SignificantPriceDecrease operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestBuildLatestChangeSummary_SignificantPriceDecrease(t *testing.T) {
 	pct := -5.0
 	delta := int64(-10000)
@@ -372,6 +813,25 @@ func TestBuildLatestChangeSummary_SignificantPriceDecrease(t *testing.T) {
 	t.Log(summary)
 }
 
+/**
+ * Purpose:
+ * Performs the TestBuildLatestChangeSummary_SmallPriceChange_NoSummary operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestBuildLatestChangeSummary_SmallPriceChange_NoSummary(t *testing.T) {
 	pct := -1.0 // below 2% threshold
 	delta := int64(-1000)
@@ -391,6 +851,25 @@ func TestBuildLatestChangeSummary_SmallPriceChange_NoSummary(t *testing.T) {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the TestBuildLatestChangeSummary_StatusChange operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestBuildLatestChangeSummary_StatusChange(t *testing.T) {
 	signals := []ingestiondomain.ChangeSignal{
 		{Field: "status", Previous: "active", Current: "sold", Group: ingestiondomain.ChangeGroupStatus},
@@ -401,6 +880,25 @@ func TestBuildLatestChangeSummary_StatusChange(t *testing.T) {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the TestBuildLatestChangeSummary_Empty operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestBuildLatestChangeSummary_Empty(t *testing.T) {
 	summary := BuildLatestChangeSummary(nil)
 	if summary != "" {

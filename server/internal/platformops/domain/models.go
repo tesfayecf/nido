@@ -1,3 +1,31 @@
+/**
+ * File: internal/platformops/domain/models.go
+ *
+ * Purpose:
+ * Defines domain data structures and normalization rules for this backend area.
+ *
+ * Responsibilities:
+ * - Define data contracts
+ * - Normalize values used across layers
+ * - Keep business terminology centralized
+ *
+ * Inputs:
+ * - Function parameters, HTTP payloads, environment settings, or repository data as accepted by this file.
+ *
+ * Outputs:
+ * - Typed Go values, HTTP responses, persisted records, or test assertions produced by this file.
+ *
+ * Dependencies:
+ * - encoding/json
+ * - time
+ *
+ * Side Effects:
+ * - None beyond in-memory transformations unless called dependencies perform effects.
+ *
+ * Critical Notes:
+ * - Keep this documentation synchronized with behavior changes and cross-package contracts.
+ */
+
 package domain
 
 import (
@@ -5,13 +33,43 @@ import (
 	"time"
 )
 
-// IntegrationChannelConfig stores delivery settings for one outbound channel.
+/**
+ * Purpose:
+ * Defines the IntegrationChannelConfig struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type IntegrationChannelConfig struct {
 	URL    string   `json:"url,omitempty"`
 	Events []string `json:"events,omitempty"`
 }
 
-// EmailDigestConfig stores single-user email digest settings.
+/**
+ * Purpose:
+ * Defines the EmailDigestConfig struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type EmailDigestConfig struct {
 	Enabled    bool       `json:"enabled"`
 	Recipient  string     `json:"recipient,omitempty"`
@@ -20,7 +78,22 @@ type EmailDigestConfig struct {
 	LastSentAt *time.Time `json:"last_sent_at,omitempty"`
 }
 
-// PlatformSettings stores operational settings for the single-user workspace.
+/**
+ * Purpose:
+ * Defines the PlatformSettings struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type PlatformSettings struct {
 	ID                       string                   `json:"id"`
 	SchedulerEnabled         bool                     `json:"scheduler_enabled"`
@@ -35,7 +108,22 @@ type PlatformSettings struct {
 	UpdatedAt                time.Time                `json:"updated_at"`
 }
 
-// IntegrationDeliveryLog records one integration delivery attempt.
+/**
+ * Purpose:
+ * Defines the IntegrationDeliveryLog struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type IntegrationDeliveryLog struct {
 	ID             string          `json:"id"`
 	Channel        string          `json:"channel"`
@@ -50,7 +138,22 @@ type IntegrationDeliveryLog struct {
 	CreatedAt      time.Time       `json:"created_at"`
 }
 
-// SchedulerSummary captures runtime operational visibility.
+/**
+ * Purpose:
+ * Defines the SchedulerSummary struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type SchedulerSummary struct {
 	SchedulerEnabled         bool      `json:"scheduler_enabled"`
 	MaintenanceWindowActive  bool      `json:"maintenance_window_active"`

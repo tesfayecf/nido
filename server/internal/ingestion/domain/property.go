@@ -1,3 +1,32 @@
+/**
+ * File: internal/ingestion/domain/property.go
+ *
+ * Purpose:
+ * Defines domain data structures and normalization rules for this backend area.
+ *
+ * Responsibilities:
+ * - Define data contracts
+ * - Normalize values used across layers
+ * - Keep business terminology centralized
+ *
+ * Inputs:
+ * - Function parameters, HTTP payloads, environment settings, or repository data as accepted by this file.
+ *
+ * Outputs:
+ * - Typed Go values, HTTP responses, persisted records, or test assertions produced by this file.
+ *
+ * Dependencies:
+ * - encoding/json
+ * - strings
+ * - time
+ *
+ * Side Effects:
+ * - None beyond in-memory transformations unless called dependencies perform effects.
+ *
+ * Critical Notes:
+ * - Keep this documentation synchronized with behavior changes and cross-package contracts.
+ */
+
 package domain
 
 import (
@@ -6,7 +35,22 @@ import (
 	"time"
 )
 
-// PropertyStatus describes the health of a tracked property.
+/**
+ * Purpose:
+ * Defines the PropertyStatus type alias or composite type used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type PropertyStatus string
 
 const (
@@ -20,7 +64,22 @@ const (
 	PropertyStatusInactive PropertyStatus = "inactive"
 )
 
-// SelectorType describes how the selector itself is interpreted.
+/**
+ * Purpose:
+ * Defines the SelectorType type alias or composite type used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type SelectorType string
 
 const (
@@ -30,7 +89,22 @@ const (
 	SelectorTypeText      SelectorType = "text"
 )
 
-// ExtractionMode describes which value to read from a matched element.
+/**
+ * Purpose:
+ * Defines the ExtractionMode type alias or composite type used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type ExtractionMode string
 
 const (
@@ -38,7 +112,22 @@ const (
 	ExtractionModeAttribute ExtractionMode = "attribute"
 )
 
-// TextMode describes which textual content should be preferred.
+/**
+ * Purpose:
+ * Defines the TextMode type alias or composite type used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type TextMode string
 
 const (
@@ -46,7 +135,22 @@ const (
 	TextModeInnerText   TextMode = "innerText"
 )
 
-// FieldRole describes whether a selector is used for intake prefill or ongoing monitoring.
+/**
+ * Purpose:
+ * Defines the FieldRole type alias or composite type used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type FieldRole string
 
 const (
@@ -56,7 +160,22 @@ const (
 	FieldRoleTracked FieldRole = "tracked"
 )
 
-// FieldSelector describes how to extract one named field from a page.
+/**
+ * Purpose:
+ * Defines the FieldSelector struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type FieldSelector struct {
 	Name                  string         `json:"name"`
 	FieldName             string         `json:"field_name,omitempty"`
@@ -82,6 +201,22 @@ type FieldSelector struct {
 	TemplateSignature     string         `json:"template_signature,omitempty"`
 }
 
+/**
+ * Purpose:
+ * Defines the fieldSelectorPayload struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type fieldSelectorPayload struct {
 	Name                  string         `json:"name"`
 	FieldName             string         `json:"field_name,omitempty"`
@@ -108,7 +243,25 @@ type fieldSelectorPayload struct {
 	TemplateSignature     string         `json:"template_signature,omitempty"`
 }
 
-// UnmarshalJSON keeps old selector arrays compatible with the new structured model.
+/**
+ * Purpose:
+ * Performs the UnmarshalJSON operation for this backend package.
+ *
+ * Parameters:
+ * - field *FieldSelector
+ *
+ * Returns:
+ * - UnmarshalJSON(data []byte) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func (field *FieldSelector) UnmarshalJSON(data []byte) error {
 	var payload fieldSelectorPayload
 	if err := json.Unmarshal(data, &payload); err != nil {
@@ -176,7 +329,25 @@ func (field *FieldSelector) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// MarshalJSON writes the structured selector format used by the redesigned UI.
+/**
+ * Purpose:
+ * Performs the MarshalJSON operation for this backend package.
+ *
+ * Parameters:
+ * - field FieldSelector
+ *
+ * Returns:
+ * - MarshalJSON() ([]byte, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func (field FieldSelector) MarshalJSON() ([]byte, error) {
 	payload := fieldSelectorPayload{
 		Attribute:             strings.TrimSpace(field.Attribute),
@@ -220,7 +391,25 @@ func (field FieldSelector) MarshalJSON() ([]byte, error) {
 	return json.Marshal(payload)
 }
 
-// NormalizeFieldRole resolves missing or invalid roles using the product defaults.
+/**
+ * Purpose:
+ * Performs the NormalizeFieldRole operation for this backend package.
+ *
+ * Parameters:
+ * - role FieldRole, fieldName string
+ *
+ * Returns:
+ * - FieldRole
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func NormalizeFieldRole(role FieldRole, fieldName string) FieldRole {
 	switch role {
 	case FieldRolePrefill, FieldRoleTracked:
@@ -233,7 +422,25 @@ func NormalizeFieldRole(role FieldRole, fieldName string) FieldRole {
 	}
 }
 
-// NormalizeSelectorList trims selectors and removes empty entries.
+/**
+ * Purpose:
+ * Performs the NormalizeSelectorList operation for this backend package.
+ *
+ * Parameters:
+ * - selectors []string
+ *
+ * Returns:
+ * - []string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func NormalizeSelectorList(selectors []string) []string {
 	normalized := make([]string, 0, len(selectors))
 	for _, selector := range selectors {
@@ -249,7 +456,22 @@ func NormalizeSelectorList(selectors []string) []string {
 	return normalized
 }
 
-// PropertyExtractionConfig holds the user-defined extraction rules for a property.
+/**
+ * Purpose:
+ * Defines the PropertyExtractionConfig struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type PropertyExtractionConfig struct {
 	ID            string          `json:"id"`
 	PropertyID    string          `json:"property_id"`
@@ -259,19 +481,64 @@ type PropertyExtractionConfig struct {
 	ChangeSummary string          `json:"change_summary,omitempty"`
 }
 
-// PropertyReference captures one external business reference attached to a property.
+/**
+ * Purpose:
+ * Defines the PropertyReference struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type PropertyReference struct {
 	Label string `json:"label"`
 	Value string `json:"value"`
 }
 
-// PropertyAttachment captures one linked document or attachment for a property.
+/**
+ * Purpose:
+ * Defines the PropertyAttachment struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type PropertyAttachment struct {
 	Label string `json:"label"`
 	URL   string `json:"url"`
 }
 
-// PropertyMetadata captures operator-authored business context.
+/**
+ * Purpose:
+ * Defines the PropertyMetadata struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type PropertyMetadata struct {
 	PriorityLevel      string               `json:"priority_level,omitempty"`
 	BusinessStage      string               `json:"business_stage,omitempty"`
@@ -285,7 +552,22 @@ type PropertyMetadata struct {
 	Attachments        []PropertyAttachment `json:"attachments,omitempty"`
 }
 
-// Property represents a single tracked real estate listing URL.
+/**
+ * Purpose:
+ * Defines the Property struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type Property struct {
 	ID                      string            `json:"id"`
 	URL                     string            `json:"url"`
@@ -306,7 +588,25 @@ type Property struct {
 	UpdatedAt               time.Time         `json:"updated_at"`
 }
 
-// RetryAttempts returns the effective retry count for the property.
+/**
+ * Purpose:
+ * Performs the RetryAttempts operation for this backend package.
+ *
+ * Parameters:
+ * - p Property
+ *
+ * Returns:
+ * - RetryAttempts() int
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func (p Property) RetryAttempts() int {
 	if p.RetryMaxAttempts <= 0 {
 		return 1
@@ -315,7 +615,25 @@ func (p Property) RetryAttempts() int {
 	return p.RetryMaxAttempts
 }
 
-// RetryBackoff returns the effective retry backoff duration.
+/**
+ * Purpose:
+ * Performs the RetryBackoff operation for this backend package.
+ *
+ * Parameters:
+ * - p Property
+ *
+ * Returns:
+ * - RetryBackoff() time.Duration
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func (p Property) RetryBackoff() time.Duration {
 	if p.RetryBackoffMillis <= 0 {
 		return 500 * time.Millisecond
@@ -324,7 +642,25 @@ func (p Property) RetryBackoff() time.Duration {
 	return time.Duration(p.RetryBackoffMillis) * time.Millisecond
 }
 
-// ScheduleInterval returns the periodic scheduler cadence for the property.
+/**
+ * Purpose:
+ * Performs the ScheduleInterval operation for this backend package.
+ *
+ * Parameters:
+ * - p Property
+ *
+ * Returns:
+ * - ScheduleInterval() time.Duration
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func (p Property) ScheduleInterval() time.Duration {
 	if p.ScheduleIntervalSeconds <= 0 {
 		return 0
@@ -333,7 +669,22 @@ func (p Property) ScheduleInterval() time.Duration {
 	return time.Duration(p.ScheduleIntervalSeconds) * time.Second
 }
 
-// PropertySnapshot is one point-in-time extraction result for a property.
+/**
+ * Purpose:
+ * Defines the PropertySnapshot struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type PropertySnapshot struct {
 	ID            string          `json:"id"`
 	PropertyID    string          `json:"property_id"`
@@ -345,7 +696,22 @@ type PropertySnapshot struct {
 	ErrorMessage  string          `json:"error_message,omitempty"`
 }
 
-// PropertyPreviewRequest is the input for a one-off extraction preview.
+/**
+ * Purpose:
+ * Defines the PropertyPreviewRequest struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type PropertyPreviewRequest struct {
 	URL            string            `json:"url"`
 	BrowserEnabled bool              `json:"browser_enabled,omitempty"`
@@ -353,7 +719,22 @@ type PropertyPreviewRequest struct {
 	Fields         []FieldSelector   `json:"fields"`
 }
 
-// PropertyPreviewResult is the output of a one-off extraction preview.
+/**
+ * Purpose:
+ * Defines the PropertyPreviewResult struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type PropertyPreviewResult struct {
 	Values   map[string]string            `json:"values"`
 	Fields   []PropertyPreviewFieldResult `json:"fields"`
@@ -361,10 +742,22 @@ type PropertyPreviewResult struct {
 	Success  bool                         `json:"success"`
 }
 
-// PreviewErrorCode is a stable identifier for why a field preview failed.
-//
-// The string values form part of the public API and must not be renamed without
-// coordinating a frontend change. New codes can be added at any time.
+/**
+ * Purpose:
+ * Defines the PreviewErrorCode type alias or composite type used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type PreviewErrorCode string
 
 const (
@@ -384,7 +777,22 @@ const (
 	PreviewErrorCodeTransformFailed PreviewErrorCode = "transform_failed"
 )
 
-// PropertyPreviewFieldResult explains what happened for one configured field.
+/**
+ * Purpose:
+ * Defines the PropertyPreviewFieldResult struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type PropertyPreviewFieldResult struct {
 	Name            string           `json:"name"`
 	SelectorType    SelectorType     `json:"selector_type"`
@@ -400,7 +808,22 @@ type PropertyPreviewFieldResult struct {
 	ErrorCode       PreviewErrorCode `json:"error_code,omitempty"`
 }
 
-// PropertyRunStatus describes the state of a property run.
+/**
+ * Purpose:
+ * Defines the PropertyRunStatus type alias or composite type used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type PropertyRunStatus string
 
 const (
@@ -414,7 +837,22 @@ const (
 	PropertyRunStatusFailed PropertyRunStatus = "failed"
 )
 
-// PropertyRun tracks a single property ingestion execution with retry support.
+/**
+ * Purpose:
+ * Defines the PropertyRun struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type PropertyRun struct {
 	ID           string            `json:"id"`
 	PropertyID   string            `json:"property_id"`

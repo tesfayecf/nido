@@ -1,3 +1,31 @@
+/**
+ * File: internal/fetcher/session.go
+ *
+ * Purpose:
+ * Provides outbound HTTP fetching, anti-bot handling, and fetch telemetry support.
+ *
+ * Responsibilities:
+ * - Provide package-specific backend behavior
+ * - Keep dependencies explicit
+ * - Return deterministic values to callers
+ *
+ * Inputs:
+ * - Function parameters, HTTP payloads, environment settings, or repository data as accepted by this file.
+ *
+ * Outputs:
+ * - Typed Go values, HTTP responses, persisted records, or test assertions produced by this file.
+ *
+ * Dependencies:
+ * - hash/fnv
+ * - strings
+ *
+ * Side Effects:
+ * - May perform database, network, filesystem, logging, scheduler, or HTTP response effects through collaborators.
+ *
+ * Critical Notes:
+ * - Keep this documentation synchronized with behavior changes and cross-package contracts.
+ */
+
 package fetcher
 
 import (
@@ -5,7 +33,22 @@ import (
 	"strings"
 )
 
-// SessionProfile keeps browser-facing headers internally consistent.
+/**
+ * Purpose:
+ * Defines the SessionProfile struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type SessionProfile struct {
 	UserAgent               string
 	SecCHUA                 string
@@ -18,8 +61,25 @@ type SessionProfile struct {
 	UpgradeInsecureRequests string
 }
 
-// The Safari and Firefox profiles below intentionally leave SecCHUA fields
-// empty because those client hints are Chromium-specific.
+/**
+ * Purpose:
+ * Performs the defaultProfiles operation for this backend package.
+ *
+ * Parameters:
+ * - None.
+ *
+ * Returns:
+ * - []SessionProfile
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func defaultProfiles() []SessionProfile {
 	return []SessionProfile{
 		{
@@ -54,6 +114,25 @@ func defaultProfiles() []SessionProfile {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the profileFor operation for this backend package.
+ *
+ * Parameters:
+ * - profiles []SessionProfile, sessionKey string
+ *
+ * Returns:
+ * - SessionProfile
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func profileFor(profiles []SessionProfile, sessionKey string) SessionProfile {
 	resolved := profiles
 	if len(resolved) == 0 {

@@ -1,3 +1,37 @@
+/**
+ * File: internal/ingestion/application/intelligence.go
+ *
+ * Purpose:
+ * Coordinates application-level backend use cases, validation, and persistence boundaries.
+ *
+ * Responsibilities:
+ * - Apply business rules
+ * - Coordinate repositories and domain models
+ * - Return typed results for transport layers
+ *
+ * Inputs:
+ * - Function parameters, HTTP payloads, environment settings, or repository data as accepted by this file.
+ *
+ * Outputs:
+ * - Typed Go values, HTTP responses, persisted records, or test assertions produced by this file.
+ *
+ * Dependencies:
+ * - encoding/json
+ * - fmt
+ * - math
+ * - strconv
+ * - strings
+ * - time
+ * - unicode/utf8
+ * - nido/server/internal/ingestion/domain
+ *
+ * Side Effects:
+ * - May perform database, network, filesystem, logging, scheduler, or HTTP response effects through collaborators.
+ *
+ * Critical Notes:
+ * - Keep this documentation synchronized with behavior changes and cross-package contracts.
+ */
+
 package application
 
 import (
@@ -25,6 +59,22 @@ const (
 
 var areaFieldNames = []string{"area_m2", "area"}
 
+/**
+ * Purpose:
+ * Defines the requiredFieldGroup struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type requiredFieldGroup struct {
 	fieldName  string
 	candidates []string
@@ -38,8 +88,25 @@ var requiredFieldGroups = []requiredFieldGroup{
 	{fieldName: "area", candidates: areaFieldNames},
 }
 
-// ComputeChangeSignals derives deterministic intelligence signals by comparing two snapshots.
-// Both snapshots may be zero-value (no prior data) — all operations are null-safe.
+/**
+ * Purpose:
+ * Performs the ComputeChangeSignals operation for this backend package.
+ *
+ * Parameters:
+ * - current ingestiondomain.PropertySnapshot, previous ingestiondomain.PropertySnapshot, property ingestiondomain.Property, fields ...[]ingestiondomain.FieldSelector
+ *
+ * Returns:
+ * - []ingestiondomain.ChangeSignal
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func ComputeChangeSignals(
 	current ingestiondomain.PropertySnapshot,
 	previous ingestiondomain.PropertySnapshot,
@@ -230,6 +297,25 @@ func ComputeChangeSignals(
 	return signals
 }
 
+/**
+ * Purpose:
+ * Performs the buildFieldRoleMap operation for this backend package.
+ *
+ * Parameters:
+ * - fieldSets ...[]ingestiondomain.FieldSelector
+ *
+ * Returns:
+ * - map[string]ingestiondomain.FieldRole
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func buildFieldRoleMap(fieldSets ...[]ingestiondomain.FieldSelector) map[string]ingestiondomain.FieldRole {
 	roles := make(map[string]ingestiondomain.FieldRole)
 	for _, fields := range fieldSets {
@@ -244,6 +330,25 @@ func buildFieldRoleMap(fieldSets ...[]ingestiondomain.FieldSelector) map[string]
 	return roles
 }
 
+/**
+ * Purpose:
+ * Performs the roleForField operation for this backend package.
+ *
+ * Parameters:
+ * - roles map[string]ingestiondomain.FieldRole, fieldName string
+ *
+ * Returns:
+ * - ingestiondomain.FieldRole
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func roleForField(roles map[string]ingestiondomain.FieldRole, fieldName string) ingestiondomain.FieldRole {
 	if role, ok := roles[fieldName]; ok {
 		return role
@@ -251,6 +356,25 @@ func roleForField(roles map[string]ingestiondomain.FieldRole, fieldName string) 
 	return ingestiondomain.NormalizeFieldRole("", fieldName)
 }
 
+/**
+ * Purpose:
+ * Performs the humanizeFieldName operation for this backend package.
+ *
+ * Parameters:
+ * - fieldName string
+ *
+ * Returns:
+ * - string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func humanizeFieldName(fieldName string) string {
 	words := strings.Fields(strings.ReplaceAll(fieldName, "_", " "))
 	if len(words) == 0 {
@@ -265,8 +389,25 @@ func humanizeFieldName(fieldName string) string {
 	return strings.Join(words, " ")
 }
 
-// DeriveDecisionContext builds the acquisition intelligence context for a property.
-// All fields are null-safe: missing or unparseable values produce nil pointers.
+/**
+ * Purpose:
+ * Performs the DeriveDecisionContext operation for this backend package.
+ *
+ * Parameters:
+ * - property ingestiondomain.Property, currentSnapshot ingestiondomain.PropertySnapshot
+ *
+ * Returns:
+ * - ingestiondomain.DecisionContext
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func DeriveDecisionContext(
 	property ingestiondomain.Property,
 	currentSnapshot ingestiondomain.PropertySnapshot,
@@ -340,8 +481,25 @@ func DeriveDecisionContext(
 	return ctx
 }
 
-// BuildLatestChangeSummary returns a short human-readable string describing the most
-// recent notable signals (price change, status change).  Returns "" if nothing notable.
+/**
+ * Purpose:
+ * Performs the BuildLatestChangeSummary operation for this backend package.
+ *
+ * Parameters:
+ * - signals []ingestiondomain.ChangeSignal
+ *
+ * Returns:
+ * - string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func BuildLatestChangeSummary(signals []ingestiondomain.ChangeSignal) string {
 	for _, sig := range signals {
 		switch sig.Field {
@@ -362,8 +520,25 @@ func BuildLatestChangeSummary(signals []ingestiondomain.ChangeSignal) string {
 	return ""
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
+/**
+ * Purpose:
+ * Performs the decodeStringValues operation for this backend package.
+ *
+ * Parameters:
+ * - raw json.RawMessage
+ *
+ * Returns:
+ * - map[string]string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func decodeStringValues(raw json.RawMessage) map[string]string {
 	if len(raw) == 0 {
 		return map[string]string{}
@@ -375,6 +550,25 @@ func decodeStringValues(raw json.RawMessage) map[string]string {
 	return out
 }
 
+/**
+ * Purpose:
+ * Performs the hasAnyFieldValue operation for this backend package.
+ *
+ * Parameters:
+ * - values map[string]string, fieldNames ...string
+ *
+ * Returns:
+ * - bool
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func hasAnyFieldValue(values map[string]string, fieldNames ...string) bool {
 	for _, name := range fieldNames {
 		if strings.TrimSpace(values[name]) != "" {
@@ -384,7 +578,25 @@ func hasAnyFieldValue(values map[string]string, fieldNames ...string) bool {
 	return false
 }
 
-// extractFirstNumericField tries each field name in order and returns the first parseable int64.
+/**
+ * Purpose:
+ * Performs the extractFirstNumericField operation for this backend package.
+ *
+ * Parameters:
+ * - values map[string]string, fieldNames ...string
+ *
+ * Returns:
+ * - (int64, bool)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func extractFirstNumericField(values map[string]string, fieldNames ...string) (int64, bool) {
 	for _, name := range fieldNames {
 		raw := strings.TrimSpace(values[name])

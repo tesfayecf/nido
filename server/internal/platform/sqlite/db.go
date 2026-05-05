@@ -1,3 +1,40 @@
+/**
+ * File: internal/platform/sqlite/db.go
+ *
+ * Purpose:
+ * Implements SQLite persistence and migration support for backend state.
+ *
+ * Responsibilities:
+ * - Map domain objects to SQLite records
+ * - Execute schema-aware reads and writes
+ * - Preserve migration and backup safety guarantees
+ *
+ * Inputs:
+ * - Function parameters, HTTP payloads, environment settings, or repository data as accepted by this file.
+ *
+ * Outputs:
+ * - Typed Go values, HTTP responses, persisted records, or test assertions produced by this file.
+ *
+ * Dependencies:
+ * - context
+ * - database/sql
+ * - encoding/json
+ * - fmt
+ * - os
+ * - path/filepath
+ * - strings
+ * - time
+ * - modernc.org/sqlite
+ * - nido/server/internal/ingestion/domain
+ * - nido/server/internal/platform/config
+ *
+ * Side Effects:
+ * - May perform database, network, filesystem, logging, scheduler, or HTTP response effects through collaborators.
+ *
+ * Critical Notes:
+ * - Keep this documentation synchronized with behavior changes and cross-package contracts.
+ */
+
 package sqlite
 
 import (
@@ -16,7 +53,25 @@ import (
 	"nido/server/internal/platform/config"
 )
 
-// Open builds a configured SQLite handle for the backend runtime.
+/**
+ * Purpose:
+ * Performs the Open operation for this backend package.
+ *
+ * Parameters:
+ * - ctx context.Context, cfg config.DatabaseConfig
+ *
+ * Returns:
+ * - (*sql.DB, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func Open(ctx context.Context, cfg config.DatabaseConfig) (*sql.DB, error) {
 	if err := os.MkdirAll(filepath.Dir(cfg.Path), 0o755); err != nil {
 		return nil, fmt.Errorf("create database directory: %w", err)
@@ -48,6 +103,25 @@ func Open(ctx context.Context, cfg config.DatabaseConfig) (*sql.DB, error) {
 	return db, nil
 }
 
+/**
+ * Purpose:
+ * Performs the openDatabase operation for this backend package.
+ *
+ * Parameters:
+ * - ctx context.Context, dsn string
+ *
+ * Returns:
+ * - (*sql.DB, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func openDatabase(ctx context.Context, dsn string) (*sql.DB, error) {
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
@@ -65,6 +139,25 @@ func openDatabase(ctx context.Context, dsn string) (*sql.DB, error) {
 	return db, nil
 }
 
+/**
+ * Purpose:
+ * Performs the isCorruptDatabaseError operation for this backend package.
+ *
+ * Parameters:
+ * - err error
+ *
+ * Returns:
+ * - bool
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func isCorruptDatabaseError(err error) bool {
 	message := strings.ToLower(err.Error())
 	return strings.Contains(message, "database disk image is malformed") ||
@@ -72,6 +165,25 @@ func isCorruptDatabaseError(err error) bool {
 		strings.Contains(message, "database schema is corrupt")
 }
 
+/**
+ * Purpose:
+ * Performs the quarantineCorruptDatabase operation for this backend package.
+ *
+ * Parameters:
+ * - path string
+ *
+ * Returns:
+ * - (string, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func quarantineCorruptDatabase(path string) (string, error) {
 	backupPath := nextCorruptDatabaseBackupPath(path)
 	if err := renameIfExists(path, backupPath); err != nil {
@@ -86,6 +198,25 @@ func quarantineCorruptDatabase(path string) (string, error) {
 	return backupPath, nil
 }
 
+/**
+ * Purpose:
+ * Performs the nextCorruptDatabaseBackupPath operation for this backend package.
+ *
+ * Parameters:
+ * - path string
+ *
+ * Returns:
+ * - string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func nextCorruptDatabaseBackupPath(path string) string {
 	timestamp := time.Now().UTC().Format("20060102-150405")
 	base := fmt.Sprintf("%s.corrupt-%s", path, timestamp)
@@ -101,6 +232,25 @@ func nextCorruptDatabaseBackupPath(path string) string {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the renameIfExists operation for this backend package.
+ *
+ * Parameters:
+ * - from string, to string
+ *
+ * Returns:
+ * - error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func renameIfExists(from string, to string) error {
 	if _, err := os.Stat(from); err != nil {
 		if os.IsNotExist(err) {
@@ -114,7 +264,25 @@ func renameIfExists(from string, to string) error {
 	return nil
 }
 
-// Migrate applies the SQLite schema required by the first iteration.
+/**
+ * Purpose:
+ * Performs the Migrate operation for this backend package.
+ *
+ * Parameters:
+ * - ctx context.Context, db *sql.DB
+ *
+ * Returns:
+ * - error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func Migrate(ctx context.Context, db *sql.DB) error {
 	_, err := db.ExecContext(ctx, schema)
 	if err != nil {
@@ -149,12 +317,47 @@ func Migrate(ctx context.Context, db *sql.DB) error {
 	return nil
 }
 
+/**
+ * Purpose:
+ * Defines the columnMigration struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type columnMigration struct {
 	table      string
 	column     string
 	definition string
 }
 
+/**
+ * Purpose:
+ * Performs the ensureColumn operation for this backend package.
+ *
+ * Parameters:
+ * - ctx context.Context, db *sql.DB, migration columnMigration
+ *
+ * Returns:
+ * - error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func ensureColumn(ctx context.Context, db *sql.DB, migration columnMigration) error {
 	rows, err := db.QueryContext(ctx, fmt.Sprintf("PRAGMA table_info(%s)", migration.table))
 	if err != nil {
@@ -552,6 +755,25 @@ var defaultFieldDefinitions = []ingestiondomain.FieldDefinition{
 	},
 }
 
+/**
+ * Purpose:
+ * Performs the seedFieldDefinitions operation for this backend package.
+ *
+ * Parameters:
+ * - ctx context.Context, db *sql.DB
+ *
+ * Returns:
+ * - error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func seedFieldDefinitions(ctx context.Context, db *sql.DB) error {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	for _, field := range defaultFieldDefinitions {
@@ -595,6 +817,25 @@ func seedFieldDefinitions(ctx context.Context, db *sql.DB) error {
 	return nil
 }
 
+/**
+ * Purpose:
+ * Performs the prepareSystemFieldDefinitionsForSeed operation for this backend package.
+ *
+ * Parameters:
+ * - ctx context.Context, db *sql.DB
+ *
+ * Returns:
+ * - error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func prepareSystemFieldDefinitionsForSeed(ctx context.Context, db *sql.DB) error {
 	type existingFieldDefinition struct {
 		id   string
@@ -640,6 +881,25 @@ func prepareSystemFieldDefinitionsForSeed(ctx context.Context, db *sql.DB) error
 	return nil
 }
 
+/**
+ * Purpose:
+ * Performs the reconcilePropertyFieldDefinitionReferences operation for this backend package.
+ *
+ * Parameters:
+ * - ctx context.Context, db *sql.DB
+ *
+ * Returns:
+ * - error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func reconcilePropertyFieldDefinitionReferences(ctx context.Context, db *sql.DB) error {
 	fieldDefinitions, err := loadFieldDefinitionMap(ctx, db)
 	if err != nil {
@@ -704,6 +964,25 @@ func reconcilePropertyFieldDefinitionReferences(ctx context.Context, db *sql.DB)
 	return nil
 }
 
+/**
+ * Purpose:
+ * Performs the cleanupLegacySystemFieldDefinitions operation for this backend package.
+ *
+ * Parameters:
+ * - ctx context.Context, db *sql.DB
+ *
+ * Returns:
+ * - error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func cleanupLegacySystemFieldDefinitions(ctx context.Context, db *sql.DB) error {
 	if _, err := db.ExecContext(ctx, `DELETE FROM field_definitions WHERE system_defined = 1 AND name LIKE '__legacy__%'`); err != nil {
 		return fmt.Errorf("delete legacy system field definitions: %w", err)
@@ -712,10 +991,48 @@ func cleanupLegacySystemFieldDefinitions(ctx context.Context, db *sql.DB) error 
 	return nil
 }
 
+/**
+ * Purpose:
+ * Performs the legacySystemFieldDefinitionName operation for this backend package.
+ *
+ * Parameters:
+ * - name, id string
+ *
+ * Returns:
+ * - string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func legacySystemFieldDefinitionName(name, id string) string {
 	return fmt.Sprintf("__legacy__%s__%s", strings.ToLower(strings.TrimSpace(name)), strings.ToLower(strings.TrimSpace(id)))
 }
 
+/**
+ * Purpose:
+ * Performs the backfillPropertyFieldValues operation for this backend package.
+ *
+ * Parameters:
+ * - ctx context.Context, db *sql.DB
+ *
+ * Returns:
+ * - error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func backfillPropertyFieldValues(ctx context.Context, db *sql.DB) error {
 	fieldDefinitions, err := loadFieldDefinitionMap(ctx, db)
 	if err != nil {
@@ -833,6 +1150,25 @@ func backfillPropertyFieldValues(ctx context.Context, db *sql.DB) error {
 	return nil
 }
 
+/**
+ * Purpose:
+ * Performs the loadFieldDefinitionMap operation for this backend package.
+ *
+ * Parameters:
+ * - ctx context.Context, db *sql.DB
+ *
+ * Returns:
+ * - (map[string]ingestiondomain.FieldDefinition, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func loadFieldDefinitionMap(ctx context.Context, db *sql.DB) (map[string]ingestiondomain.FieldDefinition, error) {
 	rows, err := db.QueryContext(ctx, `SELECT id, name, display_name, data_type, unit, description, enum_values_json, default_value, use_default_when_missing, comparison_operator, comparison_value, system_defined, created_at, updated_at FROM field_definitions`)
 	if err != nil {

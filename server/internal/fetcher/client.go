@@ -1,3 +1,45 @@
+/**
+ * File: internal/fetcher/client.go
+ *
+ * Purpose:
+ * Provides outbound HTTP fetching, anti-bot handling, and fetch telemetry support.
+ *
+ * Responsibilities:
+ * - Provide package-specific backend behavior
+ * - Keep dependencies explicit
+ * - Return deterministic values to callers
+ *
+ * Inputs:
+ * - Function parameters, HTTP payloads, environment settings, or repository data as accepted by this file.
+ *
+ * Outputs:
+ * - Typed Go values, HTTP responses, persisted records, or test assertions produced by this file.
+ *
+ * Dependencies:
+ * - bytes
+ * - context
+ * - errors
+ * - fmt
+ * - io
+ * - log/slog
+ * - net
+ * - net/http
+ * - net/http/cookiejar
+ * - net/url
+ * - strings
+ * - sync
+ * - time
+ * - github.com/sony/gobreaker
+ * - nido/server/internal/engine
+ * - nido/server/internal/ingestion/browser
+ *
+ * Side Effects:
+ * - May perform database, network, filesystem, logging, scheduler, or HTTP response effects through collaborators.
+ *
+ * Critical Notes:
+ * - Keep this documentation synchronized with behavior changes and cross-package contracts.
+ */
+
 package fetcher
 
 import (
@@ -21,7 +63,22 @@ import (
 	"nido/server/internal/ingestion/browser"
 )
 
-// HTTPClient implements shared outbound source fetching.
+/**
+ * Purpose:
+ * Defines the HTTPClient struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type HTTPClient struct {
 	client        *http.Client
 	renderer      browser.Renderer
@@ -42,7 +99,25 @@ type HTTPClient struct {
 	lastRequestAt map[string]time.Time
 }
 
-// New constructs a shared fetcher client.
+/**
+ * Purpose:
+ * Performs the New operation for this backend package.
+ *
+ * Parameters:
+ * - cfg Config, renderer browser.Renderer
+ *
+ * Returns:
+ * - *HTTPClient
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func New(cfg Config, renderer browser.Renderer) *HTTPClient {
 	resolvedClient := cfg.HTTPClient
 	if resolvedClient == nil {
@@ -80,7 +155,25 @@ func New(cfg Config, renderer browser.Renderer) *HTTPClient {
 	}
 }
 
-// Fetch retrieves a source payload while preserving keep-alive reuse and telemetry.
+/**
+ * Purpose:
+ * Performs the Fetch operation for this backend package.
+ *
+ * Parameters:
+ * - c *HTTPClient
+ *
+ * Returns:
+ * - Fetch(ctx context.Context, request Request) (Response, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (c *HTTPClient) Fetch(ctx context.Context, request Request) (Response, error) {
 	domain := hostForURL(request.URL)
 	profile := profileFor(c.profiles, request.SessionKey)
@@ -126,6 +219,25 @@ func (c *HTTPClient) Fetch(ctx context.Context, request Request) (Response, erro
 	return response, nil
 }
 
+/**
+ * Purpose:
+ * Performs the renderPage operation for this backend package.
+ *
+ * Parameters:
+ * - c *HTTPClient
+ *
+ * Returns:
+ * - renderPage(ctx context.Context, requestURL, defaultType, domain string, startedAt time.Time) (Response, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (c *HTTPClient) renderPage(ctx context.Context, requestURL, defaultType, domain string, startedAt time.Time) (Response, error) {
 	if c.renderer == nil {
 		return Response{}, engine.Fatal(fmt.Errorf("browser rendering is not configured for %q", requestURL))
@@ -150,6 +262,25 @@ func (c *HTTPClient) renderPage(ctx context.Context, requestURL, defaultType, do
 	}, nil
 }
 
+/**
+ * Purpose:
+ * Performs the fetchHTTP operation for this backend package.
+ *
+ * Parameters:
+ * - c *HTTPClient
+ *
+ * Returns:
+ * - fetchHTTP(ctx context.Context, request Request, domain string, profile SessionProfile, startedAt time.Time) (Response, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (c *HTTPClient) fetchHTTP(ctx context.Context, request Request, domain string, profile SessionProfile, startedAt time.Time) (Response, error) {
 	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodGet, request.URL, nil)
 	if err != nil {
@@ -229,6 +360,25 @@ func (c *HTTPClient) fetchHTTP(ctx context.Context, request Request, domain stri
 	}, nil
 }
 
+/**
+ * Purpose:
+ * Performs the waitForDomainGap operation for this backend package.
+ *
+ * Parameters:
+ * - c *HTTPClient
+ *
+ * Returns:
+ * - waitForDomainGap(ctx context.Context, domain string) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (c *HTTPClient) waitForDomainGap(ctx context.Context, domain string) error {
 	if c.config.MinRequestGap <= 0 {
 		return nil
@@ -268,6 +418,25 @@ func (c *HTTPClient) waitForDomainGap(ctx context.Context, domain string) error 
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the breaker operation for this backend package.
+ *
+ * Parameters:
+ * - c *HTTPClient
+ *
+ * Returns:
+ * - breaker(domain string) *gobreaker.CircuitBreaker
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (c *HTTPClient) breaker(domain string) *gobreaker.CircuitBreaker {
 	resolvedDomain := strings.TrimSpace(domain)
 	if resolvedDomain == "" {
@@ -303,6 +472,25 @@ func (c *HTTPClient) breaker(domain string) *gobreaker.CircuitBreaker {
 	return breaker
 }
 
+/**
+ * Purpose:
+ * Performs the classifyTransportError operation for this backend package.
+ *
+ * Parameters:
+ * - c *HTTPClient
+ *
+ * Returns:
+ * - classifyTransportError(ctx context.Context, err error) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (c *HTTPClient) classifyTransportError(ctx context.Context, err error) error {
 	if err == nil {
 		return nil
@@ -325,6 +513,25 @@ func (c *HTTPClient) classifyTransportError(ctx context.Context, err error) erro
 	return engine.Retryable(err)
 }
 
+/**
+ * Purpose:
+ * Performs the classifyCircuitError operation for this backend package.
+ *
+ * Parameters:
+ * - c *HTTPClient
+ *
+ * Returns:
+ * - classifyCircuitError(err error) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (c *HTTPClient) classifyCircuitError(err error) error {
 	if err == nil {
 		return nil
@@ -339,6 +546,25 @@ func (c *HTTPClient) classifyCircuitError(err error) error {
 	return engine.Retryable(err)
 }
 
+/**
+ * Purpose:
+ * Performs the hostForURL operation for this backend package.
+ *
+ * Parameters:
+ * - raw string
+ *
+ * Returns:
+ * - string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func hostForURL(raw string) string {
 	parsed, err := url.Parse(strings.TrimSpace(raw))
 	if err != nil {
@@ -348,6 +574,25 @@ func hostForURL(raw string) string {
 	return parsed.Hostname()
 }
 
+/**
+ * Purpose:
+ * Performs the defaultContentType operation for this backend package.
+ *
+ * Parameters:
+ * - received, fallback string
+ *
+ * Returns:
+ * - string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func defaultContentType(received, fallback string) string {
 	if strings.TrimSpace(received) != "" {
 		return received
@@ -359,6 +604,25 @@ func defaultContentType(received, fallback string) string {
 	return "application/octet-stream"
 }
 
+/**
+ * Purpose:
+ * Performs the drainAndClose operation for this backend package.
+ *
+ * Parameters:
+ * - body io.ReadCloser
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func drainAndClose(body io.ReadCloser) {
 	if body == nil {
 		return
@@ -367,6 +631,25 @@ func drainAndClose(body io.ReadCloser) {
 	_ = body.Close()
 }
 
+/**
+ * Purpose:
+ * Performs the errorsAs operation for this backend package.
+ *
+ * Parameters:
+ * - err error, target any
+ *
+ * Returns:
+ * - bool
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func errorsAs(err error, target any) bool {
 	return errors.As(err, target)
 }

@@ -1,3 +1,42 @@
+/**
+ * File: internal/platform/sqlite/store.go
+ *
+ * Purpose:
+ * Implements SQLite persistence and migration support for backend state.
+ *
+ * Responsibilities:
+ * - Map domain objects to SQLite records
+ * - Execute schema-aware reads and writes
+ * - Preserve migration and backup safety guarantees
+ *
+ * Inputs:
+ * - Function parameters, HTTP payloads, environment settings, or repository data as accepted by this file.
+ *
+ * Outputs:
+ * - Typed Go values, HTTP responses, persisted records, or test assertions produced by this file.
+ *
+ * Dependencies:
+ * - context
+ * - database/sql
+ * - encoding/json
+ * - errors
+ * - fmt
+ * - strconv
+ * - strings
+ * - time
+ * - nido/server/internal/auth/domain
+ * - nido/server/internal/engagement/domain
+ * - nido/server/internal/ingestion/domain
+ * - nido/server/internal/platform/id
+ * - nido/server/internal/platformops/domain
+ *
+ * Side Effects:
+ * - May perform database, network, filesystem, logging, scheduler, or HTTP response effects through collaborators.
+ *
+ * Critical Notes:
+ * - Keep this documentation synchronized with behavior changes and cross-package contracts.
+ */
+
 package sqlite
 
 import (
@@ -17,17 +56,68 @@ import (
 	platformopsdomain "nido/server/internal/platformops/domain"
 )
 
-// Store implements the repository contracts needed by the backend runtime.
+/**
+ * Purpose:
+ * Defines the Store struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type Store struct {
 	db *sql.DB
 }
 
-// NewStore builds a SQLite-backed repository implementation.
+/**
+ * Purpose:
+ * Performs the NewStore operation for this backend package.
+ *
+ * Parameters:
+ * - db *sql.DB
+ *
+ * Returns:
+ * - *Store
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func NewStore(db *sql.DB) *Store {
 	return &Store{db: db}
 }
 
-// UpsertSource creates or updates a source definition.
+/**
+ * Purpose:
+ * Performs the UpsertSource operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - UpsertSource(ctx context.Context, source ingestiondomain.Source) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) UpsertSource(ctx context.Context, source ingestiondomain.Source) error {
 	_, err := s.db.ExecContext(
 		ctx,
@@ -77,7 +167,25 @@ func (s *Store) UpsertSource(ctx context.Context, source ingestiondomain.Source)
 	return nil
 }
 
-// ListSources returns all known sources.
+/**
+ * Purpose:
+ * Performs the ListSources operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - ListSources(ctx context.Context) ([]ingestiondomain.Source, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) ListSources(ctx context.Context) ([]ingestiondomain.Source, error) {
 	rows, err := s.db.QueryContext(ctx, sourceSelect+` ORDER BY name ASC, id ASC`)
 	if err != nil {
@@ -98,7 +206,25 @@ func (s *Store) ListSources(ctx context.Context) ([]ingestiondomain.Source, erro
 	return items, rows.Err()
 }
 
-// ListDueSources returns sources whose schedules are ready to run.
+/**
+ * Purpose:
+ * Performs the ListDueSources operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - ListDueSources(ctx context.Context, before time.Time, limit int) ([]ingestiondomain.Source, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) ListDueSources(ctx context.Context, before time.Time, limit int) ([]ingestiondomain.Source, error) {
 	rows, err := s.db.QueryContext(
 		ctx,
@@ -123,12 +249,48 @@ func (s *Store) ListDueSources(ctx context.Context, before time.Time, limit int)
 	return items, rows.Err()
 }
 
-// GetSource returns one source definition.
+/**
+ * Purpose:
+ * Performs the GetSource operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - GetSource(ctx context.Context, sourceID string) (ingestiondomain.Source, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) GetSource(ctx context.Context, sourceID string) (ingestiondomain.Source, error) {
 	return scanSource(s.db.QueryRowContext(ctx, sourceSelect+` WHERE id = ?`, sourceID))
 }
 
-// DeleteSource removes one source definition.
+/**
+ * Purpose:
+ * Performs the DeleteSource operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - DeleteSource(ctx context.Context, sourceID string) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) DeleteSource(ctx context.Context, sourceID string) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -165,7 +327,25 @@ func (s *Store) DeleteSource(ctx context.Context, sourceID string) error {
 	return nil
 }
 
-// UpdateSourceRunState records the latest and next scheduler timestamps.
+/**
+ * Purpose:
+ * Performs the UpdateSourceRunState operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - UpdateSourceRunState(ctx context.Context, sourceID string, lastRunAt, nextRunAt *time.Time) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) UpdateSourceRunState(ctx context.Context, sourceID string, lastRunAt, nextRunAt *time.Time) error {
 	_, err := s.db.ExecContext(
 		ctx,
@@ -182,7 +362,25 @@ func (s *Store) UpdateSourceRunState(ctx context.Context, sourceID string, lastR
 	return nil
 }
 
-// CountRunsSince returns the number of runs that started after the supplied time.
+/**
+ * Purpose:
+ * Performs the CountRunsSince operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - CountRunsSince(ctx context.Context, sourceID string, since time.Time) (int, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) CountRunsSince(ctx context.Context, sourceID string, since time.Time) (int, error) {
 	var count int
 	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM ingestion_runs WHERE source_id = ? AND started_at >= ?`, sourceID, formatTime(since)).Scan(&count); err != nil {
@@ -192,7 +390,25 @@ func (s *Store) CountRunsSince(ctx context.Context, sourceID string, since time.
 	return count, nil
 }
 
-// TryAcquireIngestionLock acquires the per-source ingest lock when available.
+/**
+ * Purpose:
+ * Performs the TryAcquireIngestionLock operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - TryAcquireIngestionLock(ctx context.Context, sourceID, holderID string, acquiredAt, expiresAt time.Time) (bool, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) TryAcquireIngestionLock(ctx context.Context, sourceID, holderID string, acquiredAt, expiresAt time.Time) (bool, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -235,7 +451,25 @@ func (s *Store) TryAcquireIngestionLock(ctx context.Context, sourceID, holderID 
 	return true, nil
 }
 
-// ReleaseIngestionLock releases a previously acquired source lock.
+/**
+ * Purpose:
+ * Performs the ReleaseIngestionLock operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - ReleaseIngestionLock(ctx context.Context, sourceID, holderID string) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) ReleaseIngestionLock(ctx context.Context, sourceID, holderID string) error {
 	_, err := s.db.ExecContext(ctx, `DELETE FROM ingestion_locks WHERE source_id = ? AND holder_id = ?`, sourceID, holderID)
 	if err != nil {
@@ -245,7 +479,25 @@ func (s *Store) ReleaseIngestionLock(ctx context.Context, sourceID, holderID str
 	return nil
 }
 
-// CreateRun records the start of a new ingestion run.
+/**
+ * Purpose:
+ * Performs the CreateRun operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - CreateRun(ctx context.Context, run ingestiondomain.Run) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) CreateRun(ctx context.Context, run ingestiondomain.Run) error {
 	_, err := s.db.ExecContext(
 		ctx,
@@ -269,7 +521,25 @@ func (s *Store) CreateRun(ctx context.Context, run ingestiondomain.Run) error {
 	return nil
 }
 
-// CompleteRun records a successful ingest completion.
+/**
+ * Purpose:
+ * Performs the CompleteRun operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - CompleteRun(ctx context.Context, runID string, finishedAt time.Time, itemCount int, artifactKey string, attemptCount int, diagnostics json.RawMessage) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) CompleteRun(ctx context.Context, runID string, finishedAt time.Time, itemCount int, artifactKey string, attemptCount int, diagnostics json.RawMessage) error {
 	_, err := s.db.ExecContext(
 		ctx,
@@ -291,7 +561,25 @@ func (s *Store) CompleteRun(ctx context.Context, runID string, finishedAt time.T
 	return nil
 }
 
-// FailRun records a failed ingest completion.
+/**
+ * Purpose:
+ * Performs the FailRun operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - FailRun(ctx context.Context, runID string, finishedAt time.Time, errorMessage string, failureArtifactKey string, attemptCount int, diagnostics json.RawMessage) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) FailRun(ctx context.Context, runID string, finishedAt time.Time, errorMessage string, failureArtifactKey string, attemptCount int, diagnostics json.RawMessage) error {
 	_, err := s.db.ExecContext(
 		ctx,
@@ -313,7 +601,25 @@ func (s *Store) FailRun(ctx context.Context, runID string, finishedAt time.Time,
 	return nil
 }
 
-// ListRuns returns recent runs ordered by start time.
+/**
+ * Purpose:
+ * Performs the ListRuns operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - ListRuns(ctx context.Context, sourceID string, limit int) ([]ingestiondomain.Run, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) ListRuns(ctx context.Context, sourceID string, limit int) ([]ingestiondomain.Run, error) {
 	query := runSelect
 	args := make([]any, 0, 2)
@@ -344,12 +650,48 @@ func (s *Store) ListRuns(ctx context.Context, sourceID string, limit int) ([]ing
 	return items, rows.Err()
 }
 
-// GetRun returns one run with diagnostics.
+/**
+ * Purpose:
+ * Performs the GetRun operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - GetRun(ctx context.Context, runID string) (ingestiondomain.Run, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) GetRun(ctx context.Context, runID string) (ingestiondomain.Run, error) {
 	return scanRun(s.db.QueryRowContext(ctx, runSelect+` WHERE id = ?`, runID))
 }
 
-// RecordArtifact stores the metadata for a raw source payload.
+/**
+ * Purpose:
+ * Performs the RecordArtifact operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - RecordArtifact(ctx context.Context, artifact ingestiondomain.Artifact) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) RecordArtifact(ctx context.Context, artifact ingestiondomain.Artifact) error {
 	_, err := s.db.ExecContext(
 		ctx,
@@ -379,7 +721,25 @@ func (s *Store) RecordArtifact(ctx context.Context, artifact ingestiondomain.Art
 	return nil
 }
 
-// ReplaceObservedListings upserts the listings observed during one ingest run.
+/**
+ * Purpose:
+ * Performs the ReplaceObservedListings operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - ReplaceObservedListings(ctx context.Context, sourceID string, observedAt time.Time, candidates []ingestiondomain.CandidateListing) ([]ingestiondomain.ListingChange, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) ReplaceObservedListings(ctx context.Context, sourceID string, observedAt time.Time, candidates []ingestiondomain.CandidateListing) ([]ingestiondomain.ListingChange, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -509,7 +869,25 @@ func (s *Store) ReplaceObservedListings(ctx context.Context, sourceID string, ob
 	return changes, nil
 }
 
-// UpsertUser creates or updates a user account.
+/**
+ * Purpose:
+ * Performs the UpsertUser operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - UpsertUser(ctx context.Context, user authdomain.User, passwordHash string) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) UpsertUser(ctx context.Context, user authdomain.User, passwordHash string) error {
 	_, err := s.db.ExecContext(
 		ctx,
@@ -534,7 +912,25 @@ func (s *Store) UpsertUser(ctx context.Context, user authdomain.User, passwordHa
 	return nil
 }
 
-// UpdateUserProfile updates mutable profile fields for a user.
+/**
+ * Purpose:
+ * Performs the UpdateUserProfile operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - UpdateUserProfile(ctx context.Context, userID, displayName string, updatedAt time.Time) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) UpdateUserProfile(ctx context.Context, userID, displayName string, updatedAt time.Time) error {
 	result, err := s.db.ExecContext(
 		ctx,
@@ -558,7 +954,25 @@ func (s *Store) UpdateUserProfile(ctx context.Context, userID, displayName strin
 	return nil
 }
 
-// UpdateUserPassword stores a new password hash for a user.
+/**
+ * Purpose:
+ * Performs the UpdateUserPassword operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - UpdateUserPassword(ctx context.Context, userID, passwordHash string, updatedAt time.Time) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) UpdateUserPassword(ctx context.Context, userID, passwordHash string, updatedAt time.Time) error {
 	result, err := s.db.ExecContext(
 		ctx,
@@ -582,7 +996,25 @@ func (s *Store) UpdateUserPassword(ctx context.Context, userID, passwordHash str
 	return nil
 }
 
-// GetUserByEmail loads one user and its password hash.
+/**
+ * Purpose:
+ * Performs the GetUserByEmail operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - GetUserByEmail(ctx context.Context, email string) (authdomain.User, string, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) GetUserByEmail(ctx context.Context, email string) (authdomain.User, string, error) {
 	var passwordHash string
 	row := s.db.QueryRowContext(ctx, `SELECT id, email, display_name, password_hash, created_at, updated_at FROM users WHERE email = ?`, strings.ToLower(email))
@@ -594,12 +1026,48 @@ func (s *Store) GetUserByEmail(ctx context.Context, email string) (authdomain.Us
 	return user, passwordHash, nil
 }
 
-// GetUserByID loads one user by identifier.
+/**
+ * Purpose:
+ * Performs the GetUserByID operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - GetUserByID(ctx context.Context, userID string) (authdomain.User, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) GetUserByID(ctx context.Context, userID string) (authdomain.User, error) {
 	return scanUser(s.db.QueryRowContext(ctx, `SELECT id, email, display_name, NULL, created_at, updated_at FROM users WHERE id = ?`, userID), nil)
 }
 
-// GetUserCredentials returns the password hash for a user by id.
+/**
+ * Purpose:
+ * Performs the GetUserCredentials operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - GetUserCredentials(ctx context.Context, userID string) (string, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) GetUserCredentials(ctx context.Context, userID string) (string, error) {
 	var passwordHash string
 	row := s.db.QueryRowContext(ctx, `SELECT password_hash FROM users WHERE id = ?`, userID)
@@ -610,7 +1078,25 @@ func (s *Store) GetUserCredentials(ctx context.Context, userID string) (string, 
 	return passwordHash, nil
 }
 
-// CreateSession persists a login session.
+/**
+ * Purpose:
+ * Performs the CreateSession operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - CreateSession(ctx context.Context, session authdomain.Session, tokenHash string) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) CreateSession(ctx context.Context, session authdomain.Session, tokenHash string) error {
 	_, err := s.db.ExecContext(
 		ctx,
@@ -629,7 +1115,25 @@ func (s *Store) CreateSession(ctx context.Context, session authdomain.Session, t
 	return nil
 }
 
-// GetSessionByTokenHash looks up one active session and its user.
+/**
+ * Purpose:
+ * Performs the GetSessionByTokenHash operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - GetSessionByTokenHash(ctx context.Context, tokenHash string) (authdomain.Session, authdomain.User, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) GetSessionByTokenHash(ctx context.Context, tokenHash string) (authdomain.Session, authdomain.User, error) {
 	row := s.db.QueryRowContext(
 		ctx,
@@ -692,7 +1196,25 @@ func (s *Store) GetSessionByTokenHash(ctx context.Context, tokenHash string) (au
 	return session, user, nil
 }
 
-// RevokeSession invalidates an existing session.
+/**
+ * Purpose:
+ * Performs the RevokeSession operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - RevokeSession(ctx context.Context, sessionID string, revokedAt time.Time) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) RevokeSession(ctx context.Context, sessionID string, revokedAt time.Time) error {
 	_, err := s.db.ExecContext(ctx, `UPDATE auth_sessions SET revoked_at = ? WHERE id = ?`, formatTime(revokedAt), sessionID)
 	if err != nil {
@@ -702,7 +1224,25 @@ func (s *Store) RevokeSession(ctx context.Context, sessionID string, revokedAt t
 	return nil
 }
 
-// AddBookmark saves one property bookmark for the user.
+/**
+ * Purpose:
+ * Performs the AddBookmark operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - AddBookmark(ctx context.Context, userID, propertyID string, createdAt time.Time) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) AddBookmark(ctx context.Context, userID, propertyID string, createdAt time.Time) error {
 	_, err := s.db.ExecContext(ctx, `INSERT INTO bookmarks (user_id, property_id, created_at) VALUES (?, ?, ?) ON CONFLICT(user_id, property_id) DO NOTHING`, userID, propertyID, formatTime(createdAt))
 	if err != nil {
@@ -712,7 +1252,25 @@ func (s *Store) AddBookmark(ctx context.Context, userID, propertyID string, crea
 	return nil
 }
 
-// ListBookmarks returns the user's saved properties.
+/**
+ * Purpose:
+ * Performs the ListBookmarks operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - ListBookmarks(ctx context.Context, userID string) ([]engagementdomain.BookmarkedProperty, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) ListBookmarks(ctx context.Context, userID string) ([]engagementdomain.BookmarkedProperty, error) {
 	rows, err := s.db.QueryContext(
 		ctx,
@@ -765,7 +1323,25 @@ func (s *Store) ListBookmarks(ctx context.Context, userID string) ([]engagementd
 	return items, rows.Err()
 }
 
-// RemoveBookmark deletes one bookmark.
+/**
+ * Purpose:
+ * Performs the RemoveBookmark operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - RemoveBookmark(ctx context.Context, userID, propertyID string) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) RemoveBookmark(ctx context.Context, userID, propertyID string) error {
 	_, err := s.db.ExecContext(ctx, `DELETE FROM bookmarks WHERE user_id = ? AND property_id = ?`, userID, propertyID)
 	if err != nil {
@@ -775,7 +1351,25 @@ func (s *Store) RemoveBookmark(ctx context.Context, userID, propertyID string) e
 	return nil
 }
 
-// CreateWatchlist stores a user watchlist.
+/**
+ * Purpose:
+ * Performs the CreateWatchlist operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - CreateWatchlist(ctx context.Context, watchlist engagementdomain.Watchlist) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) CreateWatchlist(ctx context.Context, watchlist engagementdomain.Watchlist) error {
 	_, err := s.db.ExecContext(
 		ctx,
@@ -797,7 +1391,25 @@ func (s *Store) CreateWatchlist(ctx context.Context, watchlist engagementdomain.
 	return nil
 }
 
-// ListWatchlists returns watchlists for one user.
+/**
+ * Purpose:
+ * Performs the ListWatchlists operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - ListWatchlists(ctx context.Context, userID string) ([]engagementdomain.Watchlist, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) ListWatchlists(ctx context.Context, userID string) ([]engagementdomain.Watchlist, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT id, user_id, name, query, source_id, max_price_amount, created_at, updated_at FROM watchlists WHERE user_id = ? ORDER BY created_at DESC, id DESC`, userID)
 	if err != nil {
@@ -817,7 +1429,25 @@ func (s *Store) ListWatchlists(ctx context.Context, userID string) ([]engagement
 	return items, rows.Err()
 }
 
-// ListWatchlistsForEvaluation returns all watchlists used by alert evaluation.
+/**
+ * Purpose:
+ * Performs the ListWatchlistsForEvaluation operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - ListWatchlistsForEvaluation(ctx context.Context) ([]engagementdomain.Watchlist, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) ListWatchlistsForEvaluation(ctx context.Context) ([]engagementdomain.Watchlist, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT id, user_id, name, query, source_id, max_price_amount, created_at, updated_at FROM watchlists ORDER BY created_at DESC, id DESC`)
 	if err != nil {
@@ -837,7 +1467,25 @@ func (s *Store) ListWatchlistsForEvaluation(ctx context.Context) ([]engagementdo
 	return items, rows.Err()
 }
 
-// DeleteWatchlist removes a user watchlist.
+/**
+ * Purpose:
+ * Performs the DeleteWatchlist operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - DeleteWatchlist(ctx context.Context, userID, watchlistID string) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) DeleteWatchlist(ctx context.Context, userID, watchlistID string) error {
 	_, err := s.db.ExecContext(ctx, `DELETE FROM watchlists WHERE id = ? AND user_id = ?`, watchlistID, userID)
 	if err != nil {
@@ -847,7 +1495,25 @@ func (s *Store) DeleteWatchlist(ctx context.Context, userID, watchlistID string)
 	return nil
 }
 
-// CreateAlertRule stores an alert rule.
+/**
+ * Purpose:
+ * Performs the CreateAlertRule operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - CreateAlertRule(ctx context.Context, rule engagementdomain.AlertRule) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) CreateAlertRule(ctx context.Context, rule engagementdomain.AlertRule) error {
 	_, err := s.db.ExecContext(
 		ctx,
@@ -869,7 +1535,25 @@ func (s *Store) CreateAlertRule(ctx context.Context, rule engagementdomain.Alert
 	return nil
 }
 
-// ListAlertRules returns rules for one user.
+/**
+ * Purpose:
+ * Performs the ListAlertRules operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - ListAlertRules(ctx context.Context, userID string) ([]engagementdomain.AlertRule, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) ListAlertRules(ctx context.Context, userID string) ([]engagementdomain.AlertRule, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT id, user_id, property_id, rule_type, threshold_amount, enabled, created_at, updated_at FROM alert_rules WHERE user_id = ? ORDER BY created_at DESC, id DESC`, userID)
 	if err != nil {
@@ -889,7 +1573,25 @@ func (s *Store) ListAlertRules(ctx context.Context, userID string) ([]engagement
 	return items, rows.Err()
 }
 
-// ListAlertRulesForEvaluation returns all enabled alert rules.
+/**
+ * Purpose:
+ * Performs the ListAlertRulesForEvaluation operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - ListAlertRulesForEvaluation(ctx context.Context) ([]engagementdomain.AlertRule, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) ListAlertRulesForEvaluation(ctx context.Context) ([]engagementdomain.AlertRule, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT id, user_id, property_id, rule_type, threshold_amount, enabled, created_at, updated_at FROM alert_rules WHERE enabled = 1 ORDER BY created_at DESC, id DESC`)
 	if err != nil {
@@ -909,7 +1611,25 @@ func (s *Store) ListAlertRulesForEvaluation(ctx context.Context) ([]engagementdo
 	return items, rows.Err()
 }
 
-// UpdateAlertRuleEnabled updates one alert rule enabled state.
+/**
+ * Purpose:
+ * Performs the UpdateAlertRuleEnabled operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - UpdateAlertRuleEnabled(ctx context.Context, userID, ruleID string, enabled bool, updatedAt time.Time) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) UpdateAlertRuleEnabled(ctx context.Context, userID, ruleID string, enabled bool, updatedAt time.Time) error {
 	_, err := s.db.ExecContext(
 		ctx,
@@ -926,7 +1646,25 @@ func (s *Store) UpdateAlertRuleEnabled(ctx context.Context, userID, ruleID strin
 	return nil
 }
 
-// DeleteAlertRule removes one alert rule.
+/**
+ * Purpose:
+ * Performs the DeleteAlertRule operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - DeleteAlertRule(ctx context.Context, userID, ruleID string) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) DeleteAlertRule(ctx context.Context, userID, ruleID string) error {
 	_, err := s.db.ExecContext(ctx, `DELETE FROM alert_rules WHERE id = ? AND user_id = ?`, ruleID, userID)
 	if err != nil {
@@ -936,7 +1674,25 @@ func (s *Store) DeleteAlertRule(ctx context.Context, userID, ruleID string) erro
 	return nil
 }
 
-// CreateNotification persists a generated notification.
+/**
+ * Purpose:
+ * Performs the CreateNotification operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - CreateNotification(ctx context.Context, notification engagementdomain.Notification) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) CreateNotification(ctx context.Context, notification engagementdomain.Notification) error {
 	_, err := s.db.ExecContext(
 		ctx,
@@ -961,7 +1717,25 @@ func (s *Store) CreateNotification(ctx context.Context, notification engagementd
 	return nil
 }
 
-// UpdateNotificationDeliveryStatus changes the delivery status for a notification.
+/**
+ * Purpose:
+ * Performs the UpdateNotificationDeliveryStatus operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - UpdateNotificationDeliveryStatus(ctx context.Context, notificationID, status string) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) UpdateNotificationDeliveryStatus(ctx context.Context, notificationID, status string) error {
 	_, err := s.db.ExecContext(ctx, `UPDATE notifications SET delivery_status = ? WHERE id = ?`, status, notificationID)
 	if err != nil {
@@ -971,7 +1745,25 @@ func (s *Store) UpdateNotificationDeliveryStatus(ctx context.Context, notificati
 	return nil
 }
 
-// ListNotifications returns notifications for one user.
+/**
+ * Purpose:
+ * Performs the ListNotifications operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - ListNotifications(ctx context.Context, userID string, unreadOnly bool, limit int) ([]engagementdomain.Notification, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) ListNotifications(ctx context.Context, userID string, unreadOnly bool, limit int) ([]engagementdomain.Notification, error) {
 	query := `SELECT id, user_id, alert_id, property_id, kind, title, body, data_json, delivery_status, created_at, read_at FROM notifications WHERE user_id = ?`
 	args := []any{userID}
@@ -999,7 +1791,25 @@ func (s *Store) ListNotifications(ctx context.Context, userID string, unreadOnly
 	return items, rows.Err()
 }
 
-// SetNotificationReadState updates the read timestamp for a notification.
+/**
+ * Purpose:
+ * Performs the SetNotificationReadState operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - SetNotificationReadState(ctx context.Context, userID, notificationID string, readAt *time.Time) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) SetNotificationReadState(ctx context.Context, userID, notificationID string, readAt *time.Time) error {
 	_, err := s.db.ExecContext(ctx, `UPDATE notifications SET read_at = ? WHERE id = ? AND user_id = ?`, nullableTimeString(readAt), notificationID, userID)
 	if err != nil {
@@ -1009,6 +1819,22 @@ func (s *Store) SetNotificationReadState(ctx context.Context, userID, notificati
 	return nil
 }
 
+/**
+ * Purpose:
+ * Defines the scanner interface used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type scanner interface {
 	Scan(dest ...any) error
 }
@@ -1024,6 +1850,25 @@ var runSelect = `SELECT
 	attempt_count, item_count, artifact_key, failure_artifact_key, diagnostics_json, error_message
 FROM ingestion_runs`
 
+/**
+ * Purpose:
+ * Performs the scanSource operation for this backend package.
+ *
+ * Parameters:
+ * - scanner scanner
+ *
+ * Returns:
+ * - (ingestiondomain.Source, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func scanSource(scanner scanner) (ingestiondomain.Source, error) {
 	var (
 		source               ingestiondomain.Source
@@ -1084,6 +1929,25 @@ func scanSource(scanner scanner) (ingestiondomain.Source, error) {
 	return source, nil
 }
 
+/**
+ * Purpose:
+ * Performs the scanRun operation for this backend package.
+ *
+ * Parameters:
+ * - scanner scanner
+ *
+ * Returns:
+ * - (ingestiondomain.Run, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func scanRun(scanner scanner) (ingestiondomain.Run, error) {
 	var (
 		run                ingestiondomain.Run
@@ -1141,6 +2005,25 @@ func scanRun(scanner scanner) (ingestiondomain.Run, error) {
 	return run, nil
 }
 
+/**
+ * Purpose:
+ * Performs the scanUser operation for this backend package.
+ *
+ * Parameters:
+ * - scanner scanner, passwordHash *string
+ *
+ * Returns:
+ * - (authdomain.User, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func scanUser(scanner scanner, passwordHash *string) (authdomain.User, error) {
 	var (
 		user                 authdomain.User
@@ -1168,6 +2051,25 @@ func scanUser(scanner scanner, passwordHash *string) (authdomain.User, error) {
 	return user, nil
 }
 
+/**
+ * Purpose:
+ * Performs the scanWatchlist operation for this backend package.
+ *
+ * Parameters:
+ * - scanner scanner
+ *
+ * Returns:
+ * - (engagementdomain.Watchlist, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func scanWatchlist(scanner scanner) (engagementdomain.Watchlist, error) {
 	var (
 		watchlist            engagementdomain.Watchlist
@@ -1199,6 +2101,25 @@ func scanWatchlist(scanner scanner) (engagementdomain.Watchlist, error) {
 	return watchlist, nil
 }
 
+/**
+ * Purpose:
+ * Performs the scanAlertRule operation for this backend package.
+ *
+ * Parameters:
+ * - scanner scanner
+ *
+ * Returns:
+ * - (engagementdomain.AlertRule, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func scanAlertRule(scanner scanner) (engagementdomain.AlertRule, error) {
 	var (
 		rule                 engagementdomain.AlertRule
@@ -1228,6 +2149,25 @@ func scanAlertRule(scanner scanner) (engagementdomain.AlertRule, error) {
 	return rule, nil
 }
 
+/**
+ * Purpose:
+ * Performs the scanPropertyConfig operation for this backend package.
+ *
+ * Parameters:
+ * - scanner scanner
+ *
+ * Returns:
+ * - (ingestiondomain.PropertyExtractionConfig, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func scanPropertyConfig(scanner scanner) (ingestiondomain.PropertyExtractionConfig, error) {
 	var (
 		config     ingestiondomain.PropertyExtractionConfig
@@ -1252,6 +2192,25 @@ func scanPropertyConfig(scanner scanner) (ingestiondomain.PropertyExtractionConf
 	return config, nil
 }
 
+/**
+ * Purpose:
+ * Performs the scanNotification operation for this backend package.
+ *
+ * Parameters:
+ * - scanner scanner
+ *
+ * Returns:
+ * - (engagementdomain.Notification, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func scanNotification(scanner scanner) (engagementdomain.Notification, error) {
 	var (
 		notification engagementdomain.Notification
@@ -1300,10 +2259,48 @@ func scanNotification(scanner scanner) (engagementdomain.Notification, error) {
 	return notification, nil
 }
 
+/**
+ * Purpose:
+ * Performs the formatTime operation for this backend package.
+ *
+ * Parameters:
+ * - value time.Time
+ *
+ * Returns:
+ * - string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func formatTime(value time.Time) string {
 	return value.UTC().Format(time.RFC3339Nano)
 }
 
+/**
+ * Purpose:
+ * Performs the parseTime operation for this backend package.
+ *
+ * Parameters:
+ * - raw string
+ *
+ * Returns:
+ * - (time.Time, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func parseTime(raw string) (time.Time, error) {
 	parsed, err := time.Parse(time.RFC3339Nano, raw)
 	if err != nil {
@@ -1313,6 +2310,25 @@ func parseTime(raw string) (time.Time, error) {
 	return parsed, nil
 }
 
+/**
+ * Purpose:
+ * Performs the nullableTimeString operation for this backend package.
+ *
+ * Parameters:
+ * - value *time.Time
+ *
+ * Returns:
+ * - any
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func nullableTimeString(value *time.Time) any {
 	if value == nil {
 		return nil
@@ -1321,6 +2337,25 @@ func nullableTimeString(value *time.Time) any {
 	return formatTime(value.UTC())
 }
 
+/**
+ * Purpose:
+ * Performs the nullableString operation for this backend package.
+ *
+ * Parameters:
+ * - value string
+ *
+ * Returns:
+ * - any
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func nullableString(value string) any {
 	if strings.TrimSpace(value) == "" {
 		return nil
@@ -1329,6 +2364,25 @@ func nullableString(value string) any {
 	return value
 }
 
+/**
+ * Purpose:
+ * Performs the nullableInt64 operation for this backend package.
+ *
+ * Parameters:
+ * - value *int64
+ *
+ * Returns:
+ * - any
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func nullableInt64(value *int64) any {
 	if value == nil {
 		return nil
@@ -1337,6 +2391,25 @@ func nullableInt64(value *int64) any {
 	return *value
 }
 
+/**
+ * Purpose:
+ * Performs the normalizeJSON operation for this backend package.
+ *
+ * Parameters:
+ * - value json.RawMessage
+ *
+ * Returns:
+ * - string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func normalizeJSON(value json.RawMessage) string {
 	if len(value) == 0 {
 		return "{}"
@@ -1345,6 +2418,25 @@ func normalizeJSON(value json.RawMessage) string {
 	return normalizeJSONString(string(value))
 }
 
+/**
+ * Purpose:
+ * Performs the decodeSnapshotValues operation for this backend package.
+ *
+ * Parameters:
+ * - raw string
+ *
+ * Returns:
+ * - map[string]string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func decodeSnapshotValues(raw string) map[string]string {
 	values := make(map[string]string)
 	if strings.TrimSpace(raw) == "" {
@@ -1356,6 +2448,25 @@ func decodeSnapshotValues(raw string) map[string]string {
 	return values
 }
 
+/**
+ * Purpose:
+ * Performs the parseSnapshotPrice operation for this backend package.
+ *
+ * Parameters:
+ * - values map[string]string
+ *
+ * Returns:
+ * - int64
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func parseSnapshotPrice(values map[string]string) int64 {
 	raw := normalizeNumberString(values["price"])
 	if raw == "" {
@@ -1368,6 +2479,25 @@ func parseSnapshotPrice(values map[string]string) int64 {
 	return amount
 }
 
+/**
+ * Purpose:
+ * Performs the firstNonEmpty operation for this backend package.
+ *
+ * Parameters:
+ * - values ...string
+ *
+ * Returns:
+ * - string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func firstNonEmpty(values ...string) string {
 	for _, value := range values {
 		if strings.TrimSpace(value) != "" {
@@ -1377,6 +2507,25 @@ func firstNonEmpty(values ...string) string {
 	return ""
 }
 
+/**
+ * Purpose:
+ * Performs the normalizeNumberString operation for this backend package.
+ *
+ * Parameters:
+ * - value string
+ *
+ * Returns:
+ * - string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func normalizeNumberString(value string) string {
 	var digits strings.Builder
 	for _, char := range value {
@@ -1387,6 +2536,25 @@ func normalizeNumberString(value string) string {
 	return digits.String()
 }
 
+/**
+ * Purpose:
+ * Performs the normalizeJSONString operation for this backend package.
+ *
+ * Parameters:
+ * - value string
+ *
+ * Returns:
+ * - string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func normalizeJSONString(value string) string {
 	trimmed := strings.TrimSpace(value)
 	if trimmed == "" {
@@ -1400,6 +2568,25 @@ func normalizeJSONString(value string) string {
 	return trimmed
 }
 
+/**
+ * Purpose:
+ * Performs the boolToInt operation for this backend package.
+ *
+ * Parameters:
+ * - value bool
+ *
+ * Returns:
+ * - int
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func boolToInt(value bool) int {
 	if value {
 		return 1
@@ -1408,6 +2595,25 @@ func boolToInt(value bool) int {
 	return 0
 }
 
+/**
+ * Purpose:
+ * Performs the propertyMetadataIsZero operation for this backend package.
+ *
+ * Parameters:
+ * - metadata ingestiondomain.PropertyMetadata
+ *
+ * Returns:
+ * - bool
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func propertyMetadataIsZero(metadata ingestiondomain.PropertyMetadata) bool {
 	return strings.TrimSpace(metadata.PriorityLevel) == "" &&
 		strings.TrimSpace(metadata.BusinessStage) == "" &&
@@ -1420,6 +2626,25 @@ func propertyMetadataIsZero(metadata ingestiondomain.PropertyMetadata) bool {
 		len(metadata.Attachments) == 0
 }
 
+/**
+ * Purpose:
+ * Performs the mustMarshalJSON operation for this backend package.
+ *
+ * Parameters:
+ * - value any, fallback string
+ *
+ * Returns:
+ * - string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func mustMarshalJSON(value any, fallback string) string {
 	encoded, err := json.Marshal(value)
 	if err != nil {
@@ -1428,6 +2653,25 @@ func mustMarshalJSON(value any, fallback string) string {
 	return string(encoded)
 }
 
+/**
+ * Purpose:
+ * Performs the decodeStringArrayJSON operation for this backend package.
+ *
+ * Parameters:
+ * - raw string
+ *
+ * Returns:
+ * - []string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func decodeStringArrayJSON(raw string) []string {
 	normalized := strings.TrimSpace(raw)
 	if normalized == "" {
@@ -1450,6 +2694,25 @@ func decodeStringArrayJSON(raw string) []string {
 	return filtered
 }
 
+/**
+ * Purpose:
+ * Performs the nullableInt operation for this backend package.
+ *
+ * Parameters:
+ * - value int
+ *
+ * Returns:
+ * - any
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func nullableInt(value int) any {
 	if value <= 0 {
 		return nil
@@ -1461,7 +2724,25 @@ func nullableInt(value int) any {
 
 var propertySelect = `SELECT id, url, label, source_id, browser_enabled, request_headers_json, status, schedule_interval_seconds, retry_max_attempts, retry_backoff_millis, paused, pause_reason, metadata_json, last_run_at, next_run_at, created_at, updated_at FROM properties`
 
-// UpsertProperty creates or updates a property record.
+/**
+ * Purpose:
+ * Performs the UpsertProperty operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - UpsertProperty(ctx context.Context, property ingestiondomain.Property) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) UpsertProperty(ctx context.Context, property ingestiondomain.Property) error {
 	requestHeadersJSON := "{}"
 	if len(property.RequestHeaders) > 0 {
@@ -1525,7 +2806,25 @@ func (s *Store) UpsertProperty(ctx context.Context, property ingestiondomain.Pro
 	return nil
 }
 
-// ListProperties returns all known properties ordered by creation time.
+/**
+ * Purpose:
+ * Performs the ListProperties operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - ListProperties(ctx context.Context) ([]ingestiondomain.Property, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) ListProperties(ctx context.Context) ([]ingestiondomain.Property, error) {
 	rows, err := s.db.QueryContext(ctx, propertySelect+` ORDER BY created_at DESC, id DESC`)
 	if err != nil {
@@ -1545,7 +2844,25 @@ func (s *Store) ListProperties(ctx context.Context) ([]ingestiondomain.Property,
 	return items, rows.Err()
 }
 
-// ListDueProperties returns properties whose schedules are ready to run.
+/**
+ * Purpose:
+ * Performs the ListDueProperties operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - ListDueProperties(ctx context.Context, before time.Time, limit int) ([]ingestiondomain.Property, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) ListDueProperties(ctx context.Context, before time.Time, limit int) ([]ingestiondomain.Property, error) {
 	rows, err := s.db.QueryContext(
 		ctx,
@@ -1570,12 +2887,48 @@ func (s *Store) ListDueProperties(ctx context.Context, before time.Time, limit i
 	return items, rows.Err()
 }
 
-// GetProperty returns one property by identifier.
+/**
+ * Purpose:
+ * Performs the GetProperty operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - GetProperty(ctx context.Context, propertyID string) (ingestiondomain.Property, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) GetProperty(ctx context.Context, propertyID string) (ingestiondomain.Property, error) {
 	return scanProperty(s.db.QueryRowContext(ctx, propertySelect+` WHERE id = ?`, propertyID))
 }
 
-// DeleteProperty removes one property and dependent records.
+/**
+ * Purpose:
+ * Performs the DeleteProperty operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - DeleteProperty(ctx context.Context, propertyID string) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) DeleteProperty(ctx context.Context, propertyID string) error {
 	result, err := s.db.ExecContext(ctx, `DELETE FROM properties WHERE id = ?`, propertyID)
 	if err != nil {
@@ -1593,7 +2946,25 @@ func (s *Store) DeleteProperty(ctx context.Context, propertyID string) error {
 	return nil
 }
 
-// UpdatePropertyRunState records the latest ingest timestamps and health status.
+/**
+ * Purpose:
+ * Performs the UpdatePropertyRunState operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - UpdatePropertyRunState(ctx context.Context, propertyID string, status ingestiondomain.PropertyStatus, lastRunAt, nextRunAt *time.Time) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) UpdatePropertyRunState(ctx context.Context, propertyID string, status ingestiondomain.PropertyStatus, lastRunAt, nextRunAt *time.Time) error {
 	_, err := s.db.ExecContext(
 		ctx,
@@ -1611,7 +2982,25 @@ func (s *Store) UpdatePropertyRunState(ctx context.Context, propertyID string, s
 	return nil
 }
 
-// UpsertPropertyConfig saves a new extraction config version for a property.
+/**
+ * Purpose:
+ * Performs the UpsertPropertyConfig operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - UpsertPropertyConfig(ctx context.Context, config ingestiondomain.PropertyExtractionConfig) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) UpsertPropertyConfig(ctx context.Context, config ingestiondomain.PropertyExtractionConfig) error {
 	fieldsJSON, err := json.Marshal(config.Fields)
 	if err != nil {
@@ -1637,8 +3026,25 @@ func (s *Store) UpsertPropertyConfig(ctx context.Context, config ingestiondomain
 	return nil
 }
 
-// GetLatestPropertyConfig returns the most recent config for a property.
-// Returns an empty config (not an error) when no config exists yet.
+/**
+ * Purpose:
+ * Performs the GetLatestPropertyConfig operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - GetLatestPropertyConfig(ctx context.Context, propertyID string) (ingestiondomain.PropertyExtractionConfig, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) GetLatestPropertyConfig(ctx context.Context, propertyID string) (ingestiondomain.PropertyExtractionConfig, error) {
 	row := s.db.QueryRowContext(
 		ctx,
@@ -1659,7 +3065,25 @@ func (s *Store) GetLatestPropertyConfig(ctx context.Context, propertyID string) 
 	return config, nil
 }
 
-// ListPropertyConfigs returns all config versions for a property.
+/**
+ * Purpose:
+ * Performs the ListPropertyConfigs operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - ListPropertyConfigs(ctx context.Context, propertyID string) ([]ingestiondomain.PropertyExtractionConfig, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) ListPropertyConfigs(ctx context.Context, propertyID string) ([]ingestiondomain.PropertyExtractionConfig, error) {
 	rows, err := s.db.QueryContext(
 		ctx,
@@ -1686,7 +3110,25 @@ func (s *Store) ListPropertyConfigs(ctx context.Context, propertyID string) ([]i
 	return items, rows.Err()
 }
 
-// GetPropertyConfigVersion returns one config version for a property.
+/**
+ * Purpose:
+ * Performs the GetPropertyConfigVersion operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - GetPropertyConfigVersion(ctx context.Context, propertyID string, version int) (ingestiondomain.PropertyExtractionConfig, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) GetPropertyConfigVersion(ctx context.Context, propertyID string, version int) (ingestiondomain.PropertyExtractionConfig, error) {
 	row := s.db.QueryRowContext(
 		ctx,
@@ -1700,7 +3142,25 @@ func (s *Store) GetPropertyConfigVersion(ctx context.Context, propertyID string,
 	return scanPropertyConfig(row)
 }
 
-// CreatePropertySnapshot records one extraction snapshot for a property.
+/**
+ * Purpose:
+ * Performs the CreatePropertySnapshot operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - CreatePropertySnapshot(ctx context.Context, snapshot ingestiondomain.PropertySnapshot) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) CreatePropertySnapshot(ctx context.Context, snapshot ingestiondomain.PropertySnapshot) error {
 	valuesJSON := string(snapshot.Values)
 	if valuesJSON == "" {
@@ -1736,7 +3196,25 @@ func (s *Store) CreatePropertySnapshot(ctx context.Context, snapshot ingestiondo
 	return nil
 }
 
-// ListPropertySnapshots returns the most recent snapshots for a property.
+/**
+ * Purpose:
+ * Performs the ListPropertySnapshots operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - ListPropertySnapshots(ctx context.Context, propertyID string, limit int) ([]ingestiondomain.PropertySnapshot, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) ListPropertySnapshots(ctx context.Context, propertyID string, limit int) ([]ingestiondomain.PropertySnapshot, error) {
 	if limit <= 0 {
 		limit = 20
@@ -1765,7 +3243,25 @@ func (s *Store) ListPropertySnapshots(ctx context.Context, propertyID string, li
 	return items, rows.Err()
 }
 
-// ListAllPropertySnapshots returns recent snapshots across all properties.
+/**
+ * Purpose:
+ * Performs the ListAllPropertySnapshots operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - ListAllPropertySnapshots(ctx context.Context, propertyID string, limit int) ([]ingestiondomain.PropertySnapshot, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) ListAllPropertySnapshots(ctx context.Context, propertyID string, limit int) ([]ingestiondomain.PropertySnapshot, error) {
 	if limit <= 0 {
 		limit = 20
@@ -1798,7 +3294,25 @@ func (s *Store) ListAllPropertySnapshots(ctx context.Context, propertyID string,
 	return items, rows.Err()
 }
 
-// GetPropertySnapshot returns one snapshot by identifier.
+/**
+ * Purpose:
+ * Performs the GetPropertySnapshot operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - GetPropertySnapshot(ctx context.Context, snapshotID string) (ingestiondomain.PropertySnapshot, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) GetPropertySnapshot(ctx context.Context, snapshotID string) (ingestiondomain.PropertySnapshot, error) {
 	return scanPropertySnapshot(s.db.QueryRowContext(
 		ctx,
@@ -1807,7 +3321,25 @@ func (s *Store) GetPropertySnapshot(ctx context.Context, snapshotID string) (ing
 	))
 }
 
-// DeletePropertySnapshot removes one property snapshot.
+/**
+ * Purpose:
+ * Performs the DeletePropertySnapshot operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - DeletePropertySnapshot(ctx context.Context, snapshotID string) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) DeletePropertySnapshot(ctx context.Context, snapshotID string) error {
 	result, err := s.db.ExecContext(ctx, `DELETE FROM property_snapshots WHERE id = ?`, snapshotID)
 	if err != nil {
@@ -1825,7 +3357,25 @@ func (s *Store) DeletePropertySnapshot(ctx context.Context, snapshotID string) e
 	return nil
 }
 
-// GetLastValidPropertySnapshot returns the most recent valid snapshot for a property.
+/**
+ * Purpose:
+ * Performs the GetLastValidPropertySnapshot operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - GetLastValidPropertySnapshot(ctx context.Context, propertyID string) (ingestiondomain.PropertySnapshot, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) GetLastValidPropertySnapshot(ctx context.Context, propertyID string) (ingestiondomain.PropertySnapshot, error) {
 	snapshot, err := scanPropertySnapshot(s.db.QueryRowContext(
 		ctx,
@@ -1839,7 +3389,25 @@ func (s *Store) GetLastValidPropertySnapshot(ctx context.Context, propertyID str
 	return snapshot, err
 }
 
-// GetLatestPropertySnapshots returns up to n most-recent snapshots for a property (any validity).
+/**
+ * Purpose:
+ * Performs the GetLatestPropertySnapshots operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - GetLatestPropertySnapshots(ctx context.Context, propertyID string, n int) ([]ingestiondomain.PropertySnapshot, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) GetLatestPropertySnapshots(ctx context.Context, propertyID string, n int) ([]ingestiondomain.PropertySnapshot, error) {
 	if n <= 0 {
 		n = 2
@@ -1866,6 +3434,25 @@ func (s *Store) GetLatestPropertySnapshots(ctx context.Context, propertyID strin
 	return items, rows.Err()
 }
 
+/**
+ * Purpose:
+ * Performs the scanProperty operation for this backend package.
+ *
+ * Parameters:
+ * - s scanner
+ *
+ * Returns:
+ * - (ingestiondomain.Property, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func scanProperty(s scanner) (ingestiondomain.Property, error) {
 	var (
 		property             ingestiondomain.Property
@@ -1949,6 +3536,25 @@ func scanProperty(s scanner) (ingestiondomain.Property, error) {
 	return property, nil
 }
 
+/**
+ * Purpose:
+ * Performs the scanPropertySnapshot operation for this backend package.
+ *
+ * Parameters:
+ * - s scanner
+ *
+ * Returns:
+ * - (ingestiondomain.PropertySnapshot, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func scanPropertySnapshot(s scanner) (ingestiondomain.PropertySnapshot, error) {
 	var (
 		snapshot                    ingestiondomain.PropertySnapshot
@@ -1986,7 +3592,25 @@ func scanPropertySnapshot(s scanner) (ingestiondomain.PropertySnapshot, error) {
 	return snapshot, nil
 }
 
-// CreateTag inserts a new tag.
+/**
+ * Purpose:
+ * Performs the CreateTag operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - CreateTag(ctx context.Context, tag ingestiondomain.Tag) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) CreateTag(ctx context.Context, tag ingestiondomain.Tag) error {
 	_, err := s.db.ExecContext(
 		ctx,
@@ -2003,7 +3627,25 @@ func (s *Store) CreateTag(ctx context.Context, tag ingestiondomain.Tag) error {
 	return nil
 }
 
-// GetTagByName returns a tag by its name (case-insensitive).
+/**
+ * Purpose:
+ * Performs the GetTagByName operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - GetTagByName(ctx context.Context, name string) (ingestiondomain.Tag, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) GetTagByName(ctx context.Context, name string) (ingestiondomain.Tag, error) {
 	tag, err := scanTag(s.db.QueryRowContext(
 		ctx,
@@ -2016,7 +3658,25 @@ func (s *Store) GetTagByName(ctx context.Context, name string) (ingestiondomain.
 	return tag, nil
 }
 
-// GetTag returns a tag by its ID.
+/**
+ * Purpose:
+ * Performs the GetTag operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - GetTag(ctx context.Context, tagID string) (ingestiondomain.Tag, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) GetTag(ctx context.Context, tagID string) (ingestiondomain.Tag, error) {
 	tag, err := scanTag(s.db.QueryRowContext(
 		ctx,
@@ -2029,7 +3689,25 @@ func (s *Store) GetTag(ctx context.Context, tagID string) (ingestiondomain.Tag, 
 	return tag, nil
 }
 
-// ListTags returns all tags ordered by name.
+/**
+ * Purpose:
+ * Performs the ListTags operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - ListTags(ctx context.Context) ([]ingestiondomain.Tag, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) ListTags(ctx context.Context) ([]ingestiondomain.Tag, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT id, name, color, created_at, updated_at FROM tags ORDER BY name ASC, id ASC`)
 	if err != nil {
@@ -2049,7 +3727,25 @@ func (s *Store) ListTags(ctx context.Context) ([]ingestiondomain.Tag, error) {
 	return tags, rows.Err()
 }
 
-// DeleteTag removes a tag and its property associations.
+/**
+ * Purpose:
+ * Performs the DeleteTag operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - DeleteTag(ctx context.Context, tagID string) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) DeleteTag(ctx context.Context, tagID string) error {
 	result, err := s.db.ExecContext(ctx, `DELETE FROM tags WHERE id = ?`, tagID)
 	if err != nil {
@@ -2067,7 +3763,25 @@ func (s *Store) DeleteTag(ctx context.Context, tagID string) error {
 	return nil
 }
 
-// AssignTags replaces the full set of tags for a property (idempotent).
+/**
+ * Purpose:
+ * Performs the AssignTags operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - AssignTags(ctx context.Context, propertyID string, tagIDs []string) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) AssignTags(ctx context.Context, propertyID string, tagIDs []string) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -2103,7 +3817,25 @@ func (s *Store) AssignTags(ctx context.Context, propertyID string, tagIDs []stri
 	return nil
 }
 
-// AddPropertyTag adds a single tag to a property.
+/**
+ * Purpose:
+ * Performs the AddPropertyTag operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - AddPropertyTag(ctx context.Context, propertyID, tagID string) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) AddPropertyTag(ctx context.Context, propertyID, tagID string) error {
 	now := formatTime(time.Now().UTC())
 	_, err := s.db.ExecContext(
@@ -2119,7 +3851,25 @@ func (s *Store) AddPropertyTag(ctx context.Context, propertyID, tagID string) er
 	return nil
 }
 
-// RemovePropertyTag removes a single tag from a property.
+/**
+ * Purpose:
+ * Performs the RemovePropertyTag operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - RemovePropertyTag(ctx context.Context, propertyID, tagID string) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) RemovePropertyTag(ctx context.Context, propertyID, tagID string) error {
 	_, err := s.db.ExecContext(
 		ctx,
@@ -2133,7 +3883,25 @@ func (s *Store) RemovePropertyTag(ctx context.Context, propertyID, tagID string)
 	return nil
 }
 
-// ListPropertyTags returns all tags assigned to a property.
+/**
+ * Purpose:
+ * Performs the ListPropertyTags operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - ListPropertyTags(ctx context.Context, propertyID string) ([]ingestiondomain.Tag, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) ListPropertyTags(ctx context.Context, propertyID string) ([]ingestiondomain.Tag, error) {
 	rows, err := s.db.QueryContext(
 		ctx,
@@ -2161,7 +3929,25 @@ func (s *Store) ListPropertyTags(ctx context.Context, propertyID string) ([]inge
 	return tags, rows.Err()
 }
 
-// ListPropertiesByTagIDs returns property IDs that match the given tags.
+/**
+ * Purpose:
+ * Performs the ListPropertiesByTagIDs operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - ListPropertiesByTagIDs(ctx context.Context, tagIDs []string, matchAll bool) ([]string, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) ListPropertiesByTagIDs(ctx context.Context, tagIDs []string, matchAll bool) ([]string, error) {
 	if len(tagIDs) == 0 {
 		return []string{}, nil
@@ -2214,7 +4000,25 @@ func (s *Store) ListPropertiesByTagIDs(ctx context.Context, tagIDs []string, mat
 	return propertyIDs, rows.Err()
 }
 
-// CreatePropertyRun inserts a new property run.
+/**
+ * Purpose:
+ * Performs the CreatePropertyRun operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - CreatePropertyRun(ctx context.Context, run ingestiondomain.PropertyRun) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) CreatePropertyRun(ctx context.Context, run ingestiondomain.PropertyRun) error {
 	_, err := s.db.ExecContext(
 		ctx,
@@ -2238,7 +4042,25 @@ func (s *Store) CreatePropertyRun(ctx context.Context, run ingestiondomain.Prope
 	return nil
 }
 
-// UpdatePropertyRun updates an existing property run.
+/**
+ * Purpose:
+ * Performs the UpdatePropertyRun operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - UpdatePropertyRun(ctx context.Context, run ingestiondomain.PropertyRun) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) UpdatePropertyRun(ctx context.Context, run ingestiondomain.PropertyRun) error {
 	_, err := s.db.ExecContext(
 		ctx,
@@ -2259,7 +4081,25 @@ func (s *Store) UpdatePropertyRun(ctx context.Context, run ingestiondomain.Prope
 	return nil
 }
 
-// ListPropertyRuns returns recent runs for a property.
+/**
+ * Purpose:
+ * Performs the ListPropertyRuns operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - ListPropertyRuns(ctx context.Context, propertyID string, limit int) ([]ingestiondomain.PropertyRun, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) ListPropertyRuns(ctx context.Context, propertyID string, limit int) ([]ingestiondomain.PropertyRun, error) {
 	if limit <= 0 {
 		limit = 50
@@ -2292,7 +4132,25 @@ func (s *Store) ListPropertyRuns(ctx context.Context, propertyID string, limit i
 	return runs, rows.Err()
 }
 
-// GetPropertyRun returns a single property run by ID.
+/**
+ * Purpose:
+ * Performs the GetPropertyRun operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - GetPropertyRun(ctx context.Context, runID string) (ingestiondomain.PropertyRun, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) GetPropertyRun(ctx context.Context, runID string) (ingestiondomain.PropertyRun, error) {
 	run, err := scanPropertyRun(s.db.QueryRowContext(
 		ctx,
@@ -2307,7 +4165,25 @@ func (s *Store) GetPropertyRun(ctx context.Context, runID string) (ingestiondoma
 	return run, nil
 }
 
-// CountRecentPropertyRuns counts runs for a property since a given time.
+/**
+ * Purpose:
+ * Performs the CountRecentPropertyRuns operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - CountRecentPropertyRuns(ctx context.Context, propertyID string, since time.Time) (int, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) CountRecentPropertyRuns(ctx context.Context, propertyID string, since time.Time) (int, error) {
 	var count int
 	err := s.db.QueryRowContext(
@@ -2322,7 +4198,25 @@ func (s *Store) CountRecentPropertyRuns(ctx context.Context, propertyID string, 
 	return count, nil
 }
 
-// GetPlatformSettings returns the singleton platform settings row.
+/**
+ * Purpose:
+ * Performs the GetPlatformSettings operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - GetPlatformSettings(ctx context.Context) (platformopsdomain.PlatformSettings, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) GetPlatformSettings(ctx context.Context) (platformopsdomain.PlatformSettings, error) {
 	row := s.db.QueryRowContext(
 		ctx,
@@ -2404,7 +4298,25 @@ func (s *Store) GetPlatformSettings(ctx context.Context) (platformopsdomain.Plat
 	return settings, nil
 }
 
-// SavePlatformSettings stores the singleton platform settings row.
+/**
+ * Purpose:
+ * Performs the SavePlatformSettings operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - SavePlatformSettings(ctx context.Context, settings platformopsdomain.PlatformSettings) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) SavePlatformSettings(ctx context.Context, settings platformopsdomain.PlatformSettings) error {
 	if strings.TrimSpace(settings.ID) == "" {
 		settings.ID = "platform"
@@ -2468,7 +4380,25 @@ func (s *Store) SavePlatformSettings(ctx context.Context, settings platformopsdo
 	return nil
 }
 
-// CreateIntegrationDeliveryLog records one delivery attempt.
+/**
+ * Purpose:
+ * Performs the CreateIntegrationDeliveryLog operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - CreateIntegrationDeliveryLog(ctx context.Context, log platformopsdomain.IntegrationDeliveryLog) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) CreateIntegrationDeliveryLog(ctx context.Context, log platformopsdomain.IntegrationDeliveryLog) error {
 	_, err := s.db.ExecContext(
 		ctx,
@@ -2492,7 +4422,25 @@ func (s *Store) CreateIntegrationDeliveryLog(ctx context.Context, log platformop
 	return nil
 }
 
-// ListIntegrationDeliveryLogs returns recent integration activity.
+/**
+ * Purpose:
+ * Performs the ListIntegrationDeliveryLogs operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - ListIntegrationDeliveryLogs(ctx context.Context, limit int) ([]platformopsdomain.IntegrationDeliveryLog, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) ListIntegrationDeliveryLogs(ctx context.Context, limit int) ([]platformopsdomain.IntegrationDeliveryLog, error) {
 	if limit <= 0 {
 		limit = 50
@@ -2560,7 +4508,25 @@ func (s *Store) ListIntegrationDeliveryLogs(ctx context.Context, limit int) ([]p
 	return items, rows.Err()
 }
 
-// CountProperties returns the total property count.
+/**
+ * Purpose:
+ * Performs the CountProperties operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - CountProperties(ctx context.Context) (int, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) CountProperties(ctx context.Context) (int, error) {
 	var count int
 	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM properties`).Scan(&count); err != nil {
@@ -2569,7 +4535,25 @@ func (s *Store) CountProperties(ctx context.Context) (int, error) {
 	return count, nil
 }
 
-// CountPausedProperties returns the total paused property count.
+/**
+ * Purpose:
+ * Performs the CountPausedProperties operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - CountPausedProperties(ctx context.Context) (int, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) CountPausedProperties(ctx context.Context) (int, error) {
 	var count int
 	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM properties WHERE paused = 1`).Scan(&count); err != nil {
@@ -2578,7 +4562,25 @@ func (s *Store) CountPausedProperties(ctx context.Context) (int, error) {
 	return count, nil
 }
 
-// CountDueProperties returns properties that are currently runnable.
+/**
+ * Purpose:
+ * Performs the CountDueProperties operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - CountDueProperties(ctx context.Context, before time.Time) (int, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) CountDueProperties(ctx context.Context, before time.Time) (int, error) {
 	var count int
 	if err := s.db.QueryRowContext(
@@ -2591,7 +4593,25 @@ func (s *Store) CountDueProperties(ctx context.Context, before time.Time) (int, 
 	return count, nil
 }
 
-// CountPropertyRunsSince returns total and failed run counts since the given time.
+/**
+ * Purpose:
+ * Performs the CountPropertyRunsSince operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - CountPropertyRunsSince(ctx context.Context, since time.Time) (int, int, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) CountPropertyRunsSince(ctx context.Context, since time.Time) (int, int, error) {
 	var total, failed int
 	if err := s.db.QueryRowContext(
@@ -2604,6 +4624,25 @@ func (s *Store) CountPropertyRunsSince(ctx context.Context, since time.Time) (in
 	return total, failed, nil
 }
 
+/**
+ * Purpose:
+ * Performs the scanTag operation for this backend package.
+ *
+ * Parameters:
+ * - s scanner
+ *
+ * Returns:
+ * - (ingestiondomain.Tag, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func scanTag(s scanner) (ingestiondomain.Tag, error) {
 	var (
 		tag                  ingestiondomain.Tag
@@ -2633,6 +4672,25 @@ func scanTag(s scanner) (ingestiondomain.Tag, error) {
 	return tag, nil
 }
 
+/**
+ * Purpose:
+ * Performs the scanPropertyRun operation for this backend package.
+ *
+ * Parameters:
+ * - s scanner
+ *
+ * Returns:
+ * - (ingestiondomain.PropertyRun, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func scanPropertyRun(s scanner) (ingestiondomain.PropertyRun, error) {
 	var (
 		run                      ingestiondomain.PropertyRun

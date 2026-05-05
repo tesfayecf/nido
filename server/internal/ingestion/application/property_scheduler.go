@@ -1,3 +1,40 @@
+/**
+ * File: internal/ingestion/application/property_scheduler.go
+ *
+ * Purpose:
+ * Coordinates application-level backend use cases, validation, and persistence boundaries.
+ *
+ * Responsibilities:
+ * - Apply business rules
+ * - Coordinate repositories and domain models
+ * - Return typed results for transport layers
+ *
+ * Inputs:
+ * - Function parameters, HTTP payloads, environment settings, or repository data as accepted by this file.
+ *
+ * Outputs:
+ * - Typed Go values, HTTP responses, persisted records, or test assertions produced by this file.
+ *
+ * Dependencies:
+ * - context
+ * - crypto/rand
+ * - log/slog
+ * - math
+ * - math/big
+ * - net/url
+ * - sync
+ * - time
+ * - nido/server/internal/engine
+ * - nido/server/internal/ingestion/domain
+ * - nido/server/internal/platform/id
+ *
+ * Side Effects:
+ * - May perform database, network, filesystem, logging, scheduler, or HTTP response effects through collaborators.
+ *
+ * Critical Notes:
+ * - Keep this documentation synchronized with behavior changes and cross-package contracts.
+ */
+
 package application
 
 import (
@@ -15,7 +52,30 @@ import (
 	"nido/server/internal/platform/id"
 )
 
-// PropertySchedulerStore defines the persistence contract for PropertyScheduler.
+/**
+ * @critical
+ * Description: Property scheduling coordinates global and per-domain concurrency for background ingestion runs.
+ * Why critical: Duplicate or excessive scheduling can overload external sources and create stale or conflicting run state.
+ * What can break: Property refresh cadence, source rate-limit compliance, run status accuracy, and downstream notifications.
+ * Failure conditions: Multiple writer processes, long-running fetches, disabled locks, or concurrency settings above source capacity.
+ */
+
+/**
+ * Purpose:
+ * Defines the PropertySchedulerStore interface used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type PropertySchedulerStore interface {
 	ListDueProperties(ctx context.Context, before time.Time, limit int) ([]ingestiondomain.Property, error)
 	GetProperty(ctx context.Context, propertyID string) (ingestiondomain.Property, error)
@@ -25,19 +85,64 @@ type PropertySchedulerStore interface {
 	CountRecentPropertyRuns(ctx context.Context, propertyID string, since time.Time) (int, error)
 }
 
-// PropertyRunner executes property ingestion runs.
+/**
+ * Purpose:
+ * Defines the PropertyRunner interface used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type PropertyRunner interface {
 	IngestPropertyOnce(ctx context.Context, propertyID string, attemptNum int, runID string) (ingestiondomain.PropertySnapshot, error)
 }
 
-// PropertySchedulerConfig holds configuration for the property scheduler.
+/**
+ * Purpose:
+ * Defines the PropertySchedulerConfig struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type PropertySchedulerConfig struct {
 	TickInterval         time.Duration
 	GlobalConcurrency    int
 	PerDomainConcurrency int
 }
 
-// PropertyScheduler periodically checks for due properties and schedules them for ingestion.
+/**
+ * Purpose:
+ * Defines the PropertyScheduler struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type PropertyScheduler struct {
 	logger *slog.Logger
 	store  PropertySchedulerStore
@@ -57,7 +162,25 @@ type PropertyScheduler struct {
 	done   chan struct{}
 }
 
-// NewPropertyScheduler creates a new property scheduler.
+/**
+ * Purpose:
+ * Performs the NewPropertyScheduler operation for this backend package.
+ *
+ * Parameters:
+ * - logger *slog.Logger, store PropertySchedulerStore, runner PropertyRunner, clock Clock, events Publisher, config PropertySchedulerConfig
+ *
+ * Returns:
+ * - *PropertyScheduler
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func NewPropertyScheduler(
 	logger *slog.Logger,
 	store PropertySchedulerStore,
@@ -100,7 +223,25 @@ func NewPropertyScheduler(
 	}
 }
 
-// Start begins the scheduling loop.
+/**
+ * Purpose:
+ * Performs the Start operation for this backend package.
+ *
+ * Parameters:
+ * - s *PropertyScheduler
+ *
+ * Returns:
+ * - Start()
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *PropertyScheduler) Start() {
 	go func() {
 		defer close(s.done)
@@ -119,12 +260,49 @@ func (s *PropertyScheduler) Start() {
 	}()
 }
 
-// Stop gracefully shuts down the scheduler.
+/**
+ * Purpose:
+ * Performs the Stop operation for this backend package.
+ *
+ * Parameters:
+ * - s *PropertyScheduler
+ *
+ * Returns:
+ * - Stop()
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *PropertyScheduler) Stop() {
 	s.cancel()
 	<-s.done
 }
 
+/**
+ * Purpose:
+ * Performs the tick operation for this backend package.
+ *
+ * Parameters:
+ * - s *PropertyScheduler
+ *
+ * Returns:
+ * - tick()
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *PropertyScheduler) tick() {
 	if !s.Enabled() {
 		return
@@ -165,33 +343,125 @@ func (s *PropertyScheduler) tick() {
 	}
 }
 
-// SetEnabled toggles whether the scheduler should enqueue new work.
+/**
+ * Purpose:
+ * Performs the SetEnabled operation for this backend package.
+ *
+ * Parameters:
+ * - s *PropertyScheduler
+ *
+ * Returns:
+ * - SetEnabled(enabled bool)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *PropertyScheduler) SetEnabled(enabled bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.enabled = enabled
 }
 
-// Enabled reports whether the scheduler may enqueue new work.
+/**
+ * Purpose:
+ * Performs the Enabled operation for this backend package.
+ *
+ * Parameters:
+ * - s *PropertyScheduler
+ *
+ * Returns:
+ * - Enabled() bool
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *PropertyScheduler) Enabled() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.enabled
 }
 
-// RunningCount returns the number of properties currently in-flight.
+/**
+ * Purpose:
+ * Performs the RunningCount operation for this backend package.
+ *
+ * Parameters:
+ * - s *PropertyScheduler
+ *
+ * Returns:
+ * - RunningCount() int
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *PropertyScheduler) RunningCount() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return len(s.runningProperties)
 }
 
+/**
+ * Purpose:
+ * Performs the isRunning operation for this backend package.
+ *
+ * Parameters:
+ * - s *PropertyScheduler
+ *
+ * Returns:
+ * - isRunning(propertyID string) bool
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *PropertyScheduler) isRunning(propertyID string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.runningProperties[propertyID]
 }
 
+/**
+ * Purpose:
+ * Performs the markRunning operation for this backend package.
+ *
+ * Parameters:
+ * - s *PropertyScheduler
+ *
+ * Returns:
+ * - markRunning(propertyID string, running bool)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *PropertyScheduler) markRunning(propertyID string, running bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -202,6 +472,25 @@ func (s *PropertyScheduler) markRunning(propertyID string, running bool) {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the isDuplicateRun operation for this backend package.
+ *
+ * Parameters:
+ * - s *PropertyScheduler
+ *
+ * Returns:
+ * - isDuplicateRun(property ingestiondomain.Property) bool
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *PropertyScheduler) isDuplicateRun(property ingestiondomain.Property) bool {
 	if property.LastRunAt == nil {
 		return false
@@ -217,6 +506,25 @@ func (s *PropertyScheduler) isDuplicateRun(property ingestiondomain.Property) bo
 	return timeSinceLastRun < idempotencyWindow
 }
 
+/**
+ * Purpose:
+ * Performs the schedulePropertyRun operation for this backend package.
+ *
+ * Parameters:
+ * - s *PropertyScheduler
+ *
+ * Returns:
+ * - schedulePropertyRun(property ingestiondomain.Property)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *PropertyScheduler) schedulePropertyRun(property ingestiondomain.Property) {
 	s.emit("run.scheduled", map[string]any{
 		"property_id":  property.ID,
@@ -229,6 +537,25 @@ func (s *PropertyScheduler) schedulePropertyRun(property ingestiondomain.Propert
 	})
 }
 
+/**
+ * Purpose:
+ * Performs the executePropertyRun operation for this backend package.
+ *
+ * Parameters:
+ * - s *PropertyScheduler
+ *
+ * Returns:
+ * - executePropertyRun(property ingestiondomain.Property)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *PropertyScheduler) executePropertyRun(property ingestiondomain.Property) {
 	defer s.markRunning(property.ID, false)
 
@@ -247,6 +574,25 @@ func (s *PropertyScheduler) executePropertyRun(property ingestiondomain.Property
 	s.runWithRetries(s.ctx, property, ingestiondomain.TriggerKindScheduled)
 }
 
+/**
+ * Purpose:
+ * Performs the runWithRetries operation for this backend package.
+ *
+ * Parameters:
+ * - s *PropertyScheduler
+ *
+ * Returns:
+ * - runWithRetries(ctx context.Context, property ingestiondomain.Property, triggerKind string)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *PropertyScheduler) runWithRetries(ctx context.Context, property ingestiondomain.Property, triggerKind string) {
 	now := s.clock.Now().UTC()
 	maxAttempts := property.RetryAttempts()
@@ -372,6 +718,25 @@ func (s *PropertyScheduler) runWithRetries(ctx context.Context, property ingesti
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the calculateBackoff operation for this backend package.
+ *
+ * Parameters:
+ * - s *PropertyScheduler
+ *
+ * Returns:
+ * - calculateBackoff(attempt int, baseBackoff time.Duration) time.Duration
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *PropertyScheduler) calculateBackoff(attempt int, baseBackoff time.Duration) time.Duration {
 	if baseBackoff <= 0 {
 		baseBackoff = 500 * time.Millisecond
@@ -406,6 +771,25 @@ func (s *PropertyScheduler) calculateBackoff(attempt int, baseBackoff time.Durat
 	return time.Duration(finalBackoff)
 }
 
+/**
+ * Purpose:
+ * Performs the extractDomain operation for this backend package.
+ *
+ * Parameters:
+ * - s *PropertyScheduler
+ *
+ * Returns:
+ * - extractDomain(rawURL string) string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *PropertyScheduler) extractDomain(rawURL string) string {
 	parsed, err := url.Parse(rawURL)
 	if err != nil {
@@ -414,6 +798,25 @@ func (s *PropertyScheduler) extractDomain(rawURL string) string {
 	return parsed.Host
 }
 
+/**
+ * Purpose:
+ * Performs the getDomainSemaphore operation for this backend package.
+ *
+ * Parameters:
+ * - s *PropertyScheduler
+ *
+ * Returns:
+ * - getDomainSemaphore(domain string) chan struct
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *PropertyScheduler) getDomainSemaphore(domain string) chan struct{} {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -427,12 +830,50 @@ func (s *PropertyScheduler) getDomainSemaphore(domain string) chan struct{} {
 	return sem
 }
 
+/**
+ * Purpose:
+ * Performs the emit operation for this backend package.
+ *
+ * Parameters:
+ * - s *PropertyScheduler
+ *
+ * Returns:
+ * - emit(eventType string, data map[string]any)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *PropertyScheduler) emit(eventType string, data map[string]any) {
 	if s.events != nil {
 		s.events.Publish(eventType, data)
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the advancePropertyRunAt operation for this backend package.
+ *
+ * Parameters:
+ * - now time.Time, scheduledAt *time.Time, interval time.Duration
+ *
+ * Returns:
+ * - *time.Time
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func advancePropertyRunAt(now time.Time, scheduledAt *time.Time, interval time.Duration) *time.Time {
 	if interval <= 0 {
 		return nil

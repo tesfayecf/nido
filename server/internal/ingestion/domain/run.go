@@ -1,3 +1,31 @@
+/**
+ * File: internal/ingestion/domain/run.go
+ *
+ * Purpose:
+ * Defines domain data structures and normalization rules for this backend area.
+ *
+ * Responsibilities:
+ * - Define data contracts
+ * - Normalize values used across layers
+ * - Keep business terminology centralized
+ *
+ * Inputs:
+ * - Function parameters, HTTP payloads, environment settings, or repository data as accepted by this file.
+ *
+ * Outputs:
+ * - Typed Go values, HTTP responses, persisted records, or test assertions produced by this file.
+ *
+ * Dependencies:
+ * - encoding/json
+ * - time
+ *
+ * Side Effects:
+ * - None beyond in-memory transformations unless called dependencies perform effects.
+ *
+ * Critical Notes:
+ * - Keep this documentation synchronized with behavior changes and cross-package contracts.
+ */
+
 package domain
 
 import (
@@ -5,7 +33,22 @@ import (
 	"time"
 )
 
-// RunStatus describes the current state of an ingestion run.
+/**
+ * Purpose:
+ * Defines the RunStatus type alias or composite type used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type RunStatus string
 
 const (
@@ -24,7 +67,22 @@ const (
 	TriggerKindScheduled = "scheduled"
 )
 
-// Run tracks a single ingestion execution.
+/**
+ * Purpose:
+ * Defines the Run struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type Run struct {
 	ID                 string          `json:"id"`
 	SourceID           string          `json:"source_id"`
@@ -41,7 +99,22 @@ type Run struct {
 	ErrorMessage       string          `json:"error_message,omitempty"`
 }
 
-// CandidateListing is the normalized listing shape produced by a source parser.
+/**
+ * Purpose:
+ * Defines the CandidateListing struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type CandidateListing struct {
 	ExternalID  string
 	Title       string
@@ -51,7 +124,22 @@ type CandidateListing struct {
 	URL         string
 }
 
-// Artifact captures the metadata stored for a raw source payload.
+/**
+ * Purpose:
+ * Defines the Artifact struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type Artifact struct {
 	Key         string
 	SourceID    string
@@ -63,7 +151,22 @@ type Artifact struct {
 	CreatedAt   time.Time
 }
 
-// ListingChange captures user-visible changes detected during reconciliation.
+/**
+ * Purpose:
+ * Defines the ListingChange struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type ListingChange struct {
 	ListingID      string
 	SourceID       string

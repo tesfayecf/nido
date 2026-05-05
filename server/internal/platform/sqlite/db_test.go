@@ -1,3 +1,37 @@
+/**
+ * File: internal/platform/sqlite/db_test.go
+ *
+ * Purpose:
+ * Validates the sqlite package behavior covered by db_test.go.
+ *
+ * Responsibilities:
+ * - Set up deterministic test fixtures
+ * - Exercise expected success and failure paths
+ * - Protect backend behavior from regressions
+ *
+ * Inputs:
+ * - Function parameters, HTTP payloads, environment settings, or repository data as accepted by this file.
+ *
+ * Outputs:
+ * - Typed Go values, HTTP responses, persisted records, or test assertions produced by this file.
+ *
+ * Dependencies:
+ * - context
+ * - database/sql
+ * - os
+ * - path/filepath
+ * - testing
+ * - time
+ * - nido/server/internal/ingestion/domain
+ * - nido/server/internal/platform/config
+ *
+ * Side Effects:
+ * - May perform database, network, filesystem, logging, scheduler, or HTTP response effects through collaborators.
+ *
+ * Critical Notes:
+ * - Keep this documentation synchronized with behavior changes and cross-package contracts.
+ */
+
 package sqlite
 
 import (
@@ -12,6 +46,25 @@ import (
 	"nido/server/internal/platform/config"
 )
 
+/**
+ * Purpose:
+ * Performs the TestOpenRecoversCorruptDatabaseFile operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestOpenRecoversCorruptDatabaseFile(t *testing.T) {
 	t.Parallel()
 
@@ -59,6 +112,25 @@ func TestOpenRecoversCorruptDatabaseFile(t *testing.T) {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the TestBackupDatabaseCreatesVersionedRestorableFile operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestBackupDatabaseCreatesVersionedRestorableFile(t *testing.T) {
 	t.Parallel()
 
@@ -90,6 +162,25 @@ func TestBackupDatabaseCreatesVersionedRestorableFile(t *testing.T) {
 	assertTableCount(t, restored, "sources", 1)
 }
 
+/**
+ * Purpose:
+ * Performs the TestMigrateMarksSchemaVersion operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestMigrateMarksSchemaVersion(t *testing.T) {
 	t.Parallel()
 
@@ -112,6 +203,25 @@ func TestMigrateMarksSchemaVersion(t *testing.T) {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the TestResetWorkspaceClearsDataTransactionally operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestResetWorkspaceClearsDataTransactionally(t *testing.T) {
 	t.Parallel()
 
@@ -136,6 +246,25 @@ func TestResetWorkspaceClearsDataTransactionally(t *testing.T) {
 	assertTableCount(t, db, "platform_settings", 0)
 }
 
+/**
+ * Purpose:
+ * Performs the TestMigrateBackfillsPropertyFieldValuesOnExistingSnapshots operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestMigrateBackfillsPropertyFieldValuesOnExistingSnapshots(t *testing.T) {
 	t.Parallel()
 
@@ -190,6 +319,25 @@ func TestMigrateBackfillsPropertyFieldValuesOnExistingSnapshots(t *testing.T) {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the TestListAnalyticsRecordsAllowsNullSourceID operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestListAnalyticsRecordsAllowsNullSourceID(t *testing.T) {
 	t.Parallel()
 
@@ -240,6 +388,25 @@ func TestListAnalyticsRecordsAllowsNullSourceID(t *testing.T) {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the TestListBookmarksAllowsNullSourceID operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestListBookmarksAllowsNullSourceID(t *testing.T) {
 	t.Parallel()
 
@@ -281,6 +448,25 @@ func TestListBookmarksAllowsNullSourceID(t *testing.T) {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the TestMigratePreservesEngagementDataOnRerun operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestMigratePreservesEngagementDataOnRerun(t *testing.T) {
 	t.Parallel()
 
@@ -326,6 +512,25 @@ func TestMigratePreservesEngagementDataOnRerun(t *testing.T) {
 	assertTableCount(t, db, "notifications", 1)
 }
 
+/**
+ * Purpose:
+ * Performs the TestMigrateRepairsLegacyRoomsFieldDefinitionIDs operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestMigrateRepairsLegacyRoomsFieldDefinitionIDs(t *testing.T) {
 	t.Parallel()
 
@@ -405,6 +610,25 @@ func TestMigrateRepairsLegacyRoomsFieldDefinitionIDs(t *testing.T) {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the TestMigratePreservesPropertyHistoryStateOnRerun operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestMigratePreservesPropertyHistoryStateOnRerun(t *testing.T) {
 	t.Parallel()
 
@@ -468,6 +692,25 @@ func TestMigratePreservesPropertyHistoryStateOnRerun(t *testing.T) {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the assertTableCount operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T, db *sql.DB, tableName string, want int
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func assertTableCount(t *testing.T, db *sql.DB, tableName string, want int) {
 	t.Helper()
 
@@ -480,6 +723,25 @@ func assertTableCount(t *testing.T, db *sql.DB, tableName string, want int) {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the execTestStatement operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T, db *sql.DB, query string, args ...any
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func execTestStatement(t *testing.T, db *sql.DB, query string, args ...any) {
 	t.Helper()
 
