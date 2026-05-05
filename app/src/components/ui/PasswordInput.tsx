@@ -18,7 +18,6 @@
  *
  * Dependencies:
  * - react
- * - react
  * - @/components/ui/Button
  * - @/components/ui/Input
  *

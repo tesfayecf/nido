@@ -17,7 +17,6 @@
  *
  * Dependencies:
  * - react
- * - react
  * - @tanstack/react-query
  * - @/components/ui/Button
  * - @/components/ui/ConfirmDialog

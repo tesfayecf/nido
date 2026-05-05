@@ -18,7 +18,6 @@
  *
  * Dependencies:
  * - react
- * - react
  * - @/components/ui/Input
  * - @/lib/ui/classNames
  *

@@ -17,7 +17,6 @@
  *
  * Dependencies:
  * - react
- * - react
  * - @tanstack/react-query
  * - @tanstack/react-virtual
  * - react-router-dom

@@ -17,7 +17,6 @@
  *
  * Dependencies:
  * - react
- * - react
  * - @tanstack/react-query
  * - react-router-dom
  * - @/features/analytics/AnalyticsChart

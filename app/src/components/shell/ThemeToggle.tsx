@@ -17,7 +17,6 @@
  *
  * Dependencies:
  * - @/hooks/useTheme
- * - @/hooks/useTheme
  *
  * Key Decisions:
  * - Keeps documentation adjacent to the implementation so future changes update behavior and context together.

@@ -19,7 +19,6 @@
  * - @/services/properties/properties.types
  * - @/features/analytics/analytics.utils
  * - @/features/settings/workspaceSettings
- * - @/features/settings/workspaceSettings
  *
  * Key Decisions:
  * - Keeps documentation adjacent to the implementation so future changes update behavior and context together.

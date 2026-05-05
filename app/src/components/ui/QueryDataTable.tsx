@@ -18,7 +18,6 @@
  *
  * Dependencies:
  * - @/components/ui/DataTable
- * - @/components/ui/DataTable
  * - @/components/ui/ErrorBanner
  * - @/components/ui/Skeleton
  *

@@ -18,7 +18,6 @@
  *
  * Dependencies:
  * - react
- * - react
  * - @tanstack/react-virtual
  * - @/components/ui/Button
  * - @/components/ui/EmptyState

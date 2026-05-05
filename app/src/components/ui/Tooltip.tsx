@@ -18,7 +18,6 @@
  *
  * Dependencies:
  * - react
- * - react
  * - @/lib/ui/classNames
  *
  * Key Decisions:

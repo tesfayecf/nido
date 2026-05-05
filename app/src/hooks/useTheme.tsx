@@ -18,7 +18,6 @@
  *
  * Dependencies:
  * - react
- * - react
  *
  * Key Decisions:
  * - Keeps documentation adjacent to the implementation so future changes update behavior and context together.

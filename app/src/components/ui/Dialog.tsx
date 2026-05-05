@@ -18,7 +18,6 @@
  *
  * Dependencies:
  * - react
- * - react
  * - react-dom
  * - @/components/ui/Icon
  * - @/lib/ui/classNames

@@ -18,7 +18,6 @@
  *
  * Dependencies:
  * - react
- * - react
  * - @/components/ui/ContextualHelp
  * - @/lib/ui/classNames
  *
