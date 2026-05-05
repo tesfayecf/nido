@@ -1,3 +1,46 @@
+/**
+ * File: app/src/features/backoffice/RunDetailPage.tsx
+ *
+ * Purpose:
+ * Implements the backoffice feature workflow, including page rendering, user interactions, and frontend data coordination.
+ *
+ * Responsibilities:
+ * - Render accessible React UI for the owning workflow
+ * - Coordinate props, hooks, and service data without leaking implementation details
+ * - Expose predictable outputs for tests and consuming components
+ *
+ * Inputs:
+ * - Imports: react, @tanstack/react-query, react-router-dom, @/components/ui/ActionGroup, @/components/ui/Button, @/components/ui/ConfirmDialog, @/components/ui/DataTable, @/components/ui/EmptyState; additional imports omitted for brevity
+ *
+ * Outputs:
+ * - JSX elements, React context, or route definitions rendered by consuming modules
+ *
+ * Dependencies:
+ * - react
+ * - @tanstack/react-query
+ * - react-router-dom
+ * - @/components/ui/ActionGroup
+ * - @/components/ui/Button
+ * - @/components/ui/ConfirmDialog
+ * - @/components/ui/DataTable
+ * - @/components/ui/EmptyState
+ * - @/components/ui/ErrorBanner
+ * - @/components/ui/KeyValueGrid
+ *
+ * Key Decisions:
+ * - Keeps documentation adjacent to the implementation so future changes update behavior and context together.
+ * - Uses explicit imports and typed boundaries to make ownership traceable from this file in isolation.
+ *
+ * Constraints:
+ * - Documentation must remain synchronized with behavior, tests, and related docs when this file changes.
+ * - Runtime behavior must not depend on comments or documentation-only metadata.
+ *
+ * Related:
+ * - /docs/frontend/documentation-template.md
+ * - /app/docs/features/backoffice.md
+ * - /docs/frontend/architecture-overview.md
+ * - /docs/frontend/codebase-navigation.md
+ */
 import { useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -23,6 +66,13 @@ import { propertyKeys } from "@/services/properties/properties.keys";
 import { listPropertySnapshots } from "@/services/properties/properties.service";
 import type { PropertySnapshot } from "@/services/properties/properties.types";
 
+/**
+ * Purpose: Renders the RunDetailPage UI boundary documented for app/src/features/backoffice/RunDetailPage.tsx.
+ * Rendering logic: Composes typed props, shared UI primitives, and service-derived state into accessible markup.
+ * State management: Uses local React state, external stores, or React Query only where declared in the implementation below.
+ * Side effects: Limits side effects to documented hooks, event handlers, and service calls visible in this module.
+ * Performance: Keeps derived rendering explicit so memoization, virtualization, or loading boundaries can be audited safely.
+ */
 export const RunDetailPage = (): JSX.Element => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();

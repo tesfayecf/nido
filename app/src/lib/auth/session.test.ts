@@ -1,3 +1,44 @@
+/**
+ * File: app/src/lib/auth/session.test.ts
+ *
+ * Purpose:
+ * Validates the documented behavior of session and protects the frontend contract from regressions.
+ *
+ * Responsibilities:
+ * - Arrange representative user or service scenarios
+ * - Assert rendered output, state transitions, or utility return values
+ * - Document regression-sensitive behavior through executable expectations
+ *
+ * Inputs:
+ * - Imports: @tanstack/react-query, vitest, @/lib/auth/session, @/services/auth/auth.keys, @/services/backoffice-runs/runs.keys, @/services/bookmarks/bookmarks.keys, @/services/properties/properties.keys, @/stores/session.store; additional imports omitted for brevity
+ *
+ * Outputs:
+ * - Vitest assertions that pass or fail during automated validation
+ *
+ * Dependencies:
+ * - @tanstack/react-query
+ * - vitest
+ * - @/lib/auth/session
+ * - @/services/auth/auth.keys
+ * - @/services/backoffice-runs/runs.keys
+ * - @/services/bookmarks/bookmarks.keys
+ * - @/services/properties/properties.keys
+ * - @/stores/session.store
+ * - @/stores/shell.store
+ *
+ * Key Decisions:
+ * - Keeps documentation adjacent to the implementation so future changes update behavior and context together.
+ * - Uses explicit imports and typed boundaries to make ownership traceable from this file in isolation.
+ *
+ * Constraints:
+ * - Documentation must remain synchronized with behavior, tests, and related docs when this file changes.
+ * - Runtime behavior must not depend on comments or documentation-only metadata.
+ *
+ * Related:
+ * - /docs/frontend/documentation-template.md
+ * - /docs/frontend/architecture-overview.md
+ * - /docs/frontend/codebase-navigation.md
+ */
 import { QueryClient } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it } from "vitest";
 

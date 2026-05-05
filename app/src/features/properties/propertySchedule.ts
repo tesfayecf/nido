@@ -1,5 +1,44 @@
+/**
+ * File: app/src/features/properties/propertySchedule.ts
+ *
+ * Purpose:
+ * Implements the properties feature workflow, including page rendering, user interactions, and frontend data coordination.
+ *
+ * Responsibilities:
+ * - Define typed frontend behavior for its module boundary
+ * - Keep inputs and outputs explicit for maintainability
+ * - Reference related modules so changes can be traced safely
+ *
+ * Inputs:
+ * - Module imports, constants, browser APIs, or caller-provided parameters as declared below
+ *
+ * Outputs:
+ * - Typed constants, functions, or side effects explicitly exported by this module
+ *
+ * Dependencies:
+ * - TypeScript compiler
+ * - Vite module graph
+ *
+ * Key Decisions:
+ * - Keeps documentation adjacent to the implementation so future changes update behavior and context together.
+ * - Uses explicit imports and typed boundaries to make ownership traceable from this file in isolation.
+ *
+ * Constraints:
+ * - Documentation must remain synchronized with behavior, tests, and related docs when this file changes.
+ * - Runtime behavior must not depend on comments or documentation-only metadata.
+ *
+ * Related:
+ * - /docs/frontend/documentation-template.md
+ * - /app/docs/features/properties.md
+ * - /docs/frontend/architecture-overview.md
+ * - /docs/frontend/codebase-navigation.md
+ */
 export type DurationUnit = "hours" | "minutes" | "seconds";
 
+/**
+ * Documents the DurationDraft type contract used by app/src/features/properties/propertySchedule.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export interface DurationDraft {
     readonly unit: DurationUnit;
     readonly value: string;
@@ -24,6 +63,13 @@ export const SCHEDULE_PRESETS: readonly DurationDraft[] = [
     { unit: "hours", value: "1" },
 ];
 
+/**
+ * Purpose: Executes the durationDraftFromSeconds operation for app/src/features/properties/propertySchedule.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const durationDraftFromSeconds = (seconds?: number): DurationDraft => {
     if (seconds === undefined || seconds <= 0) {
         return { unit: "hours", value: "1" };
@@ -40,6 +86,13 @@ export const durationDraftFromSeconds = (seconds?: number): DurationDraft => {
     return { unit: "seconds", value: String(seconds) };
 };
 
+/**
+ * Purpose: Executes the durationDraftToSeconds operation for app/src/features/properties/propertySchedule.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const durationDraftToSeconds = (value: string, unit: DurationUnit): number | null => {
     const parsedValue = Number(value);
     if (!Number.isInteger(parsedValue) || parsedValue <= 0) {
@@ -49,6 +102,13 @@ export const durationDraftToSeconds = (value: string, unit: DurationUnit): numbe
     return parsedValue * durationUnitSeconds[unit];
 };
 
+/**
+ * Purpose: Executes the formatDurationFromSeconds operation for app/src/features/properties/propertySchedule.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const formatDurationFromSeconds = (seconds?: number): string => {
     if (seconds === undefined || seconds <= 0) {
         return "Manual only";

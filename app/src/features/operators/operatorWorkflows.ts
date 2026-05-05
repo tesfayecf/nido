@@ -1,23 +1,80 @@
+/**
+ * File: app/src/features/operators/operatorWorkflows.ts
+ *
+ * Purpose:
+ * Implements the operators feature workflow, including page rendering, user interactions, and frontend data coordination.
+ *
+ * Responsibilities:
+ * - Define typed frontend behavior for its module boundary
+ * - Keep inputs and outputs explicit for maintainability
+ * - Reference related modules so changes can be traced safely
+ *
+ * Inputs:
+ * - Imports: @/services/notifications/notifications.types, @/services/backoffice-runs/runs.types, @/services/properties/properties.types, @/services/backoffice-sources/sources.types
+ *
+ * Outputs:
+ * - Typed constants, functions, or side effects explicitly exported by this module
+ *
+ * Dependencies:
+ * - @/services/notifications/notifications.types
+ * - @/services/backoffice-runs/runs.types
+ * - @/services/properties/properties.types
+ * - @/services/backoffice-sources/sources.types
+ *
+ * Key Decisions:
+ * - Keeps documentation adjacent to the implementation so future changes update behavior and context together.
+ * - Uses explicit imports and typed boundaries to make ownership traceable from this file in isolation.
+ *
+ * Constraints:
+ * - Documentation must remain synchronized with behavior, tests, and related docs when this file changes.
+ * - Runtime behavior must not depend on comments or documentation-only metadata.
+ *
+ * Related:
+ * - /docs/frontend/documentation-template.md
+ * - /app/docs/features/operators.md
+ * - /docs/frontend/architecture-overview.md
+ * - /docs/frontend/codebase-navigation.md
+ */
 import type { Notification } from "@/services/notifications/notifications.types";
 import type { Run } from "@/services/backoffice-runs/runs.types";
 import type { Property } from "@/services/properties/properties.types";
 import type { Source } from "@/services/backoffice-sources/sources.types";
 
+/**
+ * Documents the SavedViewId type contract used by app/src/features/operators/operatorWorkflows.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export type SavedViewId = "all" | "needs-review" | "failing-now" | "no-successful-run-yet" | "changed-recently" | "high-priority" | "bookmarked";
+/**
+ * Documents the OperatorSeverity type contract used by app/src/features/operators/operatorWorkflows.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export type OperatorSeverity = "critical" | "high" | "medium" | "low";
 
+/**
+ * Documents the SavedViewOption type contract used by app/src/features/operators/operatorWorkflows.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export interface SavedViewOption {
     readonly description: string;
     readonly id: SavedViewId;
     readonly label: string;
 }
 
+/**
+ * Documents the PropertyRunSummary type contract used by app/src/features/operators/operatorWorkflows.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export interface PropertyRunSummary {
     readonly failedCount: number;
     readonly hasSuccessfulRun: boolean;
     readonly latestRun?: Run;
 }
 
+/**
+ * Documents the DashboardSummary type contract used by app/src/features/operators/operatorWorkflows.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export interface DashboardSummary {
     readonly changedRecently: Property[];
     readonly failedRunsLast24Hours: number;
@@ -32,6 +89,10 @@ export interface DashboardSummary {
     readonly unreadNotifications: number;
 }
 
+/**
+ * Documents the TriageItem type contract used by app/src/features/operators/operatorWorkflows.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export interface TriageItem {
     readonly id: string;
     readonly actionLabel: string;
@@ -86,10 +147,24 @@ const HIGH_PRIORITY_TAG_TOKENS = ["high", "high-priority", "high priority", "p1"
 const CHANGED_RECENTLY_HOURS = 72;
 const RECENT_FAILURE_HOURS = 24;
 
+/**
+ * Purpose: Executes the compareDateDescending operation for app/src/features/operators/operatorWorkflows.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const compareDateDescending = (left: string | undefined, right: string | undefined): number => {
     return readDate(right) - readDate(left);
 };
 
+/**
+ * Purpose: Executes the buildPropertyRunSummary operation for app/src/features/operators/operatorWorkflows.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const buildPropertyRunSummary = (runs: readonly Run[]): Map<string, PropertyRunSummary> => {
     const summary = new Map<string, PropertyRunSummary>();
 
@@ -109,10 +184,24 @@ export const buildPropertyRunSummary = (runs: readonly Run[]): Map<string, Prope
     return summary;
 };
 
+/**
+ * Purpose: Executes the mergeBulkTagIds operation for app/src/features/operators/operatorWorkflows.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const mergeBulkTagIds = (currentTagIds: readonly string[], bulkTagIds: readonly string[]): string[] => {
     return Array.from(new Set([...currentTagIds, ...bulkTagIds]));
 };
 
+/**
+ * Purpose: Executes the retainVisibleSelection operation for app/src/features/operators/operatorWorkflows.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const retainVisibleSelection = (selectedPropertyIds: string[], visiblePropertyIds: readonly string[]): string[] => {
     const visibleIds = new Set(visiblePropertyIds);
     const nextSelection = selectedPropertyIds.filter((propertyId) => visibleIds.has(propertyId));
@@ -132,6 +221,13 @@ interface ApplySavedViewOptions {
     readonly viewId: SavedViewId;
 }
 
+/**
+ * Purpose: Executes the applySavedView operation for app/src/features/operators/operatorWorkflows.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const applySavedView = (properties: readonly Property[], options: ApplySavedViewOptions): Property[] => {
     const now = options.now ?? new Date();
 
@@ -169,6 +265,13 @@ interface DashboardSummaryOptions {
     readonly sources: readonly Source[];
 }
 
+/**
+ * Purpose: Executes the buildDashboardSummary operation for app/src/features/operators/operatorWorkflows.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const buildDashboardSummary = ({ notifications, now = new Date(), properties, runs, sources }: DashboardSummaryOptions): DashboardSummary => {
     const sourceNameById = new Map(sources.map((source) => [source.id, source.name]));
     const sourceProblemCounts = new Map<string, number>();
@@ -232,6 +335,13 @@ interface BuildTriageItemsOptions {
     readonly runs: readonly Run[];
 }
 
+/**
+ * Purpose: Executes the buildTriageItems operation for app/src/features/operators/operatorWorkflows.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const buildTriageItems = ({ notifications, properties, runSummaryByPropertyId, runs }: BuildTriageItemsOptions): TriageItem[] => {
     const propertyById = new Map(properties.map((property) => [property.id, property]));
 
@@ -293,6 +403,13 @@ export const buildTriageItems = ({ notifications, properties, runSummaryByProper
     return items.sort((left, right) => severityWeight(right.severity) - severityWeight(left.severity) || compareDateDescending(left.sortAt, right.sortAt));
 };
 
+/**
+ * Purpose: Executes the summarizeEventData operation for app/src/features/operators/operatorWorkflows.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const summarizeEventData = (payload: Record<string, unknown>): string => {
     const keys = ["message", "error", "property_id", "source_id", "run_id", "status", "count"];
     const picked = keys
@@ -312,6 +429,13 @@ export const summarizeEventData = (payload: Record<string, unknown>): string => 
     return entries.map(([key, value]) => `${key}: ${String(value)}`).join(" · ");
 };
 
+/**
+ * Purpose: Executes the eventSeverity operation for app/src/features/operators/operatorWorkflows.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const eventSeverity = (type: string): OperatorSeverity => {
     const normalized = type.toLowerCase();
     if (normalized.includes("failed") || normalized.includes("error")) {
@@ -329,6 +453,13 @@ export const eventSeverity = (type: string): OperatorSeverity => {
     return "low";
 };
 
+/**
+ * Purpose: Executes the eventTone operation for app/src/features/operators/operatorWorkflows.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const eventTone = (type: string): "danger" | "neutral" | "success" | "warning" => {
     const severity = eventSeverity(type);
     switch (severity) {
@@ -343,6 +474,13 @@ export const eventTone = (type: string): "danger" | "neutral" | "success" | "war
     }
 };
 
+/**
+ * Purpose: Executes the readEntityId operation for app/src/features/operators/operatorWorkflows.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const readEntityId = (payload: Record<string, unknown>, key: "property_id" | "run_id" | "source_id"): string => {
     const value = payload[key];
     return typeof value === "string" ? value : "";

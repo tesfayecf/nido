@@ -1,3 +1,38 @@
+/**
+ * File: app/src/styles/base/_globals.scss
+ *
+ * Purpose:
+ * Defines Sass design tokens, base styles, mixins, or component styling consumed by the React UI.
+ *
+ * Responsibilities:
+ * - Define scoped visual rules or design tokens
+ * - Preserve theme-aware styling and responsive behavior
+ * - Avoid runtime side effects by exporting CSS only
+ *
+ * Inputs:
+ * - Imports: ../mixins/layout
+ *
+ * Outputs:
+ * - Compiled CSS classes, custom properties, or mixins consumed by the Vite/Sass pipeline
+ *
+ * Dependencies:
+ * - ../mixins/layout
+ *
+ * Key Decisions:
+ * - Keeps documentation adjacent to the implementation so future changes update behavior and context together.
+ * - Uses explicit imports and typed boundaries to make ownership traceable from this file in isolation.
+ *
+ * Constraints:
+ * - Documentation must remain synchronized with behavior, tests, and related docs when this file changes.
+ * - Runtime behavior must not depend on comments or documentation-only metadata.
+ *
+ * Related:
+ * - /docs/frontend/documentation-template.md
+ * - /app/docs/components.md
+ * - /app/docs/ui-architecture.md
+ * - /docs/frontend/architecture-overview.md
+ * - /docs/frontend/codebase-navigation.md
+ */
 @use "../mixins/layout";
 
 .sr-only {

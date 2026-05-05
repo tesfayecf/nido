@@ -1,3 +1,39 @@
+/**
+ * File: app/src/lib/api/client.ts
+ *
+ * Purpose:
+ * Provides a shared frontend utility that centralizes cross-feature behavior.
+ *
+ * Responsibilities:
+ * - Define typed frontend behavior for its module boundary
+ * - Keep inputs and outputs explicit for maintainability
+ * - Reference related modules so changes can be traced safely
+ *
+ * Inputs:
+ * - Imports: @/lib/api/errors, @/lib/auth/session, @/stores/session.store
+ * - Environment configuration read at runtime or build time
+ *
+ * Outputs:
+ * - Typed constants, functions, or side effects explicitly exported by this module
+ *
+ * Dependencies:
+ * - @/lib/api/errors
+ * - @/lib/auth/session
+ * - @/stores/session.store
+ *
+ * Key Decisions:
+ * - Keeps documentation adjacent to the implementation so future changes update behavior and context together.
+ * - Uses explicit imports and typed boundaries to make ownership traceable from this file in isolation.
+ *
+ * Constraints:
+ * - Documentation must remain synchronized with behavior, tests, and related docs when this file changes.
+ * - Runtime behavior must not depend on comments or documentation-only metadata.
+ *
+ * Related:
+ * - /docs/frontend/documentation-template.md
+ * - /docs/frontend/architecture-overview.md
+ * - /docs/frontend/codebase-navigation.md
+ */
 import { ApiError } from "@/lib/api/errors";
 import { clearAuthenticatedClientState } from "@/lib/auth/session";
 import { useSessionStore } from "@/stores/session.store";
@@ -51,6 +87,11 @@ export const apiRequest = async <TResponse, TBody = unknown>(options: ApiRequest
     if (options.auth === true) {
         const token = useSessionStore.getState().token;
         if (token === null) {
+            /*
+             * Critical point: authenticated requests must fail before fetch when no bearer token exists.
+             * Sending unauthenticated protected requests would produce ambiguous backend errors and leave the
+             * session store out of sync with the UI's auth boundary.
+             */
             throw new ApiError("Authentication required.", 401);
         }
 
@@ -68,6 +109,11 @@ export const apiRequest = async <TResponse, TBody = unknown>(options: ApiRequest
 
     if (!response.ok) {
         if (response.status === 401) {
+            /*
+             * Critical point: a backend 401 invalidates the persisted client session immediately.
+             * Removing this reset would let stale tokens continue driving protected UI state after the server
+             * has rejected the session.
+             */
             clearAuthenticatedClientState();
         }
 

@@ -1,3 +1,38 @@
+/**
+ * File: app/src/components/ui/chartTheme.ts
+ *
+ * Purpose:
+ * Provides a reusable design-system UI building block shared across feature workflows.
+ *
+ * Responsibilities:
+ * - Render accessible React UI for the owning workflow
+ * - Coordinate props, hooks, and service data without leaking implementation details
+ * - Expose predictable outputs for tests and consuming components
+ *
+ * Inputs:
+ * - Imports: react
+ *
+ * Outputs:
+ * - Typed constants, functions, or side effects explicitly exported by this module
+ *
+ * Dependencies:
+ * - react
+ *
+ * Key Decisions:
+ * - Keeps documentation adjacent to the implementation so future changes update behavior and context together.
+ * - Uses explicit imports and typed boundaries to make ownership traceable from this file in isolation.
+ *
+ * Constraints:
+ * - Documentation must remain synchronized with behavior, tests, and related docs when this file changes.
+ * - Runtime behavior must not depend on comments or documentation-only metadata.
+ *
+ * Related:
+ * - /docs/frontend/documentation-template.md
+ * - /app/docs/components.md
+ * - /app/docs/ui-architecture.md
+ * - /docs/frontend/architecture-overview.md
+ * - /docs/frontend/codebase-navigation.md
+ */
 import { useEffect, useState } from "react";
 
 import {
@@ -39,6 +74,13 @@ const isJsdom = (): boolean => {
     return typeof navigator !== "undefined" && navigator.userAgent.toLowerCase().includes("jsdom");
 };
 
+/**
+ * Purpose: Executes the isChartJsdom operation for app/src/components/ui/chartTheme.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const isChartJsdom = (): boolean => {
     return isJsdom();
 };
@@ -69,6 +111,13 @@ const readChartTheme = (): ChartTheme => ({
     text: readCssVariable("--color-text", FALLBACK_THEME.text),
 });
 
+/**
+ * Purpose: Executes the useChartTheme operation for app/src/components/ui/chartTheme.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const useChartTheme = (): ChartTheme => {
     const [theme, setTheme] = useState<ChartTheme>(() => readChartTheme());
 
@@ -99,6 +148,10 @@ interface BaseChartOptions {
     readonly hideYAxis?: boolean;
 }
 
+/**
+ * Documents the createBaseChartOptions module export for app/src/components/ui/chartTheme.ts.
+ * Consumers should treat this export as part of the file contract and update related docs when behavior changes.
+ */
 export const createBaseChartOptions = <TType extends ChartType>(
     theme: ChartTheme,
     options: BaseChartOptions = {},

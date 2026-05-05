@@ -1,3 +1,38 @@
+/**
+ * File: app/src/features/selectors/selectorSchema.ts
+ *
+ * Purpose:
+ * Implements the selectors feature workflow, including page rendering, user interactions, and frontend data coordination.
+ *
+ * Responsibilities:
+ * - Define typed frontend behavior for its module boundary
+ * - Keep inputs and outputs explicit for maintainability
+ * - Reference related modules so changes can be traced safely
+ *
+ * Inputs:
+ * - Module imports, constants, browser APIs, or caller-provided parameters as declared below
+ *
+ * Outputs:
+ * - Typed constants, functions, or side effects explicitly exported by this module
+ *
+ * Dependencies:
+ * - TypeScript compiler
+ * - Vite module graph
+ *
+ * Key Decisions:
+ * - Keeps documentation adjacent to the implementation so future changes update behavior and context together.
+ * - Uses explicit imports and typed boundaries to make ownership traceable from this file in isolation.
+ *
+ * Constraints:
+ * - Documentation must remain synchronized with behavior, tests, and related docs when this file changes.
+ * - Runtime behavior must not depend on comments or documentation-only metadata.
+ *
+ * Related:
+ * - /docs/frontend/documentation-template.md
+ * - /app/docs/features/selectors.md
+ * - /docs/frontend/architecture-overview.md
+ * - /docs/frontend/codebase-navigation.md
+ */
 import type {
     ExtractionMode,
     FieldSelector,
@@ -7,6 +42,10 @@ import type {
     FieldRole,
 } from "@/services/properties/properties.types";
 
+/**
+ * Documents the SelectorFieldDraft type contract used by app/src/features/selectors/selectorSchema.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export interface SelectorFieldDraft {
     readonly attribute: string;
     readonly extractionMode: ExtractionMode;
@@ -61,11 +100,23 @@ interface LegacyFieldSelector {
 
 const DEFAULT_TEXT_MODE: TextMode = "innerText";
 
+/**
+ * Purpose: Executes the normalizeFieldRole operation for app/src/features/selectors/selectorSchema.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const normalizeFieldRole = (role: FieldRole | undefined, fieldName: string): FieldRole => {
     if (role === "tracked" || role === "prefill") {
         return role;
     }
 
+    /*
+     * Critical point: legacy selector payloads did not persist field roles, so price defaults to tracked
+     * while all other fields default to prefill. Changing this rule would alter how imported source
+     * templates update property values during automatic extraction.
+     */
     return fieldName.trim().toLowerCase() === "price" ? "tracked" : "prefill";
 };
 
@@ -105,7 +156,19 @@ const normalizeExtractionMode = (selectorType?: string, extractionMode?: Extract
     return "text";
 };
 
+/**
+ * Purpose: Executes the normalizeFieldSelector operation for app/src/features/selectors/selectorSchema.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const normalizeFieldSelector = (raw: LegacyFieldSelector): FieldSelector => {
+    /*
+     * Critical point: selector arrays from older templates are collapsed into a primary selector plus
+     * fallbacks. Reordering this transformation would make previews and scraper runs target different
+     * DOM nodes than previously saved source templates.
+     */
     const selectors = raw.selectors?.map((selector) => selector.trim()).filter((selector) => selector !== "") ?? [];
     const selectorValue = (raw.selector_value ?? selectors[0] ?? "").trim();
     const extractionMode = normalizeExtractionMode(raw.selector_type, raw.extraction_mode, raw.attribute);
@@ -137,6 +200,13 @@ export const normalizeFieldSelector = (raw: LegacyFieldSelector): FieldSelector 
     };
 };
 
+/**
+ * Purpose: Executes the createEmptySelectorDraft operation for app/src/features/selectors/selectorSchema.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const createEmptySelectorDraft = (): SelectorFieldDraft => ({
     attribute: "",
     extractionMode: "text",
@@ -163,10 +233,24 @@ export const createEmptySelectorDraft = (): SelectorFieldDraft => ({
     templateSignature: undefined,
 });
 
+/**
+ * Purpose: Executes the createDefaultSelectorDrafts operation for app/src/features/selectors/selectorSchema.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const createDefaultSelectorDrafts = (): SelectorFieldDraft[] => [
     { ...createEmptySelectorDraft(), fieldName: "price", fieldRole: "tracked", name: "price", required: true },
 ];
 
+/**
+ * Purpose: Executes the selectorToDraft operation for app/src/features/selectors/selectorSchema.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const selectorToDraft = (selector: FieldSelector): SelectorFieldDraft => ({
     attribute: selector.attribute ?? "",
     extractionMode: selector.extraction_mode,
@@ -193,6 +277,13 @@ export const selectorToDraft = (selector: FieldSelector): SelectorFieldDraft => 
     templateSignature: selector.template_signature,
 });
 
+/**
+ * Purpose: Executes the draftToSelector operation for app/src/features/selectors/selectorSchema.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const draftToSelector = (draft: SelectorFieldDraft): FieldSelector => ({
     attribute: draft.attribute.trim() !== "" ? draft.attribute.trim() : undefined,
     extraction_mode: draft.extractionMode,
@@ -221,6 +312,13 @@ export const draftToSelector = (draft: SelectorFieldDraft): FieldSelector => ({
     template_signature: draft.templateSignature,
 });
 
+/**
+ * Purpose: Executes the buildFieldSelectorSignature operation for app/src/features/selectors/selectorSchema.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const buildFieldSelectorSignature = (field: FieldSelector): string => {
     const {
         property_override: _propertyOverride,
@@ -231,14 +329,29 @@ export const buildFieldSelectorSignature = (field: FieldSelector): string => {
     return JSON.stringify(normalizeFieldSelector(signatureField));
 };
 
+/**
+ * Documents the FieldMappingState type contract used by app/src/features/selectors/selectorSchema.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export type FieldMappingState = "matched" | "overridden" | "stale" | "unmatched";
 
+/**
+ * Documents the FieldMappingStateInfo type contract used by app/src/features/selectors/selectorSchema.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export interface FieldMappingStateInfo {
     readonly reason: string;
     readonly sourceLabel: string;
     readonly state: FieldMappingState;
 }
 
+/**
+ * Purpose: Executes the getFieldMappingState operation for app/src/features/selectors/selectorSchema.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const getFieldMappingState = (
     field: SelectorFieldDraft,
     templateField: FieldSelector | undefined,
@@ -293,6 +406,13 @@ export const getFieldMappingState = (
     };
 };
 
+/**
+ * Purpose: Executes the parseSelectorConfigJson operation for app/src/features/selectors/selectorSchema.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const parseSelectorConfigJson = (configJson?: string): FieldSelector[] => {
     if ((configJson ?? "").trim() === "") {
         return [];
@@ -308,14 +428,35 @@ export const parseSelectorConfigJson = (configJson?: string): FieldSelector[] =>
     return fields.map(normalizeFieldSelector);
 };
 
+/**
+ * Purpose: Executes the stringifySelectorConfigJson operation for app/src/features/selectors/selectorSchema.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const stringifySelectorConfigJson = (fields: FieldSelector[]): string => {
     return JSON.stringify({ fields }, null, 2);
 };
 
+/**
+ * Purpose: Executes the buildPreviewFieldMap operation for app/src/features/selectors/selectorSchema.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const buildPreviewFieldMap = (fields: PropertyPreviewFieldResult[] | undefined): Map<string, PropertyPreviewFieldResult> => {
     return new Map((fields ?? []).map((field) => [field.name, field]));
 };
 
+/**
+ * Purpose: Executes the validateSelectorDrafts operation for app/src/features/selectors/selectorSchema.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const validateSelectorDrafts = (drafts: SelectorFieldDraft[]): string[] => {
     const messages: string[] = [];
     const activeDrafts = drafts.filter((draft) => draft.name.trim() !== "");

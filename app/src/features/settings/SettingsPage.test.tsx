@@ -1,3 +1,43 @@
+/**
+ * File: app/src/features/settings/SettingsPage.test.tsx
+ *
+ * Purpose:
+ * Validates the documented behavior of SettingsPage and protects the frontend contract from regressions.
+ *
+ * Responsibilities:
+ * - Arrange representative user or service scenarios
+ * - Assert rendered output, state transitions, or utility return values
+ * - Document regression-sensitive behavior through executable expectations
+ *
+ * Inputs:
+ * - Imports: @tanstack/react-query, @testing-library/react, vitest, @/components/ui/ToastProvider, @/features/settings/SettingsPage, @/features/settings/workspaceSettings, @/hooks/useTheme
+ *
+ * Outputs:
+ * - Vitest assertions that pass or fail during automated validation
+ *
+ * Dependencies:
+ * - @tanstack/react-query
+ * - @testing-library/react
+ * - vitest
+ * - @/components/ui/ToastProvider
+ * - @/features/settings/SettingsPage
+ * - @/features/settings/workspaceSettings
+ * - @/hooks/useTheme
+ *
+ * Key Decisions:
+ * - Keeps documentation adjacent to the implementation so future changes update behavior and context together.
+ * - Uses explicit imports and typed boundaries to make ownership traceable from this file in isolation.
+ *
+ * Constraints:
+ * - Documentation must remain synchronized with behavior, tests, and related docs when this file changes.
+ * - Runtime behavior must not depend on comments or documentation-only metadata.
+ *
+ * Related:
+ * - /docs/frontend/documentation-template.md
+ * - /app/docs/features/settings.md
+ * - /docs/frontend/architecture-overview.md
+ * - /docs/frontend/codebase-navigation.md
+ */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";

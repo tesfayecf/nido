@@ -1,8 +1,48 @@
+/**
+ * File: app/src/features/settings/settingsBackup.ts
+ *
+ * Purpose:
+ * Implements the settings feature workflow, including page rendering, user interactions, and frontend data coordination.
+ *
+ * Responsibilities:
+ * - Define typed frontend behavior for its module boundary
+ * - Keep inputs and outputs explicit for maintainability
+ * - Reference related modules so changes can be traced safely
+ *
+ * Inputs:
+ * - Imports: @/hooks/useTheme, @/services/backup/backup.types, @/features/settings/workspaceSettings
+ *
+ * Outputs:
+ * - Typed constants, functions, or side effects explicitly exported by this module
+ *
+ * Dependencies:
+ * - @/hooks/useTheme
+ * - @/services/backup/backup.types
+ * - @/features/settings/workspaceSettings
+ *
+ * Key Decisions:
+ * - Keeps documentation adjacent to the implementation so future changes update behavior and context together.
+ * - Uses explicit imports and typed boundaries to make ownership traceable from this file in isolation.
+ *
+ * Constraints:
+ * - Documentation must remain synchronized with behavior, tests, and related docs when this file changes.
+ * - Runtime behavior must not depend on comments or documentation-only metadata.
+ *
+ * Related:
+ * - /docs/frontend/documentation-template.md
+ * - /app/docs/features/settings.md
+ * - /docs/frontend/architecture-overview.md
+ * - /docs/frontend/codebase-navigation.md
+ */
 import type { ThemePreference } from "@/hooks/useTheme";
 import type { WorkspaceDataBackup } from "@/services/backup/backup.types";
 
 import { normalizeWorkspaceSettings, type WorkspaceSettings } from "@/features/settings/workspaceSettings";
 
+/**
+ * Documents the NotificationPreferencesDraft type contract used by app/src/features/settings/settingsBackup.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export interface NotificationPreferencesDraft {
     readonly channels: string[];
     readonly digestMode: boolean;
@@ -12,12 +52,20 @@ export interface NotificationPreferencesDraft {
     readonly severityFloor: string;
 }
 
+/**
+ * Documents the LocalSettingsBackupData type contract used by app/src/features/settings/settingsBackup.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export interface LocalSettingsBackupData {
     readonly notification_preferences: NotificationPreferencesDraft;
     readonly theme_preference: ThemePreference;
     readonly workspace_settings: WorkspaceSettings;
 }
 
+/**
+ * Documents the WorkspaceBackupFile type contract used by app/src/features/settings/settingsBackup.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export interface WorkspaceBackupFile {
     readonly exported_at: string;
     readonly local_settings: LocalSettingsBackupData;
@@ -25,6 +73,10 @@ export interface WorkspaceBackupFile {
     readonly workspace_data: WorkspaceDataBackup;
 }
 
+/**
+ * Documents the LegacySettingsBackupData type contract used by app/src/features/settings/settingsBackup.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export interface LegacySettingsBackupData {
     readonly exported_at: string;
     readonly notification_preferences: NotificationPreferencesDraft;
@@ -33,6 +85,10 @@ export interface LegacySettingsBackupData {
     readonly workspace_settings: WorkspaceSettings;
 }
 
+/**
+ * Documents the ImportedBackup type contract used by app/src/features/settings/settingsBackup.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export type ImportedBackup = {
     readonly kind: "full";
     readonly local_settings: LocalSettingsBackupData;
@@ -42,7 +98,15 @@ export type ImportedBackup = {
     readonly local_settings: LocalSettingsBackupData;
 };
 
+/**
+ * Documents the LEGACY_SETTINGS_BACKUP_VERSION module export for app/src/features/settings/settingsBackup.ts.
+ * Consumers should treat this export as part of the file contract and update related docs when behavior changes.
+ */
 export const LEGACY_SETTINGS_BACKUP_VERSION = 1;
+/**
+ * Documents the FULL_SETTINGS_BACKUP_VERSION module export for app/src/features/settings/settingsBackup.ts.
+ * Consumers should treat this export as part of the file contract and update related docs when behavior changes.
+ */
 export const FULL_SETTINGS_BACKUP_VERSION = 2;
 
 export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferencesDraft = {
@@ -64,6 +128,13 @@ const readStringArray = (value: unknown, fallback: readonly string[]): string[] 
         : [...fallback];
 };
 
+/**
+ * Purpose: Executes the normalizeNotificationPreferences operation for app/src/features/settings/settingsBackup.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const normalizeNotificationPreferences = (value: unknown): NotificationPreferencesDraft => {
     if (!isObject(value)) {
         return DEFAULT_NOTIFICATION_PREFERENCES;
@@ -79,6 +150,13 @@ export const normalizeNotificationPreferences = (value: unknown): NotificationPr
     };
 };
 
+/**
+ * Purpose: Executes the normalizeThemePreference operation for app/src/features/settings/settingsBackup.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const normalizeThemePreference = (value: unknown): ThemePreference => {
     return value === "dark" || value === "light" || value === "system" ? value : "system";
 };
@@ -119,6 +197,13 @@ const normalizeWorkspaceDataBackup = (value: unknown): WorkspaceDataBackup | nul
     };
 };
 
+/**
+ * Purpose: Executes the buildWorkspaceBackupFile operation for app/src/features/settings/settingsBackup.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const buildWorkspaceBackupFile = (
     localSettings: LocalSettingsBackupData,
     workspaceData: WorkspaceDataBackup,
@@ -129,6 +214,13 @@ export const buildWorkspaceBackupFile = (
     workspace_data: workspaceData,
 });
 
+/**
+ * Purpose: Executes the parseImportedBackup operation for app/src/features/settings/settingsBackup.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const parseImportedBackup = (value: unknown): ImportedBackup | null => {
     if (!isObject(value)) {
         return null;

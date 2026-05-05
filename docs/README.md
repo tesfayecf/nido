@@ -16,17 +16,27 @@ Use these docs in this order when you need the shortest path to a safe change.
 ## 3. Data flow
 
 - [Server Docs / Data Flow](../server/docs/data-flow.md)
+- [Frontend Docs / Architecture Overview](./frontend/architecture-overview.md)
 - [App Docs / UI Architecture](../app/docs/ui-architecture.md)
 - [App Docs / State Management](../app/docs/state-management.md)
 
-## 4. How to add a feature
+## 4. Frontend documentation standards
+
+- [Frontend Docs / Documentation Hub](./frontend/README.md)
+- [Frontend Docs / Development Setup](./frontend/development-setup.md)
+- [Frontend Docs / Production Setup](./frontend/production-setup.md)
+- [Frontend Docs / Codebase Navigation](./frontend/codebase-navigation.md)
+- [Frontend Docs / Documentation Template](./frontend/documentation-template.md)
+- [Frontend Docs / Visual Proof](./frontend/visual-proof.md)
+
+## 5. How to add a feature
 
 Read [Guides / Common Tasks](./guides/common-tasks.md#add-a-feature) and then jump to the owning layer.
 
-## 5. How to modify existing logic
+## 6. How to modify existing logic
 
 Read [Guides / Common Tasks](./guides/common-tasks.md#modify-existing-logic) and start from the mounted runtime files, not from helper utilities.
 
-## 6. Design rules
+## 7. Design rules
 
 Read [Architecture / Design Patterns](./architecture/design-patterns.md).

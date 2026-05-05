@@ -1,3 +1,47 @@
+/**
+ * File: app/src/features/properties/PropertyDetailPage.tsx
+ *
+ * Purpose:
+ * Implements the properties feature workflow, including page rendering, user interactions, and frontend data coordination.
+ *
+ * Responsibilities:
+ * - Render accessible React UI for the owning workflow
+ * - Coordinate props, hooks, and service data without leaking implementation details
+ * - Expose predictable outputs for tests and consuming components
+ *
+ * Inputs:
+ * - Imports: react, @tanstack/react-query, react-router-dom, @/components/ui/EmptyState, @/components/selectors/SelectorBuilder, @/components/ui/ActionGroup, @/components/ui/Button, @/components/ui/ConfirmDialog; additional imports omitted for brevity
+ * - Typed props or parameters declared in this file
+ *
+ * Outputs:
+ * - JSX elements, React context, or route definitions rendered by consuming modules
+ *
+ * Dependencies:
+ * - react
+ * - @tanstack/react-query
+ * - react-router-dom
+ * - @/components/ui/EmptyState
+ * - @/components/selectors/SelectorBuilder
+ * - @/components/ui/ActionGroup
+ * - @/components/ui/Button
+ * - @/components/ui/ConfirmDialog
+ * - @/components/ui/ContextualHelp
+ * - @/components/ui/DataTable
+ *
+ * Key Decisions:
+ * - Keeps documentation adjacent to the implementation so future changes update behavior and context together.
+ * - Uses explicit imports and typed boundaries to make ownership traceable from this file in isolation.
+ *
+ * Constraints:
+ * - Documentation must remain synchronized with behavior, tests, and related docs when this file changes.
+ * - Runtime behavior must not depend on comments or documentation-only metadata.
+ *
+ * Related:
+ * - /docs/frontend/documentation-template.md
+ * - /app/docs/features/properties.md
+ * - /docs/frontend/architecture-overview.md
+ * - /docs/frontend/codebase-navigation.md
+ */
 import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -515,6 +559,13 @@ const isConfiguredFieldDraft = (field: SelectorFieldDraft): boolean => {
     return field.name.trim() !== "" && (field.selectorValue.trim() !== "" || field.fallbackSelectorsRaw.trim() !== "");
 };
 
+/**
+ * Purpose: Renders the PropertyDetailPage UI boundary documented for app/src/features/properties/PropertyDetailPage.tsx.
+ * Rendering logic: Composes typed props, shared UI primitives, and service-derived state into accessible markup.
+ * State management: Uses local React state, external stores, or React Query only where declared in the implementation below.
+ * Side effects: Limits side effects to documented hooks, event handlers, and service calls visible in this module.
+ * Performance: Keeps derived rendering explicit so memoization, virtualization, or loading boundaries can be audited safely.
+ */
 export const PropertyDetailPage = (): JSX.Element => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
