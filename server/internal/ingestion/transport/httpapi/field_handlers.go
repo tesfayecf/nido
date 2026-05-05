@@ -1,3 +1,35 @@
+/**
+ * File: internal/ingestion/transport/httpapi/field_handlers.go
+ *
+ * Purpose:
+ * Exposes HTTP transport handlers and request/response adaptation for this backend area.
+ *
+ * Responsibilities:
+ * - Decode and validate HTTP requests
+ * - Call application services
+ * - Encode stable JSON responses and errors
+ *
+ * Inputs:
+ * - Function parameters, HTTP payloads, environment settings, or repository data as accepted by this file.
+ *
+ * Outputs:
+ * - Typed Go values, HTTP responses, persisted records, or test assertions produced by this file.
+ *
+ * Dependencies:
+ * - errors
+ * - net/http
+ * - strings
+ * - nido/server/internal/ingestion/application
+ * - nido/server/internal/ingestion/domain
+ * - nido/server/internal/platform/httpapi
+ *
+ * Side Effects:
+ * - May perform database, network, filesystem, logging, scheduler, or HTTP response effects through collaborators.
+ *
+ * Critical Notes:
+ * - Keep this documentation synchronized with behavior changes and cross-package contracts.
+ */
+
 package httpapi
 
 import (
@@ -10,7 +42,25 @@ import (
 	platformhttp "nido/server/internal/platform/httpapi"
 )
 
-// RegisterFields binds canonical field and analytics routes.
+/**
+ * Purpose:
+ * Performs the RegisterFields operation for this backend package.
+ *
+ * Parameters:
+ * - mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, service *app.FieldService
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func RegisterFields(mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, service *app.FieldService) {
 	mux.Handle("GET /api/v1/backoffice/fields", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fields, err := service.ListFieldDefinitions(r.Context())

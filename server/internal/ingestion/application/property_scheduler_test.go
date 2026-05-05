@@ -1,3 +1,35 @@
+/**
+ * File: internal/ingestion/application/property_scheduler_test.go
+ *
+ * Purpose:
+ * Validates the application package behavior covered by property_scheduler_test.go.
+ *
+ * Responsibilities:
+ * - Set up deterministic test fixtures
+ * - Exercise expected success and failure paths
+ * - Protect backend behavior from regressions
+ *
+ * Inputs:
+ * - Function parameters, HTTP payloads, environment settings, or repository data as accepted by this file.
+ *
+ * Outputs:
+ * - Typed Go values, HTTP responses, persisted records, or test assertions produced by this file.
+ *
+ * Dependencies:
+ * - context
+ * - errors
+ * - sync
+ * - testing
+ * - time
+ * - nido/server/internal/ingestion/domain
+ *
+ * Side Effects:
+ * - May perform database, network, filesystem, logging, scheduler, or HTTP response effects through collaborators.
+ *
+ * Critical Notes:
+ * - Keep this documentation synchronized with behavior changes and cross-package contracts.
+ */
+
 package application
 
 import (
@@ -10,6 +42,22 @@ import (
 	ingestiondomain "nido/server/internal/ingestion/domain"
 )
 
+/**
+ * Purpose:
+ * Defines the propertySchedulerStoreStub struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type propertySchedulerStoreStub struct {
 	mu                  sync.Mutex
 	properties          []ingestiondomain.Property
@@ -19,6 +67,22 @@ type propertySchedulerStoreStub struct {
 	updateRunCalls      int
 }
 
+/**
+ * Purpose:
+ * Defines the updateRunStateCall struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type updateRunStateCall struct {
 	propertyID string
 	status     ingestiondomain.PropertyStatus
@@ -26,6 +90,25 @@ type updateRunStateCall struct {
 	nextRunAt  *time.Time
 }
 
+/**
+ * Purpose:
+ * Performs the ListDueProperties operation for this backend package.
+ *
+ * Parameters:
+ * - s *propertySchedulerStoreStub
+ *
+ * Returns:
+ * - ListDueProperties(ctx context.Context, before time.Time, limit int) ([]ingestiondomain.Property, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *propertySchedulerStoreStub) ListDueProperties(ctx context.Context, before time.Time, limit int) ([]ingestiondomain.Property, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -39,6 +122,25 @@ func (s *propertySchedulerStoreStub) ListDueProperties(ctx context.Context, befo
 	return due, nil
 }
 
+/**
+ * Purpose:
+ * Performs the GetProperty operation for this backend package.
+ *
+ * Parameters:
+ * - s *propertySchedulerStoreStub
+ *
+ * Returns:
+ * - GetProperty(ctx context.Context, propertyID string) (ingestiondomain.Property, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *propertySchedulerStoreStub) GetProperty(ctx context.Context, propertyID string) (ingestiondomain.Property, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -51,6 +153,25 @@ func (s *propertySchedulerStoreStub) GetProperty(ctx context.Context, propertyID
 	return ingestiondomain.Property{}, errors.New("property not found")
 }
 
+/**
+ * Purpose:
+ * Performs the UpdatePropertyRunState operation for this backend package.
+ *
+ * Parameters:
+ * - s *propertySchedulerStoreStub
+ *
+ * Returns:
+ * - UpdatePropertyRunState(ctx context.Context, propertyID string, status ingestiondomain.PropertyStatus, lastRunAt, nextRunAt *time.Time) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *propertySchedulerStoreStub) UpdatePropertyRunState(ctx context.Context, propertyID string, status ingestiondomain.PropertyStatus, lastRunAt, nextRunAt *time.Time) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -73,6 +194,25 @@ func (s *propertySchedulerStoreStub) UpdatePropertyRunState(ctx context.Context,
 	return nil
 }
 
+/**
+ * Purpose:
+ * Performs the CreatePropertyRun operation for this backend package.
+ *
+ * Parameters:
+ * - s *propertySchedulerStoreStub
+ *
+ * Returns:
+ * - CreatePropertyRun(ctx context.Context, run ingestiondomain.PropertyRun) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *propertySchedulerStoreStub) CreatePropertyRun(ctx context.Context, run ingestiondomain.PropertyRun) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -82,6 +222,25 @@ func (s *propertySchedulerStoreStub) CreatePropertyRun(ctx context.Context, run 
 	return nil
 }
 
+/**
+ * Purpose:
+ * Performs the UpdatePropertyRun operation for this backend package.
+ *
+ * Parameters:
+ * - s *propertySchedulerStoreStub
+ *
+ * Returns:
+ * - UpdatePropertyRun(ctx context.Context, run ingestiondomain.PropertyRun) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *propertySchedulerStoreStub) UpdatePropertyRun(ctx context.Context, run ingestiondomain.PropertyRun) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -96,10 +255,45 @@ func (s *propertySchedulerStoreStub) UpdatePropertyRun(ctx context.Context, run 
 	return nil
 }
 
+/**
+ * Purpose:
+ * Performs the CountRecentPropertyRuns operation for this backend package.
+ *
+ * Parameters:
+ * - s *propertySchedulerStoreStub
+ *
+ * Returns:
+ * - CountRecentPropertyRuns(ctx context.Context, propertyID string, since time.Time) (int, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *propertySchedulerStoreStub) CountRecentPropertyRuns(ctx context.Context, propertyID string, since time.Time) (int, error) {
 	return 0, nil
 }
 
+/**
+ * Purpose:
+ * Defines the propertyRunnerStub struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type propertyRunnerStub struct {
 	mu             sync.Mutex
 	failureCount   int
@@ -107,12 +301,47 @@ type propertyRunnerStub struct {
 	ingestCalls    []ingestCall
 }
 
+/**
+ * Purpose:
+ * Defines the ingestCall struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type ingestCall struct {
 	propertyID string
 	attemptNum int
 	runID      string
 }
 
+/**
+ * Purpose:
+ * Performs the IngestPropertyOnce operation for this backend package.
+ *
+ * Parameters:
+ * - r *propertyRunnerStub
+ *
+ * Returns:
+ * - IngestPropertyOnce(ctx context.Context, propertyID string, attemptNum int, runID string) (ingestiondomain.PropertySnapshot, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (r *propertyRunnerStub) IngestPropertyOnce(ctx context.Context, propertyID string, attemptNum int, runID string) (ingestiondomain.PropertySnapshot, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -141,6 +370,25 @@ func (r *propertyRunnerStub) IngestPropertyOnce(ctx context.Context, propertyID 
 	}, nil
 }
 
+/**
+ * Purpose:
+ * Performs the TestPropertySchedulerRetryBehavior operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestPropertySchedulerRetryBehavior(t *testing.T) {
 	t.Parallel()
 
@@ -204,6 +452,25 @@ func TestPropertySchedulerRetryBehavior(t *testing.T) {
 	runner.mu.Unlock()
 }
 
+/**
+ * Purpose:
+ * Performs the TestPropertySchedulerPicksDueProperties operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestPropertySchedulerPicksDueProperties(t *testing.T) {
 	t.Parallel()
 
@@ -266,6 +533,25 @@ func TestPropertySchedulerPicksDueProperties(t *testing.T) {
 	runner.mu.Unlock()
 }
 
+/**
+ * Purpose:
+ * Performs the TestPropertySchedulerSetsConfiguredNextRunAt operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestPropertySchedulerSetsConfiguredNextRunAt(t *testing.T) {
 	t.Parallel()
 
@@ -308,6 +594,25 @@ func TestPropertySchedulerSetsConfiguredNextRunAt(t *testing.T) {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the TestPropertySchedulerSkipsAlreadyRunningProperty operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestPropertySchedulerSkipsAlreadyRunningProperty(t *testing.T) {
 	t.Parallel()
 
@@ -346,6 +651,25 @@ func TestPropertySchedulerSkipsAlreadyRunningProperty(t *testing.T) {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the TestPropertySchedulerBackoffCalculation operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestPropertySchedulerBackoffCalculation(t *testing.T) {
 	scheduler := &PropertyScheduler{
 		config: PropertySchedulerConfig{},

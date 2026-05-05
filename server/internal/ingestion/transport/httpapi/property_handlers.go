@@ -1,3 +1,38 @@
+/**
+ * File: internal/ingestion/transport/httpapi/property_handlers.go
+ *
+ * Purpose:
+ * Exposes HTTP transport handlers and request/response adaptation for this backend area.
+ *
+ * Responsibilities:
+ * - Decode and validate HTTP requests
+ * - Call application services
+ * - Encode stable JSON responses and errors
+ *
+ * Inputs:
+ * - Function parameters, HTTP payloads, environment settings, or repository data as accepted by this file.
+ *
+ * Outputs:
+ * - Typed Go values, HTTP responses, persisted records, or test assertions produced by this file.
+ *
+ * Dependencies:
+ * - encoding/json
+ * - errors
+ * - fmt
+ * - net/http
+ * - strconv
+ * - strings
+ * - nido/server/internal/ingestion/application
+ * - nido/server/internal/ingestion/domain
+ * - nido/server/internal/platform/httpapi
+ *
+ * Side Effects:
+ * - May perform database, network, filesystem, logging, scheduler, or HTTP response effects through collaborators.
+ *
+ * Critical Notes:
+ * - Keep this documentation synchronized with behavior changes and cross-package contracts.
+ */
+
 package httpapi
 
 import (
@@ -13,6 +48,22 @@ import (
 	platformhttp "nido/server/internal/platform/httpapi"
 )
 
+/**
+ * Purpose:
+ * Defines the propertyUpsertRequest struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type propertyUpsertRequest struct {
 	Label                   string                            `json:"label"`
 	RetryBackoffMillis      *int                              `json:"retry_backoff_millis,omitempty"`
@@ -27,7 +78,25 @@ type propertyUpsertRequest struct {
 	ManualData              map[string]json.RawMessage        `json:"manual_data,omitempty"`
 }
 
-// RegisterProperties binds property tracking HTTP routes to the supplied mux.
+/**
+ * Purpose:
+ * Performs the RegisterProperties operation for this backend package.
+ *
+ * Parameters:
+ * - mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, service *app.PropertyService
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func RegisterProperties(mux *http.ServeMux, requireAuth func(http.Handler) http.Handler, service *app.PropertyService) {
 	mux.Handle("GET /api/v1/backoffice/properties", requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Parse tag filtering parameters
@@ -389,6 +458,25 @@ func RegisterProperties(mux *http.ServeMux, requireAuth func(http.Handler) http.
 	})))
 }
 
+/**
+ * Purpose:
+ * Performs the propertyFromUpsertRequest operation for this backend package.
+ *
+ * Parameters:
+ * - request propertyUpsertRequest
+ *
+ * Returns:
+ * - ingestiondomain.Property
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func propertyFromUpsertRequest(request propertyUpsertRequest) ingestiondomain.Property {
 	property := ingestiondomain.Property{
 		Label: request.Label,
@@ -421,6 +509,25 @@ func propertyFromUpsertRequest(request propertyUpsertRequest) ingestiondomain.Pr
 	return property
 }
 
+/**
+ * Purpose:
+ * Performs the mergePropertyUpsertRequest operation for this backend package.
+ *
+ * Parameters:
+ * - existing ingestiondomain.Property, request propertyUpsertRequest
+ *
+ * Returns:
+ * - ingestiondomain.Property
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func mergePropertyUpsertRequest(existing ingestiondomain.Property, request propertyUpsertRequest) ingestiondomain.Property {
 	property := existing
 	property.URL = request.URL
@@ -452,6 +559,25 @@ func mergePropertyUpsertRequest(existing ingestiondomain.Property, request prope
 	return property
 }
 
+/**
+ * Purpose:
+ * Performs the isManualTrackingRequest operation for this backend package.
+ *
+ * Parameters:
+ * - request propertyUpsertRequest
+ *
+ * Returns:
+ * - bool
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func isManualTrackingRequest(request propertyUpsertRequest) bool {
 	if request.Metadata == nil {
 		return strings.TrimSpace(request.URL) == "" && strings.TrimSpace(optionalString(request.SourceID)) == ""
@@ -460,6 +586,25 @@ func isManualTrackingRequest(request propertyUpsertRequest) bool {
 	return strings.EqualFold(strings.TrimSpace(request.Metadata.TrackingMode), "manual")
 }
 
+/**
+ * Purpose:
+ * Performs the optionalString operation for this backend package.
+ *
+ * Parameters:
+ * - value *string
+ *
+ * Returns:
+ * - string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func optionalString(value *string) string {
 	if value == nil {
 		return ""
@@ -468,6 +613,25 @@ func optionalString(value *string) string {
 	return *value
 }
 
+/**
+ * Purpose:
+ * Performs the manualDataFromRequest operation for this backend package.
+ *
+ * Parameters:
+ * - request map[string]json.RawMessage
+ *
+ * Returns:
+ * - (map[string]string, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func manualDataFromRequest(request map[string]json.RawMessage) (map[string]string, error) {
 	if len(request) == 0 {
 		return nil, nil
@@ -495,6 +659,25 @@ func manualDataFromRequest(request map[string]json.RawMessage) (map[string]strin
 	return values, nil
 }
 
+/**
+ * Purpose:
+ * Performs the normalizeManualDataKey operation for this backend package.
+ *
+ * Parameters:
+ * - value string
+ *
+ * Returns:
+ * - string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func normalizeManualDataKey(value string) string {
 	normalized := strings.TrimSpace(strings.ToLower(value))
 	normalized = strings.ReplaceAll(normalized, " ", "_")
@@ -502,6 +685,25 @@ func normalizeManualDataKey(value string) string {
 	return normalized
 }
 
+/**
+ * Purpose:
+ * Performs the stringifyManualDataValue operation for this backend package.
+ *
+ * Parameters:
+ * - raw json.RawMessage
+ *
+ * Returns:
+ * - (string, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func stringifyManualDataValue(raw json.RawMessage) (string, error) {
 	var text string
 	if err := json.Unmarshal(raw, &text); err == nil {

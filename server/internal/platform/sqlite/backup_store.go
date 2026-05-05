@@ -1,3 +1,36 @@
+/**
+ * File: internal/platform/sqlite/backup_store.go
+ *
+ * Purpose:
+ * Implements SQLite persistence and migration support for backend state.
+ *
+ * Responsibilities:
+ * - Map domain objects to SQLite records
+ * - Execute schema-aware reads and writes
+ * - Preserve migration and backup safety guarantees
+ *
+ * Inputs:
+ * - Function parameters, HTTP payloads, environment settings, or repository data as accepted by this file.
+ *
+ * Outputs:
+ * - Typed Go values, HTTP responses, persisted records, or test assertions produced by this file.
+ *
+ * Dependencies:
+ * - context
+ * - database/sql
+ * - encoding/json
+ * - fmt
+ * - strings
+ * - nido/server/internal/ingestion/domain
+ * - nido/server/internal/platformops/domain
+ *
+ * Side Effects:
+ * - May perform database, network, filesystem, logging, scheduler, or HTTP response effects through collaborators.
+ *
+ * Critical Notes:
+ * - Keep this documentation synchronized with behavior changes and cross-package contracts.
+ */
+
 package sqlite
 
 import (
@@ -11,6 +44,25 @@ import (
 	platformopsdomain "nido/server/internal/platformops/domain"
 )
 
+/**
+ * Purpose:
+ * Performs the ExportWorkspaceBackup operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - ExportWorkspaceBackup(ctx context.Context) (platformopsdomain.WorkspaceBackup, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) ExportWorkspaceBackup(ctx context.Context) (platformopsdomain.WorkspaceBackup, error) {
 	settings, err := s.GetPlatformSettings(ctx)
 	if err != nil {
@@ -68,6 +120,25 @@ func (s *Store) ExportWorkspaceBackup(ctx context.Context) (platformopsdomain.Wo
 	}, nil
 }
 
+/**
+ * Purpose:
+ * Performs the RestoreWorkspaceBackup operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - RestoreWorkspaceBackup(ctx context.Context, backup platformopsdomain.WorkspaceBackup) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) RestoreWorkspaceBackup(ctx context.Context, backup platformopsdomain.WorkspaceBackup) error {
 	normalized, err := platformopsdomain.NormalizeWorkspaceBackup(backup)
 	if err != nil {
@@ -156,6 +227,25 @@ func (s *Store) RestoreWorkspaceBackup(ctx context.Context, backup platformopsdo
 	return nil
 }
 
+/**
+ * Purpose:
+ * Performs the ResetWorkspace operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - ResetWorkspace(ctx context.Context) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) ResetWorkspace(ctx context.Context) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -194,6 +284,25 @@ func (s *Store) ResetWorkspace(ctx context.Context) error {
 	return nil
 }
 
+/**
+ * Purpose:
+ * Performs the listBackupSources operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - listBackupSources(ctx context.Context) ([]ingestiondomain.Source, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) listBackupSources(ctx context.Context) ([]ingestiondomain.Source, error) {
 	rows, err := s.db.QueryContext(ctx, sourceSelect+` ORDER BY created_at ASC`)
 	if err != nil {
@@ -212,6 +321,25 @@ func (s *Store) listBackupSources(ctx context.Context) ([]ingestiondomain.Source
 	return items, rows.Err()
 }
 
+/**
+ * Purpose:
+ * Performs the listBackupProperties operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - listBackupProperties(ctx context.Context) ([]ingestiondomain.Property, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) listBackupProperties(ctx context.Context) ([]ingestiondomain.Property, error) {
 	rows, err := s.db.QueryContext(ctx, propertySelect+` ORDER BY created_at ASC`)
 	if err != nil {
@@ -230,6 +358,25 @@ func (s *Store) listBackupProperties(ctx context.Context) ([]ingestiondomain.Pro
 	return items, rows.Err()
 }
 
+/**
+ * Purpose:
+ * Performs the listBackupPropertyConfigs operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - listBackupPropertyConfigs(ctx context.Context) ([]ingestiondomain.PropertyExtractionConfig, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) listBackupPropertyConfigs(ctx context.Context) ([]ingestiondomain.PropertyExtractionConfig, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT id, property_id, fields_json, version, created_at, change_summary FROM property_extraction_configs ORDER BY property_id ASC, version ASC`)
 	if err != nil {
@@ -248,6 +395,25 @@ func (s *Store) listBackupPropertyConfigs(ctx context.Context) ([]ingestiondomai
 	return items, rows.Err()
 }
 
+/**
+ * Purpose:
+ * Performs the listBackupPropertySnapshots operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - listBackupPropertySnapshots(ctx context.Context) ([]ingestiondomain.PropertySnapshot, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) listBackupPropertySnapshots(ctx context.Context) ([]ingestiondomain.PropertySnapshot, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT id, property_id, config_version, observed_at, values_json, change_flags_json, is_valid, error_message FROM property_snapshots ORDER BY property_id ASC, observed_at ASC, id ASC`)
 	if err != nil {
@@ -266,6 +432,25 @@ func (s *Store) listBackupPropertySnapshots(ctx context.Context) ([]ingestiondom
 	return items, rows.Err()
 }
 
+/**
+ * Purpose:
+ * Performs the listBackupPropertyRuns operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - listBackupPropertyRuns(ctx context.Context) ([]ingestiondomain.PropertyRun, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) listBackupPropertyRuns(ctx context.Context) ([]ingestiondomain.PropertyRun, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT id, property_id, status, trigger_kind, attempt_count, max_attempts, started_at, finished_at, error_message, snapshot_id, created_at FROM property_runs ORDER BY property_id ASC, created_at ASC, id ASC`)
 	if err != nil {
@@ -284,6 +469,25 @@ func (s *Store) listBackupPropertyRuns(ctx context.Context) ([]ingestiondomain.P
 	return items, rows.Err()
 }
 
+/**
+ * Purpose:
+ * Performs the listBackupTags operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - listBackupTags(ctx context.Context) ([]ingestiondomain.Tag, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) listBackupTags(ctx context.Context) ([]ingestiondomain.Tag, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT id, name, color, created_at, updated_at FROM tags ORDER BY created_at ASC, name ASC`)
 	if err != nil {
@@ -302,6 +506,25 @@ func (s *Store) listBackupTags(ctx context.Context) ([]ingestiondomain.Tag, erro
 	return items, rows.Err()
 }
 
+/**
+ * Purpose:
+ * Performs the listBackupPropertyTags operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - listBackupPropertyTags(ctx context.Context) ([]platformopsdomain.WorkspaceBackupPropertyTag, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) listBackupPropertyTags(ctx context.Context) ([]platformopsdomain.WorkspaceBackupPropertyTag, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT property_id, tag_id, assigned_at FROM property_tags ORDER BY property_id ASC, tag_id ASC`)
 	if err != nil {
@@ -327,6 +550,25 @@ func (s *Store) listBackupPropertyTags(ctx context.Context) ([]platformopsdomain
 	return items, rows.Err()
 }
 
+/**
+ * Purpose:
+ * Performs the listBackupFieldDefinitions operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - listBackupFieldDefinitions(ctx context.Context) ([]ingestiondomain.FieldDefinition, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) listBackupFieldDefinitions(ctx context.Context) ([]ingestiondomain.FieldDefinition, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT id, name, display_name, data_type, unit, description, enum_values_json, default_value, use_default_when_missing, comparison_operator, comparison_value, system_defined, created_at, updated_at FROM field_definitions ORDER BY system_defined DESC, name ASC`)
 	if err != nil {
@@ -345,6 +587,25 @@ func (s *Store) listBackupFieldDefinitions(ctx context.Context) ([]ingestiondoma
 	return items, rows.Err()
 }
 
+/**
+ * Purpose:
+ * Performs the listBackupPropertyFieldValues operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - listBackupPropertyFieldValues(ctx context.Context) ([]platformopsdomain.WorkspaceBackupPropertyFieldValue, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) listBackupPropertyFieldValues(ctx context.Context) ([]platformopsdomain.WorkspaceBackupPropertyFieldValue, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT id, property_id, snapshot_id, field_definition_id, field_name, selector_name, config_version, value_text, observed_at, validation_status, validation_message, created_at FROM property_field_values ORDER BY property_id ASC, observed_at ASC, id ASC`)
 	if err != nil {
@@ -390,6 +651,25 @@ func (s *Store) listBackupPropertyFieldValues(ctx context.Context) ([]platformop
 	return items, rows.Err()
 }
 
+/**
+ * Purpose:
+ * Performs the validateWorkspaceBackup operation for this backend package.
+ *
+ * Parameters:
+ * - backup platformopsdomain.WorkspaceBackup
+ *
+ * Returns:
+ * - error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func validateWorkspaceBackup(backup platformopsdomain.WorkspaceBackup) error {
 	sourceIDs := make(map[string]struct{}, len(backup.Sources))
 	propertyIDs := make(map[string]struct{}, len(backup.Properties))
@@ -472,6 +752,25 @@ func validateWorkspaceBackup(backup platformopsdomain.WorkspaceBackup) error {
 	return nil
 }
 
+/**
+ * Purpose:
+ * Performs the insertBackupSource operation for this backend package.
+ *
+ * Parameters:
+ * - ctx context.Context, tx *sql.Tx, source ingestiondomain.Source
+ *
+ * Returns:
+ * - error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func insertBackupSource(ctx context.Context, tx *sql.Tx, source ingestiondomain.Source) error {
 	_, err := tx.ExecContext(
 		ctx,
@@ -504,6 +803,25 @@ func insertBackupSource(ctx context.Context, tx *sql.Tx, source ingestiondomain.
 	return nil
 }
 
+/**
+ * Purpose:
+ * Performs the insertBackupProperty operation for this backend package.
+ *
+ * Parameters:
+ * - ctx context.Context, tx *sql.Tx, property ingestiondomain.Property
+ *
+ * Returns:
+ * - error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func insertBackupProperty(ctx context.Context, tx *sql.Tx, property ingestiondomain.Property) error {
 	requestHeadersJSON := "{}"
 	if len(property.RequestHeaders) > 0 {
@@ -550,6 +868,25 @@ func insertBackupProperty(ctx context.Context, tx *sql.Tx, property ingestiondom
 	return nil
 }
 
+/**
+ * Purpose:
+ * Performs the insertBackupPropertyConfig operation for this backend package.
+ *
+ * Parameters:
+ * - ctx context.Context, tx *sql.Tx, config ingestiondomain.PropertyExtractionConfig
+ *
+ * Returns:
+ * - error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func insertBackupPropertyConfig(ctx context.Context, tx *sql.Tx, config ingestiondomain.PropertyExtractionConfig) error {
 	fieldsJSON, err := json.Marshal(config.Fields)
 	if err != nil {
@@ -571,6 +908,25 @@ func insertBackupPropertyConfig(ctx context.Context, tx *sql.Tx, config ingestio
 	return nil
 }
 
+/**
+ * Purpose:
+ * Performs the insertBackupPropertySnapshot operation for this backend package.
+ *
+ * Parameters:
+ * - ctx context.Context, tx *sql.Tx, snapshot ingestiondomain.PropertySnapshot
+ *
+ * Returns:
+ * - error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func insertBackupPropertySnapshot(ctx context.Context, tx *sql.Tx, snapshot ingestiondomain.PropertySnapshot) error {
 	valuesJSON := string(snapshot.Values)
 	if valuesJSON == "" {
@@ -598,6 +954,25 @@ func insertBackupPropertySnapshot(ctx context.Context, tx *sql.Tx, snapshot inge
 	return nil
 }
 
+/**
+ * Purpose:
+ * Performs the insertBackupFieldDefinition operation for this backend package.
+ *
+ * Parameters:
+ * - ctx context.Context, tx *sql.Tx, field ingestiondomain.FieldDefinition
+ *
+ * Returns:
+ * - error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func insertBackupFieldDefinition(ctx context.Context, tx *sql.Tx, field ingestiondomain.FieldDefinition) error {
 	enumJSON, err := json.Marshal(field.EnumValues)
 	if err != nil {
@@ -628,6 +1003,25 @@ func insertBackupFieldDefinition(ctx context.Context, tx *sql.Tx, field ingestio
 	return nil
 }
 
+/**
+ * Purpose:
+ * Performs the insertBackupPropertyFieldValue operation for this backend package.
+ *
+ * Parameters:
+ * - ctx context.Context, tx *sql.Tx, fieldValue platformopsdomain.WorkspaceBackupPropertyFieldValue
+ *
+ * Returns:
+ * - error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func insertBackupPropertyFieldValue(ctx context.Context, tx *sql.Tx, fieldValue platformopsdomain.WorkspaceBackupPropertyFieldValue) error {
 	_, err := tx.ExecContext(
 		ctx,
@@ -652,6 +1046,25 @@ func insertBackupPropertyFieldValue(ctx context.Context, tx *sql.Tx, fieldValue 
 	return nil
 }
 
+/**
+ * Purpose:
+ * Performs the insertBackupPropertyRun operation for this backend package.
+ *
+ * Parameters:
+ * - ctx context.Context, tx *sql.Tx, run ingestiondomain.PropertyRun
+ *
+ * Returns:
+ * - error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func insertBackupPropertyRun(ctx context.Context, tx *sql.Tx, run ingestiondomain.PropertyRun) error {
 	_, err := tx.ExecContext(
 		ctx,
@@ -675,6 +1088,25 @@ func insertBackupPropertyRun(ctx context.Context, tx *sql.Tx, run ingestiondomai
 	return nil
 }
 
+/**
+ * Purpose:
+ * Performs the insertBackupTag operation for this backend package.
+ *
+ * Parameters:
+ * - ctx context.Context, tx *sql.Tx, tag ingestiondomain.Tag
+ *
+ * Returns:
+ * - error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func insertBackupTag(ctx context.Context, tx *sql.Tx, tag ingestiondomain.Tag) error {
 	_, err := tx.ExecContext(
 		ctx,
@@ -691,6 +1123,25 @@ func insertBackupTag(ctx context.Context, tx *sql.Tx, tag ingestiondomain.Tag) e
 	return nil
 }
 
+/**
+ * Purpose:
+ * Performs the insertBackupPropertyTag operation for this backend package.
+ *
+ * Parameters:
+ * - ctx context.Context, tx *sql.Tx, propertyTag platformopsdomain.WorkspaceBackupPropertyTag
+ *
+ * Returns:
+ * - error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func insertBackupPropertyTag(ctx context.Context, tx *sql.Tx, propertyTag platformopsdomain.WorkspaceBackupPropertyTag) error {
 	_, err := tx.ExecContext(
 		ctx,
@@ -705,6 +1156,25 @@ func insertBackupPropertyTag(ctx context.Context, tx *sql.Tx, propertyTag platfo
 	return nil
 }
 
+/**
+ * Purpose:
+ * Performs the insertBackupPlatformSettings operation for this backend package.
+ *
+ * Parameters:
+ * - ctx context.Context, tx *sql.Tx, settings platformopsdomain.PlatformSettings
+ *
+ * Returns:
+ * - error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func insertBackupPlatformSettings(ctx context.Context, tx *sql.Tx, settings platformopsdomain.PlatformSettings) error {
 	_, err := tx.ExecContext(
 		ctx,

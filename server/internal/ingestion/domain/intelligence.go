@@ -1,8 +1,50 @@
+/**
+ * File: internal/ingestion/domain/intelligence.go
+ *
+ * Purpose:
+ * Defines domain data structures and normalization rules for this backend area.
+ *
+ * Responsibilities:
+ * - Define data contracts
+ * - Normalize values used across layers
+ * - Keep business terminology centralized
+ *
+ * Inputs:
+ * - Function parameters, HTTP payloads, environment settings, or repository data as accepted by this file.
+ *
+ * Outputs:
+ * - Typed Go values, HTTP responses, persisted records, or test assertions produced by this file.
+ *
+ * Dependencies:
+ * - time
+ *
+ * Side Effects:
+ * - None beyond in-memory transformations unless called dependencies perform effects.
+ *
+ * Critical Notes:
+ * - Keep this documentation synchronized with behavior changes and cross-package contracts.
+ */
+
 package domain
 
 import "time"
 
-// ChangeImpact classifies the business significance of a change signal.
+/**
+ * Purpose:
+ * Defines the ChangeImpact type alias or composite type used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type ChangeImpact string
 
 const (
@@ -14,7 +56,22 @@ const (
 	ChangeImpactNeutral ChangeImpact = "neutral"
 )
 
-// ChangeGroup classifies which aspect of the property changed.
+/**
+ * Purpose:
+ * Defines the ChangeGroup type alias or composite type used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type ChangeGroup string
 
 const (
@@ -25,7 +82,22 @@ const (
 	ChangeGroupListingFacts ChangeGroup = "listing_facts"
 )
 
-// ChangeSignal captures one discrete intelligence signal for a property snapshot transition.
+/**
+ * Purpose:
+ * Defines the ChangeSignal struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type ChangeSignal struct {
 	// Field is the logical name of the changed field, e.g. "price", "status".
 	Field string `json:"field"`
@@ -47,7 +119,22 @@ type ChangeSignal struct {
 	Group ChangeGroup `json:"group"`
 }
 
-// DecisionContext holds derived acquisition intelligence for one property.
+/**
+ * Purpose:
+ * Defines the DecisionContext struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type DecisionContext struct {
 	// CurrentPrice is the latest extracted listing price in the smallest currency unit, nil if unknown.
 	CurrentPrice *int64 `json:"current_price,omitempty"`
@@ -73,7 +160,22 @@ type DecisionContext struct {
 	LastObservedAt *time.Time `json:"last_observed_at,omitempty"`
 }
 
-// PropertySummary is the read model returned by the summary endpoints.
+/**
+ * Purpose:
+ * Defines the PropertySummary struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type PropertySummary struct {
 	Property            Property          `json:"property"`
 	CurrentValues       map[string]string `json:"current_values"`

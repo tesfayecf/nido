@@ -1,3 +1,39 @@
+/**
+ * File: internal/platform/objectstore/s3.go
+ *
+ * Purpose:
+ * Implements backend behavior for the objectstore package.
+ *
+ * Responsibilities:
+ * - Provide package-specific backend behavior
+ * - Keep dependencies explicit
+ * - Return deterministic values to callers
+ *
+ * Inputs:
+ * - Function parameters, HTTP payloads, environment settings, or repository data as accepted by this file.
+ *
+ * Outputs:
+ * - Typed Go values, HTTP responses, persisted records, or test assertions produced by this file.
+ *
+ * Dependencies:
+ * - bytes
+ * - context
+ * - fmt
+ * - io
+ * - strings
+ * - github.com/aws/aws-sdk-go-v2/aws
+ * - github.com/aws/aws-sdk-go-v2/config
+ * - github.com/aws/aws-sdk-go-v2/credentials
+ * - github.com/aws/aws-sdk-go-v2/service/s3
+ * - nido/server/internal/platform/config
+ *
+ * Side Effects:
+ * - May perform database, network, filesystem, logging, scheduler, or HTTP response effects through collaborators.
+ *
+ * Critical Notes:
+ * - Keep this documentation synchronized with behavior changes and cross-package contracts.
+ */
+
 package objectstore
 
 import (
@@ -15,14 +51,47 @@ import (
 	platformconfig "nido/server/internal/platform/config"
 )
 
-// S3Store stores artifacts in an S3-compatible object store such as Garage.
+/**
+ * Purpose:
+ * Defines the S3Store struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type S3Store struct {
 	client    *s3.Client
 	bucket    string
 	keyPrefix string
 }
 
-// NewS3Store builds a Garage-compatible S3 client.
+/**
+ * Purpose:
+ * Performs the NewS3Store operation for this backend package.
+ *
+ * Parameters:
+ * - ctx context.Context, cfg platformconfig.ObjectStoreConfig
+ *
+ * Returns:
+ * - (*S3Store, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func NewS3Store(ctx context.Context, cfg platformconfig.ObjectStoreConfig) (*S3Store, error) {
 	awsCfg, err := awsconfig.LoadDefaultConfig(
 		ctx,
@@ -53,7 +122,25 @@ func NewS3Store(ctx context.Context, cfg platformconfig.ObjectStoreConfig) (*S3S
 	}, nil
 }
 
-// Put stores a raw object in the configured S3 bucket.
+/**
+ * Purpose:
+ * Performs the Put operation for this backend package.
+ *
+ * Parameters:
+ * - s *S3Store
+ *
+ * Returns:
+ * - Put(ctx context.Context, input PutInput) (PutResult, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *S3Store) Put(ctx context.Context, input PutInput) (PutResult, error) {
 	key := s.withPrefix(input.Key)
 
@@ -70,7 +157,25 @@ func (s *S3Store) Put(ctx context.Context, input PutInput) (PutResult, error) {
 	return PutResult{Key: key, Size: int64(len(input.Body))}, nil
 }
 
-// Get reads a raw object from the configured S3 bucket.
+/**
+ * Purpose:
+ * Performs the Get operation for this backend package.
+ *
+ * Parameters:
+ * - s *S3Store
+ *
+ * Returns:
+ * - Get(ctx context.Context, key string) ([]byte, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *S3Store) Get(ctx context.Context, key string) ([]byte, error) {
 	resolvedKey := s.withPrefix(key)
 
@@ -91,6 +196,25 @@ func (s *S3Store) Get(ctx context.Context, key string) ([]byte, error) {
 	return body, nil
 }
 
+/**
+ * Purpose:
+ * Performs the withPrefix operation for this backend package.
+ *
+ * Parameters:
+ * - s *S3Store
+ *
+ * Returns:
+ * - withPrefix(key string) string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *S3Store) withPrefix(key string) string {
 	if s.keyPrefix == "" {
 		return strings.TrimLeft(key, "/")

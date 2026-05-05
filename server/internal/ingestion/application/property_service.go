@@ -1,3 +1,48 @@
+/**
+ * File: internal/ingestion/application/property_service.go
+ *
+ * Purpose:
+ * Coordinates application-level backend use cases, validation, and persistence boundaries.
+ *
+ * Responsibilities:
+ * - Apply business rules
+ * - Coordinate repositories and domain models
+ * - Return typed results for transport layers
+ *
+ * Inputs:
+ * - Function parameters, HTTP payloads, environment settings, or repository data as accepted by this file.
+ *
+ * Outputs:
+ * - Typed Go values, HTTP responses, persisted records, or test assertions produced by this file.
+ *
+ * Dependencies:
+ * - bytes
+ * - context
+ * - database/sql
+ * - encoding/json
+ * - errors
+ * - fmt
+ * - log/slog
+ * - net
+ * - net/http
+ * - net/url
+ * - regexp
+ * - strings
+ * - time
+ * - github.com/PuerkitoBio/goquery
+ * - github.com/antchfx/htmlquery
+ * - golang.org/x/net/html
+ * - nido/server/internal/fetcher
+ * - nido/server/internal/ingestion/domain
+ * - nido/server/internal/platform/id
+ *
+ * Side Effects:
+ * - May perform database, network, filesystem, logging, scheduler, or HTTP response effects through collaborators.
+ *
+ * Critical Notes:
+ * - Keep this documentation synchronized with behavior changes and cross-package contracts.
+ */
+
 package application
 
 import (
@@ -48,12 +93,43 @@ var supportedPropertyRequestHeaders = map[string]struct{}{
 	"User-Agent":                {},
 }
 
+/**
+ * Purpose:
+ * Defines the propertyFetchOptions struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type propertyFetchOptions struct {
 	BrowserEnabled bool
 	RequestHeaders map[string]string
 }
 
-// PropertyStore defines the persistence contract required by PropertyService.
+/**
+ * Purpose:
+ * Defines the PropertyStore interface used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type PropertyStore interface {
 	UpsertProperty(ctx context.Context, property ingestiondomain.Property) error
 	ListProperties(ctx context.Context) ([]ingestiondomain.Property, error)
@@ -79,12 +155,42 @@ type PropertyStore interface {
 	GetLatestPropertySnapshots(ctx context.Context, propertyID string, n int) ([]ingestiondomain.PropertySnapshot, error)
 }
 
-// PropertyRunProcessor reacts to completed property runs.
+/**
+ * Purpose:
+ * Defines the PropertyRunProcessor interface used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type PropertyRunProcessor interface {
 	ProcessPropertyRun(ctx context.Context, propertyID string, current, previous ingestiondomain.PropertySnapshot) (int, error)
 }
 
-// PropertyService orchestrates property registration, extraction configuration, and snapshot ingestion.
+/**
+ * Purpose:
+ * Defines the PropertyService struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type PropertyService struct {
 	logger  *slog.Logger
 	store   PropertyStore
@@ -94,7 +200,25 @@ type PropertyService struct {
 	events  Publisher
 }
 
-// NewPropertyService builds a PropertyService.
+/**
+ * Purpose:
+ * Performs the NewPropertyService operation for this backend package.
+ *
+ * Parameters:
+ * - logger *slog.Logger, store PropertyStore, client fetcher.Client, clock Clock, changes PropertyRunProcessor, events Publisher
+ *
+ * Returns:
+ * - *PropertyService
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func NewPropertyService(
 	logger *slog.Logger,
 	store PropertyStore,
@@ -122,7 +246,25 @@ func NewPropertyService(
 	}
 }
 
-// EnsureProperty validates and upserts a property definition.
+/**
+ * Purpose:
+ * Performs the EnsureProperty operation for this backend package.
+ *
+ * Parameters:
+ * - s *PropertyService
+ *
+ * Returns:
+ * - EnsureProperty(ctx context.Context, property ingestiondomain.Property) (ingestiondomain.Property, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *PropertyService) EnsureProperty(ctx context.Context, property ingestiondomain.Property) (ingestiondomain.Property, error) {
 	normalized, err := s.normalizeAndValidateProperty(ctx, property)
 	if err != nil {
@@ -149,8 +291,25 @@ func (s *PropertyService) EnsureProperty(ctx context.Context, property ingestion
 	return normalized, nil
 }
 
-// UpsertPropertyWithManualData stores property metadata and optionally appends a
-// manual snapshot/run so manual entries behave like scraped history.
+/**
+ * Purpose:
+ * Performs the UpsertPropertyWithManualData operation for this backend package.
+ *
+ * Parameters:
+ * - s *PropertyService
+ *
+ * Returns:
+ * - UpsertPropertyWithManualData( ctx context.Context, property ingestiondomain.Property, manualValues map[string]string, ) (ingestiondomain.Property, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *PropertyService) UpsertPropertyWithManualData(
 	ctx context.Context,
 	property ingestiondomain.Property,
@@ -176,7 +335,25 @@ func (s *PropertyService) UpsertPropertyWithManualData(
 	return refreshed, nil
 }
 
-// ListPropertiesFiltered returns properties with optional tag and status filtering.
+/**
+ * Purpose:
+ * Performs the ListPropertiesFiltered operation for this backend package.
+ *
+ * Parameters:
+ * - s *PropertyService
+ *
+ * Returns:
+ * - ListPropertiesFiltered(ctx context.Context, tagIDs []string, matchAll bool, status string, priorityLevel string, businessStage string) ([]ingestiondomain.Property, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *PropertyService) ListPropertiesFiltered(ctx context.Context, tagIDs []string, matchAll bool, status string, priorityLevel string, businessStage string) ([]ingestiondomain.Property, error) {
 	if len(tagIDs) == 0 && status == "" && priorityLevel == "" && businessStage == "" {
 		return s.store.ListProperties(ctx)
@@ -229,12 +406,48 @@ func (s *PropertyService) ListPropertiesFiltered(ctx context.Context, tagIDs []s
 	return filtered, nil
 }
 
-// ListProperties returns all tracked properties.
+/**
+ * Purpose:
+ * Performs the ListProperties operation for this backend package.
+ *
+ * Parameters:
+ * - s *PropertyService
+ *
+ * Returns:
+ * - ListProperties(ctx context.Context) ([]ingestiondomain.Property, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *PropertyService) ListProperties(ctx context.Context) ([]ingestiondomain.Property, error) {
 	return s.store.ListProperties(ctx)
 }
 
-// GetProperty returns one property by identifier.
+/**
+ * Purpose:
+ * Performs the GetProperty operation for this backend package.
+ *
+ * Parameters:
+ * - s *PropertyService
+ *
+ * Returns:
+ * - GetProperty(ctx context.Context, propertyID string) (ingestiondomain.Property, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *PropertyService) GetProperty(ctx context.Context, propertyID string) (ingestiondomain.Property, error) {
 	property, err := s.store.GetProperty(ctx, propertyID)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -244,7 +457,25 @@ func (s *PropertyService) GetProperty(ctx context.Context, propertyID string) (i
 	return property, err
 }
 
-// DeleteProperty removes one tracked property and its dependent records.
+/**
+ * Purpose:
+ * Performs the DeleteProperty operation for this backend package.
+ *
+ * Parameters:
+ * - s *PropertyService
+ *
+ * Returns:
+ * - DeleteProperty(ctx context.Context, propertyID string) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *PropertyService) DeleteProperty(ctx context.Context, propertyID string) error {
 	err := s.store.DeleteProperty(ctx, propertyID)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -254,7 +485,25 @@ func (s *PropertyService) DeleteProperty(ctx context.Context, propertyID string)
 	return err
 }
 
-// UpsertPropertyConfig saves a new extraction config version for a property.
+/**
+ * Purpose:
+ * Performs the UpsertPropertyConfig operation for this backend package.
+ *
+ * Parameters:
+ * - s *PropertyService
+ *
+ * Returns:
+ * - UpsertPropertyConfig(ctx context.Context, propertyID string, fields []ingestiondomain.FieldSelector) (ingestiondomain.PropertyExtractionConfig, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *PropertyService) UpsertPropertyConfig(ctx context.Context, propertyID string, fields []ingestiondomain.FieldSelector) (ingestiondomain.PropertyExtractionConfig, error) {
 	existing, err := s.store.GetLatestPropertyConfig(ctx, propertyID)
 	if err != nil {
@@ -284,17 +533,71 @@ func (s *PropertyService) UpsertPropertyConfig(ctx context.Context, propertyID s
 	return config, nil
 }
 
-// ListPropertyConfigs returns the saved config history for a property.
+/**
+ * Purpose:
+ * Performs the ListPropertyConfigs operation for this backend package.
+ *
+ * Parameters:
+ * - s *PropertyService
+ *
+ * Returns:
+ * - ListPropertyConfigs(ctx context.Context, propertyID string) ([]ingestiondomain.PropertyExtractionConfig, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *PropertyService) ListPropertyConfigs(ctx context.Context, propertyID string) ([]ingestiondomain.PropertyExtractionConfig, error) {
 	return s.store.ListPropertyConfigs(ctx, propertyID)
 }
 
-// GetPropertyConfigVersion returns one config version for a property.
+/**
+ * Purpose:
+ * Performs the GetPropertyConfigVersion operation for this backend package.
+ *
+ * Parameters:
+ * - s *PropertyService
+ *
+ * Returns:
+ * - GetPropertyConfigVersion(ctx context.Context, propertyID string, version int) (ingestiondomain.PropertyExtractionConfig, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *PropertyService) GetPropertyConfigVersion(ctx context.Context, propertyID string, version int) (ingestiondomain.PropertyExtractionConfig, error) {
 	return s.store.GetPropertyConfigVersion(ctx, propertyID, version)
 }
 
-// RollbackPropertyConfig saves a new version using the selected prior config.
+/**
+ * Purpose:
+ * Performs the RollbackPropertyConfig operation for this backend package.
+ *
+ * Parameters:
+ * - s *PropertyService
+ *
+ * Returns:
+ * - RollbackPropertyConfig(ctx context.Context, propertyID string, version int) (ingestiondomain.PropertyExtractionConfig, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *PropertyService) RollbackPropertyConfig(ctx context.Context, propertyID string, version int) (ingestiondomain.PropertyExtractionConfig, error) {
 	target, err := s.store.GetPropertyConfigVersion(ctx, propertyID, version)
 	if err != nil {
@@ -321,7 +624,25 @@ func (s *PropertyService) RollbackPropertyConfig(ctx context.Context, propertyID
 	return next, nil
 }
 
-// GetLatestPropertyConfig returns the effective extraction config for a property.
+/**
+ * Purpose:
+ * Performs the GetLatestPropertyConfig operation for this backend package.
+ *
+ * Parameters:
+ * - s *PropertyService
+ *
+ * Returns:
+ * - GetLatestPropertyConfig(ctx context.Context, propertyID string) (ingestiondomain.PropertyExtractionConfig, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *PropertyService) GetLatestPropertyConfig(ctx context.Context, propertyID string) (ingestiondomain.PropertyExtractionConfig, error) {
 	property, err := s.store.GetProperty(ctx, propertyID)
 	if err != nil {
@@ -341,6 +662,25 @@ func (s *PropertyService) GetLatestPropertyConfig(ctx context.Context, propertyI
 	return config, nil
 }
 
+/**
+ * Purpose:
+ * Performs the summarizeConfigChange operation for this backend package.
+ *
+ * Parameters:
+ * - previous, current []ingestiondomain.FieldSelector
+ *
+ * Returns:
+ * - string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func summarizeConfigChange(previous, current []ingestiondomain.FieldSelector) string {
 	previousByName := make(map[string]ingestiondomain.FieldSelector, len(previous))
 	currentByName := make(map[string]ingestiondomain.FieldSelector, len(current))
@@ -387,6 +727,25 @@ func summarizeConfigChange(previous, current []ingestiondomain.FieldSelector) st
 	return fmt.Sprintf("Fields: %s.", strings.Join(parts, ", "))
 }
 
+/**
+ * Purpose:
+ * Performs the selectorsEqual operation for this backend package.
+ *
+ * Parameters:
+ * - left, right ingestiondomain.FieldSelector
+ *
+ * Returns:
+ * - bool
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func selectorsEqual(left, right ingestiondomain.FieldSelector) bool {
 	if left.Name != right.Name ||
 		left.FieldName != right.FieldName ||
@@ -411,17 +770,71 @@ func selectorsEqual(left, right ingestiondomain.FieldSelector) bool {
 	return true
 }
 
-// ListPropertySnapshots returns recent runs for a property.
+/**
+ * Purpose:
+ * Performs the ListPropertySnapshots operation for this backend package.
+ *
+ * Parameters:
+ * - s *PropertyService
+ *
+ * Returns:
+ * - ListPropertySnapshots(ctx context.Context, propertyID string, limit int) ([]ingestiondomain.PropertySnapshot, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *PropertyService) ListPropertySnapshots(ctx context.Context, propertyID string, limit int) ([]ingestiondomain.PropertySnapshot, error) {
 	return s.store.ListPropertySnapshots(ctx, propertyID, limit)
 }
 
-// ListRuns returns recent runs across all properties.
+/**
+ * Purpose:
+ * Performs the ListRuns operation for this backend package.
+ *
+ * Parameters:
+ * - s *PropertyService
+ *
+ * Returns:
+ * - ListRuns(ctx context.Context, propertyID string, limit int) ([]ingestiondomain.PropertySnapshot, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *PropertyService) ListRuns(ctx context.Context, propertyID string, limit int) ([]ingestiondomain.PropertySnapshot, error) {
 	return s.store.ListAllPropertySnapshots(ctx, propertyID, limit)
 }
 
-// GetRun returns a single run by identifier.
+/**
+ * Purpose:
+ * Performs the GetRun operation for this backend package.
+ *
+ * Parameters:
+ * - s *PropertyService
+ *
+ * Returns:
+ * - GetRun(ctx context.Context, runID string) (ingestiondomain.PropertySnapshot, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *PropertyService) GetRun(ctx context.Context, runID string) (ingestiondomain.PropertySnapshot, error) {
 	run, err := s.store.GetPropertySnapshot(ctx, runID)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -431,12 +844,48 @@ func (s *PropertyService) GetRun(ctx context.Context, runID string) (ingestiondo
 	return run, err
 }
 
-// ListPropertyRuns returns recent property_runs for a property.
+/**
+ * Purpose:
+ * Performs the ListPropertyRuns operation for this backend package.
+ *
+ * Parameters:
+ * - s *PropertyService
+ *
+ * Returns:
+ * - ListPropertyRuns(ctx context.Context, propertyID string, limit int) ([]ingestiondomain.PropertyRun, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *PropertyService) ListPropertyRuns(ctx context.Context, propertyID string, limit int) ([]ingestiondomain.PropertyRun, error) {
 	return s.store.ListPropertyRuns(ctx, propertyID, limit)
 }
 
-// GetPropertySummary builds a summary read model for one property.
+/**
+ * Purpose:
+ * Performs the GetPropertySummary operation for this backend package.
+ *
+ * Parameters:
+ * - s *PropertyService
+ *
+ * Returns:
+ * - GetPropertySummary(ctx context.Context, propertyID string) (ingestiondomain.PropertySummary, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *PropertyService) GetPropertySummary(ctx context.Context, propertyID string) (ingestiondomain.PropertySummary, error) {
 	property, err := s.store.GetProperty(ctx, propertyID)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -448,7 +897,25 @@ func (s *PropertyService) GetPropertySummary(ctx context.Context, propertyID str
 	return s.buildSummary(ctx, property)
 }
 
-// ListPropertySummaries returns summary read models for all properties (respecting filters).
+/**
+ * Purpose:
+ * Performs the ListPropertySummaries operation for this backend package.
+ *
+ * Parameters:
+ * - s *PropertyService
+ *
+ * Returns:
+ * - ListPropertySummaries(ctx context.Context, tagIDs []string, matchAll bool, status, priorityLevel, businessStage string) ([]ingestiondomain.PropertySummary, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *PropertyService) ListPropertySummaries(ctx context.Context, tagIDs []string, matchAll bool, status, priorityLevel, businessStage string) ([]ingestiondomain.PropertySummary, error) {
 	properties, err := s.ListPropertiesFiltered(ctx, tagIDs, matchAll, status, priorityLevel, businessStage)
 	if err != nil {
@@ -467,6 +934,25 @@ func (s *PropertyService) ListPropertySummaries(ctx context.Context, tagIDs []st
 	return summaries, nil
 }
 
+/**
+ * Purpose:
+ * Performs the buildSummary operation for this backend package.
+ *
+ * Parameters:
+ * - s *PropertyService
+ *
+ * Returns:
+ * - buildSummary(ctx context.Context, property ingestiondomain.Property) (ingestiondomain.PropertySummary, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *PropertyService) buildSummary(ctx context.Context, property ingestiondomain.Property) (ingestiondomain.PropertySummary, error) {
 	snapshots, err := s.store.GetLatestPropertySnapshots(ctx, property.ID, 2)
 	if err != nil {
@@ -493,7 +979,25 @@ func (s *PropertyService) buildSummary(ctx context.Context, property ingestiondo
 	}, nil
 }
 
-// DeleteRun removes one stored property snapshot.
+/**
+ * Purpose:
+ * Performs the DeleteRun operation for this backend package.
+ *
+ * Parameters:
+ * - s *PropertyService
+ *
+ * Returns:
+ * - DeleteRun(ctx context.Context, runID string) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *PropertyService) DeleteRun(ctx context.Context, runID string) error {
 	err := s.store.DeletePropertySnapshot(ctx, runID)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -503,7 +1007,25 @@ func (s *PropertyService) DeleteRun(ctx context.Context, runID string) error {
 	return err
 }
 
-// PreviewExtraction fetches and applies selectors without persisting any state.
+/**
+ * Purpose:
+ * Performs the PreviewExtraction operation for this backend package.
+ *
+ * Parameters:
+ * - s *PropertyService
+ *
+ * Returns:
+ * - PreviewExtraction(ctx context.Context, req ingestiondomain.PropertyPreviewRequest) (ingestiondomain.PropertyPreviewResult, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *PropertyService) PreviewExtraction(ctx context.Context, req ingestiondomain.PropertyPreviewRequest) (ingestiondomain.PropertyPreviewResult, error) {
 	if err := validatePropertyURL(req.URL); err != nil {
 		return ingestiondomain.PropertyPreviewResult{}, err
@@ -535,7 +1057,25 @@ func (s *PropertyService) PreviewExtraction(ctx context.Context, req ingestiondo
 	}, nil
 }
 
-// IngestProperty fetches, extracts, and records one snapshot for a property.
+/**
+ * Purpose:
+ * Performs the IngestProperty operation for this backend package.
+ *
+ * Parameters:
+ * - s *PropertyService
+ *
+ * Returns:
+ * - IngestProperty(ctx context.Context, propertyID string) (ingestiondomain.PropertySnapshot, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *PropertyService) IngestProperty(ctx context.Context, propertyID string) (ingestiondomain.PropertySnapshot, error) {
 	property, err := s.store.GetProperty(ctx, propertyID)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -661,7 +1201,25 @@ func (s *PropertyService) IngestProperty(ctx context.Context, propertyID string)
 	return snapshot, nil
 }
 
-// IngestPropertyOnce performs a single ingestion attempt for a property (internal variant for scheduler).
+/**
+ * Purpose:
+ * Performs the IngestPropertyOnce operation for this backend package.
+ *
+ * Parameters:
+ * - s *PropertyService
+ *
+ * Returns:
+ * - IngestPropertyOnce(ctx context.Context, propertyID string, attemptNum int, runID string) (ingestiondomain.PropertySnapshot, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *PropertyService) IngestPropertyOnce(ctx context.Context, propertyID string, attemptNum int, runID string) (ingestiondomain.PropertySnapshot, error) {
 	property, err := s.store.GetProperty(ctx, propertyID)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -781,7 +1339,25 @@ func (s *PropertyService) IngestPropertyOnce(ctx context.Context, propertyID str
 	return snapshot, nil
 }
 
-// normalizeAndValidateProperty applies defaults and validates the property before save.
+/**
+ * Purpose:
+ * Performs the normalizeAndValidateProperty operation for this backend package.
+ *
+ * Parameters:
+ * - s *PropertyService
+ *
+ * Returns:
+ * - normalizeAndValidateProperty(ctx context.Context, property ingestiondomain.Property) (ingestiondomain.Property, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *PropertyService) normalizeAndValidateProperty(ctx context.Context, property ingestiondomain.Property) (ingestiondomain.Property, error) {
 	trimmedURL := strings.TrimSpace(property.URL)
 	if trimmedURL != "" {
@@ -866,6 +1442,25 @@ func (s *PropertyService) normalizeAndValidateProperty(ctx context.Context, prop
 	return property, nil
 }
 
+/**
+ * Purpose:
+ * Performs the recordManualSnapshot operation for this backend package.
+ *
+ * Parameters:
+ * - s *PropertyService
+ *
+ * Returns:
+ * - recordManualSnapshot( ctx context.Context, property ingestiondomain.Property, manualValues map[string]string, ) (ingestiondomain.PropertySnapshot, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *PropertyService) recordManualSnapshot(
 	ctx context.Context,
 	property ingestiondomain.Property,
@@ -954,6 +1549,25 @@ func (s *PropertyService) recordManualSnapshot(
 	return snapshot, nil
 }
 
+/**
+ * Purpose:
+ * Performs the buildManualFieldSelectors operation for this backend package.
+ *
+ * Parameters:
+ * - values map[string]string
+ *
+ * Returns:
+ * - []ingestiondomain.FieldSelector
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func buildManualFieldSelectors(values map[string]string) []ingestiondomain.FieldSelector {
 	fields := make([]ingestiondomain.FieldSelector, 0, len(values))
 	for key := range values {
@@ -966,6 +1580,25 @@ func buildManualFieldSelectors(values map[string]string) []ingestiondomain.Field
 	return fields
 }
 
+/**
+ * Purpose:
+ * Performs the readManualConfigVersion operation for this backend package.
+ *
+ * Parameters:
+ * - ctx context.Context, store PropertyStore, propertyID string
+ *
+ * Returns:
+ * - int
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func readManualConfigVersion(ctx context.Context, store PropertyStore, propertyID string) int {
 	config, err := store.GetLatestPropertyConfig(ctx, propertyID)
 	if err != nil {
@@ -975,6 +1608,25 @@ func readManualConfigVersion(ctx context.Context, store PropertyStore, propertyI
 	return config.Version
 }
 
+/**
+ * Purpose:
+ * Performs the resolveFields operation for this backend package.
+ *
+ * Parameters:
+ * - s *PropertyService
+ *
+ * Returns:
+ * - resolveFields(ctx context.Context, sourceID string, customFields []ingestiondomain.FieldSelector) ([]ingestiondomain.FieldSelector, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *PropertyService) resolveFields(ctx context.Context, sourceID string, customFields []ingestiondomain.FieldSelector) ([]ingestiondomain.FieldSelector, error) {
 	resolved := make([]ingestiondomain.FieldSelector, 0)
 	indexByName := make(map[string]int)
@@ -1010,6 +1662,25 @@ func (s *PropertyService) resolveFields(ctx context.Context, sourceID string, cu
 	return resolved, nil
 }
 
+/**
+ * Purpose:
+ * Performs the fieldsFromSource operation for this backend package.
+ *
+ * Parameters:
+ * - source ingestiondomain.Source
+ *
+ * Returns:
+ * - []ingestiondomain.FieldSelector
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func fieldsFromSource(source ingestiondomain.Source) []ingestiondomain.FieldSelector {
 	if strings.TrimSpace(source.ConfigJSON) == "" {
 		return nil
@@ -1027,6 +1698,25 @@ func fieldsFromSource(source ingestiondomain.Source) []ingestiondomain.FieldSele
 	return nil
 }
 
+/**
+ * Purpose:
+ * Performs the decodeSnapshotValues operation for this backend package.
+ *
+ * Parameters:
+ * - values json.RawMessage
+ *
+ * Returns:
+ * - map[string]string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func decodeSnapshotValues(values json.RawMessage) map[string]string {
 	if len(values) == 0 {
 		return map[string]string{}
@@ -1038,14 +1728,50 @@ func decodeSnapshotValues(values json.RawMessage) map[string]string {
 	return decoded
 }
 
-// emit publishes a named event if a broker is wired.
+/**
+ * Purpose:
+ * Performs the emit operation for this backend package.
+ *
+ * Parameters:
+ * - s *PropertyService
+ *
+ * Returns:
+ * - emit(eventType string, data any)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *PropertyService) emit(eventType string, data any) {
 	if s.events != nil {
 		s.events.Publish(eventType, data)
 	}
 }
 
-// validatePropertyURL ensures the URL is a well-formed http or https URL.
+/**
+ * Purpose:
+ * Performs the validatePropertyURL operation for this backend package.
+ *
+ * Parameters:
+ * - rawURL string
+ *
+ * Returns:
+ * - error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func validatePropertyURL(rawURL string) error {
 	rawURL = strings.TrimSpace(rawURL)
 	if rawURL == "" {
@@ -1068,6 +1794,25 @@ func validatePropertyURL(rawURL string) error {
 	return nil
 }
 
+/**
+ * Purpose:
+ * Performs the fetchHTML operation for this backend package.
+ *
+ * Parameters:
+ * - s *PropertyService
+ *
+ * Returns:
+ * - fetchHTML(ctx context.Context, targetURL string, options propertyFetchOptions) ([]byte, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *PropertyService) fetchHTML(ctx context.Context, targetURL string, options propertyFetchOptions) ([]byte, error) {
 	parsed, err := url.Parse(strings.TrimSpace(targetURL))
 	if err != nil {
@@ -1093,6 +1838,25 @@ func (s *PropertyService) fetchHTML(ctx context.Context, targetURL string, optio
 	return response.Payload, nil
 }
 
+/**
+ * Purpose:
+ * Performs the normalizePropertyRequestHeaders operation for this backend package.
+ *
+ * Parameters:
+ * - headers map[string]string
+ *
+ * Returns:
+ * - (map[string]string, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func normalizePropertyRequestHeaders(headers map[string]string) (map[string]string, error) {
 	if len(headers) == 0 {
 		return nil, nil
@@ -1122,6 +1886,25 @@ func normalizePropertyRequestHeaders(headers map[string]string) (map[string]stri
 	return normalized, nil
 }
 
+/**
+ * Purpose:
+ * Performs the validateFetchHost operation for this backend package.
+ *
+ * Parameters:
+ * - host string
+ *
+ * Returns:
+ * - error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func validateFetchHost(host string) error {
 	host = strings.TrimSpace(strings.ToLower(host))
 	if host == "" {
@@ -1138,6 +1921,25 @@ func validateFetchHost(host string) error {
 	return nil
 }
 
+/**
+ * Purpose:
+ * Performs the applySelectors operation for this backend package.
+ *
+ * Parameters:
+ * - body []byte, fields []ingestiondomain.FieldSelector
+ *
+ * Returns:
+ * - (map[string]string, []string, []ingestiondomain.PropertyPreviewFieldResult)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func applySelectors(body []byte, fields []ingestiondomain.FieldSelector) (map[string]string, []string, []ingestiondomain.PropertyPreviewFieldResult) {
 	rootNode, err := html.Parse(bytes.NewReader(body))
 	if err != nil {
@@ -1160,6 +1962,25 @@ func applySelectors(body []byte, fields []ingestiondomain.FieldSelector) (map[st
 	return values, failures, fieldResults
 }
 
+/**
+ * Purpose:
+ * Performs the selectFieldValue operation for this backend package.
+ *
+ * Parameters:
+ * - document *goquery.Document, rootNode *html.Node, field ingestiondomain.FieldSelector
+ *
+ * Returns:
+ * - ingestiondomain.PropertyPreviewFieldResult
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func selectFieldValue(document *goquery.Document, rootNode *html.Node, field ingestiondomain.FieldSelector) ingestiondomain.PropertyPreviewFieldResult {
 	result := ingestiondomain.PropertyPreviewFieldResult{
 		ExtractionMode: field.ExtractionMode,
@@ -1240,6 +2061,25 @@ func selectFieldValue(document *goquery.Document, rootNode *html.Node, field ing
 
 var errUnsupportedSelectorType = errors.New("unsupported selector type")
 
+/**
+ * Purpose:
+ * Performs the querySelectorNodes operation for this backend package.
+ *
+ * Parameters:
+ * - document *goquery.Document, rootNode *html.Node, field ingestiondomain.FieldSelector, selector string
+ *
+ * Returns:
+ * - ([]*html.Node, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func querySelectorNodes(document *goquery.Document, rootNode *html.Node, field ingestiondomain.FieldSelector, selector string) ([]*html.Node, error) {
 	trimmedSelector := strings.TrimSpace(selector)
 	if trimmedSelector == "" {
@@ -1268,6 +2108,25 @@ func querySelectorNodes(document *goquery.Document, rootNode *html.Node, field i
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the extractNodeValue operation for this backend package.
+ *
+ * Parameters:
+ * - node *html.Node, field ingestiondomain.FieldSelector
+ *
+ * Returns:
+ * - (string, bool)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func extractNodeValue(node *html.Node, field ingestiondomain.FieldSelector) (string, bool) {
 	if field.ExtractionMode == ingestiondomain.ExtractionModeAttribute || field.SelectorType == ingestiondomain.SelectorTypeAttribute {
 		attributeName := strings.TrimSpace(field.Attribute)
@@ -1295,8 +2154,25 @@ func extractNodeValue(node *html.Node, field ingestiondomain.FieldSelector) (str
 	return value, value != ""
 }
 
-// nodeTextContent returns the raw concatenation of every descendant text node,
-// matching the DOM textContent property (no whitespace collapsing, no element filtering).
+/**
+ * Purpose:
+ * Performs the nodeTextContent operation for this backend package.
+ *
+ * Parameters:
+ * - node *html.Node
+ *
+ * Returns:
+ * - string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func nodeTextContent(node *html.Node) string {
 	var builder strings.Builder
 	var walk func(*html.Node)
@@ -1315,8 +2191,25 @@ func nodeTextContent(node *html.Node) string {
 	return builder.String()
 }
 
-// nodeInnerText approximates the DOM innerText property: it skips <script>,
-// <style>, and <template> subtrees and collapses whitespace runs into single spaces.
+/**
+ * Purpose:
+ * Performs the nodeInnerText operation for this backend package.
+ *
+ * Parameters:
+ * - node *html.Node
+ *
+ * Returns:
+ * - string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func nodeInnerText(node *html.Node) string {
 	var builder strings.Builder
 	var walk func(*html.Node)
@@ -1341,6 +2234,25 @@ func nodeInnerText(node *html.Node) string {
 	return collapseWhitespace(builder.String())
 }
 
+/**
+ * Purpose:
+ * Performs the collapseWhitespace operation for this backend package.
+ *
+ * Parameters:
+ * - value string
+ *
+ * Returns:
+ * - string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func collapseWhitespace(value string) string {
 	var builder strings.Builder
 	builder.Grow(len(value))
@@ -1359,6 +2271,25 @@ func collapseWhitespace(value string) string {
 	return strings.TrimSpace(builder.String())
 }
 
+/**
+ * Purpose:
+ * Performs the missingValueMessage operation for this backend package.
+ *
+ * Parameters:
+ * - field ingestiondomain.FieldSelector
+ *
+ * Returns:
+ * - string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func missingValueMessage(field ingestiondomain.FieldSelector) string {
 	if field.ExtractionMode == ingestiondomain.ExtractionModeAttribute || field.SelectorType == ingestiondomain.SelectorTypeAttribute {
 		return fmt.Sprintf("Attribute %q was not found.", field.Attribute)
@@ -1366,6 +2297,25 @@ func missingValueMessage(field ingestiondomain.FieldSelector) string {
 	return "The matched element was empty."
 }
 
+/**
+ * Purpose:
+ * Performs the resolveSelectorStrategy operation for this backend package.
+ *
+ * Parameters:
+ * - selectorType ingestiondomain.SelectorType
+ *
+ * Returns:
+ * - ingestiondomain.SelectorType
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func resolveSelectorStrategy(selectorType ingestiondomain.SelectorType) ingestiondomain.SelectorType {
 	switch selectorType {
 	case ingestiondomain.SelectorTypeXPath:
@@ -1377,6 +2327,25 @@ func resolveSelectorStrategy(selectorType ingestiondomain.SelectorType) ingestio
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the normalizeConfiguredFields operation for this backend package.
+ *
+ * Parameters:
+ * - fields []ingestiondomain.FieldSelector
+ *
+ * Returns:
+ * - ([]ingestiondomain.FieldSelector, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func normalizeConfiguredFields(fields []ingestiondomain.FieldSelector) ([]ingestiondomain.FieldSelector, error) {
 	if len(fields) == 0 {
 		return nil, fmt.Errorf("at least one field is required")
@@ -1479,6 +2448,25 @@ func normalizeConfiguredFields(fields []ingestiondomain.FieldSelector) ([]ingest
 	return normalized, nil
 }
 
+/**
+ * Purpose:
+ * Performs the validateXPathSelector operation for this backend package.
+ *
+ * Parameters:
+ * - selector string
+ *
+ * Returns:
+ * - error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func validateXPathSelector(selector string) error {
 	trimmedSelector := strings.TrimSpace(selector)
 	if trimmedSelector == "" {
@@ -1493,6 +2481,25 @@ func validateXPathSelector(selector string) error {
 	return nil
 }
 
+/**
+ * Purpose:
+ * Performs the applyFieldExtractionOptions operation for this backend package.
+ *
+ * Parameters:
+ * - value string, field ingestiondomain.FieldSelector
+ *
+ * Returns:
+ * - (string, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func applyFieldExtractionOptions(value string, field ingestiondomain.FieldSelector) (string, error) {
 	value = strings.TrimSpace(value)
 	if field.RegexPattern != "" {
@@ -1545,6 +2552,25 @@ func applyFieldExtractionOptions(value string, field ingestiondomain.FieldSelect
 	return transformed, nil
 }
 
+/**
+ * Purpose:
+ * Performs the compareFieldValue operation for this backend package.
+ *
+ * Parameters:
+ * - value, operator, expected string
+ *
+ * Returns:
+ * - bool
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func compareFieldValue(value, operator, expected string) bool {
 	switch operator {
 	case "contains":
@@ -1577,9 +2603,25 @@ var supportedTransforms = map[string]struct{}{
 	"currency":  {},
 }
 
-// applyTransform normalises an extracted value according to the configured transform.
-// An unknown transform returns an error so that misconfigured fields surface a clear
-// failure rather than silently passing the raw value through.
+/**
+ * Purpose:
+ * Performs the applyTransform operation for this backend package.
+ *
+ * Parameters:
+ * - value, transform string
+ *
+ * Returns:
+ * - (string, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func applyTransform(value, transform string) (string, error) {
 	key := strings.TrimSpace(strings.ToLower(transform))
 	if _, ok := supportedTransforms[key]; !ok {
@@ -1600,9 +2642,25 @@ func applyTransform(value, transform string) (string, error) {
 	return value, nil
 }
 
-// normalizeIntegerString keeps only the digits in value. It is the historical
-// behaviour of the "number" transform and is preserved so that existing configs
-// produce the same output.
+/**
+ * Purpose:
+ * Performs the normalizeIntegerString operation for this backend package.
+ *
+ * Parameters:
+ * - value string
+ *
+ * Returns:
+ * - string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func normalizeIntegerString(value string) string {
 	var digits strings.Builder
 	for _, char := range value {
@@ -1613,10 +2671,25 @@ func normalizeIntegerString(value string) string {
 	return digits.String()
 }
 
-// normalizeDecimalString returns a digits-and-decimal-separator version of value.
-// It accepts both '.' and ',' as the decimal separator (heuristic: the right-most
-// run of one of those characters with 1-2 trailing digits is treated as the
-// decimal point) and discards thousands separators and currency symbols.
+/**
+ * Purpose:
+ * Performs the normalizeDecimalString operation for this backend package.
+ *
+ * Parameters:
+ * - value string
+ *
+ * Returns:
+ * - string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func normalizeDecimalString(value string) string {
 	negative := strings.Contains(value, "-")
 
@@ -1665,6 +2738,25 @@ func normalizeDecimalString(value string) string {
 	return result
 }
 
+/**
+ * Purpose:
+ * Performs the nextPropertyRunAt operation for this backend package.
+ *
+ * Parameters:
+ * - now time.Time, interval time.Duration
+ *
+ * Returns:
+ * - *time.Time
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func nextPropertyRunAt(now time.Time, interval time.Duration) *time.Time {
 	if interval <= 0 {
 		return nil
@@ -1673,6 +2765,25 @@ func nextPropertyRunAt(now time.Time, interval time.Duration) *time.Time {
 	return &nextRun
 }
 
+/**
+ * Purpose:
+ * Performs the reschedulePropertyRunAt operation for this backend package.
+ *
+ * Parameters:
+ * - now time.Time, existing ingestiondomain.Property, interval time.Duration
+ *
+ * Returns:
+ * - *time.Time
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func reschedulePropertyRunAt(now time.Time, existing ingestiondomain.Property, interval time.Duration) *time.Time {
 	if interval <= 0 {
 		return nil
@@ -1692,6 +2803,25 @@ func reschedulePropertyRunAt(now time.Time, existing ingestiondomain.Property, i
 	return nextPropertyRunAt(now, interval)
 }
 
+/**
+ * Purpose:
+ * Performs the max operation for this backend package.
+ *
+ * Parameters:
+ * - a, b int
+ *
+ * Returns:
+ * - int
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func max(a, b int) int {
 	if a > b {
 		return a

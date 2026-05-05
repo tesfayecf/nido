@@ -1,3 +1,33 @@
+/**
+ * File: internal/platformops/domain/backup.go
+ *
+ * Purpose:
+ * Defines domain data structures and normalization rules for this backend area.
+ *
+ * Responsibilities:
+ * - Define data contracts
+ * - Normalize values used across layers
+ * - Keep business terminology centralized
+ *
+ * Inputs:
+ * - Function parameters, HTTP payloads, environment settings, or repository data as accepted by this file.
+ *
+ * Outputs:
+ * - Typed Go values, HTTP responses, persisted records, or test assertions produced by this file.
+ *
+ * Dependencies:
+ * - fmt
+ * - strings
+ * - time
+ * - nido/server/internal/ingestion/domain
+ *
+ * Side Effects:
+ * - None beyond in-memory transformations unless called dependencies perform effects.
+ *
+ * Critical Notes:
+ * - Keep this documentation synchronized with behavior changes and cross-package contracts.
+ */
+
 package domain
 
 import (
@@ -10,6 +40,22 @@ import (
 
 const WorkspaceBackupSchemaVersion = 1
 
+/**
+ * Purpose:
+ * Defines the WorkspaceBackup struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type WorkspaceBackup struct {
 	SchemaVersion       int                                        `json:"schema_version"`
 	PlatformSettings    PlatformSettings                           `json:"platform_settings"`
@@ -24,6 +70,22 @@ type WorkspaceBackup struct {
 	PropertyFieldValues []WorkspaceBackupPropertyFieldValue        `json:"property_field_values"`
 }
 
+/**
+ * Purpose:
+ * Defines the BackupFileInfo struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type BackupFileInfo struct {
 	Name      string    `json:"name"`
 	Path      string    `json:"path"`
@@ -31,12 +93,44 @@ type BackupFileInfo struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+/**
+ * Purpose:
+ * Defines the WorkspaceBackupPropertyTag struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type WorkspaceBackupPropertyTag struct {
 	PropertyID string    `json:"property_id"`
 	TagID      string    `json:"tag_id"`
 	AssignedAt time.Time `json:"assigned_at"`
 }
 
+/**
+ * Purpose:
+ * Defines the WorkspaceBackupPropertyFieldValue struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type WorkspaceBackupPropertyFieldValue struct {
 	ID                string    `json:"id"`
 	PropertyID        string    `json:"property_id"`
@@ -52,6 +146,25 @@ type WorkspaceBackupPropertyFieldValue struct {
 	CreatedAt         time.Time `json:"created_at"`
 }
 
+/**
+ * Purpose:
+ * Performs the NormalizeWorkspaceBackup operation for this backend package.
+ *
+ * Parameters:
+ * - backup WorkspaceBackup
+ *
+ * Returns:
+ * - (WorkspaceBackup, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func NormalizeWorkspaceBackup(backup WorkspaceBackup) (WorkspaceBackup, error) {
 	switch backup.SchemaVersion {
 	case 0:

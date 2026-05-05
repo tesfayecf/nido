@@ -1,3 +1,49 @@
+/**
+ * File: internal/app/runtime.go
+ *
+ * Purpose:
+ * Composes the backend runtime, dependencies, routes, and lifecycle behavior.
+ *
+ * Responsibilities:
+ * - Provide package-specific backend behavior
+ * - Keep dependencies explicit
+ * - Return deterministic values to callers
+ *
+ * Inputs:
+ * - Function parameters, HTTP payloads, environment settings, or repository data as accepted by this file.
+ *
+ * Outputs:
+ * - Typed Go values, HTTP responses, persisted records, or test assertions produced by this file.
+ *
+ * Dependencies:
+ * - context
+ * - database/sql
+ * - fmt
+ * - log/slog
+ * - net/http
+ * - time
+ * - nido/server/internal/auth/application
+ * - nido/server/internal/auth/transport/httpapi
+ * - nido/server/internal/engagement/application
+ * - nido/server/internal/engagement/transport/httpapi
+ * - nido/server/internal/fetcher
+ * - nido/server/internal/ingestion/application
+ * - nido/server/internal/ingestion/browser
+ * - nido/server/internal/ingestion/transport/httpapi
+ * - nido/server/internal/platform/config
+ * - nido/server/internal/platform/events
+ * - nido/server/internal/platform/httpapi
+ * - nido/server/internal/platform/sqlite
+ * - nido/server/internal/platformops/application
+ * - nido/server/internal/platformops/transport/httpapi
+ *
+ * Side Effects:
+ * - May perform database, network, filesystem, logging, scheduler, or HTTP response effects through collaborators.
+ *
+ * Critical Notes:
+ * - Keep this documentation synchronized with behavior changes and cross-package contracts.
+ */
+
 package app
 
 import (
@@ -24,7 +70,22 @@ import (
 	platformopshttp "nido/server/internal/platformops/transport/httpapi"
 )
 
-// Runtime owns the backend process dependencies and HTTP handler.
+/**
+ * Purpose:
+ * Defines the Runtime struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type Runtime struct {
 	Handler           http.Handler
 	db                *sql.DB
@@ -34,7 +95,25 @@ type Runtime struct {
 	MigrationStatus   platformsqlite.MigrationStatus
 }
 
-// New builds the operational backend runtime.
+/**
+ * Purpose:
+ * Performs the New operation for this backend package.
+ *
+ * Parameters:
+ * - ctx context.Context, cfg config.Config, logger *slog.Logger
+ *
+ * Returns:
+ * - (*Runtime, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Runtime, error) {
 	runtimeCtx, cancel := context.WithCancel(ctx)
 
@@ -119,7 +198,25 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Runtime,
 	}, nil
 }
 
-// Close releases the runtime resources.
+/**
+ * Purpose:
+ * Performs the Close operation for this backend package.
+ *
+ * Parameters:
+ * - r *Runtime
+ *
+ * Returns:
+ * - Close() error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (r *Runtime) Close() error {
 	if r.cancel != nil {
 		r.cancel()
@@ -133,6 +230,25 @@ func (r *Runtime) Close() error {
 	return r.db.Close()
 }
 
+/**
+ * Purpose:
+ * Performs the registerHealthEndpoints operation for this backend package.
+ *
+ * Parameters:
+ * - mux *http.ServeMux, db *sql.DB, migrationStatus platformsqlite.MigrationStatus
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func registerHealthEndpoints(mux *http.ServeMux, db *sql.DB, migrationStatus platformsqlite.MigrationStatus) {
 	mux.HandleFunc("GET /api/v1/health/live", func(w http.ResponseWriter, r *http.Request) {
 		platformhttp.WriteJSON(w, http.StatusOK, map[string]string{"status": "ok"})

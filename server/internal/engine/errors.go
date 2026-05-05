@@ -1,3 +1,31 @@
+/**
+ * File: internal/engine/errors.go
+ *
+ * Purpose:
+ * Implements backend behavior for the engine package.
+ *
+ * Responsibilities:
+ * - Provide package-specific backend behavior
+ * - Keep dependencies explicit
+ * - Return deterministic values to callers
+ *
+ * Inputs:
+ * - Function parameters, HTTP payloads, environment settings, or repository data as accepted by this file.
+ *
+ * Outputs:
+ * - Typed Go values, HTTP responses, persisted records, or test assertions produced by this file.
+ *
+ * Dependencies:
+ * - errors
+ * - fmt
+ *
+ * Side Effects:
+ * - None beyond in-memory transformations unless called dependencies perform effects.
+ *
+ * Critical Notes:
+ * - Keep this documentation synchronized with behavior changes and cross-package contracts.
+ */
+
 package engine
 
 import (
@@ -5,7 +33,22 @@ import (
 	"fmt"
 )
 
-// FailureClass categorizes whether a scraping failure should be retried.
+/**
+ * Purpose:
+ * Defines the FailureClass type alias or composite type used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type FailureClass string
 
 const (
@@ -13,13 +56,46 @@ const (
 	FailureFatal     FailureClass = "fatal"
 )
 
-// ClassifiedError wraps an error with retry semantics.
+/**
+ * Purpose:
+ * Defines the ClassifiedError struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type ClassifiedError struct {
 	class FailureClass
 	err   error
 }
 
-// Error returns the wrapped error text.
+/**
+ * Purpose:
+ * Performs the Error operation for this backend package.
+ *
+ * Parameters:
+ * - e *ClassifiedError
+ *
+ * Returns:
+ * - Error() string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func (e *ClassifiedError) Error() string {
 	if e == nil || e.err == nil {
 		return ""
@@ -28,7 +104,25 @@ func (e *ClassifiedError) Error() string {
 	return e.err.Error()
 }
 
-// Unwrap exposes the underlying error.
+/**
+ * Purpose:
+ * Performs the Unwrap operation for this backend package.
+ *
+ * Parameters:
+ * - e *ClassifiedError
+ *
+ * Returns:
+ * - Unwrap() error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func (e *ClassifiedError) Unwrap() error {
 	if e == nil {
 		return nil
@@ -37,7 +131,25 @@ func (e *ClassifiedError) Unwrap() error {
 	return e.err
 }
 
-// FailureClass reports the retry classification of the error.
+/**
+ * Purpose:
+ * Performs the FailureClass operation for this backend package.
+ *
+ * Parameters:
+ * - e *ClassifiedError
+ *
+ * Returns:
+ * - FailureClass() FailureClass
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func (e *ClassifiedError) FailureClass() FailureClass {
 	if e == nil {
 		return FailureFatal
@@ -46,7 +158,25 @@ func (e *ClassifiedError) FailureClass() FailureClass {
 	return e.class
 }
 
-// Retryable marks an error as retryable.
+/**
+ * Purpose:
+ * Performs the Retryable operation for this backend package.
+ *
+ * Parameters:
+ * - err error
+ *
+ * Returns:
+ * - error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func Retryable(err error) error {
 	if err == nil {
 		return nil
@@ -55,7 +185,25 @@ func Retryable(err error) error {
 	return &ClassifiedError{class: FailureRetryable, err: err}
 }
 
-// Fatal marks an error as fatal.
+/**
+ * Purpose:
+ * Performs the Fatal operation for this backend package.
+ *
+ * Parameters:
+ * - err error
+ *
+ * Returns:
+ * - error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func Fatal(err error) error {
 	if err == nil {
 		return nil
@@ -64,7 +212,25 @@ func Fatal(err error) error {
 	return &ClassifiedError{class: FailureFatal, err: err}
 }
 
-// IsRetryable reports whether the supplied error should be retried.
+/**
+ * Purpose:
+ * Performs the IsRetryable operation for this backend package.
+ *
+ * Parameters:
+ * - err error
+ *
+ * Returns:
+ * - bool
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func IsRetryable(err error) bool {
 	var classified interface{ FailureClass() FailureClass }
 	if errors.As(err, &classified) {
@@ -74,7 +240,25 @@ func IsRetryable(err error) bool {
 	return false
 }
 
-// ClassifyHTTPStatus classifies HTTP status codes into retry buckets.
+/**
+ * Purpose:
+ * Performs the ClassifyHTTPStatus operation for this backend package.
+ *
+ * Parameters:
+ * - statusCode int
+ *
+ * Returns:
+ * - FailureClass
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func ClassifyHTTPStatus(statusCode int) FailureClass {
 	switch {
 	case statusCode == 403, statusCode == 408, statusCode == 425, statusCode == 429, statusCode == 503:
@@ -86,7 +270,25 @@ func ClassifyHTTPStatus(statusCode int) FailureClass {
 	}
 }
 
-// WrapHTTPStatus converts an HTTP status into a classified error.
+/**
+ * Purpose:
+ * Performs the WrapHTTPStatus operation for this backend package.
+ *
+ * Parameters:
+ * - status string, statusCode int
+ *
+ * Returns:
+ * - error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func WrapHTTPStatus(status string, statusCode int) error {
 	err := fmt.Errorf("unexpected source status: %s", status)
 	if ClassifyHTTPStatus(statusCode) == FailureRetryable {

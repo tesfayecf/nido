@@ -1,3 +1,35 @@
+/**
+ * File: internal/fetcher/client_test.go
+ *
+ * Purpose:
+ * Validates the fetcher package behavior covered by client_test.go.
+ *
+ * Responsibilities:
+ * - Set up deterministic test fixtures
+ * - Exercise expected success and failure paths
+ * - Protect backend behavior from regressions
+ *
+ * Inputs:
+ * - Function parameters, HTTP payloads, environment settings, or repository data as accepted by this file.
+ *
+ * Outputs:
+ * - Typed Go values, HTTP responses, persisted records, or test assertions produced by this file.
+ *
+ * Dependencies:
+ * - context
+ * - net/http
+ * - net/http/httptest
+ * - strings
+ * - sync/atomic
+ * - testing
+ *
+ * Side Effects:
+ * - May perform database, network, filesystem, logging, scheduler, or HTTP response effects through collaborators.
+ *
+ * Critical Notes:
+ * - Keep this documentation synchronized with behavior changes and cross-package contracts.
+ */
+
 package fetcher
 
 import (
@@ -9,17 +41,71 @@ import (
 	"testing"
 )
 
+/**
+ * Purpose:
+ * Defines the rendererStub struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type rendererStub struct {
 	payload []byte
 	err     error
 	calls   atomic.Int32
 }
 
+/**
+ * Purpose:
+ * Performs the Render operation for this backend package.
+ *
+ * Parameters:
+ * - r *rendererStub
+ *
+ * Returns:
+ * - Render(_ context.Context, _ string) ([]byte, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (r *rendererStub) Render(_ context.Context, _ string) ([]byte, error) {
 	r.calls.Add(1)
 	return r.payload, r.err
 }
 
+/**
+ * Purpose:
+ * Performs the TestHTTPClientFallsBackToBrowserOnChallenge operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestHTTPClientFallsBackToBrowserOnChallenge(t *testing.T) {
 	t.Parallel()
 
@@ -49,6 +135,25 @@ func TestHTTPClientFallsBackToBrowserOnChallenge(t *testing.T) {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the TestHTTPClientPersistsCookiesAcrossRequests operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestHTTPClientPersistsCookiesAcrossRequests(t *testing.T) {
 	t.Parallel()
 
@@ -81,6 +186,25 @@ func TestHTTPClientPersistsCookiesAcrossRequests(t *testing.T) {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the TestHTTPClientAppliesBrowserLikeHeaders operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestHTTPClientAppliesBrowserLikeHeaders(t *testing.T) {
 	t.Parallel()
 

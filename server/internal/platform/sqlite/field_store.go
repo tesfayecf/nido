@@ -1,3 +1,37 @@
+/**
+ * File: internal/platform/sqlite/field_store.go
+ *
+ * Purpose:
+ * Implements SQLite persistence and migration support for backend state.
+ *
+ * Responsibilities:
+ * - Map domain objects to SQLite records
+ * - Execute schema-aware reads and writes
+ * - Preserve migration and backup safety guarantees
+ *
+ * Inputs:
+ * - Function parameters, HTTP payloads, environment settings, or repository data as accepted by this file.
+ *
+ * Outputs:
+ * - Typed Go values, HTTP responses, persisted records, or test assertions produced by this file.
+ *
+ * Dependencies:
+ * - context
+ * - database/sql
+ * - encoding/json
+ * - fmt
+ * - strings
+ * - time
+ * - nido/server/internal/ingestion/domain
+ * - nido/server/internal/platform/id
+ *
+ * Side Effects:
+ * - May perform database, network, filesystem, logging, scheduler, or HTTP response effects through collaborators.
+ *
+ * Critical Notes:
+ * - Keep this documentation synchronized with behavior changes and cross-package contracts.
+ */
+
 package sqlite
 
 import (
@@ -12,6 +46,25 @@ import (
 	"nido/server/internal/platform/id"
 )
 
+/**
+ * Purpose:
+ * Performs the scanFieldDefinition operation for this backend package.
+ *
+ * Parameters:
+ * - scanner scanner
+ *
+ * Returns:
+ * - (ingestiondomain.FieldDefinition, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func scanFieldDefinition(scanner scanner) (ingestiondomain.FieldDefinition, error) {
 	var (
 		field          ingestiondomain.FieldDefinition
@@ -59,7 +112,25 @@ func scanFieldDefinition(scanner scanner) (ingestiondomain.FieldDefinition, erro
 	return field, nil
 }
 
-// ListFieldDefinitions returns all canonical fields with usage counts.
+/**
+ * Purpose:
+ * Performs the ListFieldDefinitions operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - ListFieldDefinitions(ctx context.Context) ([]ingestiondomain.FieldDefinitionUsage, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) ListFieldDefinitions(ctx context.Context) ([]ingestiondomain.FieldDefinitionUsage, error) {
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT
@@ -100,6 +171,25 @@ func (s *Store) ListFieldDefinitions(ctx context.Context) ([]ingestiondomain.Fie
 	return items, rows.Err()
 }
 
+/**
+ * Purpose:
+ * Performs the scanFieldDefinitionUsage operation for this backend package.
+ *
+ * Parameters:
+ * - scanner scanner
+ *
+ * Returns:
+ * - (ingestiondomain.FieldDefinitionUsage, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func scanFieldDefinitionUsage(scanner scanner) (ingestiondomain.FieldDefinitionUsage, error) {
 	var (
 		usage          ingestiondomain.FieldDefinitionUsage
@@ -146,17 +236,71 @@ func scanFieldDefinitionUsage(scanner scanner) (ingestiondomain.FieldDefinitionU
 	return usage, nil
 }
 
-// GetFieldDefinition returns one field by identifier.
+/**
+ * Purpose:
+ * Performs the GetFieldDefinition operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - GetFieldDefinition(ctx context.Context, fieldID string) (ingestiondomain.FieldDefinition, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) GetFieldDefinition(ctx context.Context, fieldID string) (ingestiondomain.FieldDefinition, error) {
 	return scanFieldDefinition(s.db.QueryRowContext(ctx, `SELECT id, name, display_name, data_type, unit, description, enum_values_json, default_value, use_default_when_missing, comparison_operator, comparison_value, system_defined, created_at, updated_at FROM field_definitions WHERE id = ?`, fieldID))
 }
 
-// GetFieldDefinitionByName returns one field by canonical name.
+/**
+ * Purpose:
+ * Performs the GetFieldDefinitionByName operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - GetFieldDefinitionByName(ctx context.Context, fieldName string) (ingestiondomain.FieldDefinition, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) GetFieldDefinitionByName(ctx context.Context, fieldName string) (ingestiondomain.FieldDefinition, error) {
 	return scanFieldDefinition(s.db.QueryRowContext(ctx, `SELECT id, name, display_name, data_type, unit, description, enum_values_json, default_value, use_default_when_missing, comparison_operator, comparison_value, system_defined, created_at, updated_at FROM field_definitions WHERE name = ? COLLATE NOCASE`, fieldName))
 }
 
-// CreateFieldDefinition stores a new canonical field.
+/**
+ * Purpose:
+ * Performs the CreateFieldDefinition operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - CreateFieldDefinition(ctx context.Context, field ingestiondomain.FieldDefinition) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) CreateFieldDefinition(ctx context.Context, field ingestiondomain.FieldDefinition) error {
 	enumJSON, _ := json.Marshal(field.EnumValues)
 	_, err := s.db.ExecContext(
@@ -184,7 +328,25 @@ func (s *Store) CreateFieldDefinition(ctx context.Context, field ingestiondomain
 	return nil
 }
 
-// UpdateFieldDefinition updates mutable field metadata.
+/**
+ * Purpose:
+ * Performs the UpdateFieldDefinition operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - UpdateFieldDefinition(ctx context.Context, field ingestiondomain.FieldDefinition) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) UpdateFieldDefinition(ctx context.Context, field ingestiondomain.FieldDefinition) error {
 	enumJSON, _ := json.Marshal(field.EnumValues)
 	result, err := s.db.ExecContext(
@@ -217,7 +379,25 @@ func (s *Store) UpdateFieldDefinition(ctx context.Context, field ingestiondomain
 	return nil
 }
 
-// DeleteFieldDefinition removes one field when it is unused.
+/**
+ * Purpose:
+ * Performs the DeleteFieldDefinition operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - DeleteFieldDefinition(ctx context.Context, fieldID string) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) DeleteFieldDefinition(ctx context.Context, fieldID string) error {
 	field, err := s.GetFieldDefinition(ctx, fieldID)
 	if err != nil {
@@ -263,7 +443,25 @@ func (s *Store) DeleteFieldDefinition(ctx context.Context, fieldID string) error
 	return nil
 }
 
-// UpsertPropertyFieldValues normalizes one snapshot into the cross-property field table.
+/**
+ * Purpose:
+ * Performs the UpsertPropertyFieldValues operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - UpsertPropertyFieldValues(ctx context.Context, snapshot ingestiondomain.PropertySnapshot, fields []ingestiondomain.FieldSelector) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) UpsertPropertyFieldValues(ctx context.Context, snapshot ingestiondomain.PropertySnapshot, fields []ingestiondomain.FieldSelector) error {
 	values := decodeSnapshotValues(string(snapshot.Values))
 	if len(values) == 0 {
@@ -325,7 +523,25 @@ func (s *Store) UpsertPropertyFieldValues(ctx context.Context, snapshot ingestio
 	return nil
 }
 
-// ListAnalyticsRecords returns the latest normalized field values for each property.
+/**
+ * Purpose:
+ * Performs the ListAnalyticsRecords operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - ListAnalyticsRecords(ctx context.Context) ([]ingestiondomain.AnalyticsPropertyRecord, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) ListAnalyticsRecords(ctx context.Context) ([]ingestiondomain.AnalyticsPropertyRecord, error) {
 	rows, err := s.db.QueryContext(ctx, `
 		WITH ranked_snapshots AS (
@@ -428,7 +644,25 @@ func (s *Store) ListAnalyticsRecords(ctx context.Context) ([]ingestiondomain.Ana
 	return records, nil
 }
 
-// RemapPropertyFieldValues updates normalized values for one property selector group.
+/**
+ * Purpose:
+ * Performs the RemapPropertyFieldValues operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - RemapPropertyFieldValues(ctx context.Context, propertyID, selectorName, fieldName string) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) RemapPropertyFieldValues(ctx context.Context, propertyID, selectorName, fieldName string) error {
 	definition, err := s.GetFieldDefinitionByName(ctx, fieldName)
 	if err != nil {
@@ -480,6 +714,25 @@ func (s *Store) RemapPropertyFieldValues(ctx context.Context, propertyID, select
 	return nil
 }
 
+/**
+ * Purpose:
+ * Performs the applyFieldDefinitionFallback operation for this backend package.
+ *
+ * Parameters:
+ * - definition ingestiondomain.FieldDefinition, value string
+ *
+ * Returns:
+ * - string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func applyFieldDefinitionFallback(definition ingestiondomain.FieldDefinition, value string) string {
 	if definition.UseDefaultWhenMissing && strings.TrimSpace(value) == "" {
 		return strings.TrimSpace(definition.DefaultValue)
@@ -487,6 +740,25 @@ func applyFieldDefinitionFallback(definition ingestiondomain.FieldDefinition, va
 	return value
 }
 
+/**
+ * Purpose:
+ * Performs the applyFieldDefinitionComparison operation for this backend package.
+ *
+ * Parameters:
+ * - definition ingestiondomain.FieldDefinition, value string
+ *
+ * Returns:
+ * - string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func applyFieldDefinitionComparison(definition ingestiondomain.FieldDefinition, value string) string {
 	if definition.DataType != ingestiondomain.FieldDataTypeBoolean || strings.TrimSpace(definition.ComparisonOperator) == "" {
 		return value
@@ -508,21 +780,94 @@ func applyFieldDefinitionComparison(definition ingestiondomain.FieldDefinition, 
 	}
 }
 
-// CreatePropertyConfigVersion writes a new property config version directly.
+/**
+ * Purpose:
+ * Performs the CreatePropertyConfigVersion operation for this backend package.
+ *
+ * Parameters:
+ * - s *Store
+ *
+ * Returns:
+ * - CreatePropertyConfigVersion(ctx context.Context, config ingestiondomain.PropertyExtractionConfig) error
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func (s *Store) CreatePropertyConfigVersion(ctx context.Context, config ingestiondomain.PropertyExtractionConfig) error {
 	return s.UpsertPropertyConfig(ctx, config)
 }
 
-// NewFieldDefinitionID creates a store-compatible identifier.
+/**
+ * Purpose:
+ * Performs the NewFieldDefinitionID operation for this backend package.
+ *
+ * Parameters:
+ * - None.
+ *
+ * Returns:
+ * - string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func NewFieldDefinitionID() string {
 	return id.New("field")
 }
 
-// NewPropertyFieldValueID creates a store-compatible identifier.
+/**
+ * Purpose:
+ * Performs the NewPropertyFieldValueID operation for this backend package.
+ *
+ * Parameters:
+ * - None.
+ *
+ * Returns:
+ * - string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func NewPropertyFieldValueID() string {
 	return id.New("pfv")
 }
 
+/**
+ * Purpose:
+ * Performs the trimStringSlice operation for this backend package.
+ *
+ * Parameters:
+ * - items []string
+ *
+ * Returns:
+ * - []string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func trimStringSlice(items []string) []string {
 	trimmed := make([]string, 0, len(items))
 	for _, item := range items {
@@ -537,6 +882,25 @@ func trimStringSlice(items []string) []string {
 	return trimmed
 }
 
+/**
+ * Purpose:
+ * Performs the normalizeFieldDefinition operation for this backend package.
+ *
+ * Parameters:
+ * - field ingestiondomain.FieldDefinition, now time.Time
+ *
+ * Returns:
+ * - ingestiondomain.FieldDefinition
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func normalizeFieldDefinition(field ingestiondomain.FieldDefinition, now time.Time) ingestiondomain.FieldDefinition {
 	field.ID = strings.TrimSpace(field.ID)
 	field.Name = strings.TrimSpace(field.Name)

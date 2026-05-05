@@ -1,3 +1,37 @@
+/**
+ * File: internal/seed/seed_test.go
+ *
+ * Purpose:
+ * Validates the seed package behavior covered by seed_test.go.
+ *
+ * Responsibilities:
+ * - Set up deterministic test fixtures
+ * - Exercise expected success and failure paths
+ * - Protect backend behavior from regressions
+ *
+ * Inputs:
+ * - Function parameters, HTTP payloads, environment settings, or repository data as accepted by this file.
+ *
+ * Outputs:
+ * - Typed Go values, HTTP responses, persisted records, or test assertions produced by this file.
+ *
+ * Dependencies:
+ * - context
+ * - database/sql
+ * - errors
+ * - path/filepath
+ * - testing
+ * - time
+ * - nido/server/internal/platform/config
+ * - nido/server/internal/platform/sqlite
+ *
+ * Side Effects:
+ * - May perform database, network, filesystem, logging, scheduler, or HTTP response effects through collaborators.
+ *
+ * Critical Notes:
+ * - Keep this documentation synchronized with behavior changes and cross-package contracts.
+ */
+
 package seed
 
 import (
@@ -12,6 +46,25 @@ import (
 	platformsqlite "nido/server/internal/platform/sqlite"
 )
 
+/**
+ * Purpose:
+ * Performs the TestApplyShouldPopulateDeterministicDataWhenDatabaseIsEmpty operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestApplyShouldPopulateDeterministicDataWhenDatabaseIsEmpty(t *testing.T) {
 	t.Parallel()
 
@@ -48,6 +101,25 @@ func TestApplyShouldPopulateDeterministicDataWhenDatabaseIsEmpty(t *testing.T) {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the TestApplyShouldRemainIdempotentWhenRunMultipleTimes operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestApplyShouldRemainIdempotentWhenRunMultipleTimes(t *testing.T) {
 	t.Parallel()
 
@@ -67,6 +139,25 @@ func TestApplyShouldRemainIdempotentWhenRunMultipleTimes(t *testing.T) {
 	assertCount(t, db, "ingestion_runs", 1)
 }
 
+/**
+ * Purpose:
+ * Performs the TestApplyShouldRejectProductionEnvironmentWhenSeedRequested operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestApplyShouldRejectProductionEnvironmentWhenSeedRequested(t *testing.T) {
 	t.Parallel()
 
@@ -79,6 +170,25 @@ func TestApplyShouldRejectProductionEnvironmentWhenSeedRequested(t *testing.T) {
 	assertCount(t, db, "properties", 0)
 }
 
+/**
+ * Purpose:
+ * Performs the newSeedDatabase operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T, ctx context.Context
+ *
+ * Returns:
+ * - *sql.DB
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func newSeedDatabase(t *testing.T, ctx context.Context) *sql.DB {
 	t.Helper()
 
@@ -95,6 +205,25 @@ func newSeedDatabase(t *testing.T, ctx context.Context) *sql.DB {
 	return db
 }
 
+/**
+ * Purpose:
+ * Performs the assertCount operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T, db *sql.DB, table string, want int
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func assertCount(t *testing.T, db *sql.DB, table string, want int) {
 	t.Helper()
 
@@ -104,6 +233,25 @@ func assertCount(t *testing.T, db *sql.DB, table string, want int) {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the countRows operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T, db *sql.DB, table string
+ *
+ * Returns:
+ * - int
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func countRows(t *testing.T, db *sql.DB, table string) int {
 	t.Helper()
 

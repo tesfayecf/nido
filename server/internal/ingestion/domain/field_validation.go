@@ -1,3 +1,31 @@
+/**
+ * File: internal/ingestion/domain/field_validation.go
+ *
+ * Purpose:
+ * Defines domain data structures and normalization rules for this backend area.
+ *
+ * Responsibilities:
+ * - Define data contracts
+ * - Normalize values used across layers
+ * - Keep business terminology centralized
+ *
+ * Inputs:
+ * - Function parameters, HTTP payloads, environment settings, or repository data as accepted by this file.
+ *
+ * Outputs:
+ * - Typed Go values, HTTP responses, persisted records, or test assertions produced by this file.
+ *
+ * Dependencies:
+ * - strconv
+ * - strings
+ *
+ * Side Effects:
+ * - None beyond in-memory transformations unless called dependencies perform effects.
+ *
+ * Critical Notes:
+ * - Keep this documentation synchronized with behavior changes and cross-package contracts.
+ */
+
 package domain
 
 import (
@@ -11,7 +39,25 @@ const (
 	FieldValidationStatusValid    = "valid"
 )
 
-// ValidateFieldValue validates a captured value against the field definition.
+/**
+ * Purpose:
+ * Performs the ValidateFieldValue operation for this backend package.
+ *
+ * Parameters:
+ * - definition FieldDefinition, raw string
+ *
+ * Returns:
+ * - (string, string)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func ValidateFieldValue(definition FieldDefinition, raw string) (string, string) {
 	trimmed := strings.TrimSpace(raw)
 	if trimmed == "" {
@@ -45,6 +91,25 @@ func ValidateFieldValue(definition FieldDefinition, raw string) (string, string)
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the parseFieldNumber operation for this backend package.
+ *
+ * Parameters:
+ * - raw string
+ *
+ * Returns:
+ * - (float64, bool)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func parseFieldNumber(raw string) (float64, bool) {
 	candidate := strings.ReplaceAll(raw, " ", "")
 	candidate = strings.ReplaceAll(candidate, "€", "")

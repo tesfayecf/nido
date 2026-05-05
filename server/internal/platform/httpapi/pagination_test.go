@@ -1,3 +1,33 @@
+/**
+ * File: internal/platform/httpapi/pagination_test.go
+ *
+ * Purpose:
+ * Validates the httpapi package behavior covered by pagination_test.go.
+ *
+ * Responsibilities:
+ * - Set up deterministic test fixtures
+ * - Exercise expected success and failure paths
+ * - Protect backend behavior from regressions
+ *
+ * Inputs:
+ * - Function parameters, HTTP payloads, environment settings, or repository data as accepted by this file.
+ *
+ * Outputs:
+ * - Typed Go values, HTTP responses, persisted records, or test assertions produced by this file.
+ *
+ * Dependencies:
+ * - encoding/json
+ * - net/http
+ * - net/http/httptest
+ * - testing
+ *
+ * Side Effects:
+ * - None beyond in-memory transformations unless called dependencies perform effects.
+ *
+ * Critical Notes:
+ * - Keep this documentation synchronized with behavior changes and cross-package contracts.
+ */
+
 package httpapi
 
 import (
@@ -7,6 +37,25 @@ import (
 	"testing"
 )
 
+/**
+ * Purpose:
+ * Performs the TestWritePaginatedJSONReturnsStableOffsetWindow operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func TestWritePaginatedJSONReturnsStableOffsetWindow(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "/items?page=2&pageSize=2", nil)
 	recorder := httptest.NewRecorder()
@@ -36,6 +85,25 @@ func TestWritePaginatedJSONReturnsStableOffsetWindow(t *testing.T) {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the TestWritePaginatedJSONRejectsOversizedPage operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func TestWritePaginatedJSONRejectsOversizedPage(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "/items?pageSize=101", nil)
 	recorder := httptest.NewRecorder()
@@ -47,6 +115,25 @@ func TestWritePaginatedJSONRejectsOversizedPage(t *testing.T) {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the TestWritePaginatedJSONSupportsCursorAndConditionalGET operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func TestWritePaginatedJSONSupportsCursorAndConditionalGET(t *testing.T) {
 	first := httptest.NewRecorder()
 	WritePaginatedJSON(first, httptest.NewRequest(http.MethodGet, "/items?mode=cursor&limit=2", nil), http.StatusOK, []int{1, 2, 3}, nil)

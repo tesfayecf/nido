@@ -1,3 +1,32 @@
+/**
+ * File: internal/ingestion/domain/field.go
+ *
+ * Purpose:
+ * Defines domain data structures and normalization rules for this backend area.
+ *
+ * Responsibilities:
+ * - Define data contracts
+ * - Normalize values used across layers
+ * - Keep business terminology centralized
+ *
+ * Inputs:
+ * - Function parameters, HTTP payloads, environment settings, or repository data as accepted by this file.
+ *
+ * Outputs:
+ * - Typed Go values, HTTP responses, persisted records, or test assertions produced by this file.
+ *
+ * Dependencies:
+ * - strconv
+ * - strings
+ * - time
+ *
+ * Side Effects:
+ * - None beyond in-memory transformations unless called dependencies perform effects.
+ *
+ * Critical Notes:
+ * - Keep this documentation synchronized with behavior changes and cross-package contracts.
+ */
+
 package domain
 
 import (
@@ -6,7 +35,22 @@ import (
 	"time"
 )
 
-// FieldDataType describes the canonical type enforced for a reusable field.
+/**
+ * Purpose:
+ * Defines the FieldDataType type alias or composite type used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type FieldDataType string
 
 const (
@@ -16,7 +60,22 @@ const (
 	FieldDataTypeEnum    FieldDataType = "enum"
 )
 
-// FieldDefinition is a reusable canonical field shared across properties.
+/**
+ * Purpose:
+ * Defines the FieldDefinition struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type FieldDefinition struct {
 	ID                    string        `json:"id"`
 	Name                  string        `json:"name"`
@@ -34,7 +93,22 @@ type FieldDefinition struct {
 	UpdatedAt             time.Time     `json:"updated_at"`
 }
 
-// FieldDefinitionUsage summarizes how a field is used across tracked properties.
+/**
+ * Purpose:
+ * Defines the FieldDefinitionUsage struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type FieldDefinitionUsage struct {
 	FieldDefinition
 	PropertiesUsing int `json:"properties_using"`
@@ -42,7 +116,22 @@ type FieldDefinitionUsage struct {
 	UnmappedCount   int `json:"unmapped_count,omitempty"`
 }
 
-// PropertyFieldValue stores one normalized value captured for a property snapshot.
+/**
+ * Purpose:
+ * Defines the PropertyFieldValue struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type PropertyFieldValue struct {
 	ID                string    `json:"id"`
 	PropertyID        string    `json:"property_id"`
@@ -57,7 +146,22 @@ type PropertyFieldValue struct {
 	CreatedAt         time.Time `json:"created_at"`
 }
 
-// AnalyticsPropertyRecord stores the latest normalized values for one property.
+/**
+ * Purpose:
+ * Defines the AnalyticsPropertyRecord struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type AnalyticsPropertyRecord struct {
 	PropertyID    string            `json:"property_id"`
 	PropertyLabel string            `json:"property_label,omitempty"`
@@ -68,7 +172,25 @@ type AnalyticsPropertyRecord struct {
 	Values        map[string]string `json:"values"`
 }
 
-// ParseLooseFloat extracts a decimal number from display text that may contain currency symbols, spaces, or comma separators.
+/**
+ * Purpose:
+ * Performs the ParseLooseFloat operation for this backend package.
+ *
+ * Parameters:
+ * - value string
+ *
+ * Returns:
+ * - float64
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func ParseLooseFloat(value string) float64 {
 	var builder strings.Builder
 	for _, r := range value {

@@ -1,3 +1,31 @@
+/**
+ * File: internal/ingestion/application/transform_test.go
+ *
+ * Purpose:
+ * Validates the application package behavior covered by transform_test.go.
+ *
+ * Responsibilities:
+ * - Set up deterministic test fixtures
+ * - Exercise expected success and failure paths
+ * - Protect backend behavior from regressions
+ *
+ * Inputs:
+ * - Function parameters, HTTP payloads, environment settings, or repository data as accepted by this file.
+ *
+ * Outputs:
+ * - Typed Go values, HTTP responses, persisted records, or test assertions produced by this file.
+ *
+ * Dependencies:
+ * - testing
+ * - nido/server/internal/ingestion/domain
+ *
+ * Side Effects:
+ * - May perform database, network, filesystem, logging, scheduler, or HTTP response effects through collaborators.
+ *
+ * Critical Notes:
+ * - Keep this documentation synchronized with behavior changes and cross-package contracts.
+ */
+
 package application
 
 import (
@@ -6,6 +34,25 @@ import (
 	ingestiondomain "nido/server/internal/ingestion/domain"
 )
 
+/**
+ * Purpose:
+ * Performs the TestApplyTransformVocabulary operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestApplyTransformVocabulary(t *testing.T) {
 	t.Parallel()
 
@@ -52,6 +99,25 @@ func TestApplyTransformVocabulary(t *testing.T) {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the TestNormalizeConfiguredFieldsRejectsUnknownTransform operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestNormalizeConfiguredFieldsRejectsUnknownTransform(t *testing.T) {
 	t.Parallel()
 
@@ -69,6 +135,25 @@ func TestNormalizeConfiguredFieldsRejectsUnknownTransform(t *testing.T) {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the TestExtractNodeValueHonoursTextMode operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestExtractNodeValueHonoursTextMode(t *testing.T) {
 	t.Parallel()
 
@@ -110,6 +195,25 @@ func TestExtractNodeValueHonoursTextMode(t *testing.T) {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the TestSelectFieldValueReportsErrorCodes operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestSelectFieldValueReportsErrorCodes(t *testing.T) {
 	t.Parallel()
 
@@ -171,6 +275,25 @@ func TestSelectFieldValueReportsErrorCodes(t *testing.T) {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the TestSelectFieldValueReportsOKCode operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func TestSelectFieldValueReportsOKCode(t *testing.T) {
 	t.Parallel()
 
@@ -195,6 +318,25 @@ func TestSelectFieldValueReportsOKCode(t *testing.T) {
 	}
 }
 
+/**
+ * Purpose:
+ * Performs the runSingleSelector operation for this backend package.
+ *
+ * Parameters:
+ * - t *testing.T, body []byte, field ingestiondomain.FieldSelector
+ *
+ * Returns:
+ * - map[string]string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func runSingleSelector(t *testing.T, body []byte, field ingestiondomain.FieldSelector) map[string]string {
 	t.Helper()
 	values, failures, fields := applySelectors(body, []ingestiondomain.FieldSelector{field})
@@ -204,6 +346,25 @@ func runSingleSelector(t *testing.T, body []byte, field ingestiondomain.FieldSel
 	return values
 }
 
+/**
+ * Purpose:
+ * Performs the contains operation for this backend package.
+ *
+ * Parameters:
+ * - haystack, needle string
+ *
+ * Returns:
+ * - bool
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - May read/write external state when invoked collaborators perform I/O.
+ */
 func contains(haystack, needle string) bool {
 	for i := 0; i+len(needle) <= len(haystack); i++ {
 		if haystack[i:i+len(needle)] == needle {

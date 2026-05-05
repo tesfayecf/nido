@@ -1,3 +1,37 @@
+/**
+ * File: internal/platform/httpapi/pagination.go
+ *
+ * Purpose:
+ * Implements backend behavior for the httpapi package.
+ *
+ * Responsibilities:
+ * - Provide package-specific backend behavior
+ * - Keep dependencies explicit
+ * - Return deterministic values to callers
+ *
+ * Inputs:
+ * - Function parameters, HTTP payloads, environment settings, or repository data as accepted by this file.
+ *
+ * Outputs:
+ * - Typed Go values, HTTP responses, persisted records, or test assertions produced by this file.
+ *
+ * Dependencies:
+ * - crypto/sha256
+ * - encoding/base64
+ * - encoding/hex
+ * - encoding/json
+ * - fmt
+ * - net/http
+ * - strconv
+ * - strings
+ *
+ * Side Effects:
+ * - None beyond in-memory transformations unless called dependencies perform effects.
+ *
+ * Critical Notes:
+ * - Keep this documentation synchronized with behavior changes and cross-package contracts.
+ */
+
 package httpapi
 
 import (
@@ -16,7 +50,22 @@ const (
 	MaxPageSize     = 100
 )
 
-// Pagination describes the stable list-window contract returned by collection endpoints.
+/**
+ * Purpose:
+ * Defines the Pagination struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type Pagination struct {
 	Mode        string `json:"mode"`
 	Total       int    `json:"total"`
@@ -30,6 +79,22 @@ type Pagination struct {
 	HasPrevious bool   `json:"hasPrevious"`
 }
 
+/**
+ * Purpose:
+ * Defines the paginationRequest struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type paginationRequest struct {
 	mode     string
 	page     int
@@ -38,6 +103,22 @@ type paginationRequest struct {
 	cursor   string
 }
 
+/**
+ * Purpose:
+ * Defines the cursorPayload struct used by this package and its consumers.
+ *
+ * Parameters:
+ * - None; callers construct or receive this type through package APIs.
+ *
+ * Returns:
+ * - Not applicable; this declaration describes data or behavior shape.
+ *
+ * Logic Summary:
+ * - Centralizes field, method, or contract shape shared across the backend layer.
+ *
+ * Edge Cases:
+ * - Keep field names, JSON tags, and persistence assumptions synchronized with downstream consumers.
+ */
 type cursorPayload struct {
 	Offset int `json:"offset"`
 }
@@ -64,7 +145,25 @@ func WritePaginatedJSON[T any](w http.ResponseWriter, r *http.Request, statusCod
 	WriteCacheableJSON(w, r, statusCode, payload)
 }
 
-// WriteCacheableJSON writes JSON with deterministic ETag support for conditional GET requests.
+/**
+ * Purpose:
+ * Performs the WriteCacheableJSON operation for this backend package.
+ *
+ * Parameters:
+ * - w http.ResponseWriter, r *http.Request, statusCode int, payload any
+ *
+ * Returns:
+ * - None.
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func WriteCacheableJSON(w http.ResponseWriter, r *http.Request, statusCode int, payload any) {
 	body, err := json.Marshal(payload)
 	if err != nil {
@@ -87,6 +186,25 @@ func WriteCacheableJSON(w http.ResponseWriter, r *http.Request, statusCode int, 
 	_, _ = w.Write(append(body, '\n'))
 }
 
+/**
+ * Purpose:
+ * Performs the parsePaginationRequest operation for this backend package.
+ *
+ * Parameters:
+ * - r *http.Request
+ *
+ * Returns:
+ * - (paginationRequest, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func parsePaginationRequest(r *http.Request) (paginationRequest, error) {
 	query := r.URL.Query()
 	if strings.TrimSpace(query.Get("cursor")) != "" || strings.EqualFold(strings.TrimSpace(query.Get("mode")), "cursor") {
@@ -130,6 +248,25 @@ func parsePaginationRequest(r *http.Request) (paginationRequest, error) {
 	}, nil
 }
 
+/**
+ * Purpose:
+ * Performs the parseBoundedPositiveInt operation for this backend package.
+ *
+ * Parameters:
+ * - raw string, name string, fallback int
+ *
+ * Returns:
+ * - (int, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func parseBoundedPositiveInt(raw string, name string, fallback int) (int, error) {
 	if strings.TrimSpace(raw) == "" {
 		return fallback, nil
@@ -182,11 +319,49 @@ func paginateItems[T any](items []T, request paginationRequest) ([]T, Pagination
 	return items[start:end], pagination
 }
 
+/**
+ * Purpose:
+ * Performs the encodeCursor operation for this backend package.
+ *
+ * Parameters:
+ * - offset int
+ *
+ * Returns:
+ * - string
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func encodeCursor(offset int) string {
 	encoded, _ := json.Marshal(cursorPayload{Offset: offset})
 	return base64.RawURLEncoding.EncodeToString(encoded)
 }
 
+/**
+ * Purpose:
+ * Performs the decodeCursor operation for this backend package.
+ *
+ * Parameters:
+ * - raw string
+ *
+ * Returns:
+ * - (int, error)
+ *
+ * Logic Summary:
+ * - Validates or normalizes inputs, delegates to package collaborators, and returns typed success or error results.
+ *
+ * Edge Cases:
+ * - Handles empty inputs, missing records, malformed payloads, and dependency failures according to caller contracts.
+ *
+ * Side Effects:
+ * - None beyond in-memory computation unless caller-provided dependencies have effects.
+ */
 func decodeCursor(raw string) (int, error) {
 	decoded, err := base64.RawURLEncoding.DecodeString(strings.TrimSpace(raw))
 	if err != nil {
