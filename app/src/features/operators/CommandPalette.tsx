@@ -1,3 +1,46 @@
+/**
+ * File: app/src/features/operators/CommandPalette.tsx
+ *
+ * Purpose:
+ * Implements the operators feature workflow, including page rendering, user interactions, and frontend data coordination.
+ *
+ * Responsibilities:
+ * - Render accessible React UI for the owning workflow
+ * - Coordinate props, hooks, and service data without leaking implementation details
+ * - Expose predictable outputs for tests and consuming components
+ *
+ * Inputs:
+ * - Imports: react, @tanstack/react-query, react-router-dom, @/components/ui/Button, @/components/ui/Dialog, @/components/ui/Input, @/components/ui/Icon, @/components/ui/ToastProvider; additional imports omitted for brevity
+ *
+ * Outputs:
+ * - JSX elements, React context, or route definitions rendered by consuming modules
+ *
+ * Dependencies:
+ * - react
+ * - @tanstack/react-query
+ * - react-router-dom
+ * - @/components/ui/Button
+ * - @/components/ui/Dialog
+ * - @/components/ui/Input
+ * - @/components/ui/Icon
+ * - @/components/ui/ToastProvider
+ * - @/services/backoffice-runs/runs.keys
+ * - @/services/backoffice-sources/sources.keys
+ *
+ * Key Decisions:
+ * - Keeps documentation adjacent to the implementation so future changes update behavior and context together.
+ * - Uses explicit imports and typed boundaries to make ownership traceable from this file in isolation.
+ *
+ * Constraints:
+ * - Documentation must remain synchronized with behavior, tests, and related docs when this file changes.
+ * - Runtime behavior must not depend on comments or documentation-only metadata.
+ *
+ * Related:
+ * - /docs/frontend/documentation-template.md
+ * - /app/docs/features/operators.md
+ * - /docs/frontend/architecture-overview.md
+ * - /docs/frontend/codebase-navigation.md
+ */
 import { useEffect, useMemo, useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -26,6 +69,13 @@ interface CommandResult {
 
 const UNREAD_NOTIFICATION_FILTERS = { limit: 10, unread_only: true };
 
+/**
+ * Purpose: Renders the CommandPalette UI boundary documented for app/src/features/operators/CommandPalette.tsx.
+ * Rendering logic: Composes typed props, shared UI primitives, and service-derived state into accessible markup.
+ * State management: Uses local React state, external stores, or React Query only where declared in the implementation below.
+ * Side effects: Limits side effects to documented hooks, event handlers, and service calls visible in this module.
+ * Performance: Keeps derived rendering explicit so memoization, virtualization, or loading boundaries can be audited safely.
+ */
 export const CommandPalette = (): JSX.Element => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();

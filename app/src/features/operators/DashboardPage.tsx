@@ -1,3 +1,46 @@
+/**
+ * File: app/src/features/operators/DashboardPage.tsx
+ *
+ * Purpose:
+ * Implements the operators feature workflow, including page rendering, user interactions, and frontend data coordination.
+ *
+ * Responsibilities:
+ * - Render accessible React UI for the owning workflow
+ * - Coordinate props, hooks, and service data without leaking implementation details
+ * - Expose predictable outputs for tests and consuming components
+ *
+ * Inputs:
+ * - Imports: react, react-router-dom, @tanstack/react-query, chart.js, react-chartjs-2, @/components/ui/Button, @/components/ui/chartTheme, @/components/ui/PageCard; additional imports omitted for brevity
+ *
+ * Outputs:
+ * - JSX elements, React context, or route definitions rendered by consuming modules
+ *
+ * Dependencies:
+ * - react
+ * - react-router-dom
+ * - @tanstack/react-query
+ * - chart.js
+ * - react-chartjs-2
+ * - @/components/ui/Button
+ * - @/components/ui/chartTheme
+ * - @/components/ui/PageCard
+ * - @/components/ui/PageStack
+ * - @/lib/format/currency
+ *
+ * Key Decisions:
+ * - Keeps documentation adjacent to the implementation so future changes update behavior and context together.
+ * - Uses explicit imports and typed boundaries to make ownership traceable from this file in isolation.
+ *
+ * Constraints:
+ * - Documentation must remain synchronized with behavior, tests, and related docs when this file changes.
+ * - Runtime behavior must not depend on comments or documentation-only metadata.
+ *
+ * Related:
+ * - /docs/frontend/documentation-template.md
+ * - /app/docs/features/operators.md
+ * - /docs/frontend/architecture-overview.md
+ * - /docs/frontend/codebase-navigation.md
+ */
 import { useState } from "react";
 
 import { Link } from "react-router-dom";
@@ -16,6 +59,13 @@ import { buildPortfolioDashboardModel, type OpportunityCandidate } from "@/featu
 import { propertyKeys } from "@/services/properties/properties.keys";
 import { listPropertySummaries } from "@/services/properties/properties.service";
 
+/**
+ * Purpose: Renders the DashboardPage UI boundary documented for app/src/features/operators/DashboardPage.tsx.
+ * Rendering logic: Composes typed props, shared UI primitives, and service-derived state into accessible markup.
+ * State management: Uses local React state, external stores, or React Query only where declared in the implementation below.
+ * Side effects: Limits side effects to documented hooks, event handlers, and service calls visible in this module.
+ * Performance: Keeps derived rendering explicit so memoization, virtualization, or loading boundaries can be audited safely.
+ */
 export const DashboardPage = (): JSX.Element => {
     const theme = useChartTheme();
     const [hoveredOpportunityId, setHoveredOpportunityId] = useState<string | null>(null);

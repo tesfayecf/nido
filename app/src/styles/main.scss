@@ -1,3 +1,47 @@
+/**
+ * File: app/src/styles/main.scss
+ *
+ * Purpose:
+ * Defines Sass design tokens, base styles, mixins, or component styling consumed by the React UI.
+ *
+ * Responsibilities:
+ * - Define scoped visual rules or design tokens
+ * - Preserve theme-aware styling and responsive behavior
+ * - Avoid runtime side effects by exporting CSS only
+ *
+ * Inputs:
+ * - Imports: ./tokens/colors, ./tokens/typography, ./tokens/spacing, ./tokens/borders, ./tokens/shadows, ./tokens/z-index, ./tokens/motion, ./base/reset; additional imports omitted for brevity
+ *
+ * Outputs:
+ * - Compiled CSS classes, custom properties, or mixins consumed by the Vite/Sass pipeline
+ *
+ * Dependencies:
+ * - ./tokens/colors
+ * - ./tokens/typography
+ * - ./tokens/spacing
+ * - ./tokens/borders
+ * - ./tokens/shadows
+ * - ./tokens/z-index
+ * - ./tokens/motion
+ * - ./base/reset
+ * - ./base/globals
+ * - ./components/AppShell/AppShell
+ *
+ * Key Decisions:
+ * - Keeps documentation adjacent to the implementation so future changes update behavior and context together.
+ * - Uses explicit imports and typed boundaries to make ownership traceable from this file in isolation.
+ *
+ * Constraints:
+ * - Documentation must remain synchronized with behavior, tests, and related docs when this file changes.
+ * - Runtime behavior must not depend on comments or documentation-only metadata.
+ *
+ * Related:
+ * - /docs/frontend/documentation-template.md
+ * - /app/docs/components.md
+ * - /app/docs/ui-architecture.md
+ * - /docs/frontend/architecture-overview.md
+ * - /docs/frontend/codebase-navigation.md
+ */
 @use "./tokens/colors";
 @use "./tokens/typography";
 @use "./tokens/spacing";

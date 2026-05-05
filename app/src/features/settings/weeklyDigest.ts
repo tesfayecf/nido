@@ -1,3 +1,41 @@
+/**
+ * File: app/src/features/settings/weeklyDigest.ts
+ *
+ * Purpose:
+ * Implements the settings feature workflow, including page rendering, user interactions, and frontend data coordination.
+ *
+ * Responsibilities:
+ * - Define typed frontend behavior for its module boundary
+ * - Keep inputs and outputs explicit for maintainability
+ * - Reference related modules so changes can be traced safely
+ *
+ * Inputs:
+ * - Imports: react, @/components/ui/ToastProvider, @/features/settings/localPreferences, @/services/notifications/notifications.service, @/services/properties/properties.service
+ *
+ * Outputs:
+ * - Typed constants, functions, or side effects explicitly exported by this module
+ *
+ * Dependencies:
+ * - react
+ * - @/components/ui/ToastProvider
+ * - @/features/settings/localPreferences
+ * - @/services/notifications/notifications.service
+ * - @/services/properties/properties.service
+ *
+ * Key Decisions:
+ * - Keeps documentation adjacent to the implementation so future changes update behavior and context together.
+ * - Uses explicit imports and typed boundaries to make ownership traceable from this file in isolation.
+ *
+ * Constraints:
+ * - Documentation must remain synchronized with behavior, tests, and related docs when this file changes.
+ * - Runtime behavior must not depend on comments or documentation-only metadata.
+ *
+ * Related:
+ * - /docs/frontend/documentation-template.md
+ * - /app/docs/features/settings.md
+ * - /docs/frontend/architecture-overview.md
+ * - /docs/frontend/codebase-navigation.md
+ */
 import { useEffect } from "react";
 
 import { useToast } from "@/components/ui/ToastProvider";
@@ -7,6 +45,13 @@ import { listProperties, listPropertySummaries } from "@/services/properties/pro
 
 const DIGEST_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
 
+/**
+ * Purpose: Executes the useWeeklyDigest operation for app/src/features/settings/weeklyDigest.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const useWeeklyDigest = (): void => {
     const { pushToast } = useToast();
 

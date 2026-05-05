@@ -1,3 +1,41 @@
+/**
+ * File: app/src/app/AppProviders.tsx
+ *
+ * Purpose:
+ * Composes application-wide providers that make routing, server state, and UI state available to descendants.
+ *
+ * Responsibilities:
+ * - Render accessible React UI for the owning workflow
+ * - Coordinate props, hooks, and service data without leaking implementation details
+ * - Expose predictable outputs for tests and consuming components
+ *
+ * Inputs:
+ * - Imports: @tanstack/react-query, @tanstack/react-query-devtools, react-router-dom, @/app/router, @/components/ui/ToastProvider, @/hooks/useTheme
+ *
+ * Outputs:
+ * - JSX elements, React context, or route definitions rendered by consuming modules
+ *
+ * Dependencies:
+ * - @tanstack/react-query
+ * - @tanstack/react-query-devtools
+ * - react-router-dom
+ * - @/app/router
+ * - @/components/ui/ToastProvider
+ * - @/hooks/useTheme
+ *
+ * Key Decisions:
+ * - Keeps documentation adjacent to the implementation so future changes update behavior and context together.
+ * - Uses explicit imports and typed boundaries to make ownership traceable from this file in isolation.
+ *
+ * Constraints:
+ * - Documentation must remain synchronized with behavior, tests, and related docs when this file changes.
+ * - Runtime behavior must not depend on comments or documentation-only metadata.
+ *
+ * Related:
+ * - /docs/frontend/documentation-template.md
+ * - /docs/frontend/architecture-overview.md
+ * - /docs/frontend/codebase-navigation.md
+ */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { RouterProvider } from "react-router-dom";

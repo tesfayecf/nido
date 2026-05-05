@@ -1,3 +1,39 @@
+/**
+ * File: app/src/components/shell/navigation.ts
+ *
+ * Purpose:
+ * Provides shell navigation, header, theme, or workspace chrome used around authenticated pages.
+ *
+ * Responsibilities:
+ * - Render accessible React UI for the owning workflow
+ * - Coordinate props, hooks, and service data without leaking implementation details
+ * - Expose predictable outputs for tests and consuming components
+ *
+ * Inputs:
+ * - Module imports, constants, browser APIs, or caller-provided parameters as declared below
+ *
+ * Outputs:
+ * - Typed constants, functions, or side effects explicitly exported by this module
+ *
+ * Dependencies:
+ * - TypeScript compiler
+ * - Vite module graph
+ *
+ * Key Decisions:
+ * - Keeps documentation adjacent to the implementation so future changes update behavior and context together.
+ * - Uses explicit imports and typed boundaries to make ownership traceable from this file in isolation.
+ *
+ * Constraints:
+ * - Documentation must remain synchronized with behavior, tests, and related docs when this file changes.
+ * - Runtime behavior must not depend on comments or documentation-only metadata.
+ *
+ * Related:
+ * - /docs/frontend/documentation-template.md
+ * - /app/docs/components.md
+ * - /app/docs/ui-architecture.md
+ * - /docs/frontend/architecture-overview.md
+ * - /docs/frontend/codebase-navigation.md
+ */
 interface RouteMeta {
     readonly section: string;
     readonly title: string;
@@ -15,12 +51,20 @@ type IconName =
     | "settings"
     | "sources";
 
+/**
+ * Documents the NavItem type contract used by app/src/components/shell/navigation.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export interface NavItem {
     readonly icon: IconName;
     readonly label: string;
     readonly to: string;
 }
 
+/**
+ * Documents the NavSection type contract used by app/src/components/shell/navigation.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export interface NavSection {
     readonly items: readonly NavItem[];
     readonly title: string;
@@ -88,6 +132,13 @@ const defaultMeta: RouteMeta = {
     title: "Dashboard",
 };
 
+/**
+ * Purpose: Executes the getRouteMeta operation for app/src/components/shell/navigation.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const getRouteMeta = (pathname: string): RouteMeta => {
     for (const [matcher, meta] of routeMeta) {
         if (matcher.test(pathname)) {

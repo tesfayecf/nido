@@ -1,13 +1,68 @@
+/**
+ * File: app/src/services/properties/properties.types.ts
+ *
+ * Purpose:
+ * Defines the properties frontend API contract, request helpers, query keys, or shared service types.
+ *
+ * Responsibilities:
+ * - Describe typed request and response boundaries
+ * - Centralize API paths, query keys, or service helpers
+ * - Keep backend integration details out of rendering components
+ *
+ * Inputs:
+ * - Module imports, constants, browser APIs, or caller-provided parameters as declared below
+ *
+ * Outputs:
+ * - Typed service functions, query keys, or domain types used by React Query and pages
+ *
+ * Dependencies:
+ * - TypeScript compiler
+ * - Vite module graph
+ *
+ * Key Decisions:
+ * - Keeps documentation adjacent to the implementation so future changes update behavior and context together.
+ * - Uses explicit imports and typed boundaries to make ownership traceable from this file in isolation.
+ *
+ * Constraints:
+ * - Documentation must remain synchronized with behavior, tests, and related docs when this file changes.
+ * - Runtime behavior must not depend on comments or documentation-only metadata.
+ *
+ * Related:
+ * - /docs/frontend/documentation-template.md
+ * - /docs/frontend/architecture-overview.md#api-contracts
+ * - /docs/frontend/architecture-overview.md
+ * - /docs/frontend/codebase-navigation.md
+ */
 export type PropertyStatus = "pending" | "active" | "degraded" | "inactive";
 
+/**
+ * Documents the SelectorType type contract used by app/src/services/properties/properties.types.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export type SelectorType = "css" | "xpath" | "attribute" | "text";
 
+/**
+ * Documents the ExtractionMode type contract used by app/src/services/properties/properties.types.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export type ExtractionMode = "text" | "attribute";
 
+/**
+ * Documents the TextMode type contract used by app/src/services/properties/properties.types.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export type TextMode = "textContent" | "innerText";
 
+/**
+ * Documents the FieldRole type contract used by app/src/services/properties/properties.types.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export type FieldRole = "prefill" | "tracked";
 
+/**
+ * Documents the FieldSelector type contract used by app/src/services/properties/properties.types.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export interface FieldSelector {
     readonly name: string;
     readonly field_name?: string;
@@ -33,6 +88,10 @@ export interface FieldSelector {
     readonly template_signature?: string;
 }
 
+/**
+ * Documents the PropertyExtractionConfig type contract used by app/src/services/properties/properties.types.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export interface PropertyExtractionConfig {
     readonly id: string;
     readonly property_id: string;
@@ -42,18 +101,34 @@ export interface PropertyExtractionConfig {
     readonly change_summary?: string;
 }
 
+/**
+ * Documents the PropertyReference type contract used by app/src/services/properties/properties.types.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export interface PropertyReference {
     readonly label: string;
     readonly value: string;
 }
 
+/**
+ * Documents the PropertyAttachment type contract used by app/src/services/properties/properties.types.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export interface PropertyAttachment {
     readonly label: string;
     readonly url: string;
 }
 
+/**
+ * Documents the PropertyTrackingMode type contract used by app/src/services/properties/properties.types.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export type PropertyTrackingMode = "automatic" | "manual";
 
+/**
+ * Documents the PropertyMetadata type contract used by app/src/services/properties/properties.types.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export interface PropertyMetadata {
     readonly priority_level?: string;
     readonly business_stage?: string;
@@ -67,6 +142,10 @@ export interface PropertyMetadata {
     readonly attachments?: PropertyAttachment[];
 }
 
+/**
+ * Documents the Property type contract used by app/src/services/properties/properties.types.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export interface Property {
     readonly id: string;
     readonly url: string;
@@ -85,6 +164,10 @@ export interface Property {
     readonly updated_at?: string;
 }
 
+/**
+ * Documents the PropertySnapshot type contract used by app/src/services/properties/properties.types.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export interface PropertySnapshot {
     readonly id: string;
     readonly property_id: string;
@@ -96,13 +179,25 @@ export interface PropertySnapshot {
     readonly error_message?: string;
 }
 
+/**
+ * Documents the PropertyManualData type contract used by app/src/services/properties/properties.types.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export type PropertyManualData = Record<string, number | string | undefined>;
 
+/**
+ * Documents the PropertyPreviewRequest type contract used by app/src/services/properties/properties.types.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export interface PropertyPreviewRequest {
     readonly url: string;
     readonly fields: FieldSelector[];
 }
 
+/**
+ * Documents the PropertyPreviewResult type contract used by app/src/services/properties/properties.types.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export interface PropertyPreviewResult {
     readonly values: Record<string, string>;
     readonly fields: PropertyPreviewFieldResult[];
@@ -110,6 +205,10 @@ export interface PropertyPreviewResult {
     readonly success: boolean;
 }
 
+/**
+ * Documents the PreviewErrorCode type contract used by app/src/services/properties/properties.types.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export type PreviewErrorCode =
     | "ok"
     | "selector_invalid"
@@ -119,6 +218,10 @@ export type PreviewErrorCode =
     | "empty_value"
     | "transform_failed";
 
+/**
+ * Documents the PropertyPreviewFieldResult type contract used by app/src/services/properties/properties.types.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export interface PropertyPreviewFieldResult {
     readonly name: string;
     readonly selector_type: SelectorType;
@@ -134,6 +237,10 @@ export interface PropertyPreviewFieldResult {
     readonly error_code?: PreviewErrorCode;
 }
 
+/**
+ * Documents the PropertyUpsertRequest type contract used by app/src/services/properties/properties.types.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export interface PropertyUpsertRequest {
     readonly url: string;
     readonly label: string;
@@ -148,8 +255,16 @@ export interface PropertyUpsertRequest {
     readonly manual_data?: PropertyManualData;
 }
 
+/**
+ * Documents the PropertyRunStatus type contract used by app/src/services/properties/properties.types.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export type PropertyRunStatus = "pending" | "running" | "success" | "failed";
 
+/**
+ * Documents the PropertyRun type contract used by app/src/services/properties/properties.types.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export interface PropertyRun {
     readonly id: string;
     readonly property_id: string;
@@ -164,6 +279,10 @@ export interface PropertyRun {
     readonly created_at: string;
 }
 
+/**
+ * Documents the PropertyListFilter type contract used by app/src/services/properties/properties.types.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export interface PropertyListFilter {
     readonly tagIds?: string[];
     readonly tagMatch?: "any" | "all";
@@ -174,9 +293,21 @@ export interface PropertyListFilter {
 
 // ── Change Intelligence Layer ─────────────────────────────────────────────────
 
+/**
+ * Documents the ChangeImpact type contract used by app/src/services/properties/properties.types.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export type ChangeImpact = "positive" | "negative" | "neutral";
+/**
+ * Documents the ChangeGroup type contract used by app/src/services/properties/properties.types.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export type ChangeGroup = "pricing" | "status" | "data_quality" | "freshness" | "listing_facts";
 
+/**
+ * Documents the ChangeSignal type contract used by app/src/services/properties/properties.types.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export interface ChangeSignal {
     readonly field: string;
     readonly label: string;
@@ -189,6 +320,10 @@ export interface ChangeSignal {
     readonly group: ChangeGroup;
 }
 
+/**
+ * Documents the DecisionContext type contract used by app/src/services/properties/properties.types.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export interface DecisionContext {
     readonly current_price?: number;
     readonly target_price?: number;
@@ -203,6 +338,10 @@ export interface DecisionContext {
     readonly last_observed_at?: string;
 }
 
+/**
+ * Documents the PropertySummary type contract used by app/src/services/properties/properties.types.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export interface PropertySummary {
     readonly property: Property;
     readonly current_values: Record<string, string>;

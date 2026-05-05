@@ -1,3 +1,48 @@
+/**
+ * File: app/src/components/tags/TagPicker.tsx
+ *
+ * Purpose:
+ * Provides a reusable feature-specific React component used by frontend pages.
+ *
+ * Responsibilities:
+ * - Render accessible React UI for the owning workflow
+ * - Coordinate props, hooks, and service data without leaking implementation details
+ * - Expose predictable outputs for tests and consuming components
+ *
+ * Inputs:
+ * - Imports: react, react, @tanstack/react-query, @/components/ui/Button, @/components/ui/Dialog, @/components/ui/Field, @/components/ui/Input, @/components/tags/tagColors; additional imports omitted for brevity
+ * - Typed props or parameters declared in this file
+ *
+ * Outputs:
+ * - JSX elements, React context, or route definitions rendered by consuming modules
+ *
+ * Dependencies:
+ * - react
+ * - react
+ * - @tanstack/react-query
+ * - @/components/ui/Button
+ * - @/components/ui/Dialog
+ * - @/components/ui/Field
+ * - @/components/ui/Input
+ * - @/components/tags/tagColors
+ * - @/components/ui/ToastProvider
+ * - @/services/tags/tags.keys
+ *
+ * Key Decisions:
+ * - Keeps documentation adjacent to the implementation so future changes update behavior and context together.
+ * - Uses explicit imports and typed boundaries to make ownership traceable from this file in isolation.
+ *
+ * Constraints:
+ * - Documentation must remain synchronized with behavior, tests, and related docs when this file changes.
+ * - Runtime behavior must not depend on comments or documentation-only metadata.
+ *
+ * Related:
+ * - /docs/frontend/documentation-template.md
+ * - /app/docs/components.md
+ * - /app/docs/ui-architecture.md
+ * - /docs/frontend/architecture-overview.md
+ * - /docs/frontend/codebase-navigation.md
+ */
 import type { CSSProperties } from "react";
 import { useMemo, useState } from "react";
 

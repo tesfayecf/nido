@@ -1,3 +1,48 @@
+/**
+ * File: app/src/components/shell/AppNav.tsx
+ *
+ * Purpose:
+ * Provides shell navigation, header, theme, or workspace chrome used around authenticated pages.
+ *
+ * Responsibilities:
+ * - Render accessible React UI for the owning workflow
+ * - Coordinate props, hooks, and service data without leaking implementation details
+ * - Expose predictable outputs for tests and consuming components
+ *
+ * Inputs:
+ * - Imports: @tanstack/react-query, react-router-dom, @/components/ui/Button, @/components/ui/Icon, @/components/shell/navigation, @/lib/auth/session, @/services/auth/auth.keys, @/services/auth/auth.service; additional imports omitted for brevity
+ * - Typed props or parameters declared in this file
+ *
+ * Outputs:
+ * - JSX elements, React context, or route definitions rendered by consuming modules
+ *
+ * Dependencies:
+ * - @tanstack/react-query
+ * - react-router-dom
+ * - @/components/ui/Button
+ * - @/components/ui/Icon
+ * - @/components/shell/navigation
+ * - @/lib/auth/session
+ * - @/services/auth/auth.keys
+ * - @/services/auth/auth.service
+ * - @/stores/session.store
+ * - @/stores/shell.store
+ *
+ * Key Decisions:
+ * - Keeps documentation adjacent to the implementation so future changes update behavior and context together.
+ * - Uses explicit imports and typed boundaries to make ownership traceable from this file in isolation.
+ *
+ * Constraints:
+ * - Documentation must remain synchronized with behavior, tests, and related docs when this file changes.
+ * - Runtime behavior must not depend on comments or documentation-only metadata.
+ *
+ * Related:
+ * - /docs/frontend/documentation-template.md
+ * - /app/docs/components.md
+ * - /app/docs/ui-architecture.md
+ * - /docs/frontend/architecture-overview.md
+ * - /docs/frontend/codebase-navigation.md
+ */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { NavLink, useNavigate } from "react-router-dom";
 
@@ -10,6 +55,13 @@ import { getCurrentUser, logout } from "@/services/auth/auth.service";
 import { useSessionStore } from "@/stores/session.store";
 import { useShellStore } from "@/stores/shell.store";
 
+/**
+ * Purpose: Renders the AppNav UI boundary documented for app/src/components/shell/AppNav.tsx.
+ * Rendering logic: Composes typed props, shared UI primitives, and service-derived state into accessible markup.
+ * State management: Uses local React state, external stores, or React Query only where declared in the implementation below.
+ * Side effects: Limits side effects to documented hooks, event handlers, and service calls visible in this module.
+ * Performance: Keeps derived rendering explicit so memoization, virtualization, or loading boundaries can be audited safely.
+ */
 export const AppNav = (): JSX.Element => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();

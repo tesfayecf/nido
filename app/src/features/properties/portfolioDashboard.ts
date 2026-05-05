@@ -1,3 +1,37 @@
+/**
+ * File: app/src/features/properties/portfolioDashboard.ts
+ *
+ * Purpose:
+ * Implements the properties feature workflow, including page rendering, user interactions, and frontend data coordination.
+ *
+ * Responsibilities:
+ * - Define typed frontend behavior for its module boundary
+ * - Keep inputs and outputs explicit for maintainability
+ * - Reference related modules so changes can be traced safely
+ *
+ * Inputs:
+ * - Imports: @/services/properties/properties.types
+ *
+ * Outputs:
+ * - Typed constants, functions, or side effects explicitly exported by this module
+ *
+ * Dependencies:
+ * - @/services/properties/properties.types
+ *
+ * Key Decisions:
+ * - Keeps documentation adjacent to the implementation so future changes update behavior and context together.
+ * - Uses explicit imports and typed boundaries to make ownership traceable from this file in isolation.
+ *
+ * Constraints:
+ * - Documentation must remain synchronized with behavior, tests, and related docs when this file changes.
+ * - Runtime behavior must not depend on comments or documentation-only metadata.
+ *
+ * Related:
+ * - /docs/frontend/documentation-template.md
+ * - /app/docs/features/properties.md
+ * - /docs/frontend/architecture-overview.md
+ * - /docs/frontend/codebase-navigation.md
+ */
 import type { PropertySummary } from "@/services/properties/properties.types";
 
 interface OpportunityBreakdown {
@@ -8,6 +42,10 @@ interface OpportunityBreakdown {
     readonly rooms: number;
 }
 
+/**
+ * Documents the OpportunityCandidate type contract used by app/src/features/properties/portfolioDashboard.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export interface OpportunityCandidate {
     readonly bathrooms?: number;
     readonly breakdown: OpportunityBreakdown;
@@ -22,6 +60,10 @@ export interface OpportunityCandidate {
     readonly score: number;
 }
 
+/**
+ * Documents the PriceChangeItem type contract used by app/src/features/properties/portfolioDashboard.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export interface PriceChangeItem {
     readonly deltaAbsolute: number;
     readonly deltaPercent?: number;
@@ -30,6 +72,10 @@ export interface PriceChangeItem {
     readonly propertyId: string;
 }
 
+/**
+ * Documents the PortfolioDashboardModel type contract used by app/src/features/properties/portfolioDashboard.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export interface PortfolioDashboardModel {
     readonly averagePrice: number;
     readonly medianPrice: number;
@@ -56,6 +102,13 @@ const OPPORTUNITY_WEIGHTS = {
     rooms: 0.15,
 } as const;
 
+/**
+ * Purpose: Executes the buildPortfolioDashboardModel operation for app/src/features/properties/portfolioDashboard.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const buildPortfolioDashboardModel = (summaries: readonly PropertySummary[]): PortfolioDashboardModel => {
     const enriched = summaries.map((summary) => {
         const price = readNumber(summary, ["price", "total_price"]);

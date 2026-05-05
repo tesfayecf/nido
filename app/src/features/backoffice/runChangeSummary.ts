@@ -1,5 +1,43 @@
+/**
+ * File: app/src/features/backoffice/runChangeSummary.ts
+ *
+ * Purpose:
+ * Implements the backoffice feature workflow, including page rendering, user interactions, and frontend data coordination.
+ *
+ * Responsibilities:
+ * - Define typed frontend behavior for its module boundary
+ * - Keep inputs and outputs explicit for maintainability
+ * - Reference related modules so changes can be traced safely
+ *
+ * Inputs:
+ * - Imports: @/services/properties/properties.types
+ *
+ * Outputs:
+ * - Typed constants, functions, or side effects explicitly exported by this module
+ *
+ * Dependencies:
+ * - @/services/properties/properties.types
+ *
+ * Key Decisions:
+ * - Keeps documentation adjacent to the implementation so future changes update behavior and context together.
+ * - Uses explicit imports and typed boundaries to make ownership traceable from this file in isolation.
+ *
+ * Constraints:
+ * - Documentation must remain synchronized with behavior, tests, and related docs when this file changes.
+ * - Runtime behavior must not depend on comments or documentation-only metadata.
+ *
+ * Related:
+ * - /docs/frontend/documentation-template.md
+ * - /app/docs/features/backoffice.md
+ * - /docs/frontend/architecture-overview.md
+ * - /docs/frontend/codebase-navigation.md
+ */
 import type { PropertySnapshot } from "@/services/properties/properties.types";
 
+/**
+ * Documents the RunFieldChange type contract used by app/src/features/backoffice/runChangeSummary.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export interface RunFieldChange {
     readonly absoluteDelta?: number;
     readonly currentValue: string;
@@ -22,6 +60,13 @@ const parseComparableNumber = (value: string): number | undefined => {
     return Number.isFinite(parsed) ? parsed : undefined;
 };
 
+/**
+ * Purpose: Executes the buildRunFieldChanges operation for app/src/features/backoffice/runChangeSummary.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const buildRunFieldChanges = (
     current: PropertySnapshot | undefined,
     previous: PropertySnapshot | undefined,
@@ -73,6 +118,13 @@ export const buildRunFieldChanges = (
     });
 };
 
+/**
+ * Purpose: Executes the summarizeRunChanges operation for app/src/features/backoffice/runChangeSummary.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const summarizeRunChanges = (changes: RunFieldChange[]): string[] => {
     return changes
         .filter((change) => change.previousValue !== change.currentValue)

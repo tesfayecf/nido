@@ -1,10 +1,61 @@
+/**
+ * File: app/src/features/analytics/analytics.utils.ts
+ *
+ * Purpose:
+ * Implements the analytics feature workflow, including page rendering, user interactions, and frontend data coordination.
+ *
+ * Responsibilities:
+ * - Define typed frontend behavior for its module boundary
+ * - Keep inputs and outputs explicit for maintainability
+ * - Reference related modules so changes can be traced safely
+ *
+ * Inputs:
+ * - Imports: @/services/analytics/analytics.types, @/services/fields/fields.types
+ *
+ * Outputs:
+ * - Typed constants, functions, or side effects explicitly exported by this module
+ *
+ * Dependencies:
+ * - @/services/analytics/analytics.types
+ * - @/services/fields/fields.types
+ *
+ * Key Decisions:
+ * - Keeps documentation adjacent to the implementation so future changes update behavior and context together.
+ * - Uses explicit imports and typed boundaries to make ownership traceable from this file in isolation.
+ *
+ * Constraints:
+ * - Documentation must remain synchronized with behavior, tests, and related docs when this file changes.
+ * - Runtime behavior must not depend on comments or documentation-only metadata.
+ *
+ * Related:
+ * - /docs/frontend/documentation-template.md
+ * - /app/docs/features/analytics.md
+ * - /docs/frontend/architecture-overview.md
+ * - /docs/frontend/codebase-navigation.md
+ */
 import type { AnalyticsRecord } from "@/services/analytics/analytics.types";
 import type { FieldDataType, FieldDefinitionUsage } from "@/services/fields/fields.types";
 
+/**
+ * Documents the AnalyticsChartType type contract used by app/src/features/analytics/analytics.utils.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export type AnalyticsChartType = "bar" | "bar-horizontal" | "histogram" | "line" | "scatter";
+/**
+ * Documents the AnalyticsMetric type contract used by app/src/features/analytics/analytics.utils.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export type AnalyticsMetric = "average" | "count" | "max" | "median" | "min";
+/**
+ * Documents the AnalyticsFilterOperator type contract used by app/src/features/analytics/analytics.utils.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export type AnalyticsFilterOperator = "between" | "equals";
 
+/**
+ * Documents the AnalyticsFieldOption type contract used by app/src/features/analytics/analytics.utils.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export interface AnalyticsFieldOption {
     readonly data_type: FieldDataType | "date" | "string";
     readonly label: string;
@@ -12,6 +63,10 @@ export interface AnalyticsFieldOption {
     readonly unit?: string;
 }
 
+/**
+ * Documents the AnalyticsFilterDraft type contract used by app/src/features/analytics/analytics.utils.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export interface AnalyticsFilterDraft {
     readonly field_name: string;
     readonly id: string;
@@ -21,6 +76,10 @@ export interface AnalyticsFilterDraft {
     readonly value: string;
 }
 
+/**
+ * Documents the AnalyticsAggregateDatum type contract used by app/src/features/analytics/analytics.utils.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export interface AnalyticsAggregateDatum {
     readonly id: string;
     readonly label: string;
@@ -30,6 +89,10 @@ export interface AnalyticsAggregateDatum {
     readonly x_value?: number;
 }
 
+/**
+ * Documents the AnalyticsScatterDatum type contract used by app/src/features/analytics/analytics.utils.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export interface AnalyticsScatterDatum {
     readonly id: string;
     readonly label: string;
@@ -39,6 +102,10 @@ export interface AnalyticsScatterDatum {
     readonly y: number;
 }
 
+/**
+ * Documents the AnalyticsSummary type contract used by app/src/features/analytics/analytics.utils.ts.
+ * Fields are intentionally explicit so callers understand the accepted shape without reading downstream consumers.
+ */
 export interface AnalyticsSummary {
     readonly average?: number;
     readonly max?: number;
@@ -52,6 +119,13 @@ const UNKNOWN_LABEL = "Unknown";
 const NUMERIC_PATTERN = /^-?\d+(?:[.,]\d+)?$/u;
 const NUMERIC_EXTRACT = /-?\d[\d.,]*/u;
 
+/**
+ * Purpose: Executes the buildAnalyticsFieldOptions operation for app/src/features/analytics/analytics.utils.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const buildAnalyticsFieldOptions = (fieldDefinitions: FieldDefinitionUsage[]): AnalyticsFieldOption[] => {
     return [
         ...fieldDefinitions.map((field) => ({
@@ -66,6 +140,13 @@ export const buildAnalyticsFieldOptions = (fieldDefinitions: FieldDefinitionUsag
     ];
 };
 
+/**
+ * Purpose: Executes the parseNumeric operation for app/src/features/analytics/analytics.utils.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const parseNumeric = (raw: string): number | undefined => {
     const trimmed = raw.trim();
     if (trimmed === "") {
@@ -90,6 +171,13 @@ export const parseNumeric = (raw: string): number | undefined => {
     return Number.isFinite(parsed) ? parsed : undefined;
 };
 
+/**
+ * Purpose: Executes the filterAnalyticsRecords operation for app/src/features/analytics/analytics.utils.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const filterAnalyticsRecords = (
     records: AnalyticsRecord[],
     filters: AnalyticsFilterDraft[],
@@ -161,6 +249,13 @@ export const filterAnalyticsRecords = (
     });
 };
 
+/**
+ * Purpose: Executes the buildAnalyticsSummary operation for app/src/features/analytics/analytics.utils.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const buildAnalyticsSummary = (
     records: AnalyticsRecord[],
     measureFieldName: string,
@@ -177,6 +272,13 @@ export const buildAnalyticsSummary = (
     };
 };
 
+/**
+ * Purpose: Executes the buildHistogramData operation for app/src/features/analytics/analytics.utils.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const buildHistogramData = (
     records: AnalyticsRecord[],
     measureFieldName: string,
@@ -243,6 +345,13 @@ export const buildHistogramData = (
     return bins.filter((bin) => bin.value > 0);
 };
 
+/**
+ * Purpose: Executes the buildGroupedAnalytics operation for app/src/features/analytics/analytics.utils.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const buildGroupedAnalytics = (
     records: AnalyticsRecord[],
     parameterFieldName: string,
@@ -297,6 +406,13 @@ export const buildGroupedAnalytics = (
         });
 };
 
+/**
+ * Purpose: Executes the buildScatterAnalytics operation for app/src/features/analytics/analytics.utils.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const buildScatterAnalytics = (
     records: AnalyticsRecord[],
     parameterFieldName: string,
@@ -326,6 +442,13 @@ export const buildScatterAnalytics = (
         .sort((left, right) => left.x - right.x || left.y - right.y);
 };
 
+/**
+ * Purpose: Executes the formatMetricValue operation for app/src/features/analytics/analytics.utils.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const formatMetricValue = (value: number, unit?: string): string => {
     const formatted = value.toLocaleString("en", {
         maximumFractionDigits: Number.isInteger(value) ? 0 : 2,
@@ -334,6 +457,13 @@ export const formatMetricValue = (value: number, unit?: string): string => {
     return unit !== undefined && unit.trim() !== "" ? `${formatted} ${unit}` : formatted;
 };
 
+/**
+ * Purpose: Executes the metricLabel operation for app/src/features/analytics/analytics.utils.ts.
+ * Parameters: Accepts the typed arguments declared in the function signature and expects callers to satisfy those contracts.
+ * Returns: Produces the typed return value declared in the signature without hidden mutation unless noted inline.
+ * Side effects: Any network, storage, routing, or DOM effects are kept explicit in the function body.
+ * Edge cases: Handles absent, malformed, or boundary inputs where the implementation below documents those branches.
+ */
 export const metricLabel = (metric: AnalyticsMetric): string => {
     switch (metric) {
         case "average":
