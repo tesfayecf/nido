@@ -10,7 +10,7 @@
  * - Expose predictable outputs for tests and consuming components
  *
  * Inputs:
- * - Imports: react, react
+ * - Imports: react
  * - Typed props or parameters declared in this file
  *
  * Outputs:

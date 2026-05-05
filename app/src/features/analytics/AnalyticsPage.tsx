@@ -10,7 +10,7 @@
  * - Expose predictable outputs for tests and consuming components
  *
  * Inputs:
- * - Imports: react, react, @tanstack/react-query, react-router-dom, @/features/analytics/AnalyticsChart, @/components/ui/AsyncContent, @/components/ui/Button, @/components/ui/EmptyState; additional imports omitted for brevity
+ * - Imports: react, @tanstack/react-query, react-router-dom, @/features/analytics/AnalyticsChart, @/components/ui/AsyncContent, @/components/ui/Button, @/components/ui/EmptyState; additional imports omitted for brevity
  *
  * Outputs:
  * - JSX elements, React context, or route definitions rendered by consuming modules

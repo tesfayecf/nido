@@ -10,7 +10,7 @@
  * - Reference related modules so changes can be traced safely
  *
  * Inputs:
- * - Imports: @/services/properties/properties.types, @/features/analytics/analytics.utils, @/features/settings/workspaceSettings, @/features/settings/workspaceSettings
+ * - Imports: @/services/properties/properties.types, @/features/analytics/analytics.utils, @/features/settings/workspaceSettings
  *
  * Outputs:
  * - Typed constants, functions, or side effects explicitly exported by this module

@@ -10,7 +10,7 @@
  * - Expose predictable outputs for tests and consuming components
  *
  * Inputs:
- * - Imports: react, react, @/components/ui/ContextualHelp, @/lib/ui/classNames
+ * - Imports: react, @/components/ui/ContextualHelp, @/lib/ui/classNames
  * - Typed props or parameters declared in this file
  *
  * Outputs:

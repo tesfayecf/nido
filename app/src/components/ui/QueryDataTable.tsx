@@ -10,7 +10,7 @@
  * - Expose predictable outputs for tests and consuming components
  *
  * Inputs:
- * - Imports: @/components/ui/DataTable, @/components/ui/DataTable, @/components/ui/ErrorBanner, @/components/ui/Skeleton
+ * - Imports: @/components/ui/DataTable, @/components/ui/ErrorBanner, @/components/ui/Skeleton
  * - Typed props or parameters declared in this file
  *
  * Outputs:

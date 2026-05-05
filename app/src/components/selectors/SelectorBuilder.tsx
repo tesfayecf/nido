@@ -10,7 +10,7 @@
  * - Expose predictable outputs for tests and consuming components
  *
  * Inputs:
- * - Imports: react, react, @/components/ui/Button, @/components/ui/ContextualHelp, @/components/ui/Dialog, @/components/ui/Field, @/components/ui/Input, @/components/ui/Select; additional imports omitted for brevity
+ * - Imports: react, @/components/ui/Button, @/components/ui/ContextualHelp, @/components/ui/Dialog, @/components/ui/Field, @/components/ui/Input, @/components/ui/Select; additional imports omitted for brevity
  * - Typed props or parameters declared in this file
  *
  * Outputs:

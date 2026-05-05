@@ -10,7 +10,7 @@
  * - Expose predictable outputs for tests and consuming components
  *
  * Inputs:
- * - Imports: @/hooks/useTheme, @/hooks/useTheme
+ * - Imports: @/hooks/useTheme
  *
  * Outputs:
  * - JSX elements, React context, or route definitions rendered by consuming modules

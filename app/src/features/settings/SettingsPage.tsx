@@ -10,7 +10,7 @@
  * - Expose predictable outputs for tests and consuming components
  *
  * Inputs:
- * - Imports: react, react, @tanstack/react-query, @/components/shell/ThemeToggle, @/components/ui/ActionGroup, @/components/ui/Button, @/components/ui/ConfirmDialog, @/components/ui/ContextualHelp; additional imports omitted for brevity
+ * - Imports: react, @tanstack/react-query, @/components/shell/ThemeToggle, @/components/ui/ActionGroup, @/components/ui/Button, @/components/ui/ConfirmDialog, @/components/ui/ContextualHelp; additional imports omitted for brevity
  *
  * Outputs:
  * - JSX elements, React context, or route definitions rendered by consuming modules

@@ -10,7 +10,7 @@
  * - Expose predictable outputs for tests and consuming components
  *
  * Inputs:
- * - Imports: react, react, react-dom, @/components/ui/Icon, @/lib/ui/classNames
+ * - Imports: react, react-dom, @/components/ui/Icon, @/lib/ui/classNames
  * - Typed props or parameters declared in this file
  *
  * Outputs:

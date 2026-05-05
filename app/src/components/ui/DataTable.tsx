@@ -10,7 +10,7 @@
  * - Expose predictable outputs for tests and consuming components
  *
  * Inputs:
- * - Imports: react, react, @tanstack/react-virtual, @/components/ui/Button, @/components/ui/EmptyState, @/lib/ui/classNames, @/lib/ui/scroll, @/lib/ui/sessionStorage
+ * - Imports: react, @tanstack/react-virtual, @/components/ui/Button, @/components/ui/EmptyState, @/lib/ui/classNames, @/lib/ui/scroll, @/lib/ui/sessionStorage
  * - Typed props or parameters declared in this file
  *
  * Outputs:

@@ -10,7 +10,7 @@
  * - Expose predictable outputs for tests and consuming components
  *
  * Inputs:
- * - Imports: react, react, @tanstack/react-query, @/components/ui/Button, @/components/ui/Dialog, @/components/ui/Field, @/components/ui/Input, @/components/tags/tagColors; additional imports omitted for brevity
+ * - Imports: react, @tanstack/react-query, @/components/ui/Button, @/components/ui/Dialog, @/components/ui/Field, @/components/ui/Input, @/components/tags/tagColors; additional imports omitted for brevity
  * - Typed props or parameters declared in this file
  *
  * Outputs:
