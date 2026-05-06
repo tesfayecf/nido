@@ -140,6 +140,22 @@ const AUTOFILL_DEBOUNCE_MS = 300;
 const MIN_RETRY_BACKOFF_MS = 500;
 const BASIS_POINTS_PER_PERCENT = 100;
 const OVERVIEW_ATTRIBUTE_PREVIEW_LIMIT = 4;
+const OVERVIEW_PREVIEW_EXCLUDED_FIELD_TOKENS = new Set([
+    "area",
+    "aream2",
+    "bedrooms",
+    "city",
+    "district",
+    "location",
+    "m2",
+    "price",
+    "priceperm2",
+    "pricepersquaremeter",
+    "rooms",
+    "surface",
+    "surfacearea",
+    "totalprice",
+]);
 
 interface PropertyMetadataDraft {
     readonly acquisitionNotes: string;
@@ -525,6 +541,8 @@ const buildPropertyAttributes = (values: Record<string, string>): { pricePerSqua
         totalPrice: price !== undefined ? formatEuro(price) : undefined,
     };
 };
+
+const normalizeOverviewFieldToken = (value: string): string => value.toLowerCase().replace(/[^a-z0-9]+/g, "");
 
 const createPriceSelectorDrafts = (): SelectorFieldDraft[] => createDefaultSelectorDrafts().filter((field) => field.name === "price");
 
@@ -1172,12 +1190,26 @@ export const PropertyDetailPage = (): JSX.Element => {
 
         setManualAttributeRows(manualAttributeRowsFromValues(sourceValues));
     }, [isCreateMode, latestValues, summaryQuery.data?.current_values]);
+    const overviewValues = useMemo(() => {
+        if (Object.keys(latestValues).length > 0) {
+            return latestValues;
+        }
+
+        return summaryQuery.data?.current_values ?? {};
+    }, [latestValues, summaryQuery.data?.current_values]);
     const attributes = useMemo(() => buildPropertyAttributes(latestValues), [latestValues]);
+    const overviewAttributes = useMemo(() => buildPropertyAttributes(overviewValues), [overviewValues]);
     const propertyFactRows = useMemo(() => {
         return Object.entries(latestValues)
             .filter(([field]) => field !== "price" && field !== "total_price")
             .map(([field, value]) => ({ field: formatFieldName(field), value }));
     }, [latestValues]);
+    const overviewPreviewFactRows = useMemo(() => {
+        return Object.entries(overviewValues)
+            .filter(([field, value]) => value !== "" && !OVERVIEW_PREVIEW_EXCLUDED_FIELD_TOKENS.has(normalizeOverviewFieldToken(field)))
+            .map(([field, value]) => ({ field: formatFieldName(field), value }))
+            .slice(0, OVERVIEW_ATTRIBUTE_PREVIEW_LIMIT);
+    }, [overviewValues]);
     const primarySignals = useMemo(() => summaryQuery.data?.signals.filter((signal) => signal.group !== "listing_facts") ?? [], [summaryQuery.data?.signals]);
     const listingFactSignals = useMemo(() => summaryQuery.data?.signals.filter((signal) => signal.group === "listing_facts") ?? [], [summaryQuery.data?.signals]);
     const recentRuns = useMemo(() => {
@@ -1260,8 +1292,8 @@ export const PropertyDetailPage = (): JSX.Element => {
             : "Not set";
     const expectedRentSummary = metadataDraft.expectedRent.trim() === "" ? "Not set" : formatEuro(Number(metadataDraft.expectedRent));
     const expectedYieldSummary = metadataDraft.expectedYieldPercent.trim() === "" ? "Not set" : formatPercent(Number(metadataDraft.expectedYieldPercent));
-    const currentPriceSummary = attributes.totalPrice ?? summaryQuery.data?.current_values.price ?? "Not available";
-    const currentPriceMeta = attributes.pricePerSquareMeter ?? "Per-square-meter price not captured yet.";
+    const currentPriceSummary = overviewAttributes.totalPrice ?? summaryQuery.data?.current_values.price ?? "Not available";
+    const currentPriceMeta = overviewAttributes.pricePerSquareMeter ?? "Per-square-meter price not captured yet.";
     const propertyStatusSummary = propertyQuery.data?.status === undefined ? "Not available" : formatFieldName(propertyQuery.data.status);
     const propertyStatusMeta = summaryQuery.data?.latest_change_summary !== undefined && summaryQuery.data.latest_change_summary !== ""
         ? summaryQuery.data.latest_change_summary
@@ -1275,6 +1307,21 @@ export const PropertyDetailPage = (): JSX.Element => {
         prioritySummary !== "Not set" ? `Priority ${prioritySummary}` : undefined,
         targetPriceSummary !== "Not set" ? `Target ${targetPriceSummary}` : undefined,
     ].filter((item): item is string => item !== undefined).join(" · ") || "Set a decision status, priority, or target price.";
+    const pricingPostureCopy = summaryQuery.data?.latest_change_summary !== undefined && summaryQuery.data.latest_change_summary.trim() !== ""
+        ? summaryQuery.data.latest_change_summary
+        : pricingInsight === undefined
+            ? ""
+            : `Benchmarking this listing against ${pricingInsight.benchmark_label}.`;
+    const overviewLocationSummary = overviewValues.location ?? overviewValues.city ?? overviewValues.district ?? "Not available";
+    const overviewAreaSummary = overviewAttributes.surfaceArea ?? overviewValues.area ?? overviewValues.area_m2 ?? overviewValues.surface_area ?? overviewValues.surface ?? "Not available";
+    const overviewRoomsSummary = overviewAttributes.rooms ?? overviewValues.rooms ?? overviewValues.bedrooms ?? "Not available";
+    const overviewCapturedFieldSummary = Object.keys(overviewValues).length > 0 ? `${Object.keys(overviewValues).length} fields` : "No fields yet";
+    const overviewCoreFacts = [
+        { label: "Location", value: overviewLocationSummary },
+        { label: "Area", value: overviewAreaSummary },
+        { label: "Rooms", value: overviewRoomsSummary },
+        { label: "Captured fields", value: overviewCapturedFieldSummary },
+    ];
 
     const handleSectionNavigation = (event: ReactKeyboardEvent<HTMLButtonElement>, index: number): void => {
         let nextIndex = index;
@@ -1560,35 +1607,51 @@ export const PropertyDetailPage = (): JSX.Element => {
                             {propertyQuery.isError ? <ErrorBanner>{"Could not load property."}</ErrorBanner> : null}
                             {propertyQuery.data !== undefined ? (
                                 <>
-                                    <div aria-label={"Key property signals"} className={"property-overview-highlights"}>
-                                        <PriceMetricCard className={"property-overview-highlight"} emphasis label={"Current price"} meta={currentPriceMeta} value={currentPriceSummary} />
-                                        <PriceMetricCard className={"property-overview-highlight"} label={"Decision status"} meta={decisionSummaryMeta} value={decisionStatusSummary} />
-                                        <PriceMetricCard className={"property-overview-highlight"} label={"Property status"} meta={propertyStatusMeta} tone={toPriceMetricTone(propertyQuery.data.status === "active" ? "success" : propertyQuery.data.status === "inactive" ? "danger" : "neutral")} value={propertyStatusSummary} />
-                                        <PriceMetricCard className={"property-overview-highlight"} label={"Tracking status"} meta={automationMeta} tone={toPriceMetricTone(automationStatusTone)} value={automationStatus} />
-                                    </div>
                                     <div className={"property-overview-layout"}>
                                         <section className={"property-detail-group property-overview-layout__primary"}>
                                             <div className={"property-detail-group__header"}>
                                                 <h3 className={"property-detail-group__title"}>{"Core attributes"}</h3>
                                                 <p className={"property-detail-group__description"}>{"Stable listing facts and the source link stay together here for quick property recognition."}</p>
                                             </div>
-                                            <KeyValueGrid compact>
-                                                <KeyValuePair label={"Price (current)"} value={currentPriceSummary} />
-                                                <KeyValuePair label={"Location"} value={latestValues.location ?? latestValues.city ?? latestValues.district ?? "Not available"} />
-                                                <KeyValuePair label={"Rooms"} value={attributes.rooms ?? latestValues.rooms ?? "Not available"} />
-                                                <KeyValuePair label={"Area"} value={attributes.surfaceArea ?? latestValues.area ?? latestValues.area_m2 ?? "Not available"} />
-                                                <KeyValuePair label={"Source"} value={sourceSummary} />
-                                                <KeyValuePair
-                                                    label={"Listing URL"}
-                                                    value={propertyQuery.data.url !== "" ? (
-                                                        <span className={"status-with-copy"}>
-                                                            <a className={"property-detail-anchor"} href={propertyQuery.data.url} rel={"noreferrer"} target={"_blank"}>{"Open listing"}</a>
-                                                            <CopyButton label={"Copy property URL"} value={propertyQuery.data.url} />
-                                                        </span>
-                                                    ) : "Not available"}
-                                                />
-                                                {propertyFactRows.slice(0, OVERVIEW_ATTRIBUTE_PREVIEW_LIMIT).map((item) => <KeyValuePair key={item.field} label={item.field} value={item.value === "" ? "Not available" : item.value} />)}
-                                            </KeyValueGrid>
+                                            <div className={"property-overview-core"}>
+                                                <div className={"property-overview-core__hero"}>
+                                                    <div className={"property-overview-core__hero-copy"}>
+                                                        <span className={"property-overview-core__eyebrow"}>{"Listing snapshot"}</span>
+                                                        <strong className={"property-overview-core__price"}>{currentPriceSummary}</strong>
+                                                        <span className={"property-overview-core__metric"}>{currentPriceMeta}</span>
+                                                        <p className={"property-overview-core__note"}>{summaryQuery.data?.latest_change_summary ?? "Latest stable facts stay grouped here before the operational cards."}</p>
+                                                    </div>
+                                                    <div className={"property-overview-core__source"}>
+                                                        <div className={"property-overview-core__source-block"}>
+                                                            <span className={"property-overview-core__source-label"}>{"Source"}</span>
+                                                            <strong className={"property-overview-core__source-value"}>{sourceSummary}</strong>
+                                                        </div>
+                                                        <div className={"property-overview-core__source-block"}>
+                                                            <span className={"property-overview-core__source-label"}>{"Listing URL"}</span>
+                                                            {propertyQuery.data.url !== "" ? (
+                                                                <span className={"property-overview-core__listing-link status-with-copy"}>
+                                                                    <a className={"property-detail-anchor"} href={propertyQuery.data.url} rel={"noreferrer"} target={"_blank"}>{"Open listing"}</a>
+                                                                    <CopyButton label={"Copy property URL"} value={propertyQuery.data.url} />
+                                                                </span>
+                                                            ) : <strong className={"property-overview-core__source-value"}>{"Not available"}</strong>}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <KeyValueGrid className={"property-overview-core__facts"}>
+                                                    {overviewCoreFacts.map((item) => <KeyValuePair className={"property-overview-core__fact"} key={item.label} label={item.label} value={item.value} />)}
+                                                </KeyValueGrid>
+                                                {overviewPreviewFactRows.length > 0 ? (
+                                                    <div className={"property-overview-core__extra"}>
+                                                        <div className={"property-overview-core__extra-header"}>
+                                                            <h4 className={"property-overview-core__extra-title"}>{"Additional captured facts"}</h4>
+                                                            <span className={"property-overview-core__extra-meta"}>{`${overviewPreviewFactRows.length} more field${overviewPreviewFactRows.length === 1 ? "" : "s"}`}</span>
+                                                        </div>
+                                                        <KeyValueGrid className={"property-overview-core__extra-grid"} compact>
+                                                            {overviewPreviewFactRows.map((item) => <KeyValuePair className={"property-overview-core__extra-item"} key={item.field} label={item.field} value={item.value} />)}
+                                                        </KeyValueGrid>
+                                                    </div>
+                                                ) : null}
+                                            </div>
                                         </section>
                                         <div className={"property-overview-layout__secondary"}>
                                             <section className={"property-detail-group"}>
@@ -1676,14 +1739,9 @@ export const PropertyDetailPage = (): JSX.Element => {
                                         <div className={"property-price-hero__intro"}>
                                             <span className={"app-shell__eyebrow"}>{"Pricing posture"}</span>
                                             <h3 className={"property-price-hero__title"}>{formatPriceClassification(pricingInsight.classification)}</h3>
-                                            <p className={"muted-copy"}>
-                                                {summaryQuery.data.latest_change_summary === ""
-                                                    ? `Benchmarking this listing against ${pricingInsight.benchmark_label}.`
-                                                    : summaryQuery.data.latest_change_summary}
-                                            </p>
+                                            <p className={"muted-copy"}>{pricingPostureCopy}</p>
                                         </div>
                                         <div className={"property-price-hero__badges"}>
-                                            <StatusBadge tone={getPriceClassificationTone(pricingInsight.classification)} value={formatPriceClassification(pricingInsight.classification)} />
                                             <StatusBadge tone={getFreshnessTone(summaryQuery.data.decision.freshness_status)} value={summaryQuery.data.decision.freshness_status} />
                                             <StatusBadge tone={"neutral"} value={formatDecisionStatus(summaryQuery.data.decision.stage)} />
                                         </div>
@@ -1691,12 +1749,14 @@ export const PropertyDetailPage = (): JSX.Element => {
 
                                     <div className={"property-price-hero__metrics"}>
                                         <PriceMetricCard
+                                            className={"property-price-hero__metric"}
                                             emphasis
                                             label={"Current price"}
                                             meta={pricingInsight.current_price_per_unit !== undefined ? `${formatEuro(pricingInsight.current_price_per_unit)} per m²` : "Per-square-meter price not captured yet."}
                                             value={attributes.totalPrice ?? "Not captured"}
                                         />
                                         <PriceMetricCard
+                                            className={"property-price-hero__metric"}
                                             label={pricingInsight.benchmark_label === "target price" ? "Primary benchmark" : "Market benchmark"}
                                             meta={pricingInsight.benchmark_label === "target price"
                                                 ? "Anchored to your target price."
@@ -1706,12 +1766,14 @@ export const PropertyDetailPage = (): JSX.Element => {
                                             value={pricingInsight.benchmark_value !== undefined ? formatEuro(pricingInsight.benchmark_value) : "Not set"}
                                         />
                                         <PriceMetricCard
+                                            className={"property-price-hero__metric"}
                                             label={"Gap vs target"}
                                             meta={pricingInsight.target_delta_absolute !== undefined ? formatSignedEuro(pricingInsight.target_delta_absolute) : "Set a target price to compare."}
                                             tone={getPriceMetricTone(pricingInsight.target_delta_percent)}
                                             value={formatSignedPercent(pricingInsight.target_delta_percent)}
                                         />
                                         <PriceMetricCard
+                                            className={"property-price-hero__metric"}
                                             label={"Gap vs market"}
                                             meta={pricingInsight.market_delta_absolute !== undefined ? formatSignedEuro(pricingInsight.market_delta_absolute) : "Need more comparable properties."}
                                             tone={getPriceMetricTone(pricingInsight.market_delta_percent)}
@@ -1720,54 +1782,23 @@ export const PropertyDetailPage = (): JSX.Element => {
                                     </div>
                                 </section>
 
-                                <div className={"property-insight-grid"}>
-                                    <section className={"property-detail-group property-insight-grid__breakdown"}>
-                                        <span className={"app-shell__eyebrow"}>{"Benchmark breakdown"}</span>
-                                        <div className={"property-price-detail-grid"}>
-                                            <div className={"property-price-detail"}>
-                                                <span className={"property-price-detail__label"}>{"Target price"}</span>
-                                                <strong className={"property-price-detail__value property-price-detail__value--neutral"}>{pricingInsight.target_price !== undefined ? formatEuro(pricingInsight.target_price) : "Not set"}</strong>
-                                            </div>
-                                            <div className={"property-price-detail"}>
-                                                <span className={"property-price-detail__label"}>{"Market average"}</span>
-                                                <strong className={"property-price-detail__value property-price-detail__value--neutral"}>{pricingInsight.market_average !== undefined ? formatEuro(pricingInsight.market_average) : "Not enough comparables"}</strong>
-                                            </div>
-                                            <div className={"property-price-detail"}>
-                                                <span className={"property-price-detail__label"}>{"Benchmark"}</span>
-                                                <strong className={"property-price-detail__value property-price-detail__value--neutral"}>{pricingInsight.benchmark_value !== undefined ? formatEuro(pricingInsight.benchmark_value) : "Not set"}</strong>
-                                            </div>
-                                            <div className={"property-price-detail"}>
-                                                <span className={"property-price-detail__label"}>{"Latest extracted €/m²"}</span>
-                                                <strong className={"property-price-detail__value property-price-detail__value--neutral"}>{pricingInsight.current_price_per_unit !== undefined ? formatEuro(pricingInsight.current_price_per_unit) : "Not captured"}</strong>
-                                            </div>
-                                            <div className={"property-price-detail"}>
-                                                <span className={"property-price-detail__label"}>{"Decision status"}</span>
-                                                <strong className={"property-price-detail__value property-price-detail__value--neutral"}>{formatDecisionStatus(summaryQuery.data.decision.stage)}</strong>
-                                            </div>
-                                            <div className={"property-price-detail"}>
-                                                <span className={"property-price-detail__label"}>{"Comparables"}</span>
-                                                <strong className={"property-price-detail__value property-price-detail__value--neutral"}>{`${pricingInsight.comparable_count}`}</strong>
+                                <section className={"property-detail-group property-insights-history"}>
+                                    <div className={"property-insights-history__header"}>
+                                        <div className={"property-insights-history__title"}>
+                                            <span className={"app-shell__eyebrow"}>{"History & trends"}</span>
+                                            <div className={"page-card__title-row"}>
+                                                <strong>{"Price history"}</strong>
+                                                <ContextualHelp content={"The full-width chart shows pricing movement across captured snapshots. Expand it when you need exact timestamps."} title={"Price history"} />
                                             </div>
                                         </div>
-                                    </section>
-                                    <section className={"property-detail-group property-insight-grid__history"}>
-                                        <span className={"app-shell__eyebrow"}>{"History & trends"}</span>
-                                        <div className={"property-history-card"}>
-                                            <div className={"listing-dense-row__headline"}>
-                                                <div className={"page-card__title-row"}>
-                                                    <strong>{"Price history"}</strong>
-                                                    <ContextualHelp content={"Use the compact chart for trend direction, then expand when you need exact timestamps."} title={"Price history"} />
-                                                </div>
-                                                <Button disabled={priceHistoryPoints.length === 0} onClick={() => { setChartOpen(true); }} size={"small"} variant={"secondary"}>{"Expand chart"}</Button>
-                                            </div>
-                                            {priceHistoryPoints.length === 0 ? <p className={"muted-copy"}>{"No historical price snapshots yet."}</p> : <PriceHistoryChart compact points={priceHistoryPoints} />}
-                                        </div>
-                                        <div className={"property-inline-note"}>
-                                            <strong>{summaryQuery.data.latest_change_summary === "" ? "No recent pricing change summary." : summaryQuery.data.latest_change_summary}</strong>
-                                            <span>{primarySignals.length === 0 ? "Price is the only live signal for this property right now." : `${primarySignals.length} tracked signal${primarySignals.length === 1 ? "" : "s"} available.`}</span>
-                                        </div>
-                                    </section>
-                                </div>
+                                        <Button disabled={priceHistoryPoints.length === 0} onClick={() => { setChartOpen(true); }} size={"small"} variant={"secondary"}>{"Expand chart"}</Button>
+                                    </div>
+                                    {priceHistoryPoints.length === 0 ? <p className={"muted-copy"}>{"No historical price snapshots yet."}</p> : <PriceHistoryChart className={"property-insights-history__chart"} points={priceHistoryPoints} />}
+                                    <div className={"property-inline-note property-inline-note--compact"}>
+                                        <strong>{"Tracking breadth"}</strong>
+                                        <span>{primarySignals.length === 0 ? "Price is the only live signal for this property right now." : `${primarySignals.length} tracked signal${primarySignals.length === 1 ? "" : "s"} available.`}</span>
+                                    </div>
+                                </section>
                             </div>
                         )}
                         {savePropertyMutation.isError ? <ErrorBanner>{"Could not save property. Check the price, source details, and any optional URL."}</ErrorBanner> : null}

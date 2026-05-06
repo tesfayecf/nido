@@ -39,6 +39,7 @@ import {
     BarElement,
     CategoryScale,
     Chart as ChartJS,
+    Filler,
     Legend,
     LineElement,
     LinearScale,
@@ -48,7 +49,7 @@ import {
     type ChartType,
 } from "chart.js";
 
-ChartJS.register(BarElement, CategoryScale, Legend, LineElement, LinearScale, PointElement, Tooltip);
+ChartJS.register(BarElement, CategoryScale, Filler, Legend, LineElement, LinearScale, PointElement, Tooltip);
 
 interface ChartTheme {
     readonly accent: string;

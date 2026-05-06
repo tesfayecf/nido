@@ -42,7 +42,7 @@
  * - /docs/frontend/codebase-navigation.md
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { RouterProvider, createMemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -215,6 +215,25 @@ const RUNS: PropertyRun[] = [
     },
 ];
 
+const SNAPSHOTS: PropertySnapshot[] = [
+    {
+        config_version: 1,
+        id: "snapshot_1",
+        is_valid: true,
+        observed_at: "2024-01-01T11:50:00.000Z",
+        property_id: PROPERTY.id,
+        values: { price: "215000" },
+    },
+    {
+        config_version: 1,
+        id: "snapshot_2",
+        is_valid: true,
+        observed_at: "2024-01-01T11:55:00.000Z",
+        property_id: PROPERTY.id,
+        values: { price: "220000" },
+    },
+];
+
 const SUMMARY = {
     current_values: { area_m2: "80", location: "Bilbao", price: "220000" },
     decision: {
@@ -253,8 +272,9 @@ const createTestQueryClient = (): QueryClient => {
     return queryClient;
 };
 
-const renderPropertyDetailPage = (): ReturnType<typeof render> => {
+const renderPropertyDetailPage = (configureQueryClient?: (queryClient: QueryClient) => void): ReturnType<typeof render> => {
     const queryClient = createTestQueryClient();
+    configureQueryClient?.(queryClient);
     const router = createMemoryRouter(
         [{ path: "/properties/:propertyId", element: <PropertyDetailPage /> }],
         { initialEntries: ["/properties/prop_1"] },
@@ -386,6 +406,39 @@ describe("PropertyDetailPage", () => {
 
         expect(screen.getByRole("tab", { name: "Insights" })).toHaveAttribute("aria-selected", "true");
         expect(screen.getByRole("tabpanel", { name: "Insights" })).toBeInTheDocument();
+    });
+
+    it("uses summary fallback values to compose the overview core attributes", async () => {
+        renderPropertyDetailPage();
+
+        await screen.findByText("Sunny flat");
+        const coreAttributesSection = screen.getByRole("heading", { name: "Core attributes" }).closest("section");
+
+        expect(coreAttributesSection).not.toBeNull();
+        const scopedSection = within(coreAttributesSection as HTMLElement);
+
+        expect(scopedSection.getByText("Listing snapshot")).toBeInTheDocument();
+        expect(scopedSection.getByText("220,000 €")).toBeInTheDocument();
+        expect(scopedSection.getByText("Bilbao")).toBeInTheDocument();
+        expect(scopedSection.getByText("80 m²")).toBeInTheDocument();
+        expect(scopedSection.getByText("3 fields")).toBeInTheDocument();
+        expect(scopedSection.queryByText("Additional captured facts")).not.toBeInTheDocument();
+    });
+
+    it("keeps price insights focused and renders history as a full-width chart", async () => {
+        renderPropertyDetailPage((queryClient) => {
+            queryClient.setQueryData(propertyKeys.snapshots(PROPERTY.id), SNAPSHOTS);
+        });
+
+        fireEvent.click(await screen.findByRole("tab", { name: "Insights" }));
+        const insightsPanel = screen.getByRole("tabpanel", { name: "Insights" });
+        const scopedPanel = within(insightsPanel);
+
+        expect(scopedPanel.getByText("Price history")).toBeInTheDocument();
+        expect(insightsPanel.querySelector(".enterprise-chart.property-insights-history__chart")).not.toBeNull();
+        expect(insightsPanel.querySelector(".sparkline--compact")).toBeNull();
+        expect(scopedPanel.queryByText("Benchmark breakdown")).not.toBeInTheDocument();
+        expect(scopedPanel.queryByText("Market average")).not.toBeInTheDocument();
     });
 
     it("keeps note editing inside notes and decisions while configuration stays operational", async () => {

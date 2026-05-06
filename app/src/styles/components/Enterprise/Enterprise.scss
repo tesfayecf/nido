@@ -196,14 +196,52 @@
     margin-top: var(--space-3);
 }
 
+.properties-page {
+    flex: 1;
+    min-height: 0;
+}
+
+.properties-page > .page-card {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.properties-page > .page-card > .page-card__body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.properties-table__panel {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: var(--space-3);
+    min-height: 0;
+}
+
 .properties-table__shell {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-soft);
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
     overflow: auto;
+    width: 100%;
 }
 
 .properties-table {
     border-collapse: separate;
     border-spacing: 0;
+    font-size: var(--text-sm);
+    line-height: 1.35;
     min-width: 100%;
+    table-layout: fixed;
     width: max-content;
 }
 
@@ -227,20 +265,111 @@
 .properties-table th,
 .properties-table td {
     border-bottom: 1px solid var(--color-border);
-    padding: 0.75rem;
+    min-width: 0;
+    padding: 0.75rem 0.8rem;
     text-align: left;
-    vertical-align: top;
+    vertical-align: middle;
 }
 
 .properties-table thead th {
-    background: var(--color-surface);
+    background: color-mix(in srgb, var(--color-surface) 94%, var(--color-background));
+    border-bottom-color: var(--color-border-strong);
+    box-shadow: inset 0 -1px 0 var(--color-border-strong);
     position: sticky;
     top: 0;
     z-index: 1;
 }
 
+.properties-table td {
+    background: var(--color-surface);
+}
+
+.properties-table tbody tr:nth-child(even) td {
+    background: color-mix(in srgb, var(--color-surface) 92%, var(--color-background-strong));
+}
+
+.properties-table__row--virtual td {
+    transition: background-color var(--duration-fast) ease;
+}
+
+.properties-table th[data-column="actions"],
+.properties-table th[data-column="select"],
+.properties-table td[data-column="actions"],
+.properties-table td[data-column="select"] {
+    text-align: center;
+}
+
+.properties-table th[data-column="price"],
+.properties-table th[data-column="sizeSquareMeters"],
+.properties-table th[data-column="pricePerSquareMeter"],
+.properties-table th[data-column="rooms"],
+.properties-table th[data-column="bathrooms"],
+.properties-table th[data-column="propertyAge"],
+.properties-table td[data-column="price"],
+.properties-table td[data-column="sizeSquareMeters"],
+.properties-table td[data-column="pricePerSquareMeter"],
+.properties-table td[data-column="rooms"],
+.properties-table td[data-column="bathrooms"],
+.properties-table td[data-column="propertyAge"] {
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.properties-table th[data-column="status"],
+.properties-table th[data-column="opportunity"],
+.properties-table td[data-column="status"],
+.properties-table td[data-column="opportunity"],
+.properties-table td[data-column="location"],
+.properties-table td[data-column="signal"] {
+    white-space: nowrap;
+}
+
+.properties-table td[data-column="actions"] .row-actions {
+    justify-content: center;
+}
+
+.properties-table td[data-column="property"] .data-table__primary {
+    gap: 0.15rem;
+}
+
+.properties-table td[data-column="property"] .data-table__primary strong {
+    color: var(--color-text);
+    font-size: var(--text-sm);
+    font-weight: 600;
+}
+
+.properties-table td[data-column="property"] .table-subcopy {
+    color: var(--color-text-secondary);
+    font-size: var(--text-xs);
+}
+
+.properties-table td[data-column="signal"] {
+    color: var(--color-text-secondary);
+}
+
+.properties-table td[data-column="updatedAt"] {
+    color: var(--color-text-secondary);
+}
+
 .properties-table__cell {
+    max-width: 100%;
     min-width: 0;
+    overflow: hidden;
+}
+
+.properties-table__empty {
+    color: var(--color-text-muted);
+}
+
+.properties-table__timestamp {
+    display: grid;
+    gap: 0.1rem;
+}
+
+.properties-table__timestamp-meta {
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
 }
 
 .properties-table__filters-row th {
@@ -270,25 +399,38 @@
     background: transparent;
     border: 0;
     color: var(--color-text-secondary);
-    display: inline-flex;
+    display: flex;
     font-size: var(--text-xs);
     font-weight: 700;
     gap: 0.25rem;
-    letter-spacing: 0.06em;
-    padding: 0;
+    justify-content: flex-start;
+    letter-spacing: 0.05em;
+    padding: 0 1rem 0 0;
     text-transform: uppercase;
+    width: 100%;
 }
 
 .properties-table__sort--active {
     color: var(--color-text);
 }
 
+.properties-table th[data-column="price"] .properties-table__sort,
+.properties-table th[data-column="sizeSquareMeters"] .properties-table__sort,
+.properties-table th[data-column="pricePerSquareMeter"] .properties-table__sort,
+.properties-table th[data-column="rooms"] .properties-table__sort,
+.properties-table th[data-column="bathrooms"] .properties-table__sort,
+.properties-table th[data-column="propertyAge"] .properties-table__sort {
+    justify-content: flex-end;
+}
+
 .properties-table__resize-handle {
     cursor: col-resize;
-    display: inline-block;
-    float: right;
+    display: block;
     height: 1.25rem;
-    margin-left: 0.5rem;
+    margin-left: 0;
+    position: absolute;
+    right: 0.35rem;
+    top: calc(50% - 0.625rem);
     width: 0.5rem;
 }
 

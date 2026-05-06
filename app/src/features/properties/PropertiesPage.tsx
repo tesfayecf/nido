@@ -88,8 +88,11 @@ import {
 const TABLE_STORAGE_KEY = "nido.properties.table";
 const TABLE_PAGE_STORAGE_KEY = "nido.properties.table.pagination";
 const MIN_COLUMN_WIDTH = 96;
-const PROPERTY_ROW_HEIGHT = 56;
+const SELECTION_COLUMN_WIDTH = 44;
+const ACTIONS_COLUMN_WIDTH = 96;
+const PROPERTY_ROW_HEIGHT = 64;
 const PROPERTY_PAGE_SIZE_OPTIONS = [25, 50, 100, 250];
+const PROPERTY_URL_IGNORED_SEGMENTS = new Set(["alquiler", "comprar", "d", "en", "es", "listing", "properties", "property", "venta", "vivienda"]);
 
 interface PropertyRow {
     readonly bathrooms?: number;
@@ -104,11 +107,13 @@ interface PropertyRow {
     readonly rooms?: number;
     readonly signal: string;
     readonly sizeSquareMeters?: number;
+    readonly sourceLabel: string;
     readonly updatedAt?: string;
     readonly url: string;
 }
 
 interface PropertyColumn {
+    readonly grow?: number;
     readonly header: string;
     readonly id: string;
     readonly render: (row: PropertyRow) => JSX.Element | string;
@@ -117,21 +122,27 @@ interface PropertyColumn {
 }
 
 const COLUMNS: readonly PropertyColumn[] = [
-    { header: "Property", id: "property", render: (row) => row.label, sortValue: (row) => row.label.toLowerCase(), width: 240 },
-    { header: "Price", id: "price", render: (row) => row.price === undefined ? "—" : formatMoney(row.price), sortValue: (row) => row.price ?? -1, width: 140 },
-    { header: "sqm", id: "sizeSquareMeters", render: (row) => row.sizeSquareMeters === undefined ? "—" : `${formatNumber(row.sizeSquareMeters)} m²`, sortValue: (row) => row.sizeSquareMeters ?? -1, width: 120 },
-    { header: "€/sqm", id: "pricePerSquareMeter", render: (row) => row.pricePerSquareMeter === undefined ? "—" : formatMoney(row.pricePerSquareMeter), sortValue: (row) => row.pricePerSquareMeter ?? -1, width: 140 },
-    { header: "Rooms", id: "rooms", render: (row) => row.rooms === undefined ? "—" : formatNumber(row.rooms), sortValue: (row) => row.rooms ?? -1, width: 96 },
-    { header: "Baths", id: "bathrooms", render: (row) => row.bathrooms === undefined ? "—" : formatNumber(row.bathrooms), sortValue: (row) => row.bathrooms ?? -1, width: 96 },
-    { header: "Age", id: "propertyAge", render: (row) => row.propertyAge === undefined ? "—" : `${Math.round(row.propertyAge)}y`, sortValue: (row) => row.propertyAge ?? -1, width: 96 },
-    { header: "Location", id: "location", render: (row) => row.location ?? "—", sortValue: (row) => row.location?.toLowerCase() ?? "", width: 180 },
-    { header: "Opportunity", id: "opportunity", render: (row) => row.opportunity, sortValue: (row) => row.opportunity, width: 120 },
-    { header: "Status", id: "status", render: (row) => row.property.status, sortValue: (row) => row.property.status, width: 110 },
-    { header: "Change", id: "signal", render: (row) => row.signal, sortValue: (row) => row.signal, width: 220 },
-    { header: "Updated", id: "updatedAt", render: (row) => row.updatedAt === undefined ? "—" : formatDateTime(row.updatedAt), sortValue: (row) => row.updatedAt ?? "", width: 160 },
+    { grow: 5, header: "Property", id: "property", render: (row) => row.label, sortValue: (row) => row.label.toLowerCase(), width: 300 },
+    { grow: 1, header: "Price", id: "price", render: (row) => row.price === undefined ? "—" : formatMoney(row.price), sortValue: (row) => row.price ?? -1, width: 128 },
+    { header: "sqm", id: "sizeSquareMeters", render: (row) => row.sizeSquareMeters === undefined ? "—" : `${formatNumber(row.sizeSquareMeters)} m²`, sortValue: (row) => row.sizeSquareMeters ?? -1, width: 92 },
+    { grow: 1, header: "€/sqm", id: "pricePerSquareMeter", render: (row) => row.pricePerSquareMeter === undefined ? "—" : formatMoney(row.pricePerSquareMeter), sortValue: (row) => row.pricePerSquareMeter ?? -1, width: 112 },
+    { header: "Rooms", id: "rooms", render: (row) => row.rooms === undefined ? "—" : formatNumber(row.rooms), sortValue: (row) => row.rooms ?? -1, width: 72 },
+    { header: "Baths", id: "bathrooms", render: (row) => row.bathrooms === undefined ? "—" : formatNumber(row.bathrooms), sortValue: (row) => row.bathrooms ?? -1, width: 72 },
+    { header: "Age", id: "propertyAge", render: (row) => row.propertyAge === undefined ? "—" : `${Math.round(row.propertyAge)}y`, sortValue: (row) => row.propertyAge ?? -1, width: 72 },
+    { grow: 2, header: "Location", id: "location", render: (row) => row.location ?? "—", sortValue: (row) => row.location?.toLowerCase() ?? "", width: 148 },
+    { grow: 1, header: "Opportunity", id: "opportunity", render: (row) => row.opportunity, sortValue: (row) => row.opportunity, width: 112 },
+    { grow: 1, header: "Status", id: "status", render: (row) => row.property.status, sortValue: (row) => row.property.status, width: 104 },
+    { grow: 2, header: "Change", id: "signal", render: (row) => row.signal, sortValue: (row) => row.signal, width: 180 },
+    { grow: 1, header: "Updated", id: "updatedAt", render: (row) => row.updatedAt === undefined ? "—" : formatDateTime(row.updatedAt), sortValue: (row) => row.updatedAt ?? "", width: 164 },
 ];
 
 const COLUMN_IDS = COLUMNS.map((column) => column.id);
+
+const buildFixedColumnStyle = (width: number) => ({
+    maxWidth: width,
+    minWidth: width,
+    width,
+});
 
 /**
  * Purpose: Renders the PropertiesPage UI boundary documented for app/src/features/properties/PropertiesPage.tsx.
@@ -163,6 +174,7 @@ export const PropertiesPage = (): JSX.Element => {
     const columnMenuRef = useRef<HTMLDivElement | null>(null);
     const tableShellRef = useRef<HTMLDivElement | null>(null);
     const resizeStateRef = useRef<{ readonly columnId: string; readonly startWidth: number; readonly startX: number; } | null>(null);
+    const [tableShellWidth, setTableShellWidth] = useState(0);
     const [page, setPage] = useState(() => readSessionStorageNumber(`${TABLE_PAGE_STORAGE_KEY}:page`, 0, { allowZero: true }));
     const [pageSize, setPageSize] = useState(() => readSessionStorageNumber(`${TABLE_PAGE_STORAGE_KEY}:page-size`, 50));
 
@@ -369,11 +381,12 @@ export const PropertiesPage = (): JSX.Element => {
                     : tagNames.includes("watch")
                         ? "Watch"
                         : "No recent price change");
+            const propertyPresentation = buildPropertyPresentation(property.label, property.url);
 
             return {
                 bathrooms: readSummaryNumber(summary, ["bathrooms"]),
                 id: property.id,
-                label: property.label.trim() !== "" ? property.label : property.url.trim() !== "" ? property.url : "Manual property",
+                label: propertyPresentation.label,
                 location: readSummaryText(summary, ["location", "district", "city"]),
                 opportunity,
                 price,
@@ -383,6 +396,7 @@ export const PropertiesPage = (): JSX.Element => {
                 rooms: readSummaryNumber(summary, ["rooms", "bedrooms"]),
                 signal,
                 sizeSquareMeters,
+                sourceLabel: propertyPresentation.sourceLabel,
                 updatedAt: summary?.signals[0]?.observed_at ?? property.updated_at,
                 url: property.url,
             } satisfies PropertyRow;
@@ -392,7 +406,7 @@ export const PropertiesPage = (): JSX.Element => {
     const filteredRows = useMemo(() => {
         return rows.filter((row) => {
             const filters = tableState.filters;
-            return matchesTextFilter(row.label, filters.property)
+            return matchesTextFilter(`${row.label} ${row.sourceLabel} ${row.url}`.trim(), filters.property)
                 && matchesTextFilter(row.location ?? "", filters.location)
                 && matchesNumericRange(row.price, filters.price)
                 && matchesNumericRange(row.sizeSquareMeters, filters.sizeSquareMeters)
@@ -451,6 +465,74 @@ export const PropertiesPage = (): JSX.Element => {
             .map((columnId) => COLUMNS.find((column) => column.id === columnId))
             .filter((column): column is PropertyColumn => column !== undefined && !hiddenIds.has(column.id));
     }, [tableState.hiddenColumnIds, tableState.orderedColumnIds]);
+
+    useEffect(() => {
+        const shellElement = tableShellRef.current;
+        if (shellElement === null) {
+            return;
+        }
+
+        const updateWidth = (): void => {
+            setTableShellWidth(shellElement.clientWidth);
+        };
+
+        updateWidth();
+        if (typeof ResizeObserver === "undefined") {
+            return;
+        }
+
+        const observer = new ResizeObserver(() => {
+            updateWidth();
+        });
+
+        observer.observe(shellElement);
+        return () => {
+            observer.disconnect();
+        };
+    }, [sortedRows.length]);
+
+    const renderedColumns = useMemo(() => {
+        const baseColumns = visibleColumns.map((column) => ({
+            baseWidth: tableState.widths[column.id] ?? column.width,
+            column,
+            width: tableState.widths[column.id] ?? column.width,
+        }));
+        const baseContentWidth = baseColumns.reduce((total, { baseWidth }) => total + baseWidth, 0);
+        const availableContentWidth = Math.max(0, tableShellWidth - SELECTION_COLUMN_WIDTH - ACTIONS_COLUMN_WIDTH);
+
+        if (availableContentWidth <= baseContentWidth) {
+            return baseColumns;
+        }
+
+        const totalGrow = baseColumns.reduce((total, { column }) => total + (column.grow ?? 0), 0);
+        if (totalGrow <= 0) {
+            return baseColumns;
+        }
+
+        const extraWidth = availableContentWidth - baseContentWidth;
+        let assignedExtraWidth = 0;
+        let processedGrow = 0;
+
+        return baseColumns.map((entry) => {
+            const grow = entry.column.grow ?? 0;
+            if (grow <= 0) {
+                return entry;
+            }
+
+            processedGrow += grow;
+            const nextAssignedExtraWidth = Math.round((extraWidth * processedGrow) / totalGrow);
+            const width = entry.baseWidth + (nextAssignedExtraWidth - assignedExtraWidth);
+            assignedExtraWidth = nextAssignedExtraWidth;
+            return {
+                ...entry,
+                width,
+            };
+        });
+    }, [tableShellWidth, tableState.widths, visibleColumns]);
+    const tableWidth = useMemo(
+        () => renderedColumns.reduce((total, { width }) => total + width, SELECTION_COLUMN_WIDTH + ACTIONS_COLUMN_WIDTH),
+        [renderedColumns],
+    );
     const activeFilterCount = countActiveFilters(tableState.filters);
 
     const roomOptions = useMemo(() => buildDiscreteOptions(rows.map((row) => row.rooms)), [rows]);
@@ -485,7 +567,7 @@ export const PropertiesPage = (): JSX.Element => {
     };
 
     return (
-        <PageStack>
+        <PageStack className={"properties-page"}>
             <PageCard
                 action={(
                     <div className={"action-group"}>
@@ -627,11 +709,12 @@ export const PropertiesPage = (): JSX.Element => {
                         )
                         : (
                             <>
-                                <div className={"properties-table__shell"} ref={tableShellRef}>
-                                    <table className={"properties-table"} id={"properties-table"}>
+                                <div className={"properties-table__panel"}>
+                                    <div className={"properties-table__shell"} ref={tableShellRef}>
+                                        <table className={"properties-table"} id={"properties-table"} style={{ minWidth: "100%", width: tableWidth }}>
                                         <thead>
-                                            <tr>
-                                                <th scope={"col"} style={{ width: 52 }}>
+                                            <tr style={{ width: tableWidth }}>
+                                                <th data-column={"select"} scope={"col"} style={buildFixedColumnStyle(SELECTION_COLUMN_WIDTH)}>
                                                     <input
                                                         aria-label={"Select all filtered properties"}
                                                         checked={allFilteredSelected}
@@ -641,11 +724,11 @@ export const PropertiesPage = (): JSX.Element => {
                                                         type={"checkbox"}
                                                     />
                                                 </th>
-                                                {visibleColumns.map((column) => {
-                                                    const width = tableState.widths[column.id] ?? column.width;
+                                                {renderedColumns.map(({ column, width }) => {
                                                     const active = sortColumnId === column.id;
                                                     return (
                                                         <th
+                                                            data-column={column.id}
                                                             draggable
                                                             key={column.id}
                                                             onDragOver={(event) => { event.preventDefault(); }}
@@ -659,7 +742,7 @@ export const PropertiesPage = (): JSX.Element => {
                                                                 setDragColumnId(null);
                                                             }}
                                                             scope={"col"}
-                                                            style={{ width }}
+                                                            style={buildFixedColumnStyle(width)}
                                                         >
                                                             <button
                                                                 className={active ? "properties-table__sort properties-table__sort--active" : "properties-table__sort"}
@@ -689,13 +772,13 @@ export const PropertiesPage = (): JSX.Element => {
                                                         </th>
                                                     );
                                                 })}
-                                                <th scope={"col"} style={{ width: 132 }}>{"Actions"}</th>
+                                                <th data-column={"actions"} scope={"col"} style={buildFixedColumnStyle(ACTIONS_COLUMN_WIDTH)}>{"Actions"}</th>
                                             </tr>
                                             {filtersOpen ? (
-                                                <tr className={"properties-table__filters-row"}>
-                                                    <th />
-                                                    {visibleColumns.map((column) => (
-                                                        <th key={`${column.id}-filter`} style={{ width: tableState.widths[column.id] ?? column.width }}>
+                                                <tr className={"properties-table__filters-row"} style={{ width: tableWidth }}>
+                                                    <th data-column={"select"} style={buildFixedColumnStyle(SELECTION_COLUMN_WIDTH)} />
+                                                    {renderedColumns.map(({ column, width }) => (
+                                                        <th data-column={column.id} key={`${column.id}-filter`} style={buildFixedColumnStyle(width)}>
                                                             {renderFilter(column.id, tableState, setTableState, {
                                                                 bathroomOptions,
                                                                 locationOptions,
@@ -703,7 +786,7 @@ export const PropertiesPage = (): JSX.Element => {
                                                             })}
                                                         </th>
                                                     ))}
-                                                    <th />
+                                                    <th data-column={"actions"} style={buildFixedColumnStyle(ACTIONS_COLUMN_WIDTH)} />
                                                 </tr>
                                             ) : null}
                                         </thead>
@@ -734,10 +817,10 @@ export const PropertiesPage = (): JSX.Element => {
                                                         }}
                                                         onMouseEnter={() => { prefetchPropertyDetail(row.id); }}
                                                         role={"button"}
-                                                        style={{ transform: `translateY(${virtualStart}px)` }}
+                                                        style={{ transform: `translateY(${virtualStart}px)`, width: tableWidth }}
                                                         tabIndex={0}
                                                     >
-                                                        <td>
+                                                        <td data-column={"select"} style={buildFixedColumnStyle(SELECTION_COLUMN_WIDTH)}>
                                                             <input
                                                                 aria-label={`Select ${row.label}`}
                                                                 checked={selectedPropertyIds.includes(row.id)}
@@ -749,14 +832,14 @@ export const PropertiesPage = (): JSX.Element => {
                                                                 type={"checkbox"}
                                                             />
                                                         </td>
-                                                        {visibleColumns.map((column) => (
-                                                            <td key={`${row.id}-${column.id}`}>
+                                                        {renderedColumns.map(({ column, width }) => (
+                                                            <td data-column={column.id} key={`${row.id}-${column.id}`} style={buildFixedColumnStyle(width)}>
                                                                 <div className={"properties-table__cell"}>
                                                                     {renderColumnCell(column.id, row, column.render(row))}
                                                                 </div>
                                                             </td>
                                                         ))}
-                                                        <td>
+                                                        <td data-column={"actions"} style={buildFixedColumnStyle(ACTIONS_COLUMN_WIDTH)}>
                                                             <RowActions>
                                                                 <button
                                                                     aria-label={isBookmarked ? "Remove bookmark" : "Bookmark property"}
@@ -782,29 +865,30 @@ export const PropertiesPage = (): JSX.Element => {
                                                 );
                                             })}
                                         </tbody>
-                                    </table>
-                                </div>
-                                {totalPages > 1 ? (
-                                    <div className={"data-table__pagination"}>
-                                        <span>{`Page ${page + 1} of ${totalPages} · ${sortedRows.length} properties`}</span>
-                                        <div className={"action-group"}>
-                                            <label className={"data-table__page-size"}>
-                                                <span>{"Rows"}</span>
-                                                <select
-                                                    onChange={(event) => {
-                                                        setPageSize(Number(event.target.value));
-                                                        setPage(0);
-                                                    }}
-                                                    value={pageSize}
-                                                >
-                                                    {PROPERTY_PAGE_SIZE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
-                                                </select>
-                                            </label>
-                                            <Button disabled={page === 0} onClick={() => { setPage((current) => Math.max(0, current - 1)); }} size={"small"} variant={"secondary"}>{"Previous"}</Button>
-                                            <Button disabled={page >= totalPages - 1} onClick={() => { setPage((current) => Math.min(totalPages - 1, current + 1)); }} size={"small"} variant={"secondary"}>{"Next"}</Button>
-                                        </div>
+                                        </table>
                                     </div>
-                                ) : null}
+                                    {totalPages > 1 ? (
+                                        <div className={"data-table__pagination"}>
+                                            <span>{`Page ${page + 1} of ${totalPages} · ${sortedRows.length} properties`}</span>
+                                            <div className={"action-group"}>
+                                                <label className={"data-table__page-size"}>
+                                                    <span>{"Rows"}</span>
+                                                    <select
+                                                        onChange={(event) => {
+                                                            setPageSize(Number(event.target.value));
+                                                            setPage(0);
+                                                        }}
+                                                        value={pageSize}
+                                                    >
+                                                        {PROPERTY_PAGE_SIZE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                                                    </select>
+                                                </label>
+                                                <Button disabled={page === 0} onClick={() => { setPage((current) => Math.max(0, current - 1)); }} size={"small"} variant={"secondary"}>{"Previous"}</Button>
+                                                <Button disabled={page >= totalPages - 1} onClick={() => { setPage((current) => Math.min(totalPages - 1, current + 1)); }} size={"small"} variant={"secondary"}>{"Next"}</Button>
+                                            </div>
+                                        </div>
+                                    ) : null}
+                                </div>
                             </>
                         )
                     : null}
@@ -921,9 +1005,27 @@ const renderColumnCell = (columnId: string, row: PropertyRow, value: JSX.Element
         return (
             <div className={"data-table__primary"}>
                 <strong>{row.label}</strong>
-                <span className={"table-subcopy"}>{row.url.trim() !== "" ? row.url : "Manual property"}</span>
+                <span className={"table-subcopy"}>{row.sourceLabel}</span>
             </div>
         );
+    }
+
+    if (columnId === "updatedAt") {
+        if (row.updatedAt === undefined) {
+            return <span className={"properties-table__empty"}>{"—"}</span>;
+        }
+
+        const timestamp = formatTableTimestamp(row.updatedAt);
+        return (
+            <div className={"properties-table__timestamp"}>
+                <span>{timestamp.primary}</span>
+                {timestamp.secondary === null ? null : <span className={"properties-table__timestamp-meta"}>{timestamp.secondary}</span>}
+            </div>
+        );
+    }
+
+    if (typeof value === "string" && value === "—") {
+        return <span className={"properties-table__empty"}>{value}</span>;
     }
 
     return <>{value}</>;
@@ -1158,6 +1260,112 @@ const formatMoney = (value: number): string => formatCurrency(value, "EUR");
 const formatNumber = (value: number): string => value % 1 === 0
     ? integerNumberFormatter.format(value)
     : decimalNumberFormatter.format(value);
+
+const buildPropertyPresentation = (label: string, url: string): { readonly label: string; readonly sourceLabel: string; } => {
+    const trimmedLabel = label.trim();
+    const trimmedUrl = url.trim();
+
+    if (trimmedLabel !== "" && trimmedLabel !== trimmedUrl && !looksLikeUrl(trimmedLabel)) {
+        return {
+            label: trimmedLabel,
+            sourceLabel: buildPropertyHostLabel(trimmedUrl),
+        };
+    }
+
+    if (trimmedUrl === "") {
+        return {
+            label: trimmedLabel !== "" ? trimmedLabel : "Manual property",
+            sourceLabel: "Added in workspace",
+        };
+    }
+
+    const parsedUrl = tryParseUrl(trimmedUrl);
+    if (parsedUrl === null) {
+        return {
+            label: trimmedLabel !== "" ? trimmedLabel : trimmedUrl,
+            sourceLabel: trimmedUrl.replace(/^https?:\/\//i, ""),
+        };
+    }
+
+    const hostLabel = stripWww(parsedUrl.hostname);
+    const pathSegments = readMeaningfulPathSegments(parsedUrl);
+    const anteLastPathSegment = pathSegments.length > 1 ? pathSegments[pathSegments.length - 2] : null;
+    const lastPathSegment = pathSegments.length > 0 ? pathSegments[pathSegments.length - 1] : null;
+    const locationLabel = anteLastPathSegment != undefined ? humanizePathSegment(anteLastPathSegment) : null;
+    const titleLabel = lastPathSegment != undefined ? humanizePathSegment(lastPathSegment) : hostLabel;
+
+    return {
+        label: titleLabel,
+        sourceLabel: locationLabel === null ? hostLabel : `${locationLabel} · ${hostLabel}`,
+    };
+};
+
+const buildPropertyHostLabel = (url: string): string => {
+    const parsedUrl = tryParseUrl(url);
+    if (parsedUrl === null) {
+        return url.trim() === "" ? "Added in workspace" : url.replace(/^https?:\/\//i, "");
+    }
+
+    return stripWww(parsedUrl.hostname);
+};
+
+const formatTableTimestamp = (value: string): { readonly primary: string; readonly secondary: string | null; } => {
+    const formattedValue = formatDateTime(value);
+    const separatorIndex = formattedValue.lastIndexOf(", ");
+
+    if (separatorIndex === -1) {
+        return { primary: formattedValue, secondary: null };
+    }
+
+    return {
+        primary: formattedValue.slice(0, separatorIndex),
+        secondary: formattedValue.slice(separatorIndex + 2),
+    };
+};
+
+const readMeaningfulPathSegments = (value: URL): string[] => value.pathname
+    .split("/")
+    .filter((segment) => segment !== "")
+    .filter((segment) => !PROPERTY_URL_IGNORED_SEGMENTS.has(segment.toLowerCase()))
+    .filter((segment) => !/^\d+$/.test(segment));
+
+const humanizePathSegment = (value: string): string => {
+    const decodedValue = decodePathSegment(value)
+        .replace(/[-_]+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase();
+
+    if (decodedValue === "") {
+        return "Property";
+    }
+
+    if (decodedValue.length === 0) {
+        return "Property";
+    }
+
+    return decodedValue[0]!.toUpperCase() + decodedValue.slice(1);
+};
+
+const decodePathSegment = (value: string): string => {
+    try {
+        return decodeURIComponent(value);
+    } catch {
+        return value;
+    }
+};
+
+const looksLikeUrl = (value: string): boolean => /^[a-z]+:\/\//i.test(value) || /^www\./i.test(value);
+
+const tryParseUrl = (value: string): URL | null => {
+    try {
+        return new URL(value);
+    } catch {
+        return null;
+    }
+};
+
+const stripWww = (value: string): string => value.replace(/^www\./i, "");
 
 const opportunityTone = (value: PropertyRow["opportunity"]): "danger" | "neutral" | "success" | "warning" => {
     switch (value) {

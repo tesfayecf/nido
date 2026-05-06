@@ -138,6 +138,7 @@ describe("PropertiesPage", () => {
         setAlertRuleEnabledMock.mockReset();
         setPropertyTagsMock.mockReset();
         updatePropertyMock.mockReset();
+        localStorage.clear();
         sessionStorage.clear();
 
         listAlertRulesMock.mockResolvedValue([]);
@@ -197,6 +198,43 @@ describe("PropertiesPage", () => {
 
         expect(screen.getByRole("button", { name: "Hide filters (1 active)" })).toBeInTheDocument();
         expect(screen.getByText("No properties match the current filters. Clear filters or adjust the table controls.")).toBeInTheDocument();
+    }, TEST_TIMEOUT_MS);
+
+    it("humanizes URL-only property rows without losing source filtering", async () => {
+        listPropertiesMock.mockResolvedValue([
+            {
+                ...PROPERTY,
+                id: "prop_url",
+                label: "",
+                url: "https://www.fotocasa.es/es/comprar/vivienda/girona-capital/ascensor-amueblado/188594440/d",
+            },
+        ]);
+
+        renderPropertiesPage();
+
+        expect(await screen.findByText("Ascensor amueblado")).toBeInTheDocument();
+        expect(screen.getByText("Girona capital · fotocasa.es")).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole("button", { name: "Filters" }));
+        fireEvent.change(screen.getByPlaceholderText("Filter"), { target: { value: "fotocasa" } });
+
+        expect(screen.getByRole("button", { name: "Open property Ascensor amueblado" })).toBeInTheDocument();
+    }, TEST_TIMEOUT_MS);
+
+    it("applies the same fixed widths to the header and virtualized body cells", async () => {
+        renderPropertiesPage();
+
+        const headers = await screen.findAllByRole("columnheader");
+        const row = screen.getByRole("button", { name: "Open property Sunny flat" });
+        const cells = row.querySelectorAll("td");
+
+        expect(headers[0]).toHaveStyle({ width: "44px", minWidth: "44px", maxWidth: "44px" });
+        expect(headers[1]).toHaveStyle({ width: "300px", minWidth: "300px", maxWidth: "300px" });
+        expect(headers.at(-1)).toHaveStyle({ width: "96px", minWidth: "96px", maxWidth: "96px" });
+
+        expect(cells[0]).toHaveStyle({ width: "44px", minWidth: "44px", maxWidth: "44px" });
+        expect(cells[1]).toHaveStyle({ width: "300px", minWidth: "300px", maxWidth: "300px" });
+        expect(cells.item(cells.length - 1)).toHaveStyle({ width: "96px", minWidth: "96px", maxWidth: "96px" });
     }, TEST_TIMEOUT_MS);
 });
 
