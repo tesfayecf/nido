@@ -1,98 +1,64 @@
+Absolutely — here’s a polished GitHub public-page description that highlights what Nido is, its architecture, and its main value without overwhelming visitors.
+
 # Nido
 
-Nido is a monorepo for an authenticated property-tracking workspace with a Go backend in `/server` and a React frontend in `/app`.
+**Nido is a self-hosted property-tracking workspace for managing properties, engagement, analytics, and operational data from a single authenticated application.**
 
-## Active system
+Built as a modern monorepo, Nido combines a **Go backend**, **React frontend**, and **SQLite database** into a lightweight, reliable workspace designed with data safety and operational control in mind.
 
-- `/server` serves auth, tracked-property, field, tag, engagement, analytics, and platform APIs
-- `/app` renders the operator UI and talks to the backend through typed service modules
-- SQLite is the system of record
-- Runtime migrations are gated by `AUTO_MIGRATE` and `MIGRATION_STRATEGY`; safe-auto creates a backup before schema changes
-- The active backend runtime starts in `server/internal/app/runtime.go`
-- The active frontend route tree starts in `app/src/app/router.tsx`
+### Highlights
 
-## Workspace layout
+* **Authenticated workspace** with admin and operator workflows
+* **Property tracking** with custom fields, tags, and engagement data
+* **Analytics and reporting** APIs for operational insights
+* **Go backend** with a structured API and SQLite persistence
+* **React 19 + Vite frontend** with typed service modules
+* **Data-first architecture** with automated backups and controlled migrations
+* **Safe database migrations** with pre-migration backups
+* **Portable data management** with JSON backup and restore capabilities
+* **Monorepo structure** separating frontend, backend, documentation, configuration, and developer tooling
 
-- `/app` — React 19 + Vite client
-- `/server` — Go backend and SQLite persistence
-- `/cmd` — local helper scripts
-- `/docs` — onboarding, architecture, and workflow docs
-- `/config` — local configuration
-
-## Quick start
-
-### Backend
-
-```bash
-go run /home/runner/work/nido/nido/server/cmd/server
-```
-
-Default local admin:
+### Architecture
 
 ```text
-email: admin@local
-password: dev-password
+Nido
+├── app/       React 19 + Vite frontend
+├── server/    Go backend + SQLite persistence
+├── cmd/       Local development helpers
+├── docs/      Architecture, onboarding & workflow documentation
+└── config/    Local configuration
 ```
 
-### Frontend
+The frontend communicates with the backend through typed service modules, while SQLite serves as the system of record. The application runtime is designed to prioritize **data safety over availability**, particularly during schema changes.
 
-```bash
-cd /home/runner/work/nido/nido/app
-corepack pnpm install
-corepack pnpm dev
-```
+### Data Safety
 
-The frontend runs on `http://127.0.0.1:3000` and proxies `/api` to `http://127.0.0.1:8080`.
+Nido includes a controlled migration system with configurable strategies:
 
-### Unified helper
+* `safe-auto` — automatically backs up the database before applying schema changes
+* `manual` — requires migrations to be handled explicitly
+* Pre-migration SQLite backups
+* Portable JSON exports
+* Server-side backup creation
+* Restore workflows
+* Migration status and recovery controls
 
-```bash
-/home/runner/work/nido/nido/cmd/nido.sh help
-/home/runner/work/nido/nido/cmd/nido.sh seed
-/home/runner/work/nido/nido/cmd/nido.sh app-start
-```
+This makes Nido suitable for environments where preserving operational data is more important than automatically applying every change.
 
-## Validation
+### Development
 
-Frontend:
+Nido provides a unified development workflow for running the backend, frontend, and common project tasks locally.
 
-```bash
-cd /home/runner/work/nido/nido/app
-corepack pnpm test
-corepack pnpm lint
-corepack pnpm typecheck
-corepack pnpm exec vite build
-```
+The project includes automated validation for:
 
-Backend:
+* Frontend tests
+* Linting
+* Type checking
+* Production builds
+* Go backend tests
 
-```bash
-cd /home/runner/work/nido/nido/server
-go test ./...
-```
+For detailed setup and architecture information, see the documentation in [`/docs`](./docs/README.md).
 
-## Data safety and storage
+---
 
-Nido prioritizes data safety over availability during schema changes.
-
-- Database file: `NIDO_DATABASE_PATH` (container default `/data/nido.db`)
-- Backup directory: `NIDO_BACKUP_DIR` (container default `/app/backups`)
-- Docker Compose persists these paths with `./data:/data` and `./backups:/app/backups`
-- Migration controls:
-  - `AUTO_MIGRATE=true|false`
-  - `MIGRATION_STRATEGY=safe-auto|manual`
-- In `safe-auto`, startup only migrates when the SQLite schema version differs from the target version, and migration is blocked unless a pre-migration backup succeeds.
-- Pre-migration backups use names like `backup_2026-05-03T14-32-10_v12.dump` and are written to `/app/backups`.
-- Manual recovery path: stop the container, replace `/data/nido.db` with the selected backup, then restart.
-- The Settings → Recovery & Data Movement tab exposes portable JSON backups, server-side backup creation, restore upload, migration status, and reset controls.
-
-## Developer docs
-
-Start here:
-
-1. [Documentation hub](./docs/README.md)
-2. [System overview](./docs/getting-started/system-overview.md)
-3. [Common tasks](./docs/guides/common-tasks.md)
-4. [Frontend documentation hub](./docs/frontend/README.md)
-5. [Backend overview](./server/docs/overview.md)
-6. [Frontend overview](./app/docs/overview.md)
+**Nido — a focused workspace for tracking properties, managing operational data, and keeping your data under control.**
